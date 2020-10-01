@@ -64,6 +64,7 @@ var rewriteProperties = map[string](func(variableAssignmentContext) error){
 	"LOCAL_SANITIZE_DIAG":                  sanitize("diag."),
 	"LOCAL_STRIP_MODULE":                   strip(),
 	"LOCAL_CFLAGS":                         cflags,
+	"LOCAL_EXPORT_CFLAGS":                  exportCflags,
 	"LOCAL_PROTOC_FLAGS":                   protoLocalIncludeDirs,
 	"LOCAL_PROTO_JAVA_OUTPUT_PARAMS":       protoOutputParams,
 	"LOCAL_UNINSTALLABLE_MODULE":           invert("installable"),
@@ -760,6 +761,13 @@ func cflags(ctx variableAssignmentContext) error {
 	ctx.mkvalue = ctx.mkvalue.Clone()
 	ctx.mkvalue.ReplaceLiteral(`\"`, `"`)
 	return includeVariableNow(bpVariable{"cflags", bpparser.ListType}, ctx)
+}
+
+func exportCflags(ctx variableAssignmentContext) error {
+	// The Soong replacement for EXPORT_CFLAGS doesn't need the same extra escaped quotes that were present in Make
+	ctx.mkvalue = ctx.mkvalue.Clone()
+	ctx.mkvalue.ReplaceLiteral(`\"`, `"`)
+	return includeVariableNow(bpVariable{"export_cflags", bpparser.ListType}, ctx)
 }
 
 func protoOutputParams(ctx variableAssignmentContext) error {
