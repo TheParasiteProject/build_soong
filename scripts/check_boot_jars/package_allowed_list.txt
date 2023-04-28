@@ -288,6 +288,7 @@ com\.nvidia
 com\.nvidia\..*
 
 # OPLUS adds
+com\.oplus\.*
 com\.oplus\..*
 net\.oneplus\..*
 oplus\..*
