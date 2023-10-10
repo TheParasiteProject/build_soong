@@ -540,6 +540,8 @@ var (
 
 		// Used for testing purposes only. Should not actually exist in the real source tree.
 		"testpkg/keep_build_file":/* recursive = */ false,
+
+		"vendor/lineage-priv/keys":/* recursive = */ false,
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{
