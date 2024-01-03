@@ -279,9 +279,6 @@ func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkDep sdkDep) {
 	if sdkDep.frameworkResModule != "" {
 		ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 	}
-	if sdkDep.lineageResModule != "" {
-		ctx.AddVariationDependencies(nil, lineageResTag, sdkDep.lineageResModule)
-	}
 }
 
 var extractAssetsRule = pctx.AndroidStaticRule("extractAssets",
@@ -790,9 +787,6 @@ func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 		sdkDep := decodeSdkDep(ctx, android.SdkContext(a))
 		if sdkDep.useModule && sdkDep.frameworkResModule != "" {
 			ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
-		}
-		if sdkDep.useModule && sdkDep.lineageResModule != "" {
-			ctx.AddVariationDependencies(nil, lineageResTag, sdkDep.lineageResModule)
 		}
 	}
 

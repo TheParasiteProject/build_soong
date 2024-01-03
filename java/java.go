@@ -426,7 +426,6 @@ type sdkDep struct {
 	java9Classpath []string
 
 	frameworkResModule string
-	lineageResModule   string
 
 	jars android.Paths
 	aidl android.OptionalPath
