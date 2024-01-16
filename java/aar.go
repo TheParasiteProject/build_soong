@@ -402,7 +402,7 @@ func (a *aapt) deps(ctx android.BottomUpMutatorContext, sdkDep sdkDep) {
 	if sdkDep.frameworkResModule != "" {
 		ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 	}
-	if sdkDep.lineageResModule != "" {
+	if sdkDep.lineageResModule != "" && ctx.ModuleName() != "framework-res" {
 		ctx.AddVariationDependencies(nil, lineageResTag, sdkDep.lineageResModule)
 	}
 }
@@ -1258,7 +1258,7 @@ func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 		if sdkDep.useModule && sdkDep.frameworkResModule != "" {
 			ctx.AddVariationDependencies(nil, frameworkResTag, sdkDep.frameworkResModule)
 		}
-		if sdkDep.useModule && sdkDep.lineageResModule != "" {
+		if sdkDep.useModule && sdkDep.lineageResModule != "" && ctx.ModuleName() != "framework-res" {
 			ctx.AddVariationDependencies(nil, lineageResTag, sdkDep.lineageResModule)
 		}
 	}
