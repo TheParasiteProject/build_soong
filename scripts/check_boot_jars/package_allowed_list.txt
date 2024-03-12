@@ -271,7 +271,10 @@ com\.google\.wear\..*
 
 # Lineage adds
 lineageos\.platform
+lineageos\.platform\..*
 org\.lineageos\.platform\.internal
+org\.lineageos\.platform\.internal\..*
+vendor\.lineage\..*
 
 # LMODroid adds
 com\.libremobileos\..*
@@ -306,9 +309,3 @@ qcom.fmradio
 org\.ifaa\.android\.manager.*
 
 ###################################################
-# LineageOS
-vendor.lineage.touch.*
-
-###################################################
-# LiveDisplay
-vendor.lineage.livedisplay.*
