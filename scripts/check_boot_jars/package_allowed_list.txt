@@ -264,6 +264,10 @@ org\.chromium\.arc\..*
 # Lineage adds
 lineageos\.platform
 org\.lineageos\.platform\.internal
+vendor\.lineage\..*
+vendor\.lineage\.health.*
+vendor\.lineage\.livedisplay.*
+vendor\.lineage\.touch.*
 
 # LMODroid adds
 com\.libremobileos\..*
@@ -297,9 +301,3 @@ com\.nothing.*
 org\.ifaa\.android\.manager.*
 
 ###################################################
-# LineageOS
-vendor.lineage.touch.*
-
-###################################################
-# LiveDisplay
-vendor.lineage.livedisplay.*
