@@ -123,7 +123,6 @@ var Configuration = map[string]PathConfig{
 	"pahole":         Allowed,
 	"patch":          Allowed,
 	"perl":           Allowed,
-	"pkg-config":     Allowed,
 	"pstree":         Allowed,
 	"python3":        Allowed,
 	"python3.6":      Allowed,
@@ -154,6 +153,7 @@ var Configuration = map[string]PathConfig{
 	"ld":         Forbidden,
 	"ld.bfd":     Forbidden,
 	"ld.gold":    Forbidden,
+	"pkg-config": Forbidden,
 
 	// These are toybox tools that only work on Linux.
 	"pgrep": LinuxOnlyPrebuilt,
