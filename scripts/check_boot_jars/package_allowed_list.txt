@@ -291,6 +291,7 @@ org\.codeaurora\..*
 qcom\.fmradio
 
 # Nothing
+com\.nothing
 com\.nothing.*
 
 ###################################################
