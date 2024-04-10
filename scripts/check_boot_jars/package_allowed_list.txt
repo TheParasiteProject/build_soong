@@ -302,6 +302,10 @@ com\.qualcomm\..*
 org\.codeaurora\..*
 qcom\.fmradio
 
+# Nothing
+com\.nothing
+com\.nothing\..*
+
 ###################################################
 # IFAA Manager used for Alipay and/or WeChat payment
 org\.ifaa\.android\.manager.*
