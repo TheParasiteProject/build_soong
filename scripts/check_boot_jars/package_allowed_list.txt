@@ -272,7 +272,8 @@ com\.nvidia
 com\.nvidia\..*
 
 # OP adds
-com.oplus.os
+com\.oplus
+com\.oplus\..*
 
 # QC adds
 com\.quicinc\..*
