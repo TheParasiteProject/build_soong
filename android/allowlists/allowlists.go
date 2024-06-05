@@ -479,8 +479,6 @@ var (
 		"tools/platform-compat/java/androidprocessor": Bp2BuildDefaultTrueRecursively,
 		"tools/tradefederation/core/util_apps":        Bp2BuildDefaultTrueRecursively,
 		"tools/tradefederation/prebuilts/filegroups":  Bp2BuildDefaultTrueRecursively,
-
-		"vendor/parasite-signatures": Bp2BuildDefaultTrue,
 	}
 
 	Bp2buildKeepExistingBuildFile = map[string]bool{
@@ -544,8 +542,6 @@ var (
 		"testpkg/keep_build_file":/* recursive = */ false,
 
 		"vendor/lineage-priv/keys":/* recursive = */ false,
-
-		"vendor/parasite-signatures":/* recursive = */ false,
 	}
 
 	Bp2buildModuleAlwaysConvertList = []string{

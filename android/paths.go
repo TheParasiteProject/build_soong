@@ -1193,27 +1193,17 @@ func PathForSource(ctx PathContext, pathComponents ...string) SourcePath {
 	return path
 }
 
-// PathForArbitraryOutput creates a path for the given components. Unlike PathForOutput,
-// the path is relative to the root of the output folder, not the out/soong folder.
-func PathForArbitraryOutput(ctx PathContext, pathComponents ...string) Path {
-	p, err := validatePath(pathComponents...)
-	if err != nil {
-		reportPathError(ctx, err)
-	}
-	return basePath{path: filepath.Join(ctx.Config().OutDir(), p)}
-}
-
 // PathForSourceRelaxed joins the provided path components.  Unlike PathForSource,
 // the result is allowed to exist outside of the source dir.
 // On error, it will return a usable, but invalid SourcePath, and report a ModuleError.
-func PathForSourceRelaxed(ctx PathGlobContext, pathComponents ...string) SourcePath {
+func PathForSourceRelaxed(ctx PathContext, pathComponents ...string) SourcePath {
 	path, err := pathForSourceRelaxed(ctx, pathComponents...)
 	if err != nil {
 		reportPathError(ctx, err)
 	}
 
 	if modCtx, ok := ctx.(ModuleContext); ok && ctx.Config().AllowMissingDependencies() {
-		exists, err := existsWithDependencies(ctx, path)
+		exists, err := existsWithDependencies(modCtx, path)
 		if err != nil {
 			reportPathError(ctx, err)
 		}
@@ -1226,6 +1216,16 @@ func PathForSourceRelaxed(ctx PathGlobContext, pathComponents ...string) SourceP
 		ReportPathErrorf(ctx, "source path %s does not exist", path)
 	}
 	return path
+}
+
+// PathForArbitraryOutput creates a path for the given components. Unlike PathForOutput,
+// the path is relative to the root of the output folder, not the out/soong folder.
+func PathForArbitraryOutput(ctx PathContext, pathComponents ...string) Path {
+	p, err := validatePath(pathComponents...)
+	if err != nil {
+		reportPathError(ctx, err)
+	}
+	return basePath{path: filepath.Join(ctx.Config().OutDir(), p)}
 }
 
 // MaybeExistentPathForSource joins the provided path components and validates that the result
