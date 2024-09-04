@@ -528,9 +528,10 @@ func markManifestTestOnly(ctx android.ModuleContext, androidManifestFile android
 	})
 }
 
-func isVintfFragment(fi apexFile) bool {
+func shouldApplyAssembleVintf(fi apexFile) bool {
 	isVintfFragment, _ := path.Match("etc/vintf/*", fi.path())
-	return isVintfFragment
+	_, fromVintfFragmentModule := fi.module.(*android.VintfFragmentModule)
+	return isVintfFragment && !fromVintfFragmentModule
 }
 
 func runAssembleVintf(ctx android.ModuleContext, vintfFragment android.Path) android.Path {
@@ -639,7 +640,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 			copyCommands = append(copyCommands, "ln -sfn "+pathOnDevice+" "+destPath)
 		} else {
 			// Copy the file into APEX
-			if !a.testApex && isVintfFragment(fi) {
+			if !a.testApex && shouldApplyAssembleVintf(fi) {
 				// copy the output of assemble_vintf instead of the original
 				vintfFragment := runAssembleVintf(ctx, fi.builtFile)
 				copyCommands = append(copyCommands, "cp -f "+vintfFragment.String()+" "+destPath)
