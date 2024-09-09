@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"sync"
 	"text/template"
+	"time"
 
 	"android/soong/elf"
 	"android/soong/ui/metrics"
@@ -67,7 +68,7 @@ func SetupOutDir(ctx Context, config Config) {
 		if username, ok = config.environ.Get("BUILD_USERNAME"); !ok {
 			ctx.Fatalln("Missing BUILD_USERNAME")
 		}
-		buildNumber = fmt.Sprintf("eng.%.6s", username)
+		buildNumber = fmt.Sprintf("eng.%.6s.%s", username, time.Now().Format("20060102.150405" /* YYYYMMDD.HHMMSS */))
 		writeValueIfChanged(ctx, filepath.Join(config.OutDir(), "file_name_tag.txt"), username)
 	}
 	// Write the build number to a file so it can be read back in
