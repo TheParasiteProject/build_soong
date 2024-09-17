@@ -654,8 +654,8 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.inputApex = android.PathForModuleSrc(ctx, p.properties.prebuiltApexSelector(ctx, ctx.Module()))
 	p.installDir = android.PathForModuleInstall(ctx, "apex")
 	p.installFilename = p.InstallFilename()
-	if !strings.HasSuffix(p.installFilename, imageApexSuffix) {
-		ctx.ModuleErrorf("filename should end in %s for prebuilt_apex", imageApexSuffix)
+	if !strings.HasSuffix(p.installFilename, imageApexSuffix) && !strings.HasSuffix(p.installFilename, imageCapexSuffix) {
+		ctx.ModuleErrorf("filename should end in %s or %s for prebuilt_apex", imageApexSuffix, imageCapexSuffix)
 	}
 	p.outputApex = android.PathForModuleOut(ctx, p.installFilename)
 	ctx.Build(pctx, android.BuildParams{
