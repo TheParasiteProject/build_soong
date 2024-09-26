@@ -292,6 +292,7 @@ qcom\.fmradio
 
 # Nothing
 com\.nothing
+com\.nothing.*
 com\.nothing\..*
 
 ###################################################
