@@ -296,6 +296,9 @@ vendor\.oplus\..*
 com\.oneplus\..*
 vendor\.oneplus\..*
 
+# LMOFreeform
+com\.libremobileos\..*
+
 # QC adds
 com\.quicinc\..*
 com\.qualcomm\..*
