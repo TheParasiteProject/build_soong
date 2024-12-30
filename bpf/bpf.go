@@ -160,7 +160,7 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		// Make paths in deps files relative
 		"-no-canonical-prefixes",
 
-		"-O2",
+		"-O3",
 		"-Wall",
 		"-Werror",
 		"-Wextra",
