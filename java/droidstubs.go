@@ -1526,6 +1526,18 @@ var (
 	}
 )
 
+func (d *Droidstubs) MakeVars(ctx android.MakeVarsModuleContext) {
+	if d.apiLintTimestamp != nil {
+		if d.apiLintReport != nil {
+			ctx.DistForGoalsWithFilename(
+				[]string{fmt.Sprintf("%s-api-lint", d.Name()), "droidcore"},
+				d.apiLintReport,
+				fmt.Sprintf("apilint/%s-lint-report.txt", d.Name()),
+			)
+		}
+	}
+}
+
 func StubsDefaultsFactory() android.Module {
 	module := &DocDefaults{}
 

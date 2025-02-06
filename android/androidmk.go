@@ -892,13 +892,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []blueprint.Module)
 				}
 			}
 		} else {
-			mctx := &makeVarsContext{
-				SingletonContext: ctx.(SingletonContext),
-				config:           ctx.Config(),
-				pctx:             pctx,
-			}
-			switch x := mod.(type) {
-			case AndroidMkDataProvider:
+			if x, ok := mod.(AndroidMkDataProvider); ok {
 				data := x.AndroidMk()
 
 				if data.Include == "" {
@@ -915,7 +909,8 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []blueprint.Module)
 				if contribution := data.Entries.getDistContributions(mod); contribution != nil {
 					allDistContributions = append(allDistContributions, *contribution)
 				}
-			case AndroidMkEntriesProvider:
+			}
+			if x, ok := mod.(AndroidMkEntriesProvider); ok {
 				entriesList := x.AndroidMkEntries()
 				for _, entries := range entriesList {
 					entries.fillInEntries(ctx, mod)
@@ -929,7 +924,13 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []blueprint.Module)
 						allDistContributions = append(allDistContributions, *contribution)
 					}
 				}
-			case ModuleMakeVarsProvider:
+			}
+			if x, ok := mod.(ModuleMakeVarsProvider); ok {
+				mctx := &makeVarsContext{
+					SingletonContext: ctx.(SingletonContext),
+					config:           ctx.Config(),
+					pctx:             pctx,
+				}
 				if !x.Enabled(ctx) {
 					continue
 				}
@@ -937,15 +938,17 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []blueprint.Module)
 				if contribution := getMakeVarsDistContributions(mctx); contribution != nil {
 					allDistContributions = append(allDistContributions, *contribution)
 				}
-
-			case SingletonMakeVarsProvider:
+			}
+			if x, ok := mod.(SingletonMakeVarsProvider); ok {
+				mctx := &makeVarsContext{
+					SingletonContext: ctx.(SingletonContext),
+					config:           ctx.Config(),
+					pctx:             pctx,
+				}
 				x.MakeVars(mctx)
 				if contribution := getMakeVarsDistContributions(mctx); contribution != nil {
 					allDistContributions = append(allDistContributions, *contribution)
 				}
-
-			default:
-				// Not exported to make so no make variables to set.
 			}
 		}
 	}

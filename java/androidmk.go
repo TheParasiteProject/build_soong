@@ -552,8 +552,6 @@ func (dstubs *Droidstubs) AndroidMkEntries() []android.AndroidMkEntries {
 			func(w io.Writer, name, prefix, moduleDir string) {
 				if dstubs.apiLintTimestamp != nil {
 					if dstubs.apiLintReport != nil {
-						fmt.Fprintf(w, "$(call dist-for-goals,%s,%s:%s)\n", dstubs.Name()+"-api-lint",
-							dstubs.apiLintReport.String(), "apilint/"+dstubs.Name()+"-lint-report.txt")
 						fmt.Fprintf(w, "$(call declare-0p-target,%s)\n", dstubs.apiLintReport.String())
 					}
 				}
