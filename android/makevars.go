@@ -651,6 +651,7 @@ func (c *makeVarsContext) DistForGoals(goals []string, paths ...Path) {
 	for _, path := range paths {
 		copies = append(copies, distCopy{
 			from: path,
+			dest: path.Base(),
 		})
 	}
 	c.addDist(goals, copies)

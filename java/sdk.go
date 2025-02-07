@@ -390,4 +390,8 @@ func sdkMakeVars(ctx android.MakeVarsContext) {
 
 	ctx.Strict("FRAMEWORK_AIDL", sdkFrameworkAidlPath(ctx).String())
 	ctx.Strict("API_FINGERPRINT", android.ApiFingerprintPath(ctx).String())
+
+	if ctx.Config().BuildOS == android.Linux {
+		ctx.DistForGoals([]string{"sdk", "droidcore"}, android.ApiFingerprintPath(ctx))
+	}
 }
