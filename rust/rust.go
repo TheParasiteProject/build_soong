@@ -377,9 +377,6 @@ func (mod *Module) Toc() android.OptionalPath {
 }
 
 func (mod *Module) UseSdk() bool {
-	if cc.CanUseSdk(mod) {
-		return String(mod.Properties.Sdk_version) != ""
-	}
 	return false
 }
 
