@@ -64,6 +64,7 @@ func registerJavaBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("java_api_library", ApiLibraryFactory)
 	ctx.RegisterModuleType("java_api_contribution", ApiContributionFactory)
 	ctx.RegisterModuleType("java_api_contribution_import", ApiContributionImportFactory)
+	ctx.RegisterModuleType("java_genrule_combiner", GenruleCombinerFactory)
 
 	// This mutator registers dependencies on dex2oat for modules that should be
 	// dexpreopted. This is done late when the final variants have been
