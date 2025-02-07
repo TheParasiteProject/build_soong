@@ -160,6 +160,7 @@ type AutoGenTestConfigOptions struct {
 	DeviceTemplate          string
 	HostTemplate            string
 	HostUnitTestTemplate    string
+	StandaloneTest          *bool
 }
 
 func AutoGenTestConfig(ctx android.ModuleContext, options AutoGenTestConfigOptions) android.Path {
