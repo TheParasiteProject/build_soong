@@ -175,16 +175,18 @@ func makeVarsProvider(ctx android.MakeVarsContext) {
 	sort.Strings(ndkKnownLibs)
 	ctx.Strict("NDK_KNOWN_LIBS", strings.Join(ndkKnownLibs, " "))
 
-	hostTargets := ctx.Config().Targets[ctx.Config().BuildOS]
-	makeVarsToolchain(ctx, "", hostTargets[0])
-	if len(hostTargets) > 1 {
-		makeVarsToolchain(ctx, "2ND_", hostTargets[1])
+	if hostTargets := ctx.Config().Targets[ctx.Config().BuildOS]; len(hostTargets) > 0 {
+		makeVarsToolchain(ctx, "", hostTargets[0])
+		if len(hostTargets) > 1 {
+			makeVarsToolchain(ctx, "2ND_", hostTargets[1])
+		}
 	}
 
-	deviceTargets := ctx.Config().Targets[android.Android]
-	makeVarsToolchain(ctx, "", deviceTargets[0])
-	if len(deviceTargets) > 1 {
-		makeVarsToolchain(ctx, "2ND_", deviceTargets[1])
+	if deviceTargets := ctx.Config().Targets[android.Android]; len(deviceTargets) > 0 {
+		makeVarsToolchain(ctx, "", deviceTargets[0])
+		if len(deviceTargets) > 1 {
+			makeVarsToolchain(ctx, "2ND_", deviceTargets[1])
+		}
 	}
 }
 

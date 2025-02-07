@@ -762,6 +762,17 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
 func (c *androidMkSingleton) soongOnlyBuildActions(ctx SingletonContext, mods []blueprint.Module) {
 	allDistContributions, moduleInfoJSONs := getSoongOnlyDataFromMods(ctx, mods)
 
+	for _, provider := range makeVarsInitProviders {
+		mctx := &makeVarsContext{
+			SingletonContext: ctx,
+			pctx:             provider.pctx,
+		}
+		provider.call(mctx)
+		if contribution := getMakeVarsDistContributions(mctx); contribution != nil {
+			allDistContributions = append(allDistContributions, *contribution)
+		}
+	}
+
 	// Build module-info.json. Only in builds with HasDeviceProduct(), as we need a named
 	// device to have a TARGET_OUT folder.
 	if ctx.Config().HasDeviceProduct() {
