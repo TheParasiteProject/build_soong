@@ -324,6 +324,10 @@ func addToModuleList(ctx ModuleContext, key android.OnceKey, module string) {
 	getNamedMapForConfig(ctx.Config(), key).Store(module, true)
 }
 
+func requiresGlobalIncludes(ctx ModuleContext) bool {
+	return !(ctx.useSdk() || ctx.InVendorOrProduct()) || ctx.Host()
+}
+
 func useGnuExtensions(gnuExtensions *bool) bool {
 	return proptools.BoolDefault(gnuExtensions, true)
 }
@@ -452,7 +456,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.Local.YasmFlags = append(flags.Local.YasmFlags, "-I"+modulePath)
 	}
 
-	if !(ctx.useSdk() || ctx.InVendorOrProduct()) || ctx.Host() {
+	if requiresGlobalIncludes(ctx) {
 		flags.SystemIncludeFlags = append(flags.SystemIncludeFlags,
 			"${config.CommonGlobalIncludes}",
 			tc.IncludeFlags())

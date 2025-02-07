@@ -630,9 +630,16 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	}
 	if library.sabi.shouldCreateSourceAbiDump() {
 		dirs := library.exportedIncludeDirsForAbiCheck(ctx)
-		flags.SAbiFlags = make([]string, 0, len(dirs))
+		flags.SAbiFlags = make([]string, 0, len(dirs)+1)
 		for _, dir := range dirs {
 			flags.SAbiFlags = append(flags.SAbiFlags, "-I"+dir)
+		}
+		// If this library does not export any include directory, do not append the flags
+		// so that the ABI tool dumps everything without filtering by the include directories.
+		// requiresGlobalIncludes returns whether this library can include CommonGlobalIncludes.
+		// If the library cannot include them, it cannot export them.
+		if len(dirs) > 0 && requiresGlobalIncludes(ctx) {
+			flags.SAbiFlags = append(flags.SAbiFlags, "${config.CommonGlobalIncludes}")
 		}
 		totalLength := len(srcs) + len(deps.GeneratedSources) +
 			len(sharedSrcs) + len(staticSrcs)
@@ -1362,13 +1369,15 @@ func (library *libraryDecorator) linkLlndkSAbiDumpFiles(ctx ModuleContext,
 	deps PathDeps, sAbiDumpFiles android.Paths, soFile android.Path, libFileName string,
 	excludeSymbolVersions, excludeSymbolTags []string,
 	sdkVersionForVendorApiLevel string) android.Path {
+	// Though LLNDK is implemented in system, the callers in vendor cannot include CommonGlobalIncludes,
+	// so commonGlobalIncludes is false.
 	return transformDumpToLinkedDump(ctx,
 		sAbiDumpFiles, soFile, libFileName+".llndk",
 		library.llndkIncludeDirsForAbiCheck(ctx, deps),
 		android.OptionalPathForModuleSrc(ctx, library.Properties.Llndk.Symbol_file),
 		append([]string{"*_PLATFORM", "*_PRIVATE"}, excludeSymbolVersions...),
 		append([]string{"platform-only"}, excludeSymbolTags...),
-		[]string{"llndk"}, sdkVersionForVendorApiLevel)
+		[]string{"llndk"}, sdkVersionForVendorApiLevel, false /* commonGlobalIncludes */)
 }
 
 func (library *libraryDecorator) linkApexSAbiDumpFiles(ctx ModuleContext,
@@ -1381,7 +1390,7 @@ func (library *libraryDecorator) linkApexSAbiDumpFiles(ctx ModuleContext,
 		android.OptionalPathForModuleSrc(ctx, library.Properties.Stubs.Symbol_file),
 		append([]string{"*_PLATFORM", "*_PRIVATE"}, excludeSymbolVersions...),
 		append([]string{"platform-only"}, excludeSymbolTags...),
-		[]string{"apex", "systemapi"}, sdkVersion)
+		[]string{"apex", "systemapi"}, sdkVersion, requiresGlobalIncludes(ctx))
 }
 
 func getRefAbiDumpFile(ctx android.ModuleInstallPathContext,
@@ -1524,7 +1533,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 			android.OptionalPathForModuleSrc(ctx, library.symbolFileForAbiCheck(ctx)),
 			headerAbiChecker.Exclude_symbol_versions,
 			headerAbiChecker.Exclude_symbol_tags,
-			[]string{} /* includeSymbolTags */, currSdkVersion)
+			[]string{} /* includeSymbolTags */, currSdkVersion, requiresGlobalIncludes(ctx))
 
 		var llndkDump, apexVariantDump android.Path
 		tags := classifySourceAbiDump(ctx.Module().(*Module))
