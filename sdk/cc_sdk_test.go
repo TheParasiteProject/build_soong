@@ -805,13 +805,19 @@ func TestSnapshotWithCcSharedLibrary(t *testing.T) {
 			native_shared_libs: ["mynativelib"],
 		}
 
+		apex {
+			name: "myapex",
+			key: "myapex.key",
+			min_sdk_version: "1",
+		}
+
 		cc_library_shared {
 			name: "mynativelib",
 			srcs: [
 				"Test.cpp",
 				"aidl/foo/bar/Test.aidl",
 			],
-			apex_available: ["apex1", "apex2"],
+			apex_available: ["myapex"],
 			export_include_dirs: ["myinclude"],
 			aidl: {
 				export_aidl_headers: true,
@@ -821,6 +827,18 @@ func TestSnapshotWithCcSharedLibrary(t *testing.T) {
 	`)
 
 	CheckSnapshot(t, result, "mysdk", "",
+		snapshotTestPreparer(checkSnapshotWithoutSource,
+			android.FixtureMergeMockFs(android.MockFS{
+				"myapex/Android.bp": []byte(`
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					min_sdk_version: "1",
+				}
+				`),
+				"myapex/apex_manifest.json": nil,
+			}),
+		),
 		checkAndroidBpContents(`
 // This is auto-generated. DO NOT EDIT.
 
@@ -833,10 +851,7 @@ cc_prebuilt_library_shared {
     name: "mynativelib",
     prefer: false,
     visibility: ["//visibility:public"],
-    apex_available: [
-        "apex1",
-        "apex2",
-    ],
+    apex_available: ["myapex"],
     stl: "none",
     compile_multilib: "both",
     export_include_dirs: ["include/myinclude"],

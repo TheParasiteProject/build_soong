@@ -87,6 +87,18 @@ func testSnapshotWithSystemServerClasspathFragment(t *testing.T, sdk string, tar
 
 	CheckSnapshot(t, result, "mysdk", "",
 		checkAndroidBpContents(expectedSdkSnapshot),
+		snapshotTestPreparer(checkSnapshotWithoutSource,
+			android.FixtureMergeMockFs(android.MockFS{
+				"myapex/Android.bp": []byte(`
+				apex {
+					name: "myapex",
+					key: "myapex.key",
+					min_sdk_version: "1",
+				}
+				`),
+				"myapex/apex_manifest.json": nil,
+			}),
+		),
 	)
 }
 
