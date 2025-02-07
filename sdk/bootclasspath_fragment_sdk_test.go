@@ -759,13 +759,6 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 			bootclasspath_fragments: ["mybootclasspathfragment"],
 		}
 
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			min_sdk_version: "1",
-			bootclasspath_fragments: ["mybootclasspathfragment"],
-		}
-
 		bootclasspath_fragment {
 			name: "mybootclasspathfragment",
 			image_name: "art",
@@ -808,7 +801,7 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 		java_import {
 			name: "mybootlib",
 			visibility: ["//visibility:public"],
-			apex_available: ["myapex"],
+			apex_available: ["com.android.art"],
 			jars: ["java/mybootlib.jar"],
 		}
 	`),

@@ -616,26 +616,25 @@ func MutateApexTransition(ctx BaseModuleContext, variation string) {
 		apexInfos = allApexInfos.ApexInfos
 	}
 
-	if platformVariation && !ctx.Host() && !module.AvailableFor(AvailableToPlatform) && module.NotAvailableForPlatform() {
-		// Do not install the module for platform, but still allow it to output
-		// uninstallable AndroidMk entries in certain cases when they have side
-		// effects.  TODO(jiyong): move this routine to somewhere else
-		module.MakeUninstallable()
+	// Shortcut
+	if len(apexInfos) == 0 {
+		return
 	}
 
 	// Do some validity checks.
 	// TODO(jiyong): is this the right place?
 	base.checkApexAvailableProperty(ctx)
 
-	// Shortcut
-	if len(apexInfos) == 0 {
-		return
-	}
-
 	if !module.UniqueApexVariations() && !base.ApexProperties.UniqueApexVariationsForDeps {
 		apexInfos, _ = mergeApexVariations(apexInfos)
 	}
 
+	if platformVariation && !ctx.Host() && !module.AvailableFor(AvailableToPlatform) && module.NotAvailableForPlatform() {
+		// Do not install the module for platform, but still allow it to output
+		// uninstallable AndroidMk entries in certain cases when they have side
+		// effects.  TODO(jiyong): move this routine to somewhere else
+		module.MakeUninstallable()
+	}
 	if !platformVariation {
 		var thisApexInfo ApexInfo
 
