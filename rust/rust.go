@@ -1199,10 +1199,11 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	// Define the linker info if compiler != nil because Rust currently
 	// does compilation and linking in one step. If this changes in the future,
 	// move this as appropriate.
+	baseCompilerProps := mod.compiler.baseCompilerProps()
 	ccInfo.LinkerInfo = &cc.LinkerInfo{
-		WholeStaticLibs: mod.compiler.baseCompilerProps().Whole_static_libs,
-		StaticLibs:      mod.compiler.baseCompilerProps().Static_libs,
-		SharedLibs:      mod.compiler.baseCompilerProps().Shared_libs,
+		WholeStaticLibs: baseCompilerProps.Whole_static_libs.GetOrDefault(ctx, nil),
+		StaticLibs:      baseCompilerProps.Static_libs.GetOrDefault(ctx, nil),
+		SharedLibs:      baseCompilerProps.Shared_libs.GetOrDefault(ctx, nil),
 	}
 
 	android.SetProvider(ctx, cc.CcInfoProvider, ccInfo)

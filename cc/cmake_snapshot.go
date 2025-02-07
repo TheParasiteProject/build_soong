@@ -204,24 +204,19 @@ func parseTemplate(templateContents string) *template.Template {
 			return info.CompilerInfo.AidlInterfaceInfo
 		},
 		"getCflagsProperty": func(ctx android.ModuleContext, info *CcInfo) []string {
-			prop := info.CompilerInfo.Cflags
-			return prop.GetOrDefault(ctx, nil)
+			return info.CompilerInfo.Cflags
 		},
 		"getWholeStaticLibsProperty": func(ctx android.ModuleContext, info *CcInfo) []string {
-			prop := info.LinkerInfo.WholeStaticLibs
-			return prop.GetOrDefault(ctx, nil)
+			return info.LinkerInfo.WholeStaticLibs
 		},
 		"getStaticLibsProperty": func(ctx android.ModuleContext, info *CcInfo) []string {
-			prop := info.LinkerInfo.StaticLibs
-			return prop.GetOrDefault(ctx, nil)
+			return info.LinkerInfo.StaticLibs
 		},
 		"getSharedLibsProperty": func(ctx android.ModuleContext, info *CcInfo) []string {
-			prop := info.LinkerInfo.SharedLibs
-			return prop.GetOrDefault(ctx, nil)
+			return info.LinkerInfo.SharedLibs
 		},
 		"getHeaderLibsProperty": func(ctx android.ModuleContext, info *CcInfo) []string {
-			prop := info.LinkerInfo.HeaderLibs
-			return prop.GetOrDefault(ctx, nil)
+			return info.LinkerInfo.HeaderLibs
 		},
 		"getExtraLibs":   getExtraLibs,
 		"getIncludeDirs": getIncludeDirs,
@@ -552,7 +547,7 @@ func getExtraLibs(info *CcInfo) []string {
 func getIncludeDirs(ctx android.ModuleContext, m android.ModuleProxy, info *CcInfo) []string {
 	moduleDir := ctx.OtherModuleDir(m) + string(filepath.Separator)
 	if info.CompilerInfo.LibraryDecoratorInfo != nil {
-		return sliceWithPrefix(moduleDir, info.CompilerInfo.LibraryDecoratorInfo.ExportIncludeDirs.GetOrDefault(ctx, nil))
+		return sliceWithPrefix(moduleDir, info.CompilerInfo.LibraryDecoratorInfo.ExportIncludeDirs)
 	}
 	return nil
 }
