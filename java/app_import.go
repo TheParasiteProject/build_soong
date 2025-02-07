@@ -772,7 +772,25 @@ type AndroidTestImport struct {
 func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.generateAndroidBuildActions(ctx)
 
+	a.updateModuleInfoJSON(ctx)
+
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
+}
+
+func (a *AndroidTestImport) updateModuleInfoJSON(ctx android.ModuleContext) {
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"APPS"}
+	moduleInfoJSON.CompatibilitySuites = []string{"null-suite"}
+	if len(a.testProperties.Test_suites) > 0 {
+		moduleInfoJSON.CompatibilitySuites = a.testProperties.Test_suites
+	}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	moduleInfoJSON.Tags = []string{"tests"}
+	moduleInfoJSON.RegisterNameOverride = a.BaseModuleName()
+	testConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "AndroidTest.xml")
+	if testConfig.Valid() {
+		moduleInfoJSON.TestConfig = []string{testConfig.String()}
+	}
 }
 
 func (a *AndroidTestImport) InstallInTestcases() bool {

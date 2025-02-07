@@ -499,7 +499,19 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ip.addInstallRules(ctx)
 	}
 
+	p.updateModuleInfoJSON(ctx)
+
 	ctx.SetOutputFiles(p.outputFilePaths.Paths(), "")
+}
+
+func (p *PrebuiltEtc) updateModuleInfoJSON(ctx android.ModuleContext) {
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"ETC"}
+	if p.makeClass != "" {
+		moduleInfoJSON.Class = []string{p.makeClass}
+	}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	moduleInfoJSON.Tags = []string{"optional"}
 }
 
 type installProperties struct {
