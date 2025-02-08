@@ -829,6 +829,8 @@ type Library struct {
 	combinedExportedProguardFlagsFile android.Path
 
 	InstallMixin func(ctx android.ModuleContext, installPath android.Path) (extraInstallDeps android.InstallPaths)
+
+	apiXmlFile android.WritablePath
 }
 
 var _ android.ApexModule = (*Library)(nil)
@@ -1156,6 +1158,8 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	j.javaLibraryModuleInfoJSON(ctx)
 
 	buildComplianceMetadata(ctx)
+
+	j.createApiXmlFile(ctx)
 }
 
 func (j *Library) javaLibraryModuleInfoJSON(ctx android.ModuleContext) *android.ModuleInfoJSON {
@@ -1257,6 +1261,35 @@ func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 		if prebuiltSdkLibExists && ctx.OtherModuleExists("all_apex_contributions") {
 			ctx.AddDependency(ctx.Module(), android.AcDepTag, "all_apex_contributions")
 		}
+	}
+}
+
+var apiXMLGeneratingApiSurfaces = []android.SdkKind{
+	android.SdkPublic,
+	android.SdkSystem,
+	android.SdkModule,
+	android.SdkSystemServer,
+	android.SdkTest,
+}
+
+func (j *Library) createApiXmlFile(ctx android.ModuleContext) {
+	if kind, ok := android.JavaLibraryNameToSdkKind(ctx.ModuleName()); ok && android.InList(kind, apiXMLGeneratingApiSurfaces) {
+		scopePrefix := AllApiScopes.matchingScopeFromSdkKind(kind).apiFilePrefix
+		j.apiXmlFile = android.PathForModuleOut(ctx, fmt.Sprintf("%sapi.xml", scopePrefix))
+		ctx.Build(pctx, android.BuildParams{
+			Rule: generateApiXMLRule,
+			// LOCAL_SOONG_CLASSES_JAR
+			Input:  j.implementationAndResourcesJar,
+			Output: j.apiXmlFile,
+		})
+	}
+}
+
+var _ android.ModuleMakeVarsProvider = (*Library)(nil)
+
+func (j *Library) MakeVars(ctx android.MakeVarsModuleContext) {
+	if j.apiXmlFile != nil {
+		ctx.DistForGoal("dist_files", j.apiXmlFile)
 	}
 }
 

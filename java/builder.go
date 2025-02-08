@@ -323,6 +323,13 @@ var (
 			Command:     `${keep-flagged-apis} ${in} > ${out}`,
 			CommandDeps: []string{"${keep-flagged-apis}"},
 		})
+
+	generateApiXMLRule = pctx.AndroidStaticRule("generateApiXMLRule",
+		blueprint.RuleParams{
+			Command:     `${config.JavaCmd} ${config.JavaVmFlags} -Xmx4g -jar ${config.MetalavaJar} jar-to-jdiff ${in} ${out}`,
+			CommandDeps: []string{"${config.JavaCmd}", "${config.MetalavaJar}"},
+			Description: "Converting API file to XML",
+		})
 )
 
 func init() {

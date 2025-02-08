@@ -120,6 +120,14 @@ func (library *Library) AndroidMkEntries() []android.AndroidMkEntries {
 					}
 				},
 			},
+			ExtraFooters: []android.AndroidMkExtraFootersFunc{
+				func(w io.Writer, name, prefix, moduleDir string) {
+					if library.apiXmlFile != nil {
+						fmt.Fprintf(w, "$(call declare-1p-target,%s,)\n", library.apiXmlFile.String())
+						fmt.Fprintf(w, "$(eval $(call copy-one-file,%s,$(TARGET_OUT_COMMON_INTERMEDIATES)/%s))\n", library.apiXmlFile.String(), library.apiXmlFile.Base())
+					}
+				},
+			},
 		})
 	}
 
