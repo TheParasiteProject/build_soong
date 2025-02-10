@@ -768,7 +768,7 @@ func (c *androidMkSingleton) soongOnlyBuildActions(ctx SingletonContext, mods []
 			pctx:             provider.pctx,
 		}
 		provider.call(mctx)
-		if contribution := getMakeVarsDistContributions(mctx); contribution != nil {
+		if contribution := distsToDistContributions(mctx.dists); contribution != nil {
 			allDistContributions = append(allDistContributions, *contribution)
 		}
 	}
@@ -851,24 +851,24 @@ func writeValueIfChanged(ctx SingletonContext, path string, value string) {
 	}
 }
 
-func getMakeVarsDistContributions(mctx *makeVarsContext) *distContributions {
-	if len(mctx.dists) == 0 {
+func distsToDistContributions(dists []dist) *distContributions {
+	if len(dists) == 0 {
 		return nil
 	}
 
 	copyGoals := []*copiesForGoals{}
-	for _, dist := range mctx.dists {
+	for _, dist := range dists {
 		for _, goal := range dist.goals {
-			copy := &copiesForGoals{}
-			copy.goals = goal
-			copy.copies = dist.paths
-			copyGoals = append(copyGoals, copy)
+			copyGoals = append(copyGoals, &copiesForGoals{
+				goals:  goal,
+				copies: dist.paths,
+			})
 		}
 	}
 
-	contribution := &distContributions{}
-	contribution.copiesForGoals = copyGoals
-	return contribution
+	return &distContributions{
+		copiesForGoals: copyGoals,
+	}
 }
 
 // getSoongOnlyDataFromMods gathers data from the given modules needed in soong-only builds.
@@ -877,6 +877,12 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []blueprint.Module)
 	var allDistContributions []distContributions
 	var moduleInfoJSONs []*ModuleInfoJSON
 	for _, mod := range mods {
+		if distInfo, ok := OtherModuleProvider(ctx, mod, DistProvider); ok {
+			if contribution := distsToDistContributions(distInfo.Dists); contribution != nil {
+				allDistContributions = append(allDistContributions, *contribution)
+			}
+		}
+
 		if amod, ok := mod.(Module); ok && shouldSkipAndroidMkProcessing(ctx, amod.base()) {
 			continue
 		}
@@ -946,7 +952,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []blueprint.Module)
 					continue
 				}
 				x.MakeVars(mctx)
-				if contribution := getMakeVarsDistContributions(mctx); contribution != nil {
+				if contribution := distsToDistContributions(mctx.dists); contribution != nil {
 					allDistContributions = append(allDistContributions, *contribution)
 				}
 			}
@@ -957,7 +963,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []blueprint.Module)
 					pctx:             pctx,
 				}
 				x.MakeVars(mctx)
-				if contribution := getMakeVarsDistContributions(mctx); contribution != nil {
+				if contribution := distsToDistContributions(mctx.dists); contribution != nil {
 					allDistContributions = append(allDistContributions, *contribution)
 				}
 			}

@@ -141,6 +141,7 @@ bootstrap_go_package {
         "license_kind_test.go",
         "license_test.go",
         "licenses_test.go",
+        "makevars_test.go",
         "module_test.go",
         "mutator_test.go",
         "namespace_test.go",

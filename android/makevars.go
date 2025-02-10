@@ -185,6 +185,7 @@ func makeVarsSingletonFunc() Singleton {
 type makeVarsSingleton struct {
 	varsForTesting     []makeVarsVariable
 	installsForTesting []byte
+	lateForTesting     []byte
 }
 
 type makeVarsProvider struct {
@@ -285,6 +286,10 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 			katiVintfManifestInstalls = append(katiVintfManifestInstalls, info.KatiVintfInstalls...)
 			katiSymlinks = append(katiSymlinks, info.KatiSymlinks...)
 		}
+
+		if distInfo, ok := OtherModuleProvider(ctx, m, DistProvider); ok {
+			dists = append(dists, distInfo.Dists...)
+		}
 	})
 
 	compareKatiInstalls := func(a, b katiInstall) int {
@@ -354,6 +359,7 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	if ctx.Config().RunningInsideUnitTest() {
 		s.varsForTesting = vars
 		s.installsForTesting = installsBytes
+		s.lateForTesting = lateOutBytes
 	}
 }
 
