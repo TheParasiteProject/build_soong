@@ -1405,8 +1405,6 @@ myinclude/Test.h -> include/myinclude/Test.h
 .intermediates/mynativelib/android_arm_armv7-a-neon_static/mynativelib.a -> arm/lib/mynativelib.a
 .intermediates/mynativelib/android_arm_armv7-a-neon_shared/mynativelib.so -> arm/lib/mynativelib.so
 `),
-		// TODO(b/183315522): Remove this and fix the issue.
-		snapshotTestErrorHandler(checkSnapshotPreferredWithSource, android.FixtureExpectsAtLeastOneErrorMatchingPattern(`\Qunrecognized property "arch.arm.shared.export_include_dirs"\E`)),
 	)
 }
 

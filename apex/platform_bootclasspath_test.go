@@ -561,16 +561,13 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 		// Not a prebuilt as no prebuilt existed when it was added.
 		"platform:legacy.core.platform.api.stubs.exportable",
 
-		// The platform_bootclasspath intentionally adds dependencies on both source and prebuilt
-		// modules when available as it does not know which one will be preferred.
-		"myapex:foo",
+		// The prebuilt.
 		"myapex:prebuilt_foo",
 
 		// Only a source module exists.
 		"myapex:bar",
 
 		// The fragments.
-		"myapex:mybootclasspath-fragment",
 		"myapex:prebuilt_mybootclasspath-fragment",
 
 		// Impl lib of sdk_library for transitive srcjar generation
@@ -665,7 +662,7 @@ func TestBootJarNotInApex(t *testing.T) {
 		prepareForTestWithMyapex,
 		java.FixtureConfigureApexBootJars("myapex:foo"),
 	).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-		`dependency "foo" of "myplatform-bootclasspath" missing variant`)).
+		`module "myplatform-bootclasspath" variant ".*": module "foo" from platform is not allowed in the apex boot jars list`)).
 		RunTestWithBp(t, `
 			apex {
 				name: "myapex",

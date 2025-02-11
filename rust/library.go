@@ -945,6 +945,9 @@ func (libraryTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 }
 
 func (libraryTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	if ctx.DepTag() == android.PrebuiltDepTag {
+		return sourceVariation
+	}
 	return ""
 }
 
@@ -1012,6 +1015,12 @@ func (libraryTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, varia
 			},
 			sourceDepTag, ctx.ModuleName())
 	}
+
+	if prebuilt, ok := m.compiler.(*prebuiltLibraryDecorator); ok {
+		if Bool(prebuilt.Properties.Force_use_prebuilt) && len(prebuilt.prebuiltSrcs()) > 0 {
+			m.Prebuilt().SetUsePrebuilt(true)
+		}
+	}
 }
 
 type libstdTransitionMutator struct{}
@@ -1029,6 +1038,9 @@ func (libstdTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 }
 
 func (libstdTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	if ctx.DepTag() == android.PrebuiltDepTag {
+		return sourceVariation
+	}
 	return ""
 }
 

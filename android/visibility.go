@@ -529,7 +529,7 @@ func visibilityRuleEnforcer(ctx BottomUpMutatorContext) {
 
 		rule := effectiveVisibilityRules(ctx.Config(), depQualified)
 		if !rule.matches(qualified) {
-			ctx.ModuleErrorf("depends on %s which is not visible to this module\nYou may need to add %q to its visibility", depQualified, "//"+ctx.ModuleDir())
+			ctx.ModuleErrorf("depends on %s which is not visible to this module\nYou may need to add %q to its visibility, %#v", depQualified, "//"+ctx.ModuleDir(), ctx.OtherModuleDependencyTag(dep))
 		}
 	})
 }

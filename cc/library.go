@@ -2229,6 +2229,9 @@ func (linkageTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 }
 
 func (linkageTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	if ctx.DepTag() == android.PrebuiltDepTag {
+		return sourceVariation
+	}
 	return ""
 }
 
@@ -2285,11 +2288,13 @@ func (linkageTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, varia
 			library.setStatic()
 			if !library.buildStatic() {
 				library.disablePrebuilt()
+				ctx.Module().(*Module).Prebuilt().SetUsePrebuilt(false)
 			}
 		} else if variation == "shared" {
 			library.setShared()
 			if !library.buildShared() {
 				library.disablePrebuilt()
+				ctx.Module().(*Module).Prebuilt().SetUsePrebuilt(false)
 			}
 		}
 	} else if library, ok := ctx.Module().(LinkableInterface); ok && library.CcLibraryInterface() {
@@ -2402,6 +2407,9 @@ func (versionTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 }
 
 func (versionTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	if ctx.DepTag() == android.PrebuiltDepTag {
+		return sourceVariation
+	}
 	return ""
 }
 

@@ -412,9 +412,8 @@ func (b *BootclasspathFragmentModule) OutgoingDepIsInSameApex(tag blueprint.Depe
 	}
 	// Dependency to the bootclasspath fragment of another apex
 	// e.g. concsrypt-bootclasspath-fragment --> art-bootclasspath-fragment
-	if tag == bootclasspathFragmentDepTag {
+	if bcpTag, ok := tag.(bootclasspathDependencyTag); ok && bcpTag.typ == fragment {
 		return false
-
 	}
 	panic(fmt.Errorf("boot_image module %q should not have a dependency tag %s", b, android.PrettyPrintTag(tag)))
 }
@@ -458,22 +457,18 @@ func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorCon
 		}
 	}
 
-	if !dexpreopt.IsDex2oatNeeded(ctx) {
-		return
+	if dexpreopt.IsDex2oatNeeded(ctx) {
+		// Add a dependency onto the dex2oat tool which is needed for creating the boot image. The
+		// path is retrieved from the dependency by GetGlobalSoongConfig(ctx).
+		dexpreopt.RegisterToolDeps(ctx)
 	}
-
-	// Add a dependency onto the dex2oat tool which is needed for creating the boot image. The
-	// path is retrieved from the dependency by GetGlobalSoongConfig(ctx).
-	dexpreopt.RegisterToolDeps(ctx)
 
 	// Add a dependency to `all_apex_contributions` to determine if prebuilts are active.
 	// If prebuilts are active, `contents` validation on the source bootclasspath fragment should be disabled.
 	if _, isPrebuiltModule := ctx.Module().(*PrebuiltBootclasspathFragmentModule); !isPrebuiltModule {
 		ctx.AddDependency(b, android.AcDepTag, "all_apex_contributions")
 	}
-}
 
-func (b *BootclasspathFragmentModule) BootclasspathDepsMutator(ctx android.BottomUpMutatorContext) {
 	// Add dependencies on all the fragments.
 	b.properties.BootclasspathFragmentsDepsProperties.addDependenciesOntoFragments(ctx)
 }
@@ -498,7 +493,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		}
 	})
 
-	fragments := gatherApexModulePairDepsWithTag(ctx, bootclasspathFragmentDepTag)
+	fragments := gatherApexModulePairDepsWithTag(ctx, fragment)
 
 	// Perform hidden API processing.
 	hiddenAPIOutput := b.generateHiddenAPIBuildActions(ctx, contents, fragments)
@@ -1142,6 +1137,13 @@ func prebuiltBootclasspathFragmentFactory() android.Module {
 	android.InitPrebuiltModule(m, &[]string{"placeholder"})
 	android.InitApexModule(m)
 	android.InitAndroidArchModule(m, android.HostAndDeviceSupported, android.MultilibCommon)
+	android.InitDefaultableModule(m)
+
+	m.SetDefaultableHook(func(mctx android.DefaultableHookContext) {
+		if mctx.Config().AlwaysUsePrebuiltSdks() {
+			m.prebuilt.ForcePrefer()
+		}
+	})
 
 	return m
 }

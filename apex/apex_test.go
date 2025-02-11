@@ -5633,7 +5633,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		// prebuilt_apex module always depends on the prebuilt, and so it doesn't
 		// find the dex boot jar in it. We either need to disable the source libfoo
 		// or make the prebuilt libfoo preferred.
-		testDexpreoptWithApexes(t, bp, "module libfoo does not provide a dex boot jar", preparer, fragment)
+		testDexpreoptWithApexes(t, bp, `module "platform-bootclasspath" variant ".*": module "libfoo" from platform is not allowed in the apex boot jars list`, preparer, fragment)
 		// dexbootjar check is skipped if AllowMissingDependencies is true
 		preparerAllowMissingDeps := android.GroupFixturePreparers(
 			preparer,

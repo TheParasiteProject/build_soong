@@ -28,6 +28,7 @@ import (
 
 func RegisterPrebuiltMutators(ctx RegistrationContext) {
 	ctx.PreArchMutators(RegisterPrebuiltsPreArchMutators)
+	ctx.PreDepsMutators(RegisterPrebuiltsPreDepsMutators)
 	ctx.PostDepsMutators(RegisterPrebuiltsPostDepsMutators)
 }
 
@@ -193,6 +194,10 @@ func (p *Prebuilt) SingleSourcePath(ctx ModuleContext) Path {
 
 func (p *Prebuilt) UsePrebuilt() bool {
 	return p.properties.UsePrebuilt
+}
+
+func (p *Prebuilt) SetUsePrebuilt(use bool) {
+	p.properties.UsePrebuilt = use
 }
 
 // Called to provide the srcs value for the prebuilt module.
@@ -422,9 +427,12 @@ func RegisterPrebuiltsPreArchMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("prebuilt_rename", PrebuiltRenameMutator).UsesRename()
 }
 
-func RegisterPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
+func RegisterPrebuiltsPreDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("prebuilt_source", PrebuiltSourceDepsMutator).UsesReverseDependencies()
 	ctx.BottomUp("prebuilt_select", PrebuiltSelectModuleMutator)
+}
+
+func RegisterPrebuiltsPostDepsMutators(ctx RegisterMutatorsContext) {
 	ctx.BottomUp("prebuilt_postdeps", PrebuiltPostDepsMutator).UsesReplaceDependencies()
 }
 
@@ -468,7 +476,7 @@ func PrebuiltSourceDepsMutator(ctx BottomUpMutatorContext) {
 			bmn, _ := m.(baseModuleName)
 			name := bmn.BaseModuleName()
 			if ctx.OtherModuleReverseDependencyVariantExists(name) {
-				ctx.AddReverseDependency(ctx.Module(), PrebuiltDepTag, name)
+				ctx.AddReverseVariationDependency(nil, PrebuiltDepTag, name)
 				p.properties.SourceExists = true
 			}
 		}

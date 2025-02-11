@@ -744,6 +744,7 @@ func TestBasicSdkWithBootclasspathFragment(t *testing.T) {
 	android.GroupFixturePreparers(
 		prepareForSdkTestWithApex,
 		prepareForSdkTestWithJava,
+		java.PrepareForTestWithJavaDefaultModules,
 		android.FixtureMergeMockFs(android.MockFS{
 			"java/mybootlib.jar":                nil,
 			"hiddenapi/annotation-flags.csv":    nil,

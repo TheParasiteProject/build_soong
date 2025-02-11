@@ -30,6 +30,8 @@ type PrebuiltProperties struct {
 	Srcs []string `android:"path,arch_variant"`
 	// directories containing associated rlib dependencies
 	Link_dirs []string `android:"path,arch_variant"`
+
+	Force_use_prebuilt *bool `android:"arch_variant"`
 }
 
 type prebuiltLibraryDecorator struct {

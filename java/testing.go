@@ -378,7 +378,6 @@ func registerRequiredBuildComponentsForTest(ctx android.RegistrationContext) {
 	RegisterAppBuildComponents(ctx)
 	RegisterAppImportBuildComponents(ctx)
 	RegisterAppSetBuildComponents(ctx)
-	registerBootclasspathBuildComponents(ctx)
 	registerBootclasspathFragmentBuildComponents(ctx)
 	RegisterDexpreoptBootJarsComponents(ctx)
 	RegisterDocsBuildComponents(ctx)

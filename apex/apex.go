@@ -1193,6 +1193,13 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+type apexTransitionTag interface {
+	// ApexTransition is a temporary interface used to tag dependencies with the apex variation they should use
+	// when the dependency is added before the apex transition mutator has run.  These will be replaced with
+	// dependencies on the apex instead, which will then be used to find the necessary module inside the apex.
+	ApexTransition() string
+}
+
 type apexTransitionMutator struct{}
 
 func (a *apexTransitionMutator) Split(ctx android.BaseModuleContext) []string {
@@ -1207,6 +1214,9 @@ func (a *apexTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 }
 
 func (a *apexTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
+	if tag, ok := ctx.DepTag().(apexTransitionTag); ok {
+		return tag.ApexTransition()
+	}
 	return sourceVariation
 }
 
