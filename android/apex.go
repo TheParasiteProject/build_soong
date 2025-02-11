@@ -891,3 +891,21 @@ type PrebuiltInfo struct {
 	// to generate the mainline module prebuilt.
 	Prebuilt_info_file_path string `json:",omitempty"`
 }
+
+// FragmentInApexTag is embedded into a dependency tag to allow apex modules to annotate
+// their fragments in a way that allows the java bootclasspath modules to traverse from
+// the apex to the fragment.
+type FragmentInApexTag struct{}
+
+func (FragmentInApexTag) isFragmentInApexTag() {}
+
+type isFragmentInApexTagIntf interface {
+	isFragmentInApexTag()
+}
+
+// IsFragmentInApexTag returns true if the dependency tag embeds FragmentInApexTag,
+// signifying that it is a dependency from an apex module to its fragment.
+func IsFragmentInApexTag(tag blueprint.DependencyTag) bool {
+	_, ok := tag.(isFragmentInApexTagIntf)
+	return ok
+}

@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
@@ -610,14 +609,13 @@ func getModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant
 	ctx.VisitDirectDeps(module, func(m blueprint.Module) {
 		deps = append(deps, m.Name())
 	})
-	sort.Strings(deps)
-
-	return deps
+	return android.SortedUniqueStrings(deps)
 }
 
 // CheckModuleDependencies checks if the expected dependencies of the module are
 // identical to the actual dependencies.
 func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
+	t.Helper()
 	deps := getModuleDependencies(t, ctx, name, variant)
 
 	if actual := deps; !reflect.DeepEqual(expected, actual) {

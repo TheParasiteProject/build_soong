@@ -89,6 +89,19 @@ func (b bootclasspathFragmentContentDependencyTag) RequiresFilesFromPrebuiltApex
 // The tag used for the dependency between the bootclasspath_fragment module and its contents.
 var bootclasspathFragmentContentDepTag = bootclasspathFragmentContentDependencyTag{}
 
+type moduleInFragmentDependencyTag struct {
+	blueprint.DependencyTag
+}
+
+func (m moduleInFragmentDependencyTag) ExcludeFromVisibilityEnforcement() {
+}
+
+// moduleInFragmentDepTag is added alongside bootclasspathFragmentContentDependencyTag,
+// but doesn't set ReplaceSourceWithPrebuilt.  It is used to find modules in the fragment
+// by traversing from the apex to the fragment to the module, which prevents having to
+// construct a dependency on the apex variant of the fragment directly.
+var moduleInFragmentDepTag = moduleInFragmentDependencyTag{}
+
 var _ android.ExcludeFromVisibilityEnforcementTag = bootclasspathFragmentContentDepTag
 var _ android.ReplaceSourceWithPrebuilt = bootclasspathFragmentContentDepTag
 var _ android.SdkMemberDependencyTag = bootclasspathFragmentContentDepTag
@@ -415,6 +428,9 @@ func (b *BootclasspathFragmentModule) OutgoingDepIsInSameApex(tag blueprint.Depe
 	if bcpTag, ok := tag.(bootclasspathDependencyTag); ok && bcpTag.typ == fragment {
 		return false
 	}
+	if tag == moduleInFragmentDepTag {
+		return false
+	}
 	panic(fmt.Errorf("boot_image module %q should not have a dependency tag %s", b, android.PrettyPrintTag(tag)))
 }
 
@@ -471,6 +487,10 @@ func (b *BootclasspathFragmentModule) DepsMutator(ctx android.BottomUpMutatorCon
 
 	// Add dependencies on all the fragments.
 	b.properties.BootclasspathFragmentsDepsProperties.addDependenciesOntoFragments(ctx)
+
+	for _, name := range b.properties.Contents.GetOrDefault(ctx, nil) {
+		ctx.AddDependency(ctx.Module(), moduleInFragmentDepTag, name)
+	}
 }
 
 func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {

@@ -993,8 +993,6 @@ func testJavaSdkLibraryImport_Preferred(t *testing.T, prefer string, preparer an
 	CheckModuleDependencies(t, result.TestContext, "combined", "android_common", []string{
 		// Each use of :sdklib{...} adds a dependency onto prebuilt_sdklib.
 		`prebuilt_sdklib`,
-		`prebuilt_sdklib`,
-		`prebuilt_sdklib`,
 		`prebuilt_sdklib.stubs`,
 		`prebuilt_sdklib.stubs.source`,
 	})

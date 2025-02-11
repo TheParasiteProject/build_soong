@@ -768,6 +768,17 @@ var (
 	shBinaryTag     = &dependencyTag{name: "shBinary", payload: true}
 )
 
+type fragmentInApexDepTag struct {
+	blueprint.BaseDependencyTag
+	android.FragmentInApexTag
+}
+
+func (fragmentInApexDepTag) ExcludeFromVisibilityEnforcement() {}
+
+// fragmentInApexTag is used by apex modules to depend on their fragments.  Java bootclasspath
+// modules can traverse from the apex to the fragment using android.IsFragmentInApexTag.
+var fragmentInApexTag = fragmentInApexDepTag{}
+
 // TODO(jiyong): shorten this function signature
 func addDependenciesForNativeModules(ctx android.BottomUpMutatorContext, nativeModules ResolvedApexNativeDependencies, target android.Target, imageVariation string) {
 	binVariations := target.Variations()
@@ -916,6 +927,7 @@ func (a *apexBundle) DepsMutator(ctx android.BottomUpMutatorContext) {
 	commonVariation := ctx.Config().AndroidCommonTarget.Variations()
 	ctx.AddFarVariationDependencies(commonVariation, rroTag, a.properties.Rros...)
 	ctx.AddFarVariationDependencies(commonVariation, bcpfTag, a.properties.Bootclasspath_fragments.GetOrDefault(ctx, nil)...)
+	ctx.AddFarVariationDependencies(commonVariation, fragmentInApexTag, a.properties.Bootclasspath_fragments.GetOrDefault(ctx, nil)...)
 	ctx.AddFarVariationDependencies(commonVariation, sscpfTag, a.properties.Systemserverclasspath_fragments.GetOrDefault(ctx, nil)...)
 	ctx.AddFarVariationDependencies(commonVariation, javaLibTag, a.properties.Java_libs...)
 	ctx.AddFarVariationDependencies(commonVariation, fsTag, a.properties.Filesystems...)
@@ -1048,6 +1060,12 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 		ApexAvailableName: proptools.String(a.properties.Apex_available_name),
 	}
 	mctx.WalkDeps(func(child, parent android.Module) bool {
+		if parent == mctx.Module() {
+			tag := mctx.OtherModuleDependencyTag(child)
+			if _, ok := tag.(*dependencyTag); !ok {
+				return false
+			}
+		}
 		if !continueApexDepsWalk(child, parent) {
 			return false
 		}

@@ -291,6 +291,7 @@ func (p *prebuiltCommon) prebuiltApexContentsDeps(ctx android.BottomUpMutatorCon
 	for _, dep := range p.prebuiltCommonProperties.Exported_bootclasspath_fragments {
 		prebuiltDep := android.PrebuiltNameFromSource(dep)
 		ctx.AddDependency(module, exportedBootclasspathFragmentTag, prebuiltDep)
+		ctx.AddDependency(module, fragmentInApexTag, prebuiltDep)
 	}
 
 	for _, dep := range p.prebuiltCommonProperties.Exported_systemserverclasspath_fragments {
