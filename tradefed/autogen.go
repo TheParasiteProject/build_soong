@@ -179,6 +179,12 @@ func AutoGenTestConfig(ctx android.ModuleContext, options AutoGenTestConfigOptio
 			autogenTemplate(ctx, name, autogenPath, templatePath.String(), configs, options.TestRunnerOptions, options.OutputFileName, options.TestInstallBase)
 		} else {
 			if ctx.Device() {
+				if Bool(options.StandaloneTest) {
+					options.TestRunnerOptions = append(options.TestRunnerOptions, Option{
+						Name:  "ld-library-path",
+						Value: "{TEST_INSTALL_BASE}/" + name + "/" + ctx.Arch().ArchType.String() + "/standalone-libs",
+					})
+				}
 				autogenTemplate(ctx, name, autogenPath, options.DeviceTemplate, configs, options.TestRunnerOptions, options.OutputFileName, options.TestInstallBase)
 			} else {
 				if Bool(options.UnitTest) {
