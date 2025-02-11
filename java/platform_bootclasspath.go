@@ -15,6 +15,9 @@
 package java
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/google/blueprint"
 
 	"android/soong/android"
@@ -52,6 +55,12 @@ type platformBootclasspathModule struct {
 
 	// The apex:module pairs obtained from the fragments.
 	fragments []android.Module
+
+	// The map of apex to the fragments they contain.
+	apexNameToFragment map[string]android.Module
+
+	// The map of library modules in the bootclasspath to the fragments that contain them.
+	libraryToApex map[android.Module]string
 
 	// Path to the monolithic hiddenapi-flags.csv file.
 	hiddenAPIFlagsCSV android.OutputPath
@@ -159,16 +168,16 @@ func addDependenciesOntoBootImageModules(ctx android.BottomUpMutatorContext, mod
 
 func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Gather all the dependencies from the art, platform, and apex boot jars.
-	artModules := gatherApexModulePairDepsWithTag(ctx, artBootJar)
-	platformModules := gatherApexModulePairDepsWithTag(ctx, platformBootJar)
-	apexModules := gatherApexModulePairDepsWithTag(ctx, apexBootJar)
+	artModules, artModulesToApex := gatherApexModulePairDepsWithTag(ctx, artBootJar)
+	platformModules, platformModulesToApex := gatherApexModulePairDepsWithTag(ctx, platformBootJar)
+	apexModules, apexModulesToApex := gatherApexModulePairDepsWithTag(ctx, apexBootJar)
 
 	// Concatenate them all, in order as they would appear on the bootclasspath.
-	var allModules []android.Module
-	allModules = append(allModules, artModules...)
-	allModules = append(allModules, platformModules...)
-	allModules = append(allModules, apexModules...)
+	allModules := slices.Concat(artModules, platformModules, apexModules)
 	b.configuredModules = allModules
+	b.libraryToApex = maps.Clone(artModulesToApex)
+	maps.Copy(b.libraryToApex, platformModulesToApex)
+	maps.Copy(b.libraryToApex, apexModulesToApex)
 
 	// Do not add implLibModule to allModules as the impl lib is only used to collect the
 	// transitive source files
@@ -189,7 +198,7 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	TransformResourcesToJar(ctx, srcjar, jarArgs, transitiveSrcFiles)
 
 	// Gather all the fragments dependencies.
-	b.fragments = gatherApexModulePairDepsWithTag(ctx, fragment)
+	b.fragments, b.apexNameToFragment = gatherFragments(ctx)
 
 	// Check the configuration of the boot modules.
 	// ART modules are checked by the art-bootclasspath-fragment.
@@ -198,7 +207,7 @@ func (b *platformBootclasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 
 	b.generateClasspathProtoBuildActions(ctx)
 
-	bootDexJarByModule := b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments)
+	bootDexJarByModule := b.generateHiddenAPIBuildActions(ctx, b.configuredModules, b.fragments, b.libraryToApex, b.apexNameToFragment)
 	buildRuleForBootJarsPackageCheck(ctx, bootDexJarByModule)
 
 	ctx.SetOutputFiles(android.Paths{b.hiddenAPIFlagsCSV}, "hiddenapi-flags.csv")
@@ -289,7 +298,8 @@ func (b *platformBootclasspathModule) checkApexModules(ctx android.ModuleContext
 }
 
 // generateHiddenAPIBuildActions generates all the hidden API related build rules.
-func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module, fragments []android.Module) bootDexJarByModule {
+func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.ModuleContext, modules []android.Module,
+	fragments []android.Module, libraryToApex map[android.Module]string, apexNameToFragment map[string]android.Module) bootDexJarByModule {
 	createEmptyHiddenApiFiles := func() {
 		paths := android.OutputPaths{b.hiddenAPIFlagsCSV, b.hiddenAPIIndexCSV, b.hiddenAPIMetadataCSV}
 		for _, path := range paths {
@@ -316,7 +326,7 @@ func (b *platformBootclasspathModule) generateHiddenAPIBuildActions(ctx android.
 	}
 
 	// Construct a list of ClasspathElement objects from the modules and fragments.
-	classpathElements := CreateClasspathElements(ctx, modules, fragments)
+	classpathElements := CreateClasspathElements(ctx, modules, fragments, libraryToApex, apexNameToFragment)
 
 	monolithicInfo := b.createAndProvideMonolithicHiddenAPIInfo(ctx, classpathElements)
 

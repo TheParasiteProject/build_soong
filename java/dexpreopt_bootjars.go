@@ -734,7 +734,8 @@ func getModulesForImage(ctx android.ModuleContext, imageConfig *bootImageConfig)
 	modules := make([]apexJarModulePair, 0, imageConfig.modules.Len())
 	for i := 0; i < imageConfig.modules.Len(); i++ {
 		found := false
-		for _, module := range gatherApexModulePairDepsWithTag(ctx, dexpreoptBootJar) {
+		dexpreoptBootJarModules, _ := gatherApexModulePairDepsWithTag(ctx, dexpreoptBootJar)
+		for _, module := range dexpreoptBootJarModules {
 			name := android.RemoveOptionalPrebuiltPrefix(module.Name())
 			if name == imageConfig.modules.Jar(i) {
 				modules = append(modules, apexJarModulePair{
@@ -817,6 +818,7 @@ func getDexJarForApex(ctx android.ModuleContext, pair apexJarModulePair, apexNam
 				"APEX '%[2]s' doesn't exist or is not added as a dependency of dex_bootjars",
 				pair.jarModule.Name(),
 				pair.apex)
+			return nil
 		}
 		bootclasspathFragmentInfo, _ := android.OtherModuleProvider(ctx, fragment, BootclasspathFragmentApexContentInfoProvider)
 		jar, err := bootclasspathFragmentInfo.DexBootJarPathForContentModule(pair.jarModule)

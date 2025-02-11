@@ -68,10 +68,78 @@ func addDependencyOntoApexModulePair(ctx android.BottomUpMutatorContext, apex st
 
 }
 
+// gatherFragments collects fragments that are direct dependencies of this module, as well as
+// any fragments in apexes via the dependency on the apex.  It returns a list of the fragment
+// modules and map from apex name to the fragment in that apex.
+func gatherFragments(ctx android.BaseModuleContext) ([]android.Module, map[string]android.Module) {
+	var fragments []android.Module
+
+	type fragmentInApex struct {
+		module string
+		apex   string
+	}
+
+	var fragmentsInApexes []fragmentInApex
+
+	// Find any direct dependencies, as well as a list of the modules in apexes.
+	ctx.VisitDirectDeps(func(module android.Module) {
+		t := ctx.OtherModuleDependencyTag(module)
+		if bcpTag, ok := t.(bootclasspathDependencyTag); ok && bcpTag.typ == fragment {
+			if bcpTag.moduleInApex != "" {
+				fragmentsInApexes = append(fragmentsInApexes, fragmentInApex{bcpTag.moduleInApex, ctx.OtherModuleName(module)})
+			} else {
+				fragments = append(fragments, module)
+			}
+		}
+	})
+
+	fragmentsMap := make(map[string]android.Module)
+	for _, fragmentInApex := range fragmentsInApexes {
+		var found android.Module
+		// Find a desired module in an apex.
+		ctx.WalkDeps(func(child, parent android.Module) bool {
+			t := ctx.OtherModuleDependencyTag(child)
+			if parent == ctx.Module() {
+				if bcpTag, ok := t.(bootclasspathDependencyTag); ok && bcpTag.typ == fragment && ctx.OtherModuleName(child) == fragmentInApex.apex {
+					// This is the dependency from this module to the apex, recurse into it.
+					return true
+				}
+			} else if android.IsDontReplaceSourceWithPrebuiltTag(t) {
+				return false
+			} else if t == android.PrebuiltDepTag {
+				return false
+			} else if IsBootclasspathFragmentContentDepTag(t) {
+				return false
+			} else if android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child)) == fragmentInApex.module {
+				// This is the desired module inside the apex.
+				if found != nil && child != found {
+					panic(fmt.Errorf("found two conflicting modules %q in apex %q: %s and %s",
+						fragmentInApex.module, fragmentInApex.apex, found, child))
+				}
+				found = child
+			}
+			return false
+		})
+		if found != nil {
+			if existing, exists := fragmentsMap[fragmentInApex.apex]; exists {
+				ctx.ModuleErrorf("apex %s has multiple fragments, %s and %s", fragmentInApex.apex, fragmentInApex.module, existing)
+			} else {
+				fragmentsMap[fragmentInApex.apex] = found
+				fragments = append(fragments, found)
+			}
+		} else if !ctx.Config().AllowMissingDependencies() {
+			ctx.ModuleErrorf("failed to find fragment %q in apex %q\n",
+				fragmentInApex.module, fragmentInApex.apex)
+		}
+	}
+	return fragments, fragmentsMap
+}
+
 // gatherApexModulePairDepsWithTag returns the list of dependencies with the supplied tag that was
 // added by addDependencyOntoApexModulePair.
-func gatherApexModulePairDepsWithTag(ctx android.BaseModuleContext, tagType bootclasspathDependencyTagType) []android.Module {
+func gatherApexModulePairDepsWithTag(ctx android.BaseModuleContext, tagType bootclasspathDependencyTagType) ([]android.Module, map[android.Module]string) {
 	var modules []android.Module
+	modulesToApex := make(map[android.Module]string)
 
 	type moduleInApex struct {
 		module string
@@ -119,12 +187,17 @@ func gatherApexModulePairDepsWithTag(ctx android.BaseModuleContext, tagType boot
 		})
 		if found != nil {
 			modules = append(modules, found)
+			if existing, exists := modulesToApex[found]; exists && existing != moduleInApex.apex {
+				ctx.ModuleErrorf("module %s is in two apexes, %s and %s", moduleInApex.module, existing, moduleInApex.apex)
+			} else {
+				modulesToApex[found] = moduleInApex.apex
+			}
 		} else if !ctx.Config().AllowMissingDependencies() {
 			ctx.ModuleErrorf("failed to find module %q in apex %q\n",
 				moduleInApex.module, moduleInApex.apex)
 		}
 	}
-	return modules
+	return modules, modulesToApex
 }
 
 // ApexVariantReference specifies a particular apex variant of a module.
