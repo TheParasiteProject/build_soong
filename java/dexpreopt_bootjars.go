@@ -15,6 +15,7 @@
 package java
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -552,12 +553,8 @@ func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorConte
 			tag := bootclasspathDependencyTag{
 				typ: dexpreoptBootJar,
 			}
-			if !android.IsConfiguredJarForPlatform(apex) {
-				tag.apex = apex
-			}
-			if ctx.OtherModuleDependencyVariantExists(ctx.Target().Variations(), android.RemoveOptionalPrebuiltPrefix(selected)) {
-				ctx.AddFarVariationDependencies(ctx.Target().Variations(), tag, android.RemoveOptionalPrebuiltPrefix(selected))
-			}
+
+			ctx.AddFarVariationDependencies(ctx.Target().Variations(), tag, android.RemoveOptionalPrebuiltPrefix(selected))
 		}
 	}
 }
@@ -565,6 +562,15 @@ func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorConte
 func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.Module {
 	return ctx.Config().Once(dexBootJarsFragmentsKey, func() interface{} {
 		fragments := make(map[string]android.Module)
+
+		type moduleInApexPair struct {
+			module string
+			apex   string
+		}
+
+		var modulesInApexes []moduleInApexPair
+
+		// Find the list of modules in apexes.
 		ctx.WalkDeps(func(child, parent android.Module) bool {
 			if !isActiveModule(ctx, child) {
 				return false
@@ -575,15 +581,36 @@ func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.
 					return true
 				}
 				if bcpTag.typ == fragment {
-					apexInfo, _ := android.OtherModuleProvider(ctx, child, android.ApexInfoProvider)
-					for _, apex := range apexInfo.InApexVariants {
-						fragments[apex] = child
+					if bcpTag.moduleInApex == "" {
+						panic(fmt.Errorf("expected fragment to be in apex"))
 					}
-					return false
+					modulesInApexes = append(modulesInApexes, moduleInApexPair{bcpTag.moduleInApex, ctx.OtherModuleName(child)})
+					return true
 				}
 			}
 			return false
 		})
+
+		for _, moduleInApex := range modulesInApexes {
+			// Find a desired module in an apex.
+			ctx.WalkDeps(func(child, parent android.Module) bool {
+				t := ctx.OtherModuleDependencyTag(child)
+				if bcpTag, ok := t.(bootclasspathDependencyTag); ok {
+					if bcpTag.typ == platform {
+						return true
+					}
+					if bcpTag.typ == fragment && ctx.OtherModuleName(child) == moduleInApex.apex {
+						// This is the dependency from this module to the apex, recurse into it.
+						return true
+					}
+				} else if android.RemoveOptionalPrebuiltPrefix(ctx.OtherModuleName(child)) == moduleInApex.module {
+					// This is the desired module inside the apex.
+					fragments[android.RemoveOptionalPrebuiltPrefix(moduleInApex.apex)] = child
+				}
+				return false
+			})
+		}
+
 		return fragments
 	}).(map[string]android.Module)
 }
@@ -957,11 +984,15 @@ func getProfilePathForApex(ctx android.ModuleContext, apexName string, apexNameT
 
 func getApexNameToApexExportsInfoMap(ctx android.ModuleContext) apexNameToApexExportsInfoMap {
 	apexNameToApexExportsInfoMap := apexNameToApexExportsInfoMap{}
+
 	ctx.VisitDirectDeps(func(am android.Module) {
 		tag := ctx.OtherModuleDependencyTag(am)
 		if bcpTag, ok := tag.(bootclasspathDependencyTag); ok && bcpTag.typ == dexpreoptBootJar {
-			if info, exists := android.OtherModuleProvider(ctx, am, android.ApexExportsInfoProvider); exists {
-				apexNameToApexExportsInfoMap[info.ApexName] = info
+			if bcpTag.moduleInApex == "" {
+				info, exists := android.OtherModuleProvider(ctx, am, android.ApexExportsInfoProvider)
+				if exists {
+					apexNameToApexExportsInfoMap[info.ApexName] = info
+				}
 			}
 		}
 	})
@@ -1455,6 +1486,9 @@ func (d *artBootImages) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.VisitDirectDeps(func(m android.Module) {
 		tag := ctx.OtherModuleDependencyTag(m)
 		if bcpTag, ok := tag.(bootclasspathDependencyTag); ok && bcpTag.typ == dexpreoptBootJar {
+			if bcpTag.moduleInApex != "" {
+				panic("unhandled moduleInApex")
+			}
 			hostInstallsInfo, ok := android.OtherModuleProvider(ctx, m, artBootImageHostInfoProvider)
 			if !ok {
 				ctx.ModuleErrorf("Could not find information about the host variant of ART boot image")

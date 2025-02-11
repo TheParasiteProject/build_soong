@@ -621,7 +621,7 @@ func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) 
 			if android.IsModulePrebuilt(ctx.Module()) {
 				// prebuilt bcpf. the validation of this will be done at the top-level apex
 				providerClasspathFragmentValidationInfoProvider(ctx, unknown)
-			} else if !disableSourceApexVariant(ctx) {
+			} else if !disableSourceApexVariant(ctx) && android.IsModulePreferred(ctx.Module()) {
 				// source bcpf, and prebuilt apex are not selected.
 				ctx.ModuleErrorf("%s in contents must also be declared in PRODUCT_APEX_BOOT_JARS", unknown)
 			}

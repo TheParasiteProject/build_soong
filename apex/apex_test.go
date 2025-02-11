@@ -5341,6 +5341,12 @@ func TestPrebuiltApexNameWithPlatformBootclasspath(t *testing.T) {
 				exported_bootclasspath_fragments: ["art-bootclasspath-fragment"],
 			}
 
+			prebuilt_apex {
+				name: "com.android.art",
+				src: "com.android.art-arm.apex",
+				exported_bootclasspath_fragments: ["art-bootclasspath-fragment"],
+			}
+
 			prebuilt_bootclasspath_fragment {
 				name: "art-bootclasspath-fragment",
 				image_name: "art",

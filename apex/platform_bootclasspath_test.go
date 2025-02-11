@@ -401,17 +401,17 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 		// Needed for generating the boot image.
 		`platform:dex2oatd`,
 
-		// The configured contents of BootJars.
-		`com.android.art:baz`,
-		`com.android.art:quuz`,
+		// The configured contents of BootJars, via their apexes if necessary.
+		`platform:com.android.art`,
+		`platform:com.android.art`,
 		`platform:foo`,
 
-		// The configured contents of ApexBootJars.
-		`myapex:bar`,
+		// The configured contents of ApexBootJars, via their apex.
+		`platform:myapex`,
 
-		// The fragments.
-		`com.android.art:art-bootclasspath-fragment`,
-		`myapex:my-bootclasspath-fragment`,
+		// The fragments via their apexes.
+		`platform:com.android.art`,
+		`platform:myapex`,
 
 		// Impl lib of sdk_library for transitive srcjar generation
 		`platform:foo.impl`,
@@ -429,7 +429,7 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 		// of AlwaysUsePrebuiltsSdk(). The second is a normal library that is unaffected. The order
 		// matters, so that the dependencies resolved by the platform_bootclasspath matches the
 		// configured list.
-		java.FixtureConfigureApexBootJars("myapex:foo", "myapex:bar"),
+		java.FixtureConfigureApexBootJars("myapex:foo"),
 		java.PrepareForTestWithJavaSdkLibraryFiles,
 		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 			variables.Always_use_prebuilt_sdks = proptools.BoolPtr(true)
@@ -545,7 +545,6 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 	java.CheckPlatformBootclasspathModules(t, result, "myplatform-bootclasspath", []string{
 		// The configured contents of BootJars.
 		"myapex:prebuilt_foo",
-		"myapex:bar",
 	})
 
 	// Make sure that the myplatform-bootclasspath has the correct dependencies.
@@ -561,14 +560,11 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 		// Not a prebuilt as no prebuilt existed when it was added.
 		"platform:legacy.core.platform.api.stubs.exportable",
 
-		// The prebuilt.
-		"myapex:prebuilt_foo",
+		// The prebuilt library via the apex.
+		"platform:myapex",
 
-		// Only a source module exists.
-		"myapex:bar",
-
-		// The fragments.
-		"myapex:prebuilt_mybootclasspath-fragment",
+		// The fragments via the apex.
+		"platform:myapex",
 
 		// Impl lib of sdk_library for transitive srcjar generation
 		"platform:foo.impl",
@@ -662,7 +658,7 @@ func TestBootJarNotInApex(t *testing.T) {
 		prepareForTestWithMyapex,
 		java.FixtureConfigureApexBootJars("myapex:foo"),
 	).ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(
-		`module "myplatform-bootclasspath" variant ".*": module "foo" from platform is not allowed in the apex boot jars list`)).
+		`module "myplatform-bootclasspath" variant ".*": failed to find module "foo" in apex "myapex"`)).
 		RunTestWithBp(t, `
 			apex {
 				name: "myapex",

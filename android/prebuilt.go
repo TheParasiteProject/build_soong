@@ -612,6 +612,13 @@ func hideUnflaggedModules(ctx BottomUpMutatorContext, psi PrebuiltSelectionInfoM
 	}
 }
 
+func IsDontReplaceSourceWithPrebuiltTag(tag blueprint.DependencyTag) bool {
+	if t, ok := tag.(ReplaceSourceWithPrebuilt); ok {
+		return !t.ReplaceSourceWithPrebuilt()
+	}
+	return false
+}
+
 // PrebuiltPostDepsMutator replaces dependencies on the source module with dependencies on the
 // prebuilt when both modules exist and the prebuilt should be used.  When the prebuilt should not
 // be used, disable installing it.
