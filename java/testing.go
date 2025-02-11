@@ -650,7 +650,7 @@ func CheckModuleHasDependencyWithTag(t *testing.T, ctx *android.TestContext, nam
 func CheckPlatformBootclasspathModules(t *testing.T, result *android.TestResult, name string, expected []string) {
 	t.Helper()
 	platformBootclasspath := result.Module(name, "android_common").(*platformBootclasspathModule)
-	pairs := ApexNamePairsFromModules(result.TestContext, platformBootclasspath.configuredModules)
+	pairs := apexNamePairsFromModules(result.TestContext, platformBootclasspath.configuredModules, platformBootclasspath.libraryToApex)
 	android.AssertDeepEquals(t, fmt.Sprintf("%s modules", "platform-bootclasspath"), expected, pairs)
 }
 
@@ -665,23 +665,54 @@ func CheckClasspathFragmentProtoContentInfoProvider(t *testing.T, result *androi
 	android.AssertPathRelativeToTopEquals(t, "install filepath", installDir, info.ClasspathFragmentProtoInstallDir)
 }
 
-// ApexNamePairsFromModules returns the apex:module pair for the supplied modules.
-func ApexNamePairsFromModules(ctx *android.TestContext, modules []android.Module) []string {
+// CheckPlatformBootclasspathDependencies checks the dependencies of the selected module against the expected list.
+//
+// The expected list must be a list of strings of the form "<apex>:<module>", where <apex> is the
+// name of the apex, or platform is it is not part of an apex and <module> is the module name.
+func CheckPlatformBootclasspathDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
+	t.Helper()
+	platformBootclasspath := ctx.ModuleForTests(name, variant).Module().(*platformBootclasspathModule)
+	modules := []android.Module{}
+	ctx.VisitDirectDeps(platformBootclasspath, func(m blueprint.Module) {
+		modules = append(modules, m.(android.Module))
+	})
+
+	pairs := apexNamePairsFromModules(ctx, modules, platformBootclasspath.libraryToApex)
+	android.AssertDeepEquals(t, "module dependencies", expected, pairs)
+}
+
+// apexNamePairsFromModules returns the apex:module pair for the supplied modules.
+func apexNamePairsFromModules(ctx *android.TestContext, modules []android.Module, modulesToApex map[android.Module]string) []string {
 	pairs := []string{}
 	for _, module := range modules {
-		pairs = append(pairs, apexNamePairFromModule(ctx, module))
+		pairs = append(pairs, apexNamePairFromModule(ctx, module, modulesToApex))
 	}
 	return pairs
 }
 
-func apexNamePairFromModule(ctx *android.TestContext, module android.Module) string {
+// ApexFragmentPairsFromModules returns the apex:fragment pair for the supplied fragments.
+func ApexFragmentPairsFromModules(ctx *android.TestContext, fragments []android.Module, apexNameToFragment map[string]android.Module) []string {
+	pairs := []string{}
+	for _, fragment := range fragments {
+		found := false
+		for apex, apexFragment := range apexNameToFragment {
+			if apexFragment == fragment {
+				pairs = append(pairs, apex+":"+ctx.ModuleName(fragment))
+				found = true
+			}
+		}
+		if !found {
+			pairs = append(pairs, "platform:"+ctx.ModuleName(fragment))
+		}
+	}
+	return pairs
+}
+
+func apexNamePairFromModule(ctx *android.TestContext, module android.Module, modulesToApex map[android.Module]string) string {
 	name := module.Name()
-	var apex string
-	apexInfo, _ := android.OtherModuleProvider(ctx, module, android.ApexInfoProvider)
-	if apexInfo.IsForPlatform() {
+	apex := modulesToApex[module]
+	if apex == "" {
 		apex = "platform"
-	} else {
-		apex = apexInfo.InApexVariants[0]
 	}
 
 	return fmt.Sprintf("%s:%s", apex, name)
@@ -692,7 +723,7 @@ func apexNamePairFromModule(ctx *android.TestContext, module android.Module) str
 func CheckPlatformBootclasspathFragments(t *testing.T, result *android.TestResult, name string, expected []string) {
 	t.Helper()
 	platformBootclasspath := result.Module(name, "android_common").(*platformBootclasspathModule)
-	pairs := ApexNamePairsFromModules(result.TestContext, platformBootclasspath.fragments)
+	pairs := ApexFragmentPairsFromModules(result.TestContext, platformBootclasspath.fragments, platformBootclasspath.apexNameToFragment)
 	android.AssertDeepEquals(t, fmt.Sprintf("%s fragments", "platform-bootclasspath"), expected, pairs)
 }
 

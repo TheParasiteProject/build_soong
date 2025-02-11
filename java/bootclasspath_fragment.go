@@ -423,12 +423,24 @@ func (b *BootclasspathFragmentModule) OutgoingDepIsInSameApex(tag blueprint.Depe
 		// Cross-cutting metadata dependencies are metadata.
 		return false
 	}
+	if tag == moduleInFragmentDepTag {
+		return true
+	}
 	// Dependency to the bootclasspath fragment of another apex
 	// e.g. concsrypt-bootclasspath-fragment --> art-bootclasspath-fragment
 	if bcpTag, ok := tag.(bootclasspathDependencyTag); ok && bcpTag.typ == fragment {
 		return false
 	}
 	if tag == moduleInFragmentDepTag {
+		return false
+	}
+	if tag == dexpreopt.Dex2oatDepTag {
+		return false
+	}
+	if tag == android.PrebuiltDepTag {
+		return false
+	}
+	if _, ok := tag.(hiddenAPIStubsDependencyTag); ok {
 		return false
 	}
 	panic(fmt.Errorf("boot_image module %q should not have a dependency tag %s", b, android.PrettyPrintTag(tag)))

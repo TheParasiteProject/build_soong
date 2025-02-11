@@ -2124,6 +2124,9 @@ func (mod *Module) OutgoingDepIsInSameApex(depTag blueprint.DependencyTag) bool 
 }
 
 func (mod *Module) IncomingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
+	if mod.Host() {
+		return false
+	}
 	// TODO(b/362509506): remove once all apex_exclude uses are switched to stubs.
 	if mod.ApexExclude() {
 		return false

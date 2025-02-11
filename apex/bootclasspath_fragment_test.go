@@ -292,6 +292,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 					apex_available: [
 						"com.android.art",
 					],
+					min_sdk_version: "33",
 					compile_dex: true,
 				}
 			`, content, prefer)
@@ -420,7 +421,7 @@ func TestBootclasspathFragmentInArtApex(t *testing.T) {
 			java.FixtureSetBootImageInstallDirOnDevice("art", "apex/com.android.art/javalib"),
 		).RunTest(t)
 
-		ensureExactDeapexedContents(t, result.TestContext, "prebuilt_com.android.art", "android_common_com.android.art", []string{
+		ensureExactDeapexedContents(t, result.TestContext, "prebuilt_com.android.art", "android_common_prebuilt_com.android.art", []string{
 			"etc/boot-image.prof",
 			"javalib/bar.jar",
 			"javalib/foo.jar",
@@ -590,13 +591,13 @@ func TestBootclasspathFragmentInPrebuiltArtApex(t *testing.T) {
 		t.Parallel()
 		result := preparers.RunTestWithBp(t, fmt.Sprintf(bp, "enabled: false,"))
 
-		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_com.android.art", []string{
+		java.CheckModuleDependencies(t, result.TestContext, "com.android.art", "android_common_prebuilt_com.android.art", []string{
 			`all_apex_contributions`,
 			`dex2oatd`,
 			`prebuilt_art-bootclasspath-fragment`,
 		})
 
-		java.CheckModuleDependencies(t, result.TestContext, "art-bootclasspath-fragment", "android_common_com.android.art", []string{
+		java.CheckModuleDependencies(t, result.TestContext, "art-bootclasspath-fragment", "android_common_prebuilt_com.android.art", []string{
 			`all_apex_contributions`,
 			`dex2oatd`,
 			`prebuilt_bar`,

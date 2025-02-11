@@ -23,7 +23,6 @@ import (
 	"android/soong/dexpreopt"
 	"android/soong/java"
 
-	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -240,8 +239,8 @@ func TestPlatformBootclasspath_LegacyPrebuiltFragment(t *testing.T) {
 	pbcp := result.Module("myplatform-bootclasspath", "android_common")
 	info, _ := android.OtherModuleProvider(result, pbcp, java.MonolithicHiddenAPIInfoProvider)
 
-	android.AssertArrayString(t, "stub flags", []string{"prebuilt-stub-flags.csv:out/soong/.intermediates/mybootclasspath-fragment/android_common_myapex/modular-hiddenapi/signature-patterns.csv"}, info.StubFlagSubsets.RelativeToTop())
-	android.AssertArrayString(t, "all flags", []string{"prebuilt-all-flags.csv:out/soong/.intermediates/mybootclasspath-fragment/android_common_myapex/modular-hiddenapi/signature-patterns.csv"}, info.FlagSubsets.RelativeToTop())
+	android.AssertArrayString(t, "stub flags", []string{"prebuilt-stub-flags.csv:out/soong/.intermediates/mybootclasspath-fragment/android_common_prebuilt_myapex/modular-hiddenapi/signature-patterns.csv"}, info.StubFlagSubsets.RelativeToTop())
+	android.AssertArrayString(t, "all flags", []string{"prebuilt-all-flags.csv:out/soong/.intermediates/mybootclasspath-fragment/android_common_prebuilt_myapex/modular-hiddenapi/signature-patterns.csv"}, info.FlagSubsets.RelativeToTop())
 }
 
 func TestPlatformBootclasspathDependencies(t *testing.T) {
@@ -388,7 +387,7 @@ func TestPlatformBootclasspathDependencies(t *testing.T) {
 	})
 
 	// Make sure that the myplatform-bootclasspath has the correct dependencies.
-	CheckModuleDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
+	java.CheckPlatformBootclasspathDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
 		// source vs prebuilt selection metadata module
 		`platform:all_apex_contributions`,
 
@@ -479,6 +478,7 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 			name: "myapex",
 			src: "myapex.apex",
 			exported_bootclasspath_fragments: ["mybootclasspath-fragment"],
+			prefer: true,
 		}
 
 		// A prebuilt java_sdk_library_import that is not preferred by default but will be preferred
@@ -544,11 +544,11 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 
 	java.CheckPlatformBootclasspathModules(t, result, "myplatform-bootclasspath", []string{
 		// The configured contents of BootJars.
-		"myapex:prebuilt_foo",
+		"prebuilt_myapex:prebuilt_foo",
 	})
 
 	// Make sure that the myplatform-bootclasspath has the correct dependencies.
-	CheckModuleDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
+	java.CheckPlatformBootclasspathDependencies(t, result.TestContext, "myplatform-bootclasspath", "android_common", []string{
 		// source vs prebuilt selection metadata module
 		`platform:all_apex_contributions`,
 
@@ -561,30 +561,14 @@ func TestPlatformBootclasspath_AlwaysUsePrebuiltSdks(t *testing.T) {
 		"platform:legacy.core.platform.api.stubs.exportable",
 
 		// The prebuilt library via the apex.
-		"platform:myapex",
+		"platform:prebuilt_myapex",
 
 		// The fragments via the apex.
-		"platform:myapex",
+		"platform:prebuilt_myapex",
 
 		// Impl lib of sdk_library for transitive srcjar generation
 		"platform:foo.impl",
 	})
-}
-
-// CheckModuleDependencies checks the dependencies of the selected module against the expected list.
-//
-// The expected list must be a list of strings of the form "<apex>:<module>", where <apex> is the
-// name of the apex, or platform is it is not part of an apex and <module> is the module name.
-func CheckModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
-	t.Helper()
-	module := ctx.ModuleForTests(name, variant).Module()
-	modules := []android.Module{}
-	ctx.VisitDirectDeps(module, func(m blueprint.Module) {
-		modules = append(modules, m.(android.Module))
-	})
-
-	pairs := java.ApexNamePairsFromModules(ctx, modules)
-	android.AssertDeepEquals(t, "module dependencies", expected, pairs)
 }
 
 // TestPlatformBootclasspath_IncludesRemainingApexJars verifies that any apex boot jar is present in

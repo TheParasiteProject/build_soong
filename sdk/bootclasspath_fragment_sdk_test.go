@@ -66,6 +66,7 @@ func fixtureAddPrebuiltApexForBootclasspathFragment(apex, fragment string) andro
 				exported_bootclasspath_fragments: [
 					"%s",
 				],
+				prefer: false,
 			}
 		`, apex, apexFile, fragment)),
 		android.FixtureAddFile(filepath.Join(dir, apexFile), nil),
@@ -226,8 +227,8 @@ java_import {
 			checkBootJarsPackageCheckRule(t, result,
 				append(
 					[]string{
-						"out/soong/.intermediates/prebuilts/apex/com.android.art/android_common_com.android.art/deapexer/javalib/core1.jar",
-						"out/soong/.intermediates/prebuilts/apex/com.android.art/android_common_com.android.art/deapexer/javalib/core2.jar",
+						"out/soong/.intermediates/prebuilts/apex/com.android.art/android_common_prebuilt_com.android.art/deapexer/javalib/core1.jar",
+						"out/soong/.intermediates/prebuilts/apex/com.android.art/android_common_prebuilt_com.android.art/deapexer/javalib/core2.jar",
 						"out/soong/.intermediates/default/java/framework/android_common/aligned/framework.jar",
 					},
 					java.ApexBootJarDexJarPaths...,

@@ -258,7 +258,7 @@ func (b *platformBootclasspathModule) checkPlatformModules(ctx android.ModuleCon
 		fromUpdatableApex := apexInfo.Updatable
 		if fromUpdatableApex {
 			// error: this jar is part of an updatable apex
-			ctx.ModuleErrorf("module %q from updatable apexes %q is not allowed in the platform bootclasspath", ctx.OtherModuleName(m), apexInfo.InApexVariants)
+			ctx.ModuleErrorf("module %q from updatable apex %q is not allowed in the platform bootclasspath", ctx.OtherModuleName(m), apexInfo.BaseApexName)
 		} else {
 			// ok: this jar is part of the platform or a non-updatable apex
 		}

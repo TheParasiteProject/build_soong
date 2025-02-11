@@ -311,7 +311,7 @@ func ReplaceFinalizedCodenames(config Config, raw string) (string, error) {
 
 // ApiLevelFrom converts the given string `raw` to an ApiLevel.
 // If `raw` is invalid (empty string, unrecognized codename etc.) it returns an invalid ApiLevel
-func ApiLevelFrom(ctx PathContext, raw string) ApiLevel {
+func ApiLevelFrom(ctx ConfigContext, raw string) ApiLevel {
 	ret, err := ApiLevelFromUser(ctx, raw)
 	if err != nil {
 		return NewInvalidApiLevel(raw)
@@ -333,7 +333,7 @@ func ApiLevelFrom(ctx PathContext, raw string) ApiLevel {
 //
 // Inputs that are not "current", known previews, or convertible to an integer
 // will return an error.
-func ApiLevelFromUser(ctx PathContext, raw string) (ApiLevel, error) {
+func ApiLevelFromUser(ctx ConfigContext, raw string) (ApiLevel, error) {
 	return ApiLevelFromUserWithConfig(ctx.Config(), raw)
 }
 
@@ -413,7 +413,7 @@ func ApiLevelForTest(raw string) ApiLevel {
 // Converts an API level string `raw` into an ApiLevel in the same method as
 // `ApiLevelFromUser`, but the input is assumed to have no errors and any errors
 // will panic instead of returning an error.
-func ApiLevelOrPanic(ctx PathContext, raw string) ApiLevel {
+func ApiLevelOrPanic(ctx ConfigContext, raw string) ApiLevel {
 	value, err := ApiLevelFromUser(ctx, raw)
 	if err != nil {
 		panic(err.Error())

@@ -1105,7 +1105,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 	}
 
 	depInfos := android.DepNameToDepInfoMap{}
-	a.WalkPayloadDepsProxy(ctx, func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool {
+	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from android.Module, to android.ApexModule, externalDep bool) bool {
 		if from.Name() == to.Name() {
 			// This can happen for cc.reuseObjTag. We are not interested in tracking this.
 			// As soon as the dependency graph crosses the APEX boundary, don't go further.

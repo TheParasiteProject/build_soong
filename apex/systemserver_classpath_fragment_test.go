@@ -280,19 +280,19 @@ func TestPrebuiltSystemserverclasspathFragmentContents(t *testing.T) {
 
 	ctx := result.TestContext
 
-	java.CheckModuleDependencies(t, ctx, "myapex", "android_common_myapex", []string{
+	java.CheckModuleDependencies(t, ctx, "myapex", "android_common_prebuilt_myapex", []string{
 		`all_apex_contributions`,
 		`dex2oatd`,
 		`prebuilt_mysystemserverclasspathfragment`,
 	})
 
-	java.CheckModuleDependencies(t, ctx, "mysystemserverclasspathfragment", "android_common_myapex", []string{
+	java.CheckModuleDependencies(t, ctx, "mysystemserverclasspathfragment", "android_common_prebuilt_myapex", []string{
 		`all_apex_contributions`,
 		`prebuilt_bar`,
 		`prebuilt_foo`,
 	})
 
-	ensureExactDeapexedContents(t, ctx, "myapex", "android_common_myapex", []string{
+	ensureExactDeapexedContents(t, ctx, "myapex", "android_common_prebuilt_myapex", []string{
 		"javalib/foo.jar",
 		"javalib/bar.jar",
 		"javalib/bar.jar.prof",
@@ -440,13 +440,13 @@ func TestPrebuiltStandaloneSystemserverclasspathFragmentContents(t *testing.T) {
 
 	ctx := result.TestContext
 
-	java.CheckModuleDependencies(t, ctx, "mysystemserverclasspathfragment", "android_common_myapex", []string{
+	java.CheckModuleDependencies(t, ctx, "mysystemserverclasspathfragment", "android_common_prebuilt_myapex", []string{
 		`all_apex_contributions`,
 		`prebuilt_bar`,
 		`prebuilt_foo`,
 	})
 
-	ensureExactDeapexedContents(t, ctx, "myapex", "android_common_myapex", []string{
+	ensureExactDeapexedContents(t, ctx, "myapex", "android_common_prebuilt_myapex", []string{
 		"javalib/foo.jar",
 		"javalib/bar.jar",
 		"javalib/bar.jar.prof",
@@ -465,7 +465,7 @@ func assertProfileGuided(t *testing.T, ctx *android.TestContext, moduleName stri
 }
 
 func assertProfileGuidedPrebuilt(t *testing.T, ctx *android.TestContext, apexName string, moduleName string, expected bool) {
-	dexpreopt := ctx.ModuleForTests(apexName, "android_common_"+apexName).Rule("dexpreopt." + moduleName)
+	dexpreopt := ctx.ModuleForTests(apexName, "android_common_prebuilt_"+apexName).Rule("dexpreopt." + moduleName)
 	actual := strings.Contains(dexpreopt.RuleParams.Command, "--profile-file=")
 	if expected != actual {
 		t.Fatalf("Expected profile-guided to be %v, got %v", expected, actual)

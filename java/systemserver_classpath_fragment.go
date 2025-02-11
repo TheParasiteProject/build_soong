@@ -119,6 +119,7 @@ func systemServerClasspathFactory() android.Module {
 	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibCommon)
 	return m
 }
+
 func (m *SystemServerClasspathModule) UniqueApexVariations() bool {
 	return true
 }

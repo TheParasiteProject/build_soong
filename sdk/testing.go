@@ -281,7 +281,7 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 
 		// Run the snapshot with the snapshot preparer and the extra preparer, which must come after as
 		// it may need to modify parts of the MockFS populated by the snapshot preparer.
-		result := android.GroupFixturePreparers(snapshotPreparer, extraPreparer, customizedPreparers).
+		result := android.GroupFixturePreparers(snapshotPreparer, customizedPreparers, extraPreparer).
 			ExtendWithErrorHandler(customization.errorHandler).
 			RunTest(t)
 
@@ -314,6 +314,11 @@ func CheckSnapshot(t *testing.T, result *android.TestResult, name string, dir st
 			snapshotBpFile := filepath.Join(snapshotSubDir, "Android.bp")
 			unpreferred := string(fs[snapshotBpFile])
 			fs[snapshotBpFile] = []byte(strings.ReplaceAll(unpreferred, "prefer: false,", "prefer: true,"))
+
+			prebuiltApexBpFile := "prebuilts/apex/Android.bp"
+			if prebuiltApexBp, ok := fs[prebuiltApexBpFile]; ok {
+				fs[prebuiltApexBpFile] = []byte(strings.ReplaceAll(string(prebuiltApexBp), "prefer: false,", "prefer: true,"))
+			}
 		})
 
 		runSnapshotTestWithCheckers(t, checkSnapshotPreferredWithSource, preferPrebuilts)

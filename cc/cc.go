@@ -4084,6 +4084,9 @@ func (c *Module) OutgoingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
 }
 
 func (c *Module) IncomingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
+	if c.Host() {
+		return false
+	}
 	if c.HasStubsVariants() {
 		if IsSharedDepTag(depTag) && !IsExplicitImplSharedDepTag(depTag) {
 			// dynamic dep to a stubs lib crosses APEX boundary
@@ -4224,7 +4227,6 @@ func (c *Module) typ() moduleType {
 type Defaults struct {
 	android.ModuleBase
 	android.DefaultsModuleBase
-	android.ApexModuleBase
 }
 
 // cc_defaults provides a set of properties that can be inherited by other cc

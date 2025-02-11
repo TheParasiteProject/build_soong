@@ -125,7 +125,6 @@ bootstrap_go_package {
         "all_teams_test.go",
         "android_test.go",
         "androidmk_test.go",
-        "apex_test.go",
         "arch_test.go",
         "blueprint_e2e_test.go",
         "build_prop_test.go",

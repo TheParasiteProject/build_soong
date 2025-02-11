@@ -177,10 +177,7 @@ func disableSourceApexVariant(ctx android.BaseModuleContext) bool {
 	// Find the apex variant for this module
 	apexVariants := []string{}
 	if apexInfo.BaseApexName != "" {
-		// This is a transitive dependency of an override_apex
 		apexVariants = append(apexVariants, apexInfo.BaseApexName)
-	} else {
-		apexVariants = append(apexVariants, apexInfo.InApexVariants...)
 	}
 	if apexInfo.ApexAvailableName != "" {
 		apexVariants = append(apexVariants, apexInfo.ApexAvailableName)

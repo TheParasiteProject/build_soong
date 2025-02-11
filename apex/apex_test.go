@@ -5190,7 +5190,7 @@ func TestPrebuilt(t *testing.T) {
 		}
 	`)
 
-	testingModule := ctx.ModuleForTests("myapex", "android_common_myapex")
+	testingModule := ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex")
 	prebuilt := testingModule.Module().(*Prebuilt)
 
 	expectedInput := "myapex-arm64.apex"
@@ -5211,7 +5211,7 @@ func TestPrebuilt(t *testing.T) {
 
 func TestPrebuiltMissingSrc(t *testing.T) {
 	t.Parallel()
-	testApexError(t, `module "myapex" variant "android_common_myapex".*: prebuilt_apex does not support "arm64_armv8-a"`, `
+	testApexError(t, `module "myapex" variant "android_common_prebuilt_myapex".*: prebuilt_apex does not support "arm64_armv8-a"`, `
 		prebuilt_apex {
 			name: "myapex",
 		}
@@ -5228,7 +5228,7 @@ func TestPrebuiltFilenameOverride(t *testing.T) {
 		}
 	`)
 
-	testingModule := ctx.ModuleForTests("myapex", "android_common_myapex")
+	testingModule := ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex")
 	p := testingModule.Module().(*Prebuilt)
 
 	expected := "notmyapex.apex"
@@ -5251,7 +5251,7 @@ func TestApexSetFilenameOverride(t *testing.T) {
 			set: "company-myapex.apks",
       filename: "com.company.android.myapex.apex"
 		}
-	`).ModuleForTests("com.company.android.myapex", "android_common_com.android.myapex")
+	`).ModuleForTests("com.company.android.myapex", "android_common_prebuilt_com.android.myapex")
 
 	testApex(t, `
 		apex_set {
@@ -5260,7 +5260,7 @@ func TestApexSetFilenameOverride(t *testing.T) {
 			set: "company-myapex.apks",
       filename: "com.company.android.myapex.capex"
 		}
-	`).ModuleForTests("com.company.android.myapex", "android_common_com.android.myapex")
+	`).ModuleForTests("com.company.android.myapex", "android_common_prebuilt_com.android.myapex")
 
 	testApexError(t, `filename should end in .apex or .capex for apex_set`, `
 		apex_set {
@@ -5284,7 +5284,7 @@ func TestPrebuiltOverrides(t *testing.T) {
 		}
 	`)
 
-	testingModule := ctx.ModuleForTests("myapex.prebuilt", "android_common_myapex.prebuilt")
+	testingModule := ctx.ModuleForTests("myapex.prebuilt", "android_common_prebuilt_myapex.prebuilt")
 	p := testingModule.Module().(*Prebuilt)
 
 	expected := []string{"myapex"}
@@ -5307,7 +5307,7 @@ func TestPrebuiltApexName(t *testing.T) {
 			apex_name: "com.android.myapex",
 			src: "company-myapex-arm.apex",
 		}
-	`).ModuleForTests("com.company.android.myapex", "android_common_com.android.myapex")
+	`).ModuleForTests("com.company.android.myapex", "android_common_prebuilt_com.android.myapex")
 
 	testApex(t, `
 		apex_set {
@@ -5315,7 +5315,7 @@ func TestPrebuiltApexName(t *testing.T) {
 			apex_name: "com.android.myapex",
 			set: "company-myapex.apks",
 		}
-	`).ModuleForTests("com.company.android.myapex", "android_common_com.android.myapex")
+	`).ModuleForTests("com.company.android.myapex", "android_common_prebuilt_com.android.myapex")
 }
 
 func TestPrebuiltApexNameWithPlatformBootclasspath(t *testing.T) {
@@ -5555,7 +5555,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 			out/soong/.intermediates/packages/modules/com.android.art/art-bootclasspath-fragment/android_common_com.android.art/modular-hiddenapi/index.csv
 		`)
 
-		myApex := ctx.ModuleForTests("myapex", "android_common_myapex").Module()
+		myApex := ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex").Module()
 
 		overrideNames := []string{
 			"",
@@ -5639,7 +5639,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 		// prebuilt_apex module always depends on the prebuilt, and so it doesn't
 		// find the dex boot jar in it. We either need to disable the source libfoo
 		// or make the prebuilt libfoo preferred.
-		testDexpreoptWithApexes(t, bp, `module "platform-bootclasspath" variant ".*": module "libfoo" from platform is not allowed in the apex boot jars list`, preparer, fragment)
+		testDexpreoptWithApexes(t, bp, `module "platform-bootclasspath" variant ".*": module libfoo{.*} does not provide a dex jar`, preparer, fragment)
 		// dexbootjar check is skipped if AllowMissingDependencies is true
 		preparerAllowMissingDeps := android.GroupFixturePreparers(
 			preparer,
@@ -5675,6 +5675,7 @@ func TestBootDexJarsFromSourcesAndPrebuilts(t *testing.T) {
 
 		prebuilt_apex {
 			name: "myapex",
+			prefer: true,
 			arch: {
 				arm64: {
 					src: "myapex-arm64.apex",
@@ -6609,16 +6610,10 @@ func TestApexAvailable_IndirectDep(t *testing.T) {
 	testApexError(t, `requires "libbaz" that doesn't list the APEX under 'apex_available'.\n\nDependency path:
 .*via tag apex\.dependencyTag\{"sharedLib"\}
 .*-> libfoo.*link:shared.*
-.*via tag cc\.dependencyTag.*
-.*-> libfoo.*link:static.*
 .*via tag cc\.libraryDependencyTag.*Kind:sharedLibraryDependency.*
 .*-> libbar.*link:shared.*
-.*via tag cc\.dependencyTag.*
-.*-> libbar.*link:static.*
 .*via tag cc\.libraryDependencyTag.*Kind:sharedLibraryDependency.*
-.*-> libbaz.*link:shared.*
-.*via tag cc\.dependencyTag.*
-.*-> libbaz.*link:static.*`, `
+.*-> libbaz.*link:shared.*`, `
 	apex {
 		name: "myapex",
 		key: "myapex.key",
@@ -7878,7 +7873,7 @@ func TestJavaSDKLibrary_WithinApex(t *testing.T) {
 	})
 
 	// The bar library should depend on the implementation jar.
-	barLibrary := ctx.ModuleForTests("bar", "android_common_myapex").Rule("javac")
+	barLibrary := ctx.ModuleForTests("bar", "android_common_apex10000").Rule("javac")
 	if expected, actual := `^-classpath [^:]*/turbine-combined/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
@@ -8024,7 +8019,7 @@ func TestJavaSDKLibrary_ImportPreferred(t *testing.T) {
 	})
 
 	// The bar library should depend on the implementation jar.
-	barLibrary := ctx.ModuleForTests("bar", "android_common_myapex").Rule("javac")
+	barLibrary := ctx.ModuleForTests("bar", "android_common_apex10000").Rule("javac")
 	if expected, actual := `^-classpath [^:]*/turbine-combined/foo\.jar$`, barLibrary.Args["classpath"]; !regexp.MustCompile(expected).MatchString(actual) {
 		t.Errorf("expected %q, found %#q", expected, actual)
 	}
@@ -8504,31 +8499,6 @@ func TestApexWithJniLibs(t *testing.T) {
 	ensureListContains(t, names(rule.Args["requireNativeLibs"]), "libfoo.shared_from_rust.so")
 }
 
-func TestApexMutatorsDontRunIfDisabled(t *testing.T) {
-	t.Parallel()
-	ctx := testApex(t, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			updatable: false,
-		}
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-	`,
-		android.FixtureModifyConfig(func(config android.Config) {
-			delete(config.Targets, android.Android)
-			config.AndroidCommonTarget = android.Target{}
-		}),
-	)
-
-	if expected, got := []string{""}, ctx.ModuleVariantsForTests("myapex"); !reflect.DeepEqual(expected, got) {
-		t.Errorf("Expected variants: %v, but got: %v", expected, got)
-	}
-}
-
 func TestAppBundle(t *testing.T) {
 	t.Parallel()
 	ctx := testApex(t, `
@@ -8615,16 +8585,16 @@ func TestAppSetBundlePrebuilt(t *testing.T) {
 	ctx := testApex(t, bp, prepareForTestWithSantitizeHwaddress)
 
 	// Check that the extractor produces the correct output file from the correct input file.
-	extractorOutput := "out/soong/.intermediates/myapex/android_common_myapex/extracted/myapex.hwasan.apks"
+	extractorOutput := "out/soong/.intermediates/myapex/android_common_prebuilt_myapex/extracted/myapex.hwasan.apks"
 
-	m := ctx.ModuleForTests("myapex", "android_common_myapex")
+	m := ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex")
 	extractedApex := m.Output(extractorOutput)
 
 	android.AssertArrayString(t, "extractor input", []string{"myapex.hwasan.apks"}, extractedApex.Inputs.Strings())
 
 	// Ditto for the apex.
-	m = ctx.ModuleForTests("myapex", "android_common_myapex")
-	copiedApex := m.Output("out/soong/.intermediates/myapex/android_common_myapex/foo_v2.apex")
+	m = ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex")
+	copiedApex := m.Output("out/soong/.intermediates/myapex/android_common_prebuilt_myapex/foo_v2.apex")
 
 	android.AssertStringEquals(t, "myapex input", extractorOutput, copiedApex.Input.String())
 }
@@ -8643,10 +8613,10 @@ func TestApexSetApksModuleAssignment(t *testing.T) {
 		}
 	`)
 
-	m := ctx.ModuleForTests("myapex", "android_common_myapex")
+	m := ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex")
 
 	// Check that the extractor produces the correct apks file from the input module
-	extractorOutput := "out/soong/.intermediates/myapex/android_common_myapex/extracted/myapex.apks"
+	extractorOutput := "out/soong/.intermediates/myapex/android_common_prebuilt_myapex/extracted/myapex.apks"
 	extractedApex := m.Output(extractorOutput)
 
 	android.AssertArrayString(t, "extractor input", []string{"myapex.apks"}, extractedApex.Inputs.Strings())
@@ -9035,7 +9005,7 @@ func TestApexSet(t *testing.T) {
 		}),
 	)
 
-	m := ctx.ModuleForTests("myapex", "android_common_myapex")
+	m := ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex")
 
 	// Check extract_apks tool parameters.
 	extractedApex := m.Output("extracted/myapex.apks")
@@ -9050,7 +9020,7 @@ func TestApexSet(t *testing.T) {
 		t.Errorf("Unexpected abis parameter - expected %q vs actual %q", expected, actual)
 	}
 
-	m = ctx.ModuleForTests("myapex", "android_common_myapex")
+	m = ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex")
 	a := m.Module().(*ApexSet)
 	expectedOverrides := []string{"foo"}
 	actualOverrides := android.AndroidMkEntriesForTest(t, ctx, a)[0].EntryMap["LOCAL_OVERRIDES_MODULES"]
@@ -9077,7 +9047,7 @@ func TestApexSet_NativeBridge(t *testing.T) {
 		}),
 	)
 
-	m := ctx.ModuleForTests("myapex", "android_common_myapex")
+	m := ctx.ModuleForTests("myapex", "android_common_prebuilt_myapex")
 
 	// Check extract_apks tool parameters. No native bridge arch expected
 	extractedApex := m.Output("extracted/myapex.apks")
@@ -9185,7 +9155,7 @@ func TestApexKeysTxtOverrides(t *testing.T) {
 		ctx.ModuleForTests("myapex", "android_common_myapex").Output("apexkeys.txt"))
 	ensureContains(t, content, `name="myapex.apex" public_key="vendor/foo/devkeys/testkey.avbpubkey" private_key="vendor/foo/devkeys/testkey.pem" container_certificate="vendor/foo/devkeys/test.x509.pem" container_private_key="vendor/foo/devkeys/test.pk8" partition="system" sign_tool="sign_myapex"`)
 	content = android.ContentFromFileRuleForTests(t, ctx,
-		ctx.ModuleForTests("myapex_set", "android_common_myapex_set").Output("apexkeys.txt"))
+		ctx.ModuleForTests("myapex_set", "android_common_prebuilt_myapex_set").Output("apexkeys.txt"))
 	ensureContains(t, content, `name="myapex_set.apex" public_key="PRESIGNED" private_key="PRESIGNED" container_certificate="PRESIGNED" container_private_key="PRESIGNED" partition="system"`)
 }
 
@@ -9364,7 +9334,7 @@ func TestApexSet_ShouldRespectCompressedApexFlag(t *testing.T) {
 			}),
 			)
 
-			build := ctx.ModuleForTests("com.company.android.myapex", "android_common_com.android.myapex").Output("com.company.android.myapex.apex")
+			build := ctx.ModuleForTests("com.company.android.myapex", "android_common_prebuilt_com.android.myapex").Output("com.company.android.myapex.apex")
 			if compressionEnabled {
 				ensureEquals(t, build.Rule.String(), "android/soong/android.Cp")
 			} else {
@@ -11311,12 +11281,12 @@ func TestBootDexJarsMultipleApexPrebuilts(t *testing.T) {
 		{
 			desc:                      "Prebuilt apex prebuilt_com.android.foo is selected, profile should come from .prof deapexed from the prebuilt",
 			selectedApexContributions: "foo.prebuilt.contributions",
-			expectedBootJar:           "out/soong/.intermediates/prebuilt_com.android.foo/android_common_com.android.foo/deapexer/javalib/framework-foo.jar",
+			expectedBootJar:           "out/soong/.intermediates/prebuilt_com.android.foo/android_common_prebuilt_com.android.foo/deapexer/javalib/framework-foo.jar",
 		},
 		{
 			desc:                      "Prebuilt apex prebuilt_com.android.foo.v2 is selected, profile should come from .prof deapexed from the prebuilt",
 			selectedApexContributions: "foo.prebuilt.v2.contributions",
-			expectedBootJar:           "out/soong/.intermediates/com.android.foo.v2/android_common_com.android.foo/deapexer/javalib/framework-foo.jar",
+			expectedBootJar:           "out/soong/.intermediates/com.android.foo.v2/android_common_prebuilt_com.android.foo/deapexer/javalib/framework-foo.jar",
 		},
 	}
 
@@ -11361,7 +11331,7 @@ func TestInstallationRulesForMultipleApexPrebuilts(t *testing.T) {
 	// for a mainline module family, check that only the flagged soong module is visible to make
 	checkHideFromMake := func(t *testing.T, ctx *android.TestContext, visibleModuleName string, hiddenModuleNames []string) {
 		variation := func(moduleName string) string {
-			ret := "android_common_com.android.foo"
+			ret := "android_common_prebuilt_com.android.foo"
 			if moduleName == "com.google.android.foo" {
 				ret = "android_common_com.google.android.foo"
 			}
@@ -11508,8 +11478,8 @@ func TestInstallationRulesForMultipleApexPrebuiltsWithoutSource(t *testing.T) {
 	checkHideFromMake := func(t *testing.T, ctx *android.TestContext, visibleModuleNames []string, hiddenModuleNames []string) {
 		variation := func(moduleName string) string {
 			ret := "android_common_com.android.adservices"
-			if moduleName == "com.google.android.foo" {
-				ret = "android_common_com.google.android.foo_com.google.android.foo"
+			if moduleName == "com.google.android.adservices" || moduleName == "com.google.android.adservices.v2" {
+				ret = "android_common_prebuilt_com.android.adservices"
 			}
 			return ret
 		}
@@ -11584,13 +11554,13 @@ func TestInstallationRulesForMultipleApexPrebuiltsWithoutSource(t *testing.T) {
 			expectedHiddenModuleNames:  []string{"com.google.android.adservices", "com.google.android.adservices.v2"},
 		},
 		{
-			desc:                       "Prebuilt apex prebuilt_com.android.foo is selected",
+			desc:                       "Prebuilt apex prebuilt_com.android.adservices is selected",
 			selectedApexContributions:  "adservices.prebuilt.contributions",
 			expectedVisibleModuleNames: []string{"com.android.adservices", "com.google.android.adservices"},
 			expectedHiddenModuleNames:  []string{"com.google.android.adservices.v2"},
 		},
 		{
-			desc:                       "Prebuilt apex prebuilt_com.android.foo.v2 is selected",
+			desc:                       "Prebuilt apex prebuilt_com.android.adservices.v2 is selected",
 			selectedApexContributions:  "adservices.prebuilt.v2.contributions",
 			expectedVisibleModuleNames: []string{"com.android.adservices", "com.google.android.adservices.v2"},
 			expectedHiddenModuleNames:  []string{"com.google.android.adservices"},

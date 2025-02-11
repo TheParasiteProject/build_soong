@@ -61,12 +61,11 @@ func RegisterPreDepsMutators(ctx android.RegisterMutatorsContext) {
 }
 
 func RegisterPostDepsMutators(ctx android.RegisterMutatorsContext) {
-	ctx.TopDown("apex_info", apexInfoMutator)
 	ctx.BottomUp("apex_unique", apexUniqueVariationsMutator)
 	// Run mark_platform_availability before the apexMutator as the apexMutator needs to know whether
 	// it should create a platform variant.
 	ctx.BottomUp("mark_platform_availability", markPlatformAvailability)
-	ctx.Transition("apex", &apexTransitionMutator{})
+	ctx.InfoBasedTransition("apex", android.NewGenericTransitionMutatorAdapter(&apexTransitionMutator{}))
 }
 
 type apexBundleProperties struct {
@@ -996,45 +995,29 @@ func (a *apexBundle) OverridablePropertiesDepsMutator(ctx android.BottomUpMutato
 	}
 }
 
-var _ ApexInfoMutator = (*apexBundle)(nil)
+var _ ApexTransitionMutator = (*apexBundle)(nil)
 
 func (a *apexBundle) ApexVariationName() string {
 	return a.properties.ApexVariationName
 }
 
-// ApexInfoMutator is responsible for collecting modules that need to have apex variants. They are
-// identified by doing a graph walk starting from an apexBundle. Basically, all the (direct and
-// indirect) dependencies are collected. But a few types of modules that shouldn't be included in
-// the apexBundle (e.g. stub libraries) are not collected. Note that a single module can be depended
-// on by multiple apexBundles. In that case, the module is collected for all of the apexBundles.
-//
-// For each dependency between an apex and an ApexModule an ApexInfo object describing the apex
-// is passed to that module's BuildForApex(ApexInfo) method which collates them all in a list.
-// The apexMutator uses that list to create module variants for the apexes to which it belongs.
-// The relationship between module variants and apexes is not one-to-one as variants will be
-// shared between compatible apexes.
-func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
+type generateApexInfoContext interface {
+	android.MinSdkVersionFromValueContext
+	Module() android.Module
+	ModuleName() string
+}
 
+// generateApexInfo returns an android.ApexInfo configuration that should be used for dependencies of this apex.
+func (a *apexBundle) generateApexInfo(ctx generateApexInfoContext) android.ApexInfo {
 	// The VNDK APEX is special. For the APEX, the membership is described in a very different
 	// way. There is no dependency from the VNDK APEX to the VNDK libraries. Instead, VNDK
 	// libraries are self-identified by their vndk.enabled properties. There is no need to run
-	// this mutator for the APEX as nothing will be collected. So, let's return fast.
+	// this mutator for the APEX as nothing will be collected so return an empty ApexInfo.
 	if a.vndkApex {
-		return
+		return android.ApexInfo{}
 	}
 
-	continueApexDepsWalk := func(child, parent android.Module) bool {
-		am, ok := child.(android.ApexModule)
-		if !ok || !am.CanHaveApexVariants() {
-			return false
-		}
-
-		return android.IsDepInSameApex(mctx, parent, child)
-	}
-
-	android.SetProvider(mctx, android.ApexBundleInfoProvider, android.ApexBundleInfo{})
-
-	minSdkVersion := a.minSdkVersion(mctx)
+	minSdkVersion := a.minSdkVersion(ctx)
 	// When min_sdk_version is not set, the apex is built against FutureApiLevel.
 	if minSdkVersion.IsNone() {
 		minSdkVersion = android.FutureApiLevel
@@ -1043,62 +1026,45 @@ func (a *apexBundle) ApexInfoMutator(mctx android.TopDownMutatorContext) {
 	// This is the main part of this mutator. Mark the collected dependencies that they need to
 	// be built for this apexBundle.
 
-	apexVariationName := mctx.ModuleName() // could be com.android.foo
+	apexVariationName := ctx.ModuleName() // could be com.android.foo
 	if a.GetOverriddenBy() != "" {
 		// use the overridden name com.mycompany.android.foo
 		apexVariationName = a.GetOverriddenBy()
 	}
 
-	a.properties.ApexVariationName = apexVariationName
 	apexInfo := android.ApexInfo{
 		ApexVariationName: apexVariationName,
 		MinSdkVersion:     minSdkVersion,
 		Updatable:         a.Updatable(),
 		UsePlatformApis:   a.UsePlatformApis(),
-		InApexVariants:    []string{apexVariationName},
-		BaseApexName:      mctx.ModuleName(),
+		BaseApexName:      ctx.ModuleName(),
 		ApexAvailableName: proptools.String(a.properties.Apex_available_name),
 	}
-	mctx.WalkDeps(func(child, parent android.Module) bool {
-		if parent == mctx.Module() {
-			tag := mctx.OtherModuleDependencyTag(child)
-			if _, ok := tag.(*dependencyTag); !ok {
-				return false
-			}
-		}
-		if !continueApexDepsWalk(child, parent) {
-			return false
-		}
-		child.(android.ApexModule).BuildForApex(apexInfo) // leave a mark!
-		return true
-	})
+	return apexInfo
 }
 
-type ApexInfoMutator interface {
-	// ApexVariationName returns the name of the APEX variation to use in the apex
-	// mutator etc. It is the same name as ApexInfo.ApexVariationName.
-	ApexVariationName() string
-
-	// ApexInfoMutator implementations must call BuildForApex(ApexInfo) on any modules that are
-	// depended upon by an apex and which require an apex specific variant.
-	ApexInfoMutator(android.TopDownMutatorContext)
+func (a *apexBundle) ApexTransitionMutatorSplit(ctx android.BaseModuleContext) []android.ApexInfo {
+	return []android.ApexInfo{a.generateApexInfo(ctx)}
 }
 
-// apexInfoMutator delegates the work of identifying which modules need an ApexInfo and apex
-// specific variant to modules that support the ApexInfoMutator.
-// It also propagates updatable=true to apps of updatable apexes
-func apexInfoMutator(mctx android.TopDownMutatorContext) {
-	if !mctx.Module().Enabled(mctx) {
-		return
-	}
+func (a *apexBundle) ApexTransitionMutatorOutgoing(ctx android.OutgoingTransitionContext, sourceInfo android.ApexInfo) android.ApexInfo {
+	return sourceInfo
+}
 
-	if a, ok := mctx.Module().(ApexInfoMutator); ok {
-		a.ApexInfoMutator(mctx)
-	}
+func (a *apexBundle) ApexTransitionMutatorIncoming(ctx android.IncomingTransitionContext, outgoingInfo android.ApexInfo) android.ApexInfo {
+	return a.generateApexInfo(ctx)
+}
 
-	if am, ok := mctx.Module().(android.ApexModule); ok {
-		android.ApexInfoMutator(mctx, am)
-	}
+func (a *apexBundle) ApexTransitionMutatorMutate(ctx android.BottomUpMutatorContext, info android.ApexInfo) {
+	android.SetProvider(ctx, android.ApexBundleInfoProvider, android.ApexBundleInfo{})
+	a.properties.ApexVariationName = info.ApexVariationName
+}
+
+type ApexTransitionMutator interface {
+	ApexTransitionMutatorSplit(ctx android.BaseModuleContext) []android.ApexInfo
+	ApexTransitionMutatorOutgoing(ctx android.OutgoingTransitionContext, sourceInfo android.ApexInfo) android.ApexInfo
+	ApexTransitionMutatorIncoming(ctx android.IncomingTransitionContext, outgoingInfo android.ApexInfo) android.ApexInfo
+	ApexTransitionMutatorMutate(ctx android.BottomUpMutatorContext, info android.ApexInfo)
 }
 
 // TODO: b/215736885 Whittle the denylist
@@ -1213,49 +1179,35 @@ func markPlatformAvailability(mctx android.BottomUpMutatorContext) {
 
 type apexTransitionMutator struct{}
 
-func (a *apexTransitionMutator) Split(ctx android.BaseModuleContext) []string {
-	// apexBundle itself is mutated so that it and its dependencies have the same apex variant.
-	if ai, ok := ctx.Module().(ApexInfoMutator); ok && apexModuleTypeRequiresVariant(ai) {
-		if overridable, ok := ctx.Module().(android.OverridableModule); ok && overridable.GetOverriddenBy() != "" {
-			return []string{overridable.GetOverriddenBy()}
-		}
-		return []string{ai.ApexVariationName()}
+func (a *apexTransitionMutator) Split(ctx android.BaseModuleContext) []android.ApexInfo {
+	if ai, ok := ctx.Module().(ApexTransitionMutator); ok {
+		return ai.ApexTransitionMutatorSplit(ctx)
 	}
-	return []string{""}
+	return []android.ApexInfo{{}}
 }
 
-func (a *apexTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceVariation string) string {
-	return sourceVariation
-}
-
-func (a *apexTransitionMutator) IncomingTransition(ctx android.IncomingTransitionContext, incomingVariation string) string {
-	if am, ok := ctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
-		return android.IncomingApexTransition(ctx, incomingVariation)
-	} else if ai, ok := ctx.Module().(ApexInfoMutator); ok {
-		if overridable, ok := ctx.Module().(android.OverridableModule); ok && overridable.GetOverriddenBy() != "" {
-			return overridable.GetOverriddenBy()
-		}
-		return ai.ApexVariationName()
+func (a *apexTransitionMutator) OutgoingTransition(ctx android.OutgoingTransitionContext, sourceInfo android.ApexInfo) android.ApexInfo {
+	if ai, ok := ctx.Module().(ApexTransitionMutator); ok {
+		return ai.ApexTransitionMutatorOutgoing(ctx, sourceInfo)
 	}
-
-	return ""
+	return android.ApexInfo{}
 }
 
-func (a *apexTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
-	if am, ok := ctx.Module().(android.ApexModule); ok && am.CanHaveApexVariants() {
-		android.MutateApexTransition(ctx, variation)
+func (a *apexTransitionMutator) IncomingTransition(ctx android.IncomingTransitionContext, outgoingInfo android.ApexInfo) android.ApexInfo {
+	if ai, ok := ctx.Module().(ApexTransitionMutator); ok {
+		return ai.ApexTransitionMutatorIncoming(ctx, outgoingInfo)
+	}
+	return android.ApexInfo{}
+}
+
+func (a *apexTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, info android.ApexInfo) {
+	if ai, ok := ctx.Module().(ApexTransitionMutator); ok {
+		ai.ApexTransitionMutatorMutate(ctx, info)
 	}
 }
 
-// apexModuleTypeRequiresVariant determines whether the module supplied requires an apex specific
-// variant.
-func apexModuleTypeRequiresVariant(module ApexInfoMutator) bool {
-	if a, ok := module.(*apexBundle); ok {
-		// TODO(jiyong): document the reason why the VNDK APEX is an exception here.
-		return !a.vndkApex
-	}
-
-	return true
+func (a *apexTransitionMutator) TransitionInfoFromVariation(variation string) android.ApexInfo {
+	panic(fmt.Errorf("adding dependencies on explicit apex variations is not supported"))
 }
 
 const (
@@ -1683,10 +1635,6 @@ func apexFileForFilesystem(ctx android.BaseModuleContext, buildFile android.Path
 // to the child modules. Returning false makes the visit to continue in the sibling or the parent
 // modules. This is used in check* functions below.
 func (a *apexBundle) WalkPayloadDeps(ctx android.BaseModuleContext, do android.PayloadDepsCallback) {
-	apexVariationName := ctx.ModuleName()
-	if overrideName := a.GetOverriddenBy(); overrideName != "" {
-		apexVariationName = overrideName
-	}
 	ctx.WalkDeps(func(child, parent android.Module) bool {
 		am, ok := child.(android.ApexModule)
 		if !ok || !am.CanHaveApexVariants() {
@@ -1705,8 +1653,7 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.BaseModuleContext, do android.P
 			return false
 		}
 
-		ai, _ := android.OtherModuleProvider(ctx, child, android.ApexInfoProvider)
-		externalDep := !android.InList(apexVariationName, ai.InApexVariants)
+		externalDep := !android.IsDepInSameApex(ctx, parent, child)
 
 		// Visit actually
 		return do(ctx, parent, am, externalDep)
@@ -1731,8 +1678,7 @@ func (a *apexBundle) WalkPayloadDepsProxy(ctx android.BaseModuleContext,
 			return false
 		}
 
-		ai, _ := android.OtherModuleProvider(ctx, child, android.ApexInfoProvider)
-		externalDep := !android.InList(ctx.ModuleName(), ai.InApexVariants)
+		externalDep := !android.IsDepInSameApex(ctx, parent, child)
 
 		// Visit actually
 		return do(ctx, parent, child, externalDep)
@@ -2585,7 +2531,7 @@ func (a *apexBundle) CheckMinSdkVersion(ctx android.ModuleContext) {
 }
 
 // Returns apex's min_sdk_version string value, honoring overrides
-func (a *apexBundle) minSdkVersionValue(ctx android.EarlyModuleContext) string {
+func (a *apexBundle) minSdkVersionValue(ctx android.MinSdkVersionFromValueContext) string {
 	// Only override the minSdkVersion value on Apexes which already specify
 	// a min_sdk_version (it's optional for non-updatable apexes), and that its
 	// min_sdk_version value is lower than the one to override with.
@@ -2609,7 +2555,7 @@ func (a *apexBundle) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLe
 }
 
 // Returns apex's min_sdk_version ApiLevel, honoring overrides
-func (a *apexBundle) minSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (a *apexBundle) minSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return android.MinSdkVersionFromValue(ctx, a.minSdkVersionValue(ctx))
 }
 
@@ -2625,7 +2571,7 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 		librariesDirectlyInApex[ctx.OtherModuleName(dep)] = true
 	})
 
-	a.WalkPayloadDepsProxy(ctx, func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool {
+	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from android.Module, to android.ApexModule, externalDep bool) bool {
 		if info, ok := android.OtherModuleProvider(ctx, to, cc.LinkableInfoProvider); ok {
 			// If `to` is not actually in the same APEX as `from` then it does not need
 			// apex_available and neither do any of its dependencies.
@@ -2739,7 +2685,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		return
 	}
 
-	a.WalkPayloadDepsProxy(ctx, func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool {
+	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from android.Module, to android.ApexModule, externalDep bool) bool {
 		// As soon as the dependency graph crosses the APEX boundary, don't go further.
 		if externalDep {
 			return false
@@ -2757,7 +2703,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		toName := ctx.OtherModuleName(to)
 
 		if android.CheckAvailableForApex(apexName,
-			android.OtherModuleProviderOrDefault(ctx, to, android.ApexInfoProvider).ApexAvailableFor) {
+			android.OtherModuleProviderOrDefault(ctx, to, android.ApexAvailableInfoProvider).ApexAvailableFor) {
 			return true
 		}
 
