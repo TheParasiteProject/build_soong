@@ -719,22 +719,26 @@ func AndroidMkSingleton() Singleton {
 
 type androidMkSingleton struct{}
 
-func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
-	var androidMkModulesList []blueprint.Module
+func allModulesSorted(ctx SingletonContext) []blueprint.Module {
+	var allModules []blueprint.Module
 
 	ctx.VisitAllModulesBlueprint(func(module blueprint.Module) {
-		androidMkModulesList = append(androidMkModulesList, module)
+		allModules = append(allModules, module)
 	})
 
 	// Sort the module list by the module names to eliminate random churns, which may erroneously
 	// invoke additional build processes.
-	sort.SliceStable(androidMkModulesList, func(i, j int) bool {
-		return ctx.ModuleName(androidMkModulesList[i]) < ctx.ModuleName(androidMkModulesList[j])
+	sort.SliceStable(allModules, func(i, j int) bool {
+		return ctx.ModuleName(allModules[i]) < ctx.ModuleName(allModules[j])
 	})
 
-	// If running in soong-only mode, do a different, more limited version of this singleton
+	return allModules
+}
+
+func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
+	// If running in soong-only mode, more limited version of this singleton is run as
+	// soong only androidmk singleton
 	if !ctx.Config().KatiEnabled() {
-		c.soongOnlyBuildActions(ctx, androidMkModulesList)
 		return
 	}
 
@@ -745,7 +749,7 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	moduleInfoJSON := PathForOutput(ctx, "module-info"+String(ctx.Config().productVariables.Make_suffix)+".json")
 
-	err := translateAndroidMk(ctx, absolutePath(transMk.String()), moduleInfoJSON, androidMkModulesList)
+	err := translateAndroidMk(ctx, absolutePath(transMk.String()), moduleInfoJSON, allModulesSorted(ctx))
 	if err != nil {
 		ctx.Errorf(err.Error())
 	}
@@ -756,10 +760,24 @@ func (c *androidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
 	})
 }
 
+type soongOnlyAndroidMkSingleton struct {
+	Singleton
+}
+
+func soongOnlyAndroidMkSingletonFactory() Singleton {
+	return &soongOnlyAndroidMkSingleton{}
+}
+
+func (so *soongOnlyAndroidMkSingleton) GenerateBuildActions(ctx SingletonContext) {
+	if !ctx.Config().KatiEnabled() {
+		so.soongOnlyBuildActions(ctx, allModulesSorted(ctx))
+	}
+}
+
 // In soong-only mode, we don't do most of the androidmk stuff. But disted files are still largely
 // defined through the androidmk mechanisms, so this function is an alternate implementation of
 // the androidmk singleton that just focuses on getting the dist contributions
-func (c *androidMkSingleton) soongOnlyBuildActions(ctx SingletonContext, mods []blueprint.Module) {
+func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContext, mods []blueprint.Module) {
 	allDistContributions, moduleInfoJSONs := getSoongOnlyDataFromMods(ctx, mods)
 
 	for _, provider := range makeVarsInitProviders {
