@@ -131,7 +131,7 @@ type FilesystemProperties struct {
 	// The index used to prevent rollback of the image. Only used if use_avb is true.
 	Rollback_index *int64
 
-	// Rollback index location of this image. Must be 0, 1, 2, etc.
+	// Rollback index location of this image. Must be 1, 2, 3, etc.
 	Rollback_index_location *int64
 
 	// Name of the partition stored in vbmeta desc. Defaults to the name of this module.
