@@ -780,7 +780,7 @@ func (so *soongOnlyAndroidMkSingleton) GenerateBuildActions(ctx SingletonContext
 func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContext, mods []blueprint.Module) {
 	allDistContributions, moduleInfoJSONs := getSoongOnlyDataFromMods(ctx, mods)
 
-	for _, provider := range makeVarsInitProviders {
+	for _, provider := range append(makeVarsInitProviders, *getSingletonMakevarsProviders(ctx.Config())...) {
 		mctx := &makeVarsContext{
 			SingletonContext: ctx,
 			pctx:             provider.pctx,
