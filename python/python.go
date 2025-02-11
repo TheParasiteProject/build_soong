@@ -400,7 +400,8 @@ func (p *PythonLibraryModule) GenerateAndroidBuildActions(ctx android.ModuleCont
 
 	// generate the zipfile of all source and data files
 	p.srcsZip = p.createSrcsZip(ctx, pkgPath)
-	p.precompiledSrcsZip = p.precompileSrcs(ctx)
+	// TODO(b/388344853): precompilation temporarily disabled for python3.13 upgrade
+	p.precompiledSrcsZip = p.srcsZip //p.precompileSrcs(ctx)
 
 	android.SetProvider(ctx, PythonLibraryInfoProvider, PythonLibraryInfo{
 		SrcsPathMappings:   p.getSrcsPathMappings(),
