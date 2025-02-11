@@ -573,8 +573,8 @@ func (flagExporter *flagExporter) exportWholeStaticLibs(flags ...string) {
 	flagExporter.wholeStaticLibObjects = android.FirstUniqueStrings(append(flagExporter.wholeStaticLibObjects, flags...))
 }
 
-func (flagExporter *flagExporter) setProvider(ctx ModuleContext) {
-	android.SetProvider(ctx, FlagExporterInfoProvider, FlagExporterInfo{
+func (flagExporter *flagExporter) setRustProvider(ctx ModuleContext) {
+	android.SetProvider(ctx, RustFlagExporterInfoProvider, RustFlagExporterInfo{
 		LinkDirs:              flagExporter.linkDirs,
 		RustLibObjects:        flagExporter.rustLibPaths,
 		StaticLibObjects:      flagExporter.staticLibObjects,
@@ -589,7 +589,7 @@ func NewFlagExporter() *flagExporter {
 	return &flagExporter{}
 }
 
-type FlagExporterInfo struct {
+type RustFlagExporterInfo struct {
 	Flags                 []string
 	LinkDirs              []string
 	RustLibObjects        []string
@@ -598,7 +598,7 @@ type FlagExporterInfo struct {
 	SharedLibPaths        []string
 }
 
-var FlagExporterInfoProvider = blueprint.NewProvider[FlagExporterInfo]()
+var RustFlagExporterInfoProvider = blueprint.NewProvider[RustFlagExporterInfo]()
 
 func (mod *Module) isCoverageVariant() bool {
 	return mod.coverage.Properties.IsCoverageVariant
@@ -1574,7 +1574,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				directSrcProvidersDeps = append(directSrcProvidersDeps, &dep)
 			}
 
-			exportedInfo, _ := android.OtherModuleProvider(ctx, dep, FlagExporterInfoProvider)
+			exportedInfo, _ := android.OtherModuleProvider(ctx, dep, RustFlagExporterInfoProvider)
 
 			//Append the dependencies exported objects, except for proc-macros which target a different arch/OS
 			if depTag != procMacroDepTag {

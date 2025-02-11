@@ -432,7 +432,7 @@ func TestRustAliases(t *testing.T) {
 	}
 }
 
-func TestRustRlibs(t *testing.T) {
+func TestRustFFIRlibs(t *testing.T) {
 	ctx := testRust(t, `
 		rust_ffi_static {
 			name: "libbar",

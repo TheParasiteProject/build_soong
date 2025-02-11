@@ -771,7 +771,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	cc.AddStubDependencyProviders(ctx)
 
 	// Set our flagexporter provider to export relevant Rust flags
-	library.flagExporter.setProvider(ctx)
+	library.flagExporter.setRustProvider(ctx)
 
 	return ret
 }

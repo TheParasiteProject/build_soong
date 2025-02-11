@@ -158,7 +158,7 @@ func (prebuilt *prebuiltLibraryDecorator) compilerProps() []interface{} {
 
 func (prebuilt *prebuiltLibraryDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	prebuilt.flagExporter.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
-	prebuilt.flagExporter.setProvider(ctx)
+	prebuilt.flagExporter.setRustProvider(ctx)
 	srcPath := prebuiltPath(ctx, prebuilt)
 	prebuilt.baseCompiler.unstrippedOutputFile = srcPath
 	return buildOutput{outputFile: srcPath}
@@ -211,7 +211,7 @@ func (prebuilt *prebuiltProcMacroDecorator) compilerProps() []interface{} {
 
 func (prebuilt *prebuiltProcMacroDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
 	prebuilt.flagExporter.exportLinkDirs(android.PathsForModuleSrc(ctx, prebuilt.Properties.Link_dirs).Strings()...)
-	prebuilt.flagExporter.setProvider(ctx)
+	prebuilt.flagExporter.setRustProvider(ctx)
 	srcPath := prebuiltPath(ctx, prebuilt)
 	prebuilt.baseCompiler.unstrippedOutputFile = srcPath
 	return buildOutput{outputFile: srcPath}
