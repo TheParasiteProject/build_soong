@@ -272,6 +272,7 @@ type ZipArgs struct {
 	FileArgs                 []FileArg
 	OutputFilePath           string
 	EmulateJar               bool
+	SortEntries              bool
 	SrcJar                   bool
 	AddDirectoryEntriesToZip bool
 	CompressionLevel         int
@@ -394,7 +395,7 @@ func zipTo(args ZipArgs, w io.Writer) error {
 		}
 	}
 
-	return z.write(w, pathMappings, args.ManifestSourcePath, args.EmulateJar, args.SrcJar, args.NumParallelJobs)
+	return z.write(w, pathMappings, args.ManifestSourcePath, args.EmulateJar, args.SortEntries, args.SrcJar, args.NumParallelJobs)
 }
 
 // Zip creates an output zip archive from given sources.
@@ -481,7 +482,8 @@ func jarSort(mappings []pathMapping) {
 	})
 }
 
-func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest string, emulateJar, srcJar bool,
+func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest string,
+	emulateJar, sortEntries, srcJar bool,
 	parallelJobs int) error {
 
 	z.errors = make(chan error)
@@ -511,11 +513,19 @@ func (z *ZipWriter) write(f io.Writer, pathMappings []pathMapping, manifest stri
 		return errors.New("must specify --jar when specifying a manifest via -m")
 	}
 
+	if emulateJar && sortEntries {
+		return errors.New("Cannot specify both --jar and --sort_entries (--jar implies sorting with a different algorithm)")
+	}
 	if emulateJar {
 		// manifest may be empty, in which case addManifest will fill in a default
 		pathMappings = append(pathMappings, pathMapping{jar.ManifestFile, manifest, zip.Deflate})
 
 		jarSort(pathMappings)
+	}
+	if sortEntries {
+		sort.SliceStable(pathMappings, func(i int, j int) bool {
+			return pathMappings[i].dest < pathMappings[j].dest
+		})
 	}
 
 	go func() {
