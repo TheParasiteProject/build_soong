@@ -79,6 +79,8 @@ type androidDevice struct {
 	partitionProps PartitionNameProperties
 
 	deviceProps DeviceProperties
+
+	allImagesZip android.Path
 }
 
 func AndroidDeviceFactory() android.Module {
@@ -202,6 +204,17 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		deps = append(deps, imageOutput.DefaultOutputFiles[0])
 	})
 
+	allImagesZip := android.PathForModuleOut(ctx, "all_images.zip")
+	allImagesZipBuilder := android.NewRuleBuilder(pctx, ctx)
+	cmd := allImagesZipBuilder.Command().BuiltTool("soong_zip").Flag("--sort_entries")
+	for _, dep := range deps {
+		cmd.FlagWithArg("-e ", dep.Base())
+		cmd.FlagWithInput("-f ", dep)
+	}
+	cmd.FlagWithOutput("-o ", allImagesZip)
+	allImagesZipBuilder.Build("soong_all_images_zip", "all_images.zip")
+	a.allImagesZip = allImagesZip
+
 	allImagesStamp := android.PathForModuleOut(ctx, "all_images_stamp")
 	var validations android.Paths
 	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
@@ -224,6 +237,12 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.CheckbuildFile(allImagesStamp)
 
 	a.setVbmetaPhonyTargets(ctx)
+}
+
+func (a *androidDevice) MakeVars(ctx android.MakeVarsModuleContext) {
+	if proptools.Bool(a.deviceProps.Main_device) {
+		ctx.StrictRaw("SOONG_ONLY_ALL_IMAGES_ZIP", a.allImagesZip.String())
+	}
 }
 
 // Helper structs for target_files.zip creation

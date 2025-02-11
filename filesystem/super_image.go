@@ -181,7 +181,7 @@ func (s *superImage) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func (s *superImage) installFileName() string {
-	return s.BaseModuleName() + ".img"
+	return "super.img"
 }
 
 func (s *superImage) buildMiscInfo(ctx android.ModuleContext) (android.Path, android.Paths, map[string]FilesystemInfo) {
