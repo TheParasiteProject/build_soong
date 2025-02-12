@@ -38,9 +38,11 @@ var PrepareForTestWithPhony = android.FixtureRegisterWithContext(registerPhonyMo
 
 type phony struct {
 	android.ModuleBase
+
 	requiredModuleNames       []string
 	hostRequiredModuleNames   []string
 	targetRequiredModuleNames []string
+	outputDeps                android.Paths
 }
 
 func PhonyFactory() android.Module {
@@ -54,6 +56,14 @@ func (p *phony) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.requiredModuleNames = ctx.RequiredModuleNames(ctx)
 	p.hostRequiredModuleNames = ctx.HostRequiredModuleNames()
 	p.targetRequiredModuleNames = ctx.TargetRequiredModuleNames()
+
+	ctx.VisitDirectDepsWithTag(android.RequiredDepTag, func(dep android.Module) {
+		if o, ok := android.OtherModuleProvider(ctx, dep, android.OutputFilesProvider); ok {
+			p.outputDeps = append(p.outputDeps, o.DefaultOutputFiles...)
+		}
+	})
+
+	ctx.Phony(p.Name(), p.outputDeps...)
 }
 
 func (p *phony) AndroidMk() android.AndroidMkData {
@@ -76,6 +86,10 @@ func (p *phony) AndroidMk() android.AndroidMkData {
 			if len(p.targetRequiredModuleNames) > 0 {
 				fmt.Fprintln(w, "LOCAL_TARGET_REQUIRED_MODULES :=",
 					strings.Join(p.targetRequiredModuleNames, " "))
+			}
+			if len(p.outputDeps) > 0 {
+				fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES :=",
+					strings.Join(p.outputDeps.Strings(), " "))
 			}
 			// AconfigUpdateAndroidMkData may have added elements to Extra.  Process them here.
 			for _, extra := range data.Extra {
