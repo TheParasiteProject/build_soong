@@ -64,7 +64,6 @@ type AndroidMkDataProvider interface {
 type AndroidMkData struct {
 	Class           string
 	SubName         string
-	DistFiles       TaggedDistFiles
 	OutputFile      OptionalPath
 	Disabled        bool
 	Include         string
@@ -1093,7 +1092,6 @@ func (data *AndroidMkData) fillInData(ctx fillInEntriesContext, mod blueprint.Mo
 	data.Entries = AndroidMkEntries{
 		Class:           data.Class,
 		SubName:         data.SubName,
-		DistFiles:       data.DistFiles,
 		OutputFile:      data.OutputFile,
 		Disabled:        data.Disabled,
 		Include:         data.Include,
