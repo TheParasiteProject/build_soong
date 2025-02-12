@@ -63,8 +63,5 @@ func (this *exportedJavaDeclarationsLibrarySingleton) GenerateBuildActions(ctx a
 		},
 	})
 	ctx.Phony("exported_java_aconfig_library", this.intermediatePath)
-}
-
-func (this *exportedJavaDeclarationsLibrarySingleton) MakeVars(ctx android.MakeVarsContext) {
 	ctx.DistForGoalWithFilename("sdk", this.intermediatePath, "android-flags.jar")
 }

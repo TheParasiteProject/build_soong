@@ -704,15 +704,11 @@ func (l *lintSingleton) generateLintReportZips(ctx android.SingletonContext) {
 	zip(l.referenceBaselineZip, func(l *LintInfo) android.Path { return l.ReferenceBaseline })
 
 	ctx.Phony("lint-check", l.htmlZip, l.textZip, l.xmlZip, l.referenceBaselineZip)
-}
 
-func (l *lintSingleton) MakeVars(ctx android.MakeVarsContext) {
 	if !ctx.Config().UnbundledBuild() {
 		ctx.DistForGoal("lint-check", l.htmlZip, l.textZip, l.xmlZip, l.referenceBaselineZip)
 	}
 }
-
-var _ android.SingletonMakeVarsProvider = (*lintSingleton)(nil)
 
 func init() {
 	android.RegisterParallelSingletonType("lint",

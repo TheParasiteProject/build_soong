@@ -58,9 +58,6 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 
 	t.ravenwood = ravenwoodTestSuite(ctx, files["ravenwood-tests"])
 	ctx.Phony("ravenwood-tests", t.ravenwood...)
-}
-
-func (t *testSuiteFiles) MakeVars(ctx MakeVarsContext) {
 	ctx.DistForGoal("robolectric-tests", t.robolectric...)
 	ctx.DistForGoal("ravenwood-tests", t.ravenwood...)
 }

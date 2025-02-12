@@ -37,8 +37,6 @@ type jdepsGeneratorSingleton struct {
 	outputPath android.Path
 }
 
-var _ android.SingletonMakeVarsProvider = (*jdepsGeneratorSingleton)(nil)
-
 const (
 	jdepsJsonFileName = "module_bp_java_deps.json"
 )
@@ -101,13 +99,6 @@ func (j *jdepsGeneratorSingleton) GenerateBuildActions(ctx android.SingletonCont
 		Rule:   android.Touch,
 		Output: jfpath,
 	})
-}
-
-func (j *jdepsGeneratorSingleton) MakeVars(ctx android.MakeVarsContext) {
-	if j.outputPath == nil {
-		return
-	}
-
 	ctx.DistForGoal("general-tests", j.outputPath)
 }
 

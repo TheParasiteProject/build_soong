@@ -105,13 +105,11 @@ func (singleton *sizesSingleton) GenerateBuildActions(ctx android.SingletonConte
 		}
 	})
 
+	protoFilenamePath := android.PathForOutput(ctx, protoFilename)
 	ctx.Build(pctx, android.BuildParams{
 		Rule:   bloatyMerger,
 		Inputs: android.SortedUniquePaths(deps),
-		Output: android.PathForOutput(ctx, protoFilename),
+		Output: protoFilenamePath,
 	})
-}
-
-func (singleton *sizesSingleton) MakeVars(ctx android.MakeVarsContext) {
-	ctx.DistForGoalWithFilename("checkbuild", android.PathForOutput(ctx, protoFilename), protoFilename)
+	ctx.DistForGoalWithFilename("checkbuild", protoFilenamePath, protoFilename)
 }

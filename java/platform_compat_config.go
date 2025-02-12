@@ -278,12 +278,7 @@ func (p *platformCompatConfigSingleton) GenerateBuildActions(ctx android.Singlet
 	rule.Build("merged-compat-config", "Merge compat config")
 
 	p.metadata = outputPath
-}
-
-func (p *platformCompatConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
-	if p.metadata != nil {
-		ctx.DistForGoal("droidcore", p.metadata)
-	}
+	ctx.DistForGoal("droidcore", p.metadata)
 }
 
 func platformCompatConfigSingletonFactory() android.Singleton {

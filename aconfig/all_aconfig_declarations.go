@@ -162,9 +162,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 		})
 		ctx.Phony("all_aconfig_declarations_textproto", this.releaseMap[rcName].intermediateTextProtoPath)
 	}
-}
 
-func (this *allAconfigDeclarationsSingleton) MakeVars(ctx android.MakeVarsContext) {
 	for _, rcName := range this.sortedConfigNames() {
 		ctx.DistForGoal("droid", this.releaseMap[rcName].intermediateBinaryProtoPath)
 		for _, goal := range []string{"docs", "droid", "sdk"} {

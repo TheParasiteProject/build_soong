@@ -111,9 +111,7 @@ func (this *allBuildFlagDeclarationsSingleton) GenerateBuildActions(ctx android.
 		this.configsBinaryProtoPath,
 		this.configsTextProtoPath,
 	)
-}
 
-func (this *allBuildFlagDeclarationsSingleton) MakeVars(ctx android.MakeVarsContext) {
 	ctx.DistForGoal("droid", this.flagsBinaryProtoPath)
 	for _, goal := range []string{"docs", "droid", "sdk", "release_config_metadata"} {
 		ctx.DistForGoalWithFilename(goal, this.flagsBinaryProtoPath, "build_flags/all_flags.pb")

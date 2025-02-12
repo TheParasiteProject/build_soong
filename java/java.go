@@ -1282,13 +1282,6 @@ func (j *Library) createApiXmlFile(ctx android.ModuleContext) {
 			Input:  j.implementationAndResourcesJar,
 			Output: j.apiXmlFile,
 		})
-	}
-}
-
-var _ android.ModuleMakeVarsProvider = (*Library)(nil)
-
-func (j *Library) MakeVars(ctx android.MakeVarsModuleContext) {
-	if j.apiXmlFile != nil {
 		ctx.DistForGoal("dist_files", j.apiXmlFile)
 	}
 }

@@ -175,8 +175,5 @@ func (a *apexPrebuiltInfo) GenerateBuildActions(ctx android.SingletonContext) {
 	}
 	a.out = android.PathForOutput(ctx, "prebuilt_info.json")
 	android.WriteFileRule(ctx, a.out, string(j))
-}
-
-func (a *apexPrebuiltInfo) MakeVars(ctx android.MakeVarsContext) {
 	ctx.DistForGoal("droidcore", a.out)
 }

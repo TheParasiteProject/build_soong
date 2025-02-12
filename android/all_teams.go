@@ -134,9 +134,6 @@ func (t *allTeamsSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	WriteFileRuleVerbatim(ctx, t.outputPath, string(data))
 	ctx.Phony("all_teams", t.outputPath)
-}
-
-func (t *allTeamsSingleton) MakeVars(ctx MakeVarsContext) {
 	ctx.DistForGoal("all_teams", t.outputPath)
 }
 
