@@ -85,6 +85,7 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 
 	output := android.PathForModuleOut(ctx, "system_other.img")
 	stagingDir := android.PathForModuleOut(ctx, "staging_dir")
+	stagingDirTimestamp := android.PathForModuleOut(ctx, "staging_dir.timestamp")
 
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().Textf("rm -rf %s && mkdir -p %s", stagingDir, stagingDir)
@@ -113,6 +114,8 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	if len(m.properties.Preinstall_dexpreopt_files_from) > 0 {
 		builder.Command().Textf("touch %s", filepath.Join(stagingDir.String(), "system-other-odex-marker"))
 	}
+	builder.Command().Textf("touch").Output(stagingDirTimestamp)
+	builder.Build("assemble_filesystem_staging_dir", "Assemble filesystem staging dir")
 
 	// Most of the time, if build_image were to call a host tool, it accepts the path to the
 	// host tool in a field in the prop file. However, it doesn't have that option for fec, which
@@ -120,6 +123,7 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	fec := ctx.Config().HostToolPath(ctx, "fec")
 	pathToolDirs := []string{filepath.Dir(fec.String())}
 
+	builder = android.NewRuleBuilder(pctx, ctx)
 	builder.Command().
 		Textf("PATH=%s:$PATH", strings.Join(pathToolDirs, ":")).
 		BuiltTool("build_image").
@@ -127,11 +131,44 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 		Input(systemInfo.BuildImagePropFile).
 		Implicits(systemInfo.BuildImagePropFileDeps).
 		Implicit(fec).
+		Implicit(stagingDirTimestamp).
 		Output(output).
 		Text(stagingDir.String())
 
 	builder.Build("build_system_other", "build system other")
 
+	// Create a hermetic system_other.img with pinned timestamps
+	builder = android.NewRuleBuilder(pctx, ctx)
+	outputHermetic := android.PathForModuleOut(ctx, "for_target_files", "system_other.img")
+	outputHermeticPropFile := m.propFileForHermeticImg(ctx, builder, systemInfo.BuildImagePropFile)
+	builder.Command().
+		Textf("PATH=%s:$PATH", strings.Join(pathToolDirs, ":")).
+		BuiltTool("build_image").
+		Text(stagingDir.String()). // input directory
+		Input(outputHermeticPropFile).
+		Implicits(systemInfo.BuildImagePropFileDeps).
+		Implicit(fec).
+		Implicit(stagingDirTimestamp).
+		Output(outputHermetic).
+		Text(stagingDir.String())
+
+	builder.Build("build_system_other_hermetic", "build system other")
+
+	fsInfo := FilesystemInfo{
+		Output:         output,
+		OutputHermetic: outputHermetic,
+		RootDir:        stagingDir,
+	}
+
+	android.SetProvider(ctx, FilesystemProvider, fsInfo)
+
 	ctx.SetOutputFiles(android.Paths{output}, "")
 	ctx.CheckbuildFile(output)
+}
+
+func (f *systemOtherImage) propFileForHermeticImg(ctx android.ModuleContext, builder *android.RuleBuilder, inputPropFile android.Path) android.Path {
+	propFilePinnedTimestamp := android.PathForModuleOut(ctx, "for_target_files", "prop")
+	builder.Command().Textf("cat").Input(inputPropFile).Flag(">").Output(propFilePinnedTimestamp).
+		Textf(" && echo use_fixed_timestamp=true >> %s", propFilePinnedTimestamp)
+	return propFilePinnedTimestamp
 }

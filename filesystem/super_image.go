@@ -291,8 +291,6 @@ func (s *superImage) buildMiscInfo(ctx android.ModuleContext) (android.Path, and
 		switch p {
 		case "system":
 			handleSubPartition("system", s.partitionProps.System_partition)
-			// TODO: add system_other to deps after it can be generated
-			//getFsInfo("system_other", s.partitionProps.System_other_partition, &subImageInfo.System_other)
 		case "system_dlkm":
 			handleSubPartition("system_dlkm", s.partitionProps.System_dlkm_partition)
 		case "system_ext":
@@ -321,8 +319,7 @@ func (s *superImage) buildMiscInfo(ctx android.ModuleContext) (android.Path, and
 		if len(systemOtherFiles) != 1 {
 			ctx.PropertyErrorf("system_other_partition", "Expected 1 output file from module %q", *&s.properties.System_other_partition)
 		} else {
-			addStr("system_other_image", systemOtherFiles[0].String())
-			deps = append(deps, systemOtherFiles[0])
+			handleSubPartition("system_other", s.partitionProps.System_other_partition)
 		}
 	}
 
