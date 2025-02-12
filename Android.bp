@@ -147,16 +147,6 @@ all_apex_contributions {
 // Framework guests.
 cc_defaults {
     name: "cc_baremetal_defaults",
-    arch: {
-        arm64: {
-            cflags: [
-                // Prevent the compiler from optimizing code using SVE, as the
-                // baremetal environment might not have configured the hardware.
-                "-Xclang -target-feature",
-                "-Xclang -sve",
-            ],
-        },
-    },
     defaults_visibility: ["//visibility:public"],
 }
 
