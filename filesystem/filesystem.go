@@ -413,6 +413,10 @@ type FilesystemInfo struct {
 
 	// Installed files list
 	InstalledFiles InstalledFilesStruct
+
+	// Path to compress hints file for erofs filesystems
+	// This will be nil for other fileystems like ext4
+	ErofsCompressHints android.Path
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -634,6 +638,11 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	installedFileTxt, installedFileJson := buildInstalledFiles(ctx, partitionName, rootDir, f.output)
 
+	var erofsCompressHints android.Path
+	if f.properties.Erofs.Compress_hints != nil {
+		erofsCompressHints = android.PathForModuleSrc(ctx, *f.properties.Erofs.Compress_hints)
+	}
+
 	fsInfo := FilesystemInfo{
 		Output:                 f.output,
 		OutputHermetic:         outputHermetic,
@@ -650,6 +659,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Txt:  installedFileTxt,
 			Json: installedFileJson,
 		},
+		ErofsCompressHints: erofsCompressHints,
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)

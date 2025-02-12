@@ -442,6 +442,9 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	}
 	builder.Command().Textf("cp").Input(android.PathForSource(ctx, "external/zucchini/version_info.h")).Textf(" %s/META/zucchini_config.txt", targetFilesDir.String())
 	builder.Command().Textf("cp").Input(android.PathForSource(ctx, "system/update_engine/update_engine.conf")).Textf(" %s/META/update_engine_config.txt", targetFilesDir.String())
+	if a.getFsInfos(ctx)["system"].ErofsCompressHints != nil {
+		builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+	}
 }
 
 func (a *androidDevice) getFilesystemInfo(ctx android.ModuleContext, depName string) FilesystemInfo {
