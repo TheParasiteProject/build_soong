@@ -1237,7 +1237,7 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 	linkerDeps = append(linkerDeps, deps.SharedLibsDeps...)
 	linkerDeps = append(linkerDeps, deps.LateSharedLibsDeps...)
 
-	if generatedLib := generateRustStaticlib(ctx, deps.RustRlibDeps); generatedLib != nil && !library.BuildStubs() {
+	if generatedLib := GenerateRustStaticlib(ctx, deps.RustRlibDeps); generatedLib != nil && !library.BuildStubs() {
 		if ctx.Module().(*Module).WholeRustStaticlib {
 			deps.WholeStaticLibs = append(deps.WholeStaticLibs, generatedLib)
 		} else {

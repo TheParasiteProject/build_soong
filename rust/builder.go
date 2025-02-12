@@ -171,7 +171,7 @@ func TransformSrctoRlib(ctx ModuleContext, mainSrc android.Path, deps PathDeps, 
 	return transformSrctoCrate(ctx, mainSrc, deps, flags, outputFile, getTransformProperties(ctx, "rlib"))
 }
 
-// TransformRlibstoStaticlib is assumed to be called from the cc module, and
+// TransformRlibstoStaticlib is assumed to be callable from the cc module, and
 // thus needs to reconstruct the common set of flags which need to be passed
 // to the rustc compiler.
 func TransformRlibstoStaticlib(ctx android.ModuleContext, mainSrc android.Path, deps []cc.RustRlibDep,
@@ -185,7 +185,7 @@ func TransformRlibstoStaticlib(ctx android.ModuleContext, mainSrc android.Path, 
 		rustPathDeps.linkDirs = append(rustPathDeps.linkDirs, rlibDep.LinkDirs...)
 	}
 
-	ccModule := ctx.(cc.ModuleContext).Module().(*cc.Module)
+	mod := ctx.Module().(cc.LinkableInterface)
 	toolchain := config.FindToolchain(ctx.Os(), ctx.Arch())
 	t := transformProperties{
 		// Crate name can be a predefined value as this is a staticlib and
@@ -195,10 +195,10 @@ func TransformRlibstoStaticlib(ctx android.ModuleContext, mainSrc android.Path, 
 		crateName:       "generated_rust_staticlib",
 		is64Bit:         toolchain.Is64Bit(),
 		targetTriple:    toolchain.RustTriple(),
-		bootstrap:       ccModule.Bootstrap(),
-		inRecovery:      ccModule.InRecovery(),
-		inRamdisk:       ccModule.InRamdisk(),
-		inVendorRamdisk: ccModule.InVendorRamdisk(),
+		bootstrap:       mod.Bootstrap(),
+		inRecovery:      mod.InRecovery(),
+		inRamdisk:       mod.InRamdisk(),
+		inVendorRamdisk: mod.InVendorRamdisk(),
 
 		// crateType indicates what type of crate to build
 		crateType: "staticlib",
@@ -400,6 +400,11 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 			dynamicLinker += "64"
 		}
 		linkFlags = append(linkFlags, dynamicLinker)
+	}
+
+	if generatedLib := cc.GenerateRustStaticlib(ctx, deps.ccRlibDeps); generatedLib != nil {
+		deps.StaticLibs = append(deps.StaticLibs, generatedLib)
+		linkFlags = append(linkFlags, generatedLib.String())
 	}
 
 	libFlags := makeLibFlags(deps)

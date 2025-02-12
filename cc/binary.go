@@ -426,7 +426,7 @@ func (binary *binaryDecorator) link(ctx ModuleContext,
 	validations = append(validations, objs.tidyDepFiles...)
 	linkerDeps = append(linkerDeps, flags.LdFlagsDeps...)
 
-	if generatedLib := generateRustStaticlib(ctx, deps.RustRlibDeps); generatedLib != nil {
+	if generatedLib := GenerateRustStaticlib(ctx, deps.RustRlibDeps); generatedLib != nil {
 		deps.StaticLibs = append(deps.StaticLibs, generatedLib)
 	}
 

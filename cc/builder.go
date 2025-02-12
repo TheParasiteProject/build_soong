@@ -817,7 +817,7 @@ func transformObjToStaticLib(ctx android.ModuleContext,
 }
 
 // Generate a Rust staticlib from a list of rlibDeps. Returns nil if TransformRlibstoStaticlib is nil or rlibDeps is empty.
-func generateRustStaticlib(ctx android.ModuleContext, rlibDeps []RustRlibDep) android.Path {
+func GenerateRustStaticlib(ctx android.ModuleContext, rlibDeps []RustRlibDep) android.Path {
 	if TransformRlibstoStaticlib == nil && len(rlibDeps) > 0 {
 		// This should only be reachable if a module defines Rust deps in static_libs and
 		// soong-rust hasn't been loaded alongside soong-cc (e.g. in soong-cc tests).

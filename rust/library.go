@@ -737,12 +737,15 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	if library.rlib() {
 		library.flagExporter.exportStaticLibs(deps.staticLibObjects...)
 	}
-
 	// Since we have FFI rlibs, we need to collect their includes as well
 	if library.static() || library.shared() || library.rlib() || library.stubs() {
-		android.SetProvider(ctx, cc.FlagExporterInfoProvider, cc.FlagExporterInfo{
+		ccExporter := cc.FlagExporterInfo{
 			IncludeDirs: android.FirstUniquePaths(library.includeDirs),
-		})
+		}
+		if library.rlib() {
+			ccExporter.RustRlibDeps = append(ccExporter.RustRlibDeps, deps.reexportedCcRlibDeps...)
+		}
+		android.SetProvider(ctx, cc.FlagExporterInfoProvider, ccExporter)
 	}
 
 	if library.shared() || library.stubs() {
