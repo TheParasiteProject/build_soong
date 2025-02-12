@@ -153,7 +153,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	//a.buildTargetFilesZip(ctx) TODO(b/393203512): re-enable target_files.zip
+	a.buildTargetFilesZip(ctx)
 	var deps []android.Path
 	if proptools.String(a.partitionProps.Super_partition_name) != "" {
 		superImage := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)

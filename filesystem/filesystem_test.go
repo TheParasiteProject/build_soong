@@ -332,7 +332,7 @@ func TestFileSystemWithCoverageVariants(t *testing.T) {
 	`)
 
 	filesystem := result.ModuleForTests("myfilesystem", "android_common_cov")
-	inputs := filesystem.Output("myfilesystem.img").Implicits
+	inputs := filesystem.Output("staging_dir.timestamp").Implicits
 	android.AssertStringListContains(t, "filesystem should have libfoo(cov)",
 		inputs.Strings(),
 		"out/soong/.intermediates/libfoo/android_arm64_armv8-a_shared_cov/libfoo.so")
