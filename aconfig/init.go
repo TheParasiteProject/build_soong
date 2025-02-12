@@ -104,6 +104,7 @@ var (
 				`        --mode=exported` +
 				`        --allow-instrumentation ${use_new_storage}` +
 				`        --new-exported ${use_new_exported}` +
+				`        --single-exported-file true` +
 				`        --check-api-level ${check_api_level}` +
 				`        --out ${out}.tmp; ` +
 				`  fi ` +
