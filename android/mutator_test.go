@@ -54,7 +54,7 @@ func (m *mutatorTestModule) DepsMutator(ctx BottomUpMutatorContext) {
 	ctx.AddDependency(ctx.Module(), nil, m.props.Deps_missing_deps...)
 }
 
-func addMissingDependenciesMutator(ctx TopDownMutatorContext) {
+func addMissingDependenciesMutator(ctx BottomUpMutatorContext) {
 	ctx.AddMissingDependencies(ctx.Module().(*mutatorTestModule).props.Mutator_missing_deps)
 }
 
@@ -72,7 +72,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 		FixtureRegisterWithContext(func(ctx RegistrationContext) {
 			ctx.RegisterModuleType("test", mutatorTestModuleFactory)
 			ctx.PreDepsMutators(func(ctx RegisterMutatorsContext) {
-				ctx.TopDown("add_missing_dependencies", addMissingDependenciesMutator)
+				ctx.BottomUp("add_missing_dependencies", addMissingDependenciesMutator)
 			})
 		}),
 		FixtureWithRootAndroidBp(bp),

@@ -89,7 +89,6 @@ var singletons sortableComponents
 type mutator struct {
 	name              string
 	bottomUpMutator   blueprint.BottomUpMutator
-	topDownMutator    blueprint.TopDownMutator
 	transitionMutator blueprint.TransitionMutator
 
 	usesRename              bool
