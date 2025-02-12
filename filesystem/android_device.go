@@ -70,7 +70,9 @@ type DeviceProperties struct {
 	// blueprint:"mutated" and still set it from filesystem_creator
 	Main_device *bool
 
-	Ab_ota_updater *bool
+	Ab_ota_updater    *bool
+	Ab_ota_partitions []string
+	Ab_ota_keys       []string
 }
 
 type androidDevice struct {
@@ -439,11 +441,19 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 			info, _ := android.OtherModuleProvider(ctx, child, android.OutputFilesProvider)
 			builder.Command().Textf("cp").Inputs(info.DefaultOutputFiles).Textf(" %s/META/", targetFilesDir.String())
 		})
-	}
-	builder.Command().Textf("cp").Input(android.PathForSource(ctx, "external/zucchini/version_info.h")).Textf(" %s/META/zucchini_config.txt", targetFilesDir.String())
-	builder.Command().Textf("cp").Input(android.PathForSource(ctx, "system/update_engine/update_engine.conf")).Textf(" %s/META/update_engine_config.txt", targetFilesDir.String())
-	if a.getFsInfos(ctx)["system"].ErofsCompressHints != nil {
-		builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "external/zucchini/version_info.h")).Textf(" %s/META/zucchini_config.txt", targetFilesDir.String())
+		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "system/update_engine/update_engine.conf")).Textf(" %s/META/update_engine_config.txt", targetFilesDir.String())
+		if a.getFsInfos(ctx)["system"].ErofsCompressHints != nil {
+			builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+		}
+		// ab_partitions.txt
+		abPartitionsSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_partitions)
+		abPartitionsSortedString := proptools.ShellEscape(strings.Join(abPartitionsSorted, "\\n"))
+		builder.Command().Textf("echo -e").Flag(abPartitionsSortedString).Textf(" > %s/META/ab_partitions.txt", targetFilesDir.String())
+		// otakeys.txt
+		abOtaKeysSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_keys)
+		abOtaKeysSortedString := proptools.ShellEscape(strings.Join(abOtaKeysSorted, "\\n"))
+		builder.Command().Textf("echo -e").Flag(abOtaKeysSortedString).Textf(" > %s/META/otakeys.txt", targetFilesDir.String())
 	}
 }
 
