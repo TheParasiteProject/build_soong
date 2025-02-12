@@ -791,6 +791,13 @@ func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContex
 		}
 	}
 
+	singletonDists := getSingletonDists(ctx.Config())
+	singletonDists.lock.Lock()
+	if contribution := distsToDistContributions(singletonDists.dists); contribution != nil {
+		allDistContributions = append(allDistContributions, *contribution)
+	}
+	singletonDists.lock.Unlock()
+
 	// Build module-info.json. Only in builds with HasDeviceProduct(), as we need a named
 	// device to have a TARGET_OUT folder.
 	if ctx.Config().HasDeviceProduct() {

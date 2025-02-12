@@ -266,6 +266,11 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 		dists = append(dists, mctx.dists...)
 	}
 
+	singletonDists := getSingletonDists(ctx.Config())
+	singletonDists.lock.Lock()
+	dists = append(dists, singletonDists.dists...)
+	singletonDists.lock.Unlock()
+
 	ctx.VisitAllModules(func(m Module) {
 		if provider, ok := m.(ModuleMakeVarsProvider); ok && m.Enabled(ctx) {
 			mctx := &makeVarsContext{
