@@ -197,7 +197,7 @@ func (a *androidTransitionMutatorAdapter) Split(ctx blueprint.BaseModuleContext)
 func (a *androidTransitionMutatorAdapter) OutgoingTransition(bpctx blueprint.OutgoingTransitionContext,
 	sourceTransitionInfo blueprint.TransitionInfo) blueprint.TransitionInfo {
 	m := bpctx.Module().(Module)
-	ctx := outgoingTransitionContextPool.Get().(*outgoingTransitionContextImpl)
+	ctx := outgoingTransitionContextPool.Get()
 	defer outgoingTransitionContextPool.Put(ctx)
 	*ctx = outgoingTransitionContextImpl{
 		archModuleContext: m.base().archModuleContextFactory(bpctx),
@@ -209,7 +209,7 @@ func (a *androidTransitionMutatorAdapter) OutgoingTransition(bpctx blueprint.Out
 func (a *androidTransitionMutatorAdapter) IncomingTransition(bpctx blueprint.IncomingTransitionContext,
 	incomingTransitionInfo blueprint.TransitionInfo) blueprint.TransitionInfo {
 	m := bpctx.Module().(Module)
-	ctx := incomingTransitionContextPool.Get().(*incomingTransitionContextImpl)
+	ctx := incomingTransitionContextPool.Get()
 	defer incomingTransitionContextPool.Put(ctx)
 	*ctx = incomingTransitionContextImpl{
 		archModuleContext: m.base().archModuleContextFactory(bpctx),
