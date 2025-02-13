@@ -70,9 +70,10 @@ type DeviceProperties struct {
 	// blueprint:"mutated" and still set it from filesystem_creator
 	Main_device *bool
 
-	Ab_ota_updater    *bool
-	Ab_ota_partitions []string
-	Ab_ota_keys       []string
+	Ab_ota_updater            *bool
+	Ab_ota_partitions         []string
+	Ab_ota_keys               []string
+	Ab_ota_postinstall_config []string
 }
 
 type androidDevice struct {
@@ -454,6 +455,9 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		abOtaKeysSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_keys)
 		abOtaKeysSortedString := proptools.ShellEscape(strings.Join(abOtaKeysSorted, "\\n"))
 		builder.Command().Textf("echo -e").Flag(abOtaKeysSortedString).Textf(" > %s/META/otakeys.txt", targetFilesDir.String())
+		// postinstall_config.txt
+		abOtaPostInstallConfigString := proptools.ShellEscape(strings.Join(a.deviceProps.Ab_ota_postinstall_config, "\\n"))
+		builder.Command().Textf("echo -e").Flag(abOtaPostInstallConfigString).Textf(" > %s/META/postinstall_config.txt", targetFilesDir.String())
 		// selinuxfc
 		if a.getFsInfos(ctx)["system"].SelinuxFc != nil {
 			builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].SelinuxFc).Textf(" %s/META/file_contexts.bin", targetFilesDir.String())

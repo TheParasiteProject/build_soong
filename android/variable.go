@@ -667,6 +667,7 @@ type PartitionVariables struct {
 	AbOtaUpdater                      bool                                     `json:",omitempty"`
 	AbOtaPartitions                   []string                                 `json:",omitempty"`
 	AbOtaKeys                         []string                                 `json:",omitempty"`
+	AbOtaPostInstallConfig            []string                                 `json:",omitempty"`
 
 	// Avb (android verified boot) stuff
 	BoardAvbEnable          bool                                `json:",omitempty"`
