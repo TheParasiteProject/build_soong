@@ -70,7 +70,7 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 					// if that's the case.
 					if fip.SymlinkTarget == "" {
 						ctx.Build(pctx, android.BuildParams{
-							Rule:   android.Cp,
+							Rule:   android.CpWithBash,
 							Input:  fip.SourcePath,
 							Output: fip.FullInstallPath,
 						})

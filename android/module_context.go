@@ -816,7 +816,7 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 		})
 		if !m.Config().KatiEnabled() {
 			m.Build(pctx, BuildParams{
-				Rule:        Symlink,
+				Rule:        SymlinkWithBash,
 				Description: "install symlink " + fullInstallPath.Base() + " -> " + absPath,
 				Output:      fullInstallPath,
 				Args: map[string]string{
