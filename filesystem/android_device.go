@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/java"
 
 	"github.com/google/blueprint"
@@ -122,6 +123,9 @@ type androidDevice struct {
 	apkCertsInfo                android.Path
 	targetFilesZip              android.Path
 	updatePackage               android.Path
+
+	symbolsZipFile     android.ModuleOutPath
+	symbolsMappingFile android.ModuleOutPath
 }
 
 func AndroidDeviceFactory() android.Module {
@@ -201,6 +205,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.miscInfo = a.addMiscInfo(ctx)
 	a.buildTargetFilesZip(ctx, allInstalledModules)
 	a.buildProguardZips(ctx, allInstalledModules)
+	a.buildSymbolsZip(ctx, allInstalledModules)
 	a.buildUpdatePackage(ctx)
 
 	var deps []android.Path
@@ -376,6 +381,43 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	return ret
 }
 
+type symbolicOutputInfo struct {
+	unstrippedOutputFile android.Path
+	symbolicOutputPath   android.InstallPath
+}
+
+func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.Module) {
+	var allSymbolicOutputPaths, allElfMappingProtoPaths android.Paths
+	for _, mod := range allInstalledModules {
+		if commonInfo, _ := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider); commonInfo.SkipAndroidMkProcessing {
+			continue
+		}
+		if symbolInfos, ok := android.OtherModuleProvider(ctx, mod, cc.SymbolInfosProvider); ok {
+			allSymbolicOutputPaths = append(allSymbolicOutputPaths, symbolInfos.SortedUniqueSymbolicOutputPaths()...)
+			allElfMappingProtoPaths = append(allElfMappingProtoPaths, symbolInfos.SortedUniqueElfMappingProtoPaths()...)
+		}
+	}
+	allSymbolicOutputPaths = android.SortedUniquePaths(allSymbolicOutputPaths)
+	allElfMappingProtoPaths = android.SortedUniquePaths(allElfMappingProtoPaths)
+
+	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   zipFiles,
+		Inputs: allSymbolicOutputPaths,
+		Output: a.symbolsZipFile,
+	})
+
+	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
+	dictMappingBuilder := android.NewRuleBuilder(pctx, ctx)
+	dictMappingBuilder.Command().
+		BuiltTool("symbols_map").
+		Flag("-merge").
+		Output(a.symbolsMappingFile).
+		Inputs(allElfMappingProtoPaths)
+
+	dictMappingBuilder.Build("symbols_elf_dict_mapping_proto", "Building symbols mapping proto")
+}
+
 func insertBeforeExtension(file, insertion string) string {
 	ext := filepath.Ext(file)
 	return strings.TrimSuffix(file, ext) + insertion + ext
@@ -415,6 +457,9 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardDictZip, namePrefix+insertBeforeExtension(a.proguardDictZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
 		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardDictMapping, namePrefix+insertBeforeExtension(a.proguardDictMapping.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
 		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardUsageZip, namePrefix+insertBeforeExtension(a.proguardUsageZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+
+		ctx.DistForGoalWithFilename("droidcore-unbundled", a.symbolsZipFile, namePrefix+insertBeforeExtension(a.symbolsZipFile.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+		ctx.DistForGoalWithFilename("droidcore-unbundled", a.symbolsMappingFile, namePrefix+insertBeforeExtension(a.symbolsMappingFile.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
 
 		if a.deviceProps.Android_info != nil {
 			ctx.DistForGoal("droidcore-unbundled", android.PathForModuleSrc(ctx, *a.deviceProps.Android_info))
