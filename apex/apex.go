@@ -1127,6 +1127,9 @@ func apexUniqueVariationsMutator(mctx android.BottomUpMutatorContext) {
 	}
 	if am, ok := mctx.Module().(android.ApexModule); ok {
 		android.UpdateUniqueApexVariationsForDeps(mctx, am)
+		android.SetProvider(mctx, android.DepInSameApexInfoProvider, android.DepInSameApexInfo{
+			Checker: am.GetDepInSameApexChecker(),
+		})
 	}
 }
 
@@ -1222,21 +1225,6 @@ const (
 	f2fsFsType  = "f2fs"
 	erofsFsType = "erofs"
 )
-
-var _ android.DepIsInSameApex = (*apexBundle)(nil)
-
-// Implements android.DepInInSameApex
-func (a *apexBundle) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
-	// direct deps of an APEX bundle are all part of the APEX bundle
-	// TODO(jiyong): shouldn't we look into the payload field of the dependencyTag?
-	return true
-}
-
-func (a *apexBundle) IncomingDepIsInSameApex(tag blueprint.DependencyTag) bool {
-	// direct deps of an APEX bundle are all part of the APEX bundle
-	// TODO(jiyong): shouldn't we look into the payload field of the dependencyTag?
-	return true
-}
 
 func (a *apexBundle) Exportable() bool {
 	return true

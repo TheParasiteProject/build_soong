@@ -301,13 +301,17 @@ func (p *prebuiltCommon) prebuiltApexContentsDeps(ctx android.BottomUpMutatorCon
 }
 
 // Implements android.DepInInSameApex
-func (p *prebuiltCommon) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
-	_, ok := tag.(exportedDependencyTag)
-	return ok
+func (m *prebuiltCommon) GetDepInSameApexChecker() android.DepInSameApexChecker {
+	return ApexPrebuiltDepInSameApexChecker{}
 }
 
-func (p *prebuiltCommon) IncomingDepIsInSameApex(tag blueprint.DependencyTag) bool {
-	return true
+type ApexPrebuiltDepInSameApexChecker struct {
+	android.BaseDepInSameApexChecker
+}
+
+func (m ApexPrebuiltDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
+	_, ok := tag.(exportedDependencyTag)
+	return ok
 }
 
 func (p *prebuiltCommon) checkExportedDependenciesArePrebuilts(ctx android.ModuleContext) {

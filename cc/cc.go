@@ -4056,7 +4056,23 @@ func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Write
 var _ android.ApexModule = (*Module)(nil)
 
 // Implements android.ApexModule
-func (c *Module) OutgoingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
+func (c *Module) GetDepInSameApexChecker() android.DepInSameApexChecker {
+	return CcDepInSameApexChecker{
+		Static:           c.static(),
+		HasStubsVariants: c.HasStubsVariants(),
+		IsLlndk:          c.IsLlndk(),
+		Host:             c.Host(),
+	}
+}
+
+type CcDepInSameApexChecker struct {
+	Static           bool
+	HasStubsVariants bool
+	IsLlndk          bool
+	Host             bool
+}
+
+func (c CcDepInSameApexChecker) OutgoingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
 	if depTag == StubImplDepTag {
 		// We don't track from an implementation library to its stubs.
 		return false
@@ -4069,7 +4085,7 @@ func (c *Module) OutgoingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
 	}
 
 	libDepTag, isLibDepTag := depTag.(libraryDependencyTag)
-	if isLibDepTag && c.static() && libDepTag.shared() {
+	if isLibDepTag && c.Static && libDepTag.shared() {
 		// shared_lib dependency from a static lib is considered as crossing
 		// the APEX boundary because the dependency doesn't actually is
 		// linked; the dependency is used only during the compilation phase.
@@ -4083,11 +4099,11 @@ func (c *Module) OutgoingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
 	return true
 }
 
-func (c *Module) IncomingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
-	if c.Host() {
+func (c CcDepInSameApexChecker) IncomingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
+	if c.Host {
 		return false
 	}
-	if c.HasStubsVariants() {
+	if c.HasStubsVariants {
 		if IsSharedDepTag(depTag) && !IsExplicitImplSharedDepTag(depTag) {
 			// dynamic dep to a stubs lib crosses APEX boundary
 			return false
@@ -4100,7 +4116,7 @@ func (c *Module) IncomingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
 			return false
 		}
 	}
-	if c.IsLlndk() {
+	if c.IsLlndk {
 		return false
 	}
 

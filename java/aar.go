@@ -1625,8 +1625,16 @@ var _ UsesLibraryDependency = (*AARImport)(nil)
 var _ android.ApexModule = (*AARImport)(nil)
 
 // Implements android.ApexModule
-func (a *AARImport) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
-	return a.depIsInSameApex(tag)
+func (m *AARImport) GetDepInSameApexChecker() android.DepInSameApexChecker {
+	return AARImportDepInSameApexChecker{}
+}
+
+type AARImportDepInSameApexChecker struct {
+	android.BaseDepInSameApexChecker
+}
+
+func (m AARImportDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
+	return depIsInSameApex(tag)
 }
 
 // Implements android.ApexModule

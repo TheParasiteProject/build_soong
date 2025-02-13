@@ -1708,14 +1708,22 @@ func (module *SdkLibrary) compareAgainstLatestApi(apiScope *apiScope) bool {
 }
 
 // Implements android.ApexModule
-func (module *SdkLibrary) OutgoingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
-	if depTag == xmlPermissionsFileTag {
+func (m *SdkLibrary) GetDepInSameApexChecker() android.DepInSameApexChecker {
+	return SdkLibraryDepInSameApexChecker{}
+}
+
+type SdkLibraryDepInSameApexChecker struct {
+	android.BaseDepInSameApexChecker
+}
+
+func (m SdkLibraryDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
+	if tag == xmlPermissionsFileTag {
 		return true
 	}
-	if depTag == implLibraryTag {
+	if tag == implLibraryTag {
 		return true
 	}
-	return module.Library.OutgoingDepIsInSameApex(depTag)
+	return depIsInSameApex(tag)
 }
 
 // Implements android.ApexModule
@@ -2126,8 +2134,16 @@ func (module *SdkLibraryImport) DepsMutator(ctx android.BottomUpMutatorContext) 
 var _ android.ApexModule = (*SdkLibraryImport)(nil)
 
 // Implements android.ApexModule
-func (module *SdkLibraryImport) OutgoingDepIsInSameApex(depTag blueprint.DependencyTag) bool {
-	if depTag == xmlPermissionsFileTag {
+func (m *SdkLibraryImport) GetDepInSameApexChecker() android.DepInSameApexChecker {
+	return SdkLibraryImportDepIsInSameApexChecker{}
+}
+
+type SdkLibraryImportDepIsInSameApexChecker struct {
+	android.BaseDepInSameApexChecker
+}
+
+func (m SdkLibraryImportDepIsInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
+	if tag == xmlPermissionsFileTag {
 		return true
 	}
 

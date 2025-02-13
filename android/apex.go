@@ -155,11 +155,9 @@ type ApexBundleInfo struct {
 
 var ApexBundleInfoProvider = blueprint.NewMutatorProvider[ApexBundleInfo]("apex_mutate")
 
-// DepIsInSameApex defines an interface that should be used to determine whether a given dependency
-// should be considered as part of the same APEX as the current module or not. Note: this was
-// extracted from ApexModule to make it easier to define custom subsets of the ApexModule interface
-// and improve code navigation within the IDE.
-type DepIsInSameApex interface {
+// DepInSameApexChecker defines an interface that should be used to determine whether a given dependency
+// should be considered as part of the same APEX as the current module or not.
+type DepInSameApexChecker interface {
 	// OutgoingDepIsInSameApex tests if the module depended on via 'tag' is considered as part of
 	// the same APEX as this module. For example, a static lib dependency usually returns true here, while a
 	// shared lib dependency to a stub library returns false.
@@ -181,6 +179,15 @@ type DepIsInSameApex interface {
 	IncomingDepIsInSameApex(tag blueprint.DependencyTag) bool
 }
 
+// DepInSameApexInfo is a provider that wraps around a DepInSameApexChecker that can be
+// used to check if a dependency belongs to the same apex as the module when walking
+// through the dependencies of a module.
+type DepInSameApexInfo struct {
+	Checker DepInSameApexChecker
+}
+
+var DepInSameApexInfoProvider = blueprint.NewMutatorProvider[DepInSameApexInfo]("apex_unique")
+
 func IsDepInSameApex(ctx BaseModuleContext, module, dep Module) bool {
 	depTag := ctx.OtherModuleDependencyTag(dep)
 	if _, ok := depTag.(ExcludeFromApexContentsTag); ok {
@@ -189,12 +196,23 @@ func IsDepInSameApex(ctx BaseModuleContext, module, dep Module) bool {
 		return false
 	}
 
-	if m, ok := module.(DepIsInSameApex); ok && !m.OutgoingDepIsInSameApex(depTag) {
-		return false
+	if !ctx.EqualModules(ctx.Module(), module) {
+		if moduleInfo, ok := OtherModuleProvider(ctx, module, DepInSameApexInfoProvider); ok {
+			if !moduleInfo.Checker.OutgoingDepIsInSameApex(depTag) {
+				return false
+			}
+		}
+	} else {
+		if m, ok := ctx.Module().(ApexModule); ok && !m.GetDepInSameApexChecker().OutgoingDepIsInSameApex(depTag) {
+			return false
+		}
 	}
-	if d, ok := dep.(DepIsInSameApex); ok && !d.IncomingDepIsInSameApex(depTag) {
-		return false
+	if depInfo, ok := OtherModuleProvider(ctx, dep, DepInSameApexInfoProvider); ok {
+		if !depInfo.Checker.IncomingDepIsInSameApex(depTag) {
+			return false
+		}
 	}
+
 	return true
 }
 
@@ -213,7 +231,6 @@ func IsDepInSameApex(ctx BaseModuleContext, module, dep Module) bool {
 // mergedName) when the two APEXes have the same min_sdk_version requirement.
 type ApexModule interface {
 	Module
-	DepIsInSameApex
 
 	apexModuleBase() *ApexModuleBase
 
@@ -275,6 +292,8 @@ type ApexModule interface {
 	// deduping. This is turned on when, for example if use_apex_name_macro is set so that each
 	// apex variant should be built with different macro definitions.
 	UniqueApexVariations() bool
+
+	GetDepInSameApexChecker() DepInSameApexChecker
 }
 
 // Properties that are common to all module types implementing ApexModule interface.
@@ -331,7 +350,7 @@ func (m *ApexModuleBase) ApexTransitionMutatorSplit(ctx BaseModuleContext) []Ape
 }
 
 func (m *ApexModuleBase) ApexTransitionMutatorOutgoing(ctx OutgoingTransitionContext, info ApexInfo) ApexInfo {
-	if !ctx.Module().(DepIsInSameApex).OutgoingDepIsInSameApex(ctx.DepTag()) {
+	if !ctx.Module().(ApexModule).GetDepInSameApexChecker().OutgoingDepIsInSameApex(ctx.DepTag()) {
 		return ApexInfo{}
 	}
 	return info
@@ -343,7 +362,7 @@ func (m *ApexModuleBase) ApexTransitionMutatorIncoming(ctx IncomingTransitionCon
 		return ApexInfo{}
 	}
 
-	if !ctx.Module().(DepIsInSameApex).IncomingDepIsInSameApex(ctx.DepTag()) {
+	if !ctx.Module().(ApexModule).GetDepInSameApexChecker().IncomingDepIsInSameApex(ctx.DepTag()) {
 		return ApexInfo{}
 	}
 
@@ -460,19 +479,17 @@ func (m *ApexModuleBase) UniqueApexVariations() bool {
 }
 
 // Implements ApexModule
-func (m *ApexModuleBase) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
-	// By default, if there is a dependency from A to B, we try to include both in the same
-	// APEX, unless B is explicitly from outside of the APEX (i.e. a stubs lib). Thus, returning
-	// true. This is overridden by some module types like apex.ApexBundle, cc.Module,
-	// java.Module, etc.
+func (m *ApexModuleBase) GetDepInSameApexChecker() DepInSameApexChecker {
+	return BaseDepInSameApexChecker{}
+}
+
+type BaseDepInSameApexChecker struct{}
+
+func (m BaseDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.DependencyTag) bool {
 	return true
 }
 
-func (m *ApexModuleBase) IncomingDepIsInSameApex(tag blueprint.DependencyTag) bool {
-	// By default, if there is a dependency from A to B, we try to include both in the same
-	// APEX, unless B is explicitly from outside of the APEX (i.e. a stubs lib). Thus, returning
-	// true. This is overridden by some module types like apex.ApexBundle, cc.Module,
-	// java.Module, etc.
+func (m BaseDepInSameApexChecker) IncomingDepIsInSameApex(tag blueprint.DependencyTag) bool {
 	return true
 }
 
