@@ -45,6 +45,6 @@ func TestAllAconfigDeclarationsExtension(t *testing.T) {
 		}
 	`)
 
-	finalizedFlags := result.ModuleForTests("custom_aconfig_declarations", "").Output("finalized-flags.txt")
+	finalizedFlags := result.ModuleForTests(t, "custom_aconfig_declarations", "").Output("finalized-flags.txt")
 	android.AssertStringContainsEquals(t, "must depend on all_aconfig_declarations", strings.Join(finalizedFlags.Inputs.Strings(), " "), "all_aconfig_declarations.pb", true)
 }

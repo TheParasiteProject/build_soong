@@ -31,7 +31,7 @@ func TestAndroidAppSet(t *testing.T) {
 			set: "prebuilts/apks/app.apks",
 			prerelease: true,
 		}`)
-	module := result.ModuleForTests("foo", "android_common")
+	module := result.ModuleForTests(t, "foo", "android_common")
 	const packedSplitApks = "foo.zip"
 	params := module.Output(packedSplitApks)
 	if params.Rule == nil {
@@ -127,7 +127,7 @@ func TestAndroidAppSet_Variants(t *testing.T) {
 				}),
 			).RunTestWithBp(t, bp)
 
-			module := ctx.ModuleForTests("foo", "android_common")
+			module := ctx.ModuleForTests(t, "foo", "android_common")
 			const packedSplitApks = "foo.zip"
 			params := module.Output(packedSplitApks)
 			for k, v := range test.expected {

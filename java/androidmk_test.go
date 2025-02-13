@@ -32,7 +32,7 @@ func TestRequired(t *testing.T) {
 		}
 	`)
 
-	mod := ctx.ModuleForTests("foo", "android_common").Module()
+	mod := ctx.ModuleForTests(t, "foo", "android_common").Module()
 	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 
 	expected := []string{"libfoo"}
@@ -52,7 +52,7 @@ func TestHostdex(t *testing.T) {
 		}
 	`)
 
-	mod := ctx.ModuleForTests("foo", "android_common").Module()
+	mod := ctx.ModuleForTests(t, "foo", "android_common").Module()
 	entriesList := android.AndroidMkEntriesForTest(t, ctx, mod)
 	if len(entriesList) != 2 {
 		t.Errorf("two entries are expected, but got %d", len(entriesList))
@@ -84,7 +84,7 @@ func TestHostdexRequired(t *testing.T) {
 		}
 	`)
 
-	mod := ctx.ModuleForTests("foo", "android_common").Module()
+	mod := ctx.ModuleForTests(t, "foo", "android_common").Module()
 	entriesList := android.AndroidMkEntriesForTest(t, ctx, mod)
 	if len(entriesList) != 2 {
 		t.Errorf("two entries are expected, but got %d", len(entriesList))
@@ -120,7 +120,7 @@ func TestHostdexSpecificRequired(t *testing.T) {
 		}
 	`)
 
-	mod := ctx.ModuleForTests("foo", "android_common").Module()
+	mod := ctx.ModuleForTests(t, "foo", "android_common").Module()
 	entriesList := android.AndroidMkEntriesForTest(t, ctx, mod)
 	if len(entriesList) != 2 {
 		t.Errorf("two entries are expected, but got %d", len(entriesList))
@@ -158,7 +158,7 @@ func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
 		`)
 
 	// Verify the existence of internal modules
-	result.ModuleForTests("foo-shared_library.xml", "android_common")
+	result.ModuleForTests(t, "foo-shared_library.xml", "android_common")
 
 	testCases := []struct {
 		moduleName string
@@ -168,7 +168,7 @@ func TestJavaSdkLibrary_RequireXmlPermissionFile(t *testing.T) {
 		{"foo-no_shared_library", []string{"foo-no_shared_library.impl"}},
 	}
 	for _, tc := range testCases {
-		mod := result.ModuleForTests(tc.moduleName, "android_common").Module()
+		mod := result.ModuleForTests(t, tc.moduleName, "android_common").Module()
 		entries := android.AndroidMkEntriesForTest(t, result.TestContext, mod)[0]
 		actual := entries.EntryMap["LOCAL_REQUIRED_MODULES"]
 		if !reflect.DeepEqual(tc.expected, actual) {
@@ -205,7 +205,7 @@ func TestAndroidTestHelperApp_LocalDisableTestConfig(t *testing.T) {
 		}
 	`)
 
-	mod := ctx.ModuleForTests("foo", "android_common").Module()
+	mod := ctx.ModuleForTests(t, "foo", "android_common").Module()
 	entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 
 	expected := []string{"true"}
@@ -254,7 +254,7 @@ func TestGetOverriddenPackages(t *testing.T) {
 	}
 
 	for _, expected := range expectedVariants {
-		mod := ctx.ModuleForTests(expected.name, expected.variantName).Module()
+		mod := ctx.ModuleForTests(t, expected.name, expected.variantName).Module()
 		entries := android.AndroidMkEntriesForTest(t, ctx, mod)[0]
 		actual := entries.EntryMap["LOCAL_OVERRIDES_PACKAGES"]
 
@@ -304,7 +304,7 @@ func TestJniAsRequiredDeps(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		mod := ctx.ModuleForTests(tc.name, "android_common").Module()
+		mod := ctx.ModuleForTests(t, tc.name, "android_common").Module()
 		entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, mod)[0]
 		required := entries.EntryMap["LOCAL_REQUIRED_MODULES"]
 		android.AssertDeepEquals(t, "unexpected required deps", tc.expected, required)

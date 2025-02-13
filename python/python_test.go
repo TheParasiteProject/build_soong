@@ -313,7 +313,7 @@ func TestInvalidTestOnlyTargets(t *testing.T) {
 }
 
 func expectModule(t *testing.T, ctx *android.TestContext, name, variant, expectedSrcsZip string, expectedPyRunfiles []string) {
-	module := ctx.ModuleForTests(name, variant)
+	module := ctx.ModuleForTests(t, name, variant)
 
 	base, baseOk := module.Module().(*PythonLibraryModule)
 	if !baseOk {

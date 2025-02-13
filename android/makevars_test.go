@@ -23,7 +23,7 @@ func TestDistFilesInGenerateAndroidBuildActions(t *testing.T) {
 	}
 	`)
 
-	lateContents := string(result.SingletonForTests("makevars").Singleton().(*makeVarsSingleton).lateForTesting)
+	lateContents := string(result.SingletonForTests(t, "makevars").Singleton().(*makeVarsSingleton).lateForTesting)
 	matched, err := regexp.MatchString(`call dist-for-goals,my_goal,.*/my_file.txt:my_file.txt\)`, lateContents)
 	if err != nil || !matched {
 		t.Fatalf("Expected a dist of my_file.txt, but got: %s", lateContents)

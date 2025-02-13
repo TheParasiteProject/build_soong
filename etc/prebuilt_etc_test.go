@@ -324,7 +324,7 @@ func TestPrebuiltEtcAllowMissingDependencies(t *testing.T) {
 	`)
 
 	android.AssertStringEquals(t, "expected error rule", "android/soong/android.Error",
-		result.ModuleForTests("foo.conf", "android_arm64_armv8-a").Output("foo.conf").Rule.String())
+		result.ModuleForTests(t, "foo.conf", "android_arm64_armv8-a").Output("foo.conf").Rule.String())
 }
 
 func TestPrebuiltRootInstallDirPath(t *testing.T) {

@@ -55,7 +55,7 @@ func TestJavaSystemModules(t *testing.T) {
 	result := android.GroupFixturePreparers(prepareForJavaTest, addSourceSystemModules).RunTest(t)
 
 	// check the existence of the source module
-	sourceSystemModules := result.ModuleForTests("system-modules", "android_common")
+	sourceSystemModules := result.ModuleForTests(t, "system-modules", "android_common")
 	sourceInputs := sourceSystemModules.Rule("jarsTosystemModules").Inputs
 
 	// The expected paths are the header jars from the source input modules.
@@ -83,7 +83,7 @@ func TestJavaSystemModulesImport(t *testing.T) {
 	result := android.GroupFixturePreparers(prepareForJavaTest, addPrebuiltSystemModules).RunTest(t)
 
 	// check the existence of the renamed prebuilt module
-	prebuiltSystemModules := result.ModuleForTests("system-modules", "android_common")
+	prebuiltSystemModules := result.ModuleForTests(t, "system-modules", "android_common")
 	prebuiltInputs := prebuiltSystemModules.Rule("jarsTosystemModules").Inputs
 
 	// The expected paths are the header jars from the renamed prebuilt input modules.
@@ -100,7 +100,7 @@ func TestJavaSystemModulesMixSourceAndPrebuilt(t *testing.T) {
 	).RunTest(t)
 
 	// check the existence of the source module
-	sourceSystemModules := result.ModuleForTests("system-modules", "android_common")
+	sourceSystemModules := result.ModuleForTests(t, "system-modules", "android_common")
 	sourceInputs := sourceSystemModules.Rule("jarsTosystemModules").Inputs
 
 	// The expected paths are the header jars from the source input modules.
@@ -108,7 +108,7 @@ func TestJavaSystemModulesMixSourceAndPrebuilt(t *testing.T) {
 	android.AssertArrayString(t, "source system modules inputs", expectedSourcePaths, sourceInputs.RelativeToTop().Strings())
 
 	// check the existence of the renamed prebuilt module
-	prebuiltSystemModules := result.ModuleForTests("prebuilt_system-modules", "android_common")
+	prebuiltSystemModules := result.ModuleForTests(t, "prebuilt_system-modules", "android_common")
 	prebuiltInputs := prebuiltSystemModules.Rule("jarsTosystemModules").Inputs
 
 	// The expected paths are the header jars from the renamed prebuilt input modules.

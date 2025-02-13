@@ -350,7 +350,7 @@ func TestSnapshot_EnvConfiguration(t *testing.T) {
 	)
 
 	checkZipFile := func(t *testing.T, result *android.TestResult, expected string) {
-		zipRule := result.ModuleForTests("mysdk", "common_os").Rule("SnapshotZipFiles")
+		zipRule := result.ModuleForTests(t, "mysdk", "common_os").Rule("SnapshotZipFiles")
 		android.AssertStringEquals(t, "snapshot zip file", expected, zipRule.Output.String())
 	}
 

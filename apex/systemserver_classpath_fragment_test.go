@@ -457,7 +457,7 @@ func TestPrebuiltStandaloneSystemserverclasspathFragmentContents(t *testing.T) {
 }
 
 func assertProfileGuided(t *testing.T, ctx *android.TestContext, moduleName string, variant string, expected bool) {
-	dexpreopt := ctx.ModuleForTests(moduleName, variant).Rule("dexpreopt")
+	dexpreopt := ctx.ModuleForTests(t, moduleName, variant).Rule("dexpreopt")
 	actual := strings.Contains(dexpreopt.RuleParams.Command, "--profile-file=")
 	if expected != actual {
 		t.Fatalf("Expected profile-guided to be %v, got %v", expected, actual)
@@ -465,7 +465,7 @@ func assertProfileGuided(t *testing.T, ctx *android.TestContext, moduleName stri
 }
 
 func assertProfileGuidedPrebuilt(t *testing.T, ctx *android.TestContext, apexName string, moduleName string, expected bool) {
-	dexpreopt := ctx.ModuleForTests(apexName, "android_common_prebuilt_"+apexName).Rule("dexpreopt." + moduleName)
+	dexpreopt := ctx.ModuleForTests(t, apexName, "android_common_prebuilt_"+apexName).Rule("dexpreopt." + moduleName)
 	actual := strings.Contains(dexpreopt.RuleParams.Command, "--profile-file=")
 	if expected != actual {
 		t.Fatalf("Expected profile-guided to be %v, got %v", expected, actual)

@@ -121,7 +121,7 @@ func TestRavenwoodRuntime(t *testing.T) {
 	CheckModuleHasDependency(t, ctx.TestContext, "ravenwood-utils", "android_common", "framework-rules.ravenwood")
 
 	// Verify that we've emitted artifacts in expected location
-	runtime := ctx.ModuleForTests("ravenwood-runtime", "android_common")
+	runtime := ctx.ModuleForTests(t, "ravenwood-runtime", "android_common")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/framework-minus-apex.ravenwood.jar")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/framework-services.ravenwood.jar")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/ravenwood-runtime-jni1.so")
@@ -129,7 +129,7 @@ func TestRavenwoodRuntime(t *testing.T) {
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/lib64/ravenwood-runtime-jni3.so")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/ravenwood-data/app1.apk")
 	runtime.Output(installPathPrefix + "/ravenwood-runtime/fonts/Font.ttf")
-	utils := ctx.ModuleForTests("ravenwood-utils", "android_common")
+	utils := ctx.ModuleForTests(t, "ravenwood-utils", "android_common")
 	utils.Output(installPathPrefix + "/ravenwood-utils/framework-rules.ravenwood.jar")
 }
 
@@ -193,7 +193,7 @@ func TestRavenwoodTest(t *testing.T) {
 	CheckModuleHasDependency(t, ctx.TestContext, "ravenwood-test", "android_common", "ravenwood-utils")
 	CheckModuleHasDependency(t, ctx.TestContext, "ravenwood-test", "android_common", "jni-lib")
 
-	module := ctx.ModuleForTests("ravenwood-test", "android_common")
+	module := ctx.ModuleForTests(t, "ravenwood-test", "android_common")
 	classpath := module.Rule("javac").Args["classpath"]
 
 	// Verify that we're linking against test_current
@@ -214,7 +214,7 @@ func TestRavenwoodTest(t *testing.T) {
 	module.Output(installPathPrefix + "/ravenwood-test/ravenwood-res-apks/ravenwood-res.apk")
 	module.Output(installPathPrefix + "/ravenwood-test/ravenwood-res-apks/ravenwood-inst-res.apk")
 
-	module = ctx.ModuleForTests("ravenwood-test-empty", "android_common")
+	module = ctx.ModuleForTests(t, "ravenwood-test-empty", "android_common")
 	module.Output(installPathPrefix + "/ravenwood-test-empty/ravenwood.properties")
 
 	// ravenwood-runtime*.so are included in the runtime, so it shouldn't be emitted.

@@ -349,7 +349,7 @@ func TestSimple(t *testing.T) {
 				PrepareForTestWithJavaDefaultModules,
 				tt.preparer,
 			).RunTestWithBp(t, bp)
-			foo := result.ModuleForTests("foo", "android_common")
+			foo := result.ModuleForTests(t, "foo", "android_common")
 
 			fooJavac := foo.Rule("javac")
 			android.AssertPathsRelativeToTopEquals(t, "foo javac inputs", tt.fooJavacInputs, fooJavac.Inputs)
@@ -364,7 +364,7 @@ func TestSimple(t *testing.T) {
 			fooCombinedHeaderJar := foo.Output("turbine-combined/foo.jar")
 			android.AssertPathsRelativeToTopEquals(t, "foo header combined inputs", tt.fooHeaderCombinedInputs, fooCombinedHeaderJar.Inputs)
 
-			bar := result.ModuleForTests("bar", "android_common")
+			bar := result.ModuleForTests(t, "bar", "android_common")
 			barJavac := bar.Rule("javac")
 			android.AssertPathsRelativeToTopEquals(t, "bar javac inputs", tt.barJavacInputs, barJavac.Inputs)
 
@@ -475,11 +475,11 @@ func TestExportedPlugins(t *testing.T) {
 			`+test.extra)
 
 			for _, want := range test.results {
-				javac := ctx.ModuleForTests(want.library, "android_common").Rule("javac")
+				javac := ctx.ModuleForTests(t, want.library, "android_common").Rule("javac")
 				if javac.Args["processor"] != want.processors {
 					t.Errorf("For library %v, expected %v, found %v", want.library, want.processors, javac.Args["processor"])
 				}
-				turbine := ctx.ModuleForTests(want.library, "android_common").MaybeRule("turbine")
+				turbine := ctx.ModuleForTests(t, want.library, "android_common").MaybeRule("turbine")
 				disableTurbine := turbine.BuildParams.Rule == nil
 				if disableTurbine != want.disableTurbine {
 					t.Errorf("For library %v, expected disableTurbine %v, found %v", want.library, want.disableTurbine, disableTurbine)
@@ -545,7 +545,7 @@ func TestArchSpecific(t *testing.T) {
 		}
 	`)
 
-	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Rule("javac")
 	if len(javac.Inputs) != 2 || javac.Inputs[0].String() != "a.java" || javac.Inputs[1].String() != "b.java" {
 		t.Errorf(`foo inputs %v != ["a.java", "b.java"]`, javac.Inputs)
 	}
@@ -576,11 +576,11 @@ func TestBinary(t *testing.T) {
 
 	buildOS := ctx.Config().BuildOS.String()
 
-	bar := ctx.ModuleForTests("bar", buildOS+"_common")
+	bar := ctx.ModuleForTests(t, "bar", buildOS+"_common")
 	barJar := bar.Output("bar.jar").Output.String()
 	barWrapperDeps := bar.Output("bar").Implicits.Strings()
 
-	libjni := ctx.ModuleForTests("libjni", buildOS+"_x86_64_shared")
+	libjni := ctx.ModuleForTests(t, "libjni", buildOS+"_x86_64_shared")
 	libjniSO := libjni.Rule("Cp").Output.String()
 
 	// Test that the install binary wrapper depends on the installed jar file
@@ -613,7 +613,7 @@ func TestTest(t *testing.T) {
 
 	buildOS := ctx.Config().BuildOS.String()
 
-	foo := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
+	foo := ctx.ModuleForTests(t, "foo", buildOS+"_common").Module().(*TestHost)
 
 	expected := "lib64/libjni.so"
 	if runtime.GOOS == "darwin" {
@@ -649,7 +649,7 @@ func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 	).RunTestWithBp(t, bp)
 
 	// first, check that the -g flag is added to target modules
-	targetLibrary := result.ModuleForTests("target_library", "android_common")
+	targetLibrary := result.ModuleForTests(t, "target_library", "android_common")
 	targetJavaFlags := targetLibrary.Module().VariablesForTests()["javacFlags"]
 	if !strings.Contains(targetJavaFlags, "-g:source,lines") {
 		t.Errorf("target library javac flags %v should contain "+
@@ -658,7 +658,7 @@ func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 
 	// check that -g is not overridden for host modules
 	buildOS := result.Config.BuildOS.String()
-	hostBinary := result.ModuleForTests("host_binary", buildOS+"_common")
+	hostBinary := result.ModuleForTests(t, "host_binary", buildOS+"_common")
 	hostJavaFlags := hostBinary.Module().VariablesForTests()["javacFlags"]
 	if strings.Contains(hostJavaFlags, "-g:source,lines") {
 		t.Errorf("java_binary_host javac flags %v should not have "+
@@ -722,14 +722,14 @@ func TestPrebuilts(t *testing.T) {
 		}
 		`)
 
-	fooModule := ctx.ModuleForTests("foo", "android_common")
+	fooModule := ctx.ModuleForTests(t, "foo", "android_common")
 	javac := fooModule.Rule("javac")
-	combineJar := ctx.ModuleForTests("foo", "android_common").Description("for javac")
-	barModule := ctx.ModuleForTests("bar", "android_common")
+	combineJar := ctx.ModuleForTests(t, "foo", "android_common").Description("for javac")
+	barModule := ctx.ModuleForTests(t, "bar", "android_common")
 	barJar := barModule.Output("combined/bar.jar").Output
-	bazModule := ctx.ModuleForTests("baz", "android_common")
+	bazModule := ctx.ModuleForTests(t, "baz", "android_common")
 	bazJar := bazModule.Output("combined/baz.jar").Output
-	sdklibStubsJar := ctx.ModuleForTests("sdklib.stubs", "android_common").
+	sdklibStubsJar := ctx.ModuleForTests(t, "sdklib.stubs", "android_common").
 		Output("combined/sdklib.stubs.jar").Output
 
 	fooLibrary := fooModule.Module().(*Library)
@@ -762,7 +762,7 @@ func TestPrebuilts(t *testing.T) {
 	expectedDexJar := "out/soong/.intermediates/baz/android_common/dex/baz.jar"
 	android.AssertPathRelativeToTopEquals(t, "baz dex jar build path", expectedDexJar, bazDexJar)
 
-	ctx.ModuleForTests("qux", "android_common").Rule("Cp")
+	ctx.ModuleForTests(t, "qux", "android_common").Rule("Cp")
 
 	entries := android.AndroidMkEntriesForTest(t, ctx, fooModule.Module())[0]
 	android.AssertStringEquals(t, "unexpected LOCAL_SOONG_MODULE_TYPE", "java_library", entries.EntryMap["LOCAL_SOONG_MODULE_TYPE"][0])
@@ -788,7 +788,7 @@ prebuilt_stubs_sources {
 			"stubs/sources/pkg/B.java": nil,
 		})
 
-		zipSrc := ctx.ModuleForTests("stubs-source", "android_common").Rule("zip_src")
+		zipSrc := ctx.ModuleForTests(t, "stubs-source", "android_common").Rule("zip_src")
 		if expected, actual := expectedInputs, zipSrc.Inputs.Strings(); !reflect.DeepEqual(expected, actual) {
 			t.Errorf("mismatch of inputs to soong_zip: expected %q, actual %q", expected, actual)
 		}
@@ -851,8 +851,8 @@ func TestDefaults(t *testing.T) {
 		}
 		`)
 
-	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
-	combineJar := ctx.ModuleForTests("foo", "android_common").Description("for javac")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Rule("javac")
+	combineJar := ctx.ModuleForTests(t, "foo", "android_common").Description("for javac")
 
 	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "a.java" {
 		t.Errorf(`foo inputs %v != ["a.java"]`, javac.Inputs)
@@ -863,22 +863,22 @@ func TestDefaults(t *testing.T) {
 		t.Errorf("foo classpath %v does not contain %q", javac.Args["classpath"], barTurbine)
 	}
 
-	baz := ctx.ModuleForTests("baz", "android_common").Rule("javac").Output.String()
+	baz := ctx.ModuleForTests(t, "baz", "android_common").Rule("javac").Output.String()
 	if len(combineJar.Inputs) != 2 || combineJar.Inputs[1].String() != baz {
 		t.Errorf("foo combineJar inputs %v does not contain %q", combineJar.Inputs, baz)
 	}
 
-	atestOptimize := ctx.ModuleForTests("atestOptimize", "android_common").MaybeRule("r8")
+	atestOptimize := ctx.ModuleForTests(t, "atestOptimize", "android_common").MaybeRule("r8")
 	if atestOptimize.Output == nil {
 		t.Errorf("atestOptimize should optimize APK")
 	}
 
-	atestNoOptimize := ctx.ModuleForTests("atestNoOptimize", "android_common").MaybeRule("d8")
+	atestNoOptimize := ctx.ModuleForTests(t, "atestNoOptimize", "android_common").MaybeRule("d8")
 	if atestNoOptimize.Output == nil {
 		t.Errorf("atestNoOptimize should not optimize APK")
 	}
 
-	atestDefault := ctx.ModuleForTests("atestDefault", "android_common").MaybeRule("d8")
+	atestDefault := ctx.ModuleForTests(t, "atestDefault", "android_common").MaybeRule("d8")
 	if atestDefault.Output == nil {
 		t.Errorf("atestDefault should not optimize APK")
 	}
@@ -976,8 +976,8 @@ func TestResources(t *testing.T) {
 				},
 			)
 
-			foo := ctx.ModuleForTests("foo", "android_common").Output("withres/foo.jar")
-			fooRes := ctx.ModuleForTests("foo", "android_common").Output("res/foo.jar")
+			foo := ctx.ModuleForTests(t, "foo", "android_common").Output("withres/foo.jar")
+			fooRes := ctx.ModuleForTests(t, "foo", "android_common").Output("res/foo.jar")
 
 			if !inList(fooRes.Output.String(), foo.Inputs.Strings()) {
 				t.Errorf("foo combined jars %v does not contain %q",
@@ -1022,8 +1022,8 @@ func TestIncludeSrcs(t *testing.T) {
 	})
 
 	// Test a library with include_srcs: true
-	foo := ctx.ModuleForTests("foo", "android_common").Output("withres/foo.jar")
-	fooSrcJar := ctx.ModuleForTests("foo", "android_common").Output("foo.srcjar")
+	foo := ctx.ModuleForTests(t, "foo", "android_common").Output("withres/foo.jar")
+	fooSrcJar := ctx.ModuleForTests(t, "foo", "android_common").Output("foo.srcjar")
 
 	if g, w := fooSrcJar.Output.String(), foo.Inputs.Strings(); !inList(g, w) {
 		t.Errorf("foo combined jars %v does not contain %q", w, g)
@@ -1034,10 +1034,10 @@ func TestIncludeSrcs(t *testing.T) {
 	}
 
 	// Test a library with include_srcs: true and resources
-	bar := ctx.ModuleForTests("bar", "android_common").Output("withres/bar.jar")
-	barResCombined := ctx.ModuleForTests("bar", "android_common").Output("res-combined/bar.jar")
-	barRes := ctx.ModuleForTests("bar", "android_common").Output("res/bar.jar")
-	barSrcJar := ctx.ModuleForTests("bar", "android_common").Output("bar.srcjar")
+	bar := ctx.ModuleForTests(t, "bar", "android_common").Output("withres/bar.jar")
+	barResCombined := ctx.ModuleForTests(t, "bar", "android_common").Output("res-combined/bar.jar")
+	barRes := ctx.ModuleForTests(t, "bar", "android_common").Output("res/bar.jar")
+	barSrcJar := ctx.ModuleForTests(t, "bar", "android_common").Output("bar.srcjar")
 
 	if g, w := barSrcJar.Output.String(), barResCombined.Inputs.Strings(); !inList(g, w) {
 		t.Errorf("bar combined resource jars %v does not contain %q", w, g)
@@ -1082,8 +1082,8 @@ func TestGeneratedSources(t *testing.T) {
 		"b.java": nil,
 	})
 
-	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
-	genrule := ctx.ModuleForTests("gen", "").Rule("generator")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Rule("javac")
+	genrule := ctx.ModuleForTests(t, "gen", "").Rule("generator")
 
 	if filepath.Base(genrule.Output.String()) != "gen.java" {
 		t.Fatalf(`gen output file %v is not ".../gen.java"`, genrule.Output.String())
@@ -1123,11 +1123,11 @@ func TestTurbine(t *testing.T) {
 		}
 		`)
 
-	fooTurbine := result.ModuleForTests("foo", "android_common").Rule("turbine")
-	barTurbine := result.ModuleForTests("bar", "android_common").Rule("turbine")
-	barJavac := result.ModuleForTests("bar", "android_common").Rule("javac")
-	barTurbineCombined := result.ModuleForTests("bar", "android_common").Description("for turbine")
-	bazJavac := result.ModuleForTests("baz", "android_common").Rule("javac")
+	fooTurbine := result.ModuleForTests(t, "foo", "android_common").Rule("turbine")
+	barTurbine := result.ModuleForTests(t, "bar", "android_common").Rule("turbine")
+	barJavac := result.ModuleForTests(t, "bar", "android_common").Rule("javac")
+	barTurbineCombined := result.ModuleForTests(t, "bar", "android_common").Description("for turbine")
+	bazJavac := result.ModuleForTests(t, "baz", "android_common").Rule("javac")
 
 	android.AssertPathsRelativeToTopEquals(t, "foo inputs", []string{"a.java"}, fooTurbine.Inputs)
 
@@ -1151,7 +1151,7 @@ func TestSharding(t *testing.T) {
 
 	barHeaderJar := filepath.Join("out", "soong", ".intermediates", "bar", "android_common", "turbine", "bar.jar")
 	for i := 0; i < 3; i++ {
-		barJavac := ctx.ModuleForTests("bar", "android_common").Description("javac" + strconv.Itoa(i))
+		barJavac := ctx.ModuleForTests(t, "bar", "android_common").Description("javac" + strconv.Itoa(i))
 		if !strings.HasPrefix(barJavac.Args["classpath"], "-classpath "+barHeaderJar+":") {
 			t.Errorf("bar javac classpath %v does start with %q", barJavac.Args["classpath"], barHeaderJar)
 		}
@@ -1178,7 +1178,7 @@ func TestExcludeFileGroupInSrcs(t *testing.T) {
 		}
 	`)
 
-	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Rule("javac")
 
 	if len(javac.Inputs) != 1 || javac.Inputs[0].String() != "java-fg/c.java" {
 		t.Errorf(`foo inputs %v != ["java-fg/c.java"]`, javac.Inputs)
@@ -1249,7 +1249,7 @@ func TestJavaImport(t *testing.T) {
 		PrepareForTestWithJavaDefaultModules,
 	).RunTestWithBp(t, bp)
 
-	source := ctx.ModuleForTests("source_library", "android_common")
+	source := ctx.ModuleForTests(t, "source_library", "android_common")
 	sourceJar := source.Output("javac/source_library.jar")
 	sourceHeaderJar := source.Output("turbine-combined/source_library.jar")
 	sourceJavaInfo, _ := android.OtherModuleProvider(ctx, source.Module(), JavaInfoProvider)
@@ -1260,7 +1260,7 @@ func TestJavaImport(t *testing.T) {
 	android.AssertPathsRelativeToTopEquals(t, "source library header jar",
 		[]string{sourceHeaderJar.Output.String()}, sourceJavaInfo.HeaderJars)
 
-	importWithNoDeps := ctx.ModuleForTests("import_with_no_deps", "android_common")
+	importWithNoDeps := ctx.ModuleForTests(t, "import_with_no_deps", "android_common")
 	importWithNoDepsJar := importWithNoDeps.Output("combined/import_with_no_deps.jar")
 	importWithNoDepsJavaInfo, _ := android.OtherModuleProvider(ctx, importWithNoDeps.Module(), JavaInfoProvider)
 
@@ -1272,7 +1272,7 @@ func TestJavaImport(t *testing.T) {
 	android.AssertPathsRelativeToTopEquals(t, "import with no deps combined inputs",
 		[]string{"no_deps.jar"}, importWithNoDepsJar.Inputs)
 
-	importWithSourceDeps := ctx.ModuleForTests("import_with_source_deps", "android_common")
+	importWithSourceDeps := ctx.ModuleForTests(t, "import_with_source_deps", "android_common")
 	importWithSourceDepsJar := importWithSourceDeps.Output("combined/import_with_source_deps.jar")
 	importWithSourceDepsHeaderJar := importWithSourceDeps.Output("turbine-combined/import_with_source_deps.jar")
 	importWithSourceDepsJavaInfo, _ := android.OtherModuleProvider(ctx, importWithSourceDeps.Module(), JavaInfoProvider)
@@ -1287,7 +1287,7 @@ func TestJavaImport(t *testing.T) {
 	android.AssertPathsRelativeToTopEquals(t, "import with source deps combined header jar inputs",
 		[]string{"source_deps.jar", sourceHeaderJar.Output.String()}, importWithSourceDepsHeaderJar.Inputs)
 
-	importWithImportDeps := ctx.ModuleForTests("import_with_import_deps", "android_common")
+	importWithImportDeps := ctx.ModuleForTests(t, "import_with_import_deps", "android_common")
 	importWithImportDepsJar := importWithImportDeps.Output("combined/import_with_import_deps.jar")
 	importWithImportDepsJavaInfo, _ := android.OtherModuleProvider(ctx, importWithImportDeps.Module(), JavaInfoProvider)
 
@@ -1364,7 +1364,7 @@ func TestCompilerFlags(t *testing.T) {
 
 // TODO(jungjw): Consider making this more robust by ignoring path order.
 func checkPatchModuleFlag(t *testing.T, ctx *android.TestContext, moduleName string, expected string) {
-	variables := ctx.ModuleForTests(moduleName, "android_common").VariablesForTestsRelativeToTop()
+	variables := ctx.ModuleForTests(t, moduleName, "android_common").VariablesForTestsRelativeToTop()
 	flags := strings.Split(variables["javacFlags"], " ")
 	got := ""
 	for _, flag := range flags {
@@ -1505,7 +1505,7 @@ func TestJavaLibraryWithSystemModules(t *testing.T) {
 }
 
 func checkBootClasspathForLibWithSystemModule(t *testing.T, ctx *android.TestContext, moduleName string, expectedSuffix string) {
-	javacRule := ctx.ModuleForTests(moduleName, "android_common").Rule("javac")
+	javacRule := ctx.ModuleForTests(t, moduleName, "android_common").Rule("javac")
 	bootClasspath := javacRule.Args["bootClasspath"]
 	if strings.HasPrefix(bootClasspath, "--system ") && strings.HasSuffix(bootClasspath, expectedSuffix) {
 		t.Errorf("bootclasspath of %q must start with --system and end with %q, but was %#v.", moduleName, expectedSuffix, bootClasspath)
@@ -1530,7 +1530,7 @@ func TestAidlExportIncludeDirsFromImports(t *testing.T) {
 		}
 	`)
 
-	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	aidlCommand := ctx.ModuleForTests(t, "foo", "android_common").Rule("aidl").RuleParams.Command
 	expectedAidlFlag := "-Iaidl/bar"
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
 		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
@@ -1547,7 +1547,7 @@ func TestAidlFlagsArePassedToTheAidlCompiler(t *testing.T) {
 		}
 	`)
 
-	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	aidlCommand := ctx.ModuleForTests(t, "foo", "android_common").Rule("aidl").RuleParams.Command
 	expectedAidlFlag := "-Werror"
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
 		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
@@ -1577,7 +1577,7 @@ func TestAidlFlagsWithMinSdkVersion(t *testing.T) {
 					`+tc.sdkVersion+`
 				}
 			`)
-			aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+			aidlCommand := ctx.ModuleForTests(t, "foo", "android_common").Rule("aidl").RuleParams.Command
 			expectedAidlFlag := "--min_sdk_version=" + tc.expected
 			if !strings.Contains(aidlCommand, expectedAidlFlag) {
 				t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
@@ -1614,7 +1614,7 @@ func TestAidlFlagsMinSdkVersionDroidstubs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		ctx := prepareForJavaTest.RunTestWithBp(t, fmt.Sprintf(bpTemplate, tc.sdkVersionBp))
-		aidlCmd := ctx.ModuleForTests("foo-stubs", "android_common").Rule("aidl").RuleParams.Command
+		aidlCmd := ctx.ModuleForTests(t, "foo-stubs", "android_common").Rule("aidl").RuleParams.Command
 		expected := "--min_sdk_version=" + tc.minSdkVersionExpected
 		android.AssertStringDoesContain(t, "aidl command conatins incorrect min_sdk_version for testCse: "+tc.desc, aidlCmd, expected)
 	}
@@ -1630,7 +1630,7 @@ func TestAidlEnforcePermissions(t *testing.T) {
 		}
 	`)
 
-	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	aidlCommand := ctx.ModuleForTests(t, "foo", "android_common").Rule("aidl").RuleParams.Command
 	expectedAidlFlag := "-Wmissing-permission-annotation -Werror"
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
 		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
@@ -1647,7 +1647,7 @@ func TestAidlEnforcePermissionsException(t *testing.T) {
 		}
 	`)
 
-	aidlCommand := ctx.ModuleForTests("foo", "android_common").Rule("aidl").RuleParams.Command
+	aidlCommand := ctx.ModuleForTests(t, "foo", "android_common").Rule("aidl").RuleParams.Command
 	expectedAidlFlag := "$$FLAGS -Wmissing-permission-annotation -Werror aidl/foo/IFoo.aidl"
 	if !strings.Contains(aidlCommand, expectedAidlFlag) {
 		t.Errorf("aidl command %q does not contain %q", aidlCommand, expectedAidlFlag)
@@ -1677,7 +1677,7 @@ func TestDataNativeBinaries(t *testing.T) {
 
 	buildOS := ctx.Config().BuildOS.String()
 
-	test := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
+	test := ctx.ModuleForTests(t, "foo", buildOS+"_common").Module().(*TestHost)
 	entries := android.AndroidMkEntriesForTest(t, ctx, test)[0]
 	expected := []string{"out/soong/.intermediates/bin/" + buildOS + "_x86_64/bin:bin"}
 	actual := entries.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
@@ -1693,7 +1693,7 @@ func TestDefaultInstallable(t *testing.T) {
 	`)
 
 	buildOS := ctx.Config().BuildOS.String()
-	module := ctx.ModuleForTests("foo", buildOS+"_common").Module().(*TestHost)
+	module := ctx.ModuleForTests(t, "foo", buildOS+"_common").Module().(*TestHost)
 	assertDeepEquals(t, "Default installable value should be true.", proptools.BoolPtr(true),
 		module.properties.Installable)
 }
@@ -1710,7 +1710,7 @@ func TestErrorproneEnabled(t *testing.T) {
 		}
 	`)
 
-	javac := ctx.ModuleForTests("foo", "android_common").Description("javac")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Description("javac")
 
 	// Test that the errorprone plugins are passed to javac
 	expectedSubstring := "-Xplugin:ErrorProne"
@@ -1721,7 +1721,7 @@ func TestErrorproneEnabled(t *testing.T) {
 	// Modules with errorprone { enabled: true } will include errorprone checks
 	// in the main javac build rule. Only when RUN_ERROR_PRONE is true will
 	// the explicit errorprone build rule be created.
-	errorprone := ctx.ModuleForTests("foo", "android_common").MaybeDescription("errorprone")
+	errorprone := ctx.ModuleForTests(t, "foo", "android_common").MaybeDescription("errorprone")
 	if errorprone.RuleParams.Description != "" {
 		t.Errorf("expected errorprone build rule to not exist, but it did")
 	}
@@ -1745,7 +1745,7 @@ func TestErrorproneDisabled(t *testing.T) {
 		}),
 	).RunTestWithBp(t, bp)
 
-	javac := ctx.ModuleForTests("foo", "android_common").Description("javac")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Description("javac")
 
 	// Test that the errorprone plugins are not passed to javac, like they would
 	// be if enabled was true.
@@ -1756,7 +1756,7 @@ func TestErrorproneDisabled(t *testing.T) {
 
 	// Check that no errorprone build rule is created, like there would be
 	// if enabled was unset and RUN_ERROR_PRONE was true.
-	errorprone := ctx.ModuleForTests("foo", "android_common").MaybeDescription("errorprone")
+	errorprone := ctx.ModuleForTests(t, "foo", "android_common").MaybeDescription("errorprone")
 	if errorprone.RuleParams.Description != "" {
 		t.Errorf("expected errorprone build rule to not exist, but it did")
 	}
@@ -1777,8 +1777,8 @@ func TestErrorproneEnabledOnlyByEnvironmentVariable(t *testing.T) {
 		}),
 	).RunTestWithBp(t, bp)
 
-	javac := ctx.ModuleForTests("foo", "android_common").Description("javac")
-	errorprone := ctx.ModuleForTests("foo", "android_common").Description("errorprone")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Description("javac")
+	errorprone := ctx.ModuleForTests(t, "foo", "android_common").Description("errorprone")
 
 	// Check that the errorprone plugins are not passed to javac, because they
 	// will instead be passed to the separate errorprone compilation
@@ -1940,7 +1940,7 @@ func TestDataDeviceBinsBuildsDeviceBinary(t *testing.T) {
 			}
 
 			buildOS := ctx.Config.BuildOS.String()
-			fooVariant := ctx.ModuleForTests("foo", buildOS+"_common")
+			fooVariant := ctx.ModuleForTests(t, "foo", buildOS+"_common")
 			fooMod := fooVariant.Module().(*TestHost)
 			entries := android.AndroidMkEntriesForTest(t, ctx.TestContext, fooMod)[0]
 
@@ -1952,7 +1952,7 @@ func TestDataDeviceBinsBuildsDeviceBinary(t *testing.T) {
 
 			expectedData := []string{}
 			for _, variant := range tc.variants {
-				barVariant := ctx.ModuleForTests("bar", variant)
+				barVariant := ctx.ModuleForTests(t, "bar", variant)
 				relocated := barVariant.Output("bar")
 				expectedInput := fmt.Sprintf("out/soong/.intermediates/bar/%s/unstripped/bar", variant)
 				android.AssertPathRelativeToTopEquals(t, "relocation input", expectedInput, relocated.Input)
@@ -1976,7 +1976,7 @@ func TestDeviceBinaryWrapperGeneration(t *testing.T) {
 			main_class: "foo.bar.jb",
 		}
 	`)
-	wrapperPath := fmt.Sprint(ctx.ModuleForTests("foo", "android_common").AllOutputs())
+	wrapperPath := fmt.Sprint(ctx.ModuleForTests(t, "foo", "android_common").AllOutputs())
 	if !strings.Contains(wrapperPath, "foo.sh") {
 		t.Errorf("wrapper file foo.sh is not generated")
 	}
@@ -2072,7 +2072,7 @@ func TestJavaApiLibraryAndProviderLink(t *testing.T) {
 		},
 	}
 	for _, c := range testcases {
-		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		m := ctx.ModuleForTests(t, c.moduleName, "android_common")
 		manifest := m.Output("metalava.sbox.textproto")
 		sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 		manifestCommand := sboxProto.Commands[0].GetCommand()
@@ -2181,7 +2181,7 @@ func TestJavaApiLibraryAndDefaultsLink(t *testing.T) {
 		},
 	}
 	for _, c := range testcases {
-		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		m := ctx.ModuleForTests(t, c.moduleName, "android_common")
 		manifest := m.Output("metalava.sbox.textproto")
 		sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 		manifestCommand := sboxProto.Commands[0].GetCommand()
@@ -2249,7 +2249,7 @@ func TestJavaApiLibraryJarGeneration(t *testing.T) {
 		},
 	}
 	for _, c := range testcases {
-		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		m := ctx.ModuleForTests(t, c.moduleName, "android_common")
 		outputs := fmt.Sprint(m.AllOutputs())
 		if !strings.Contains(outputs, c.outputJarName) {
 			t.Errorf("Module output does not contain expected jar %s", c.outputJarName)
@@ -2335,7 +2335,7 @@ func TestJavaApiLibraryLibsLink(t *testing.T) {
 		},
 	}
 	for _, c := range testcases {
-		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		m := ctx.ModuleForTests(t, c.moduleName, "android_common")
 		javacRules := m.Rule("javac")
 		classPathArgs := javacRules.Args["classpath"]
 		for _, jarName := range c.classPathJarNames {
@@ -2424,7 +2424,7 @@ func TestJavaApiLibraryStaticLibsLink(t *testing.T) {
 		},
 	}
 	for _, c := range testcases {
-		m := ctx.ModuleForTests(c.moduleName, "android_common")
+		m := ctx.ModuleForTests(t, c.moduleName, "android_common")
 		mergeZipsCommand := m.Rule("merge_zips").RuleParams.Command
 		for _, jarName := range c.staticLibJarNames {
 			if !strings.Contains(mergeZipsCommand, jarName) {
@@ -2452,7 +2452,7 @@ func TestTransitiveSrcFiles(t *testing.T) {
 			static_libs: ["b"],
 		}
 	`)
-	c := ctx.ModuleForTests("c", "android_common").Module()
+	c := ctx.ModuleForTests(t, "c", "android_common").Module()
 	javaInfo, _ := android.OtherModuleProvider(ctx, c, JavaInfoProvider)
 	transitiveSrcFiles := android.Paths(javaInfo.TransitiveSrcFiles.ToList())
 	android.AssertArrayString(t, "unexpected jar deps", []string{"b.java", "c.java"}, transitiveSrcFiles.Strings())
@@ -2475,7 +2475,7 @@ java_test_host {
 `)
 
 	buildOS := result.Config.BuildOS.String()
-	args := result.ModuleForTests("foo", buildOS+"_common").
+	args := result.ModuleForTests(t, "foo", buildOS+"_common").
 		Output("out/soong/.intermediates/foo/" + buildOS + "_common/foo.config").Args
 	expected := proptools.NinjaAndShellEscape("<option name=\"exclude-path\" value=\"org/apache\" />")
 	if args["extraConfigs"] != expected {
@@ -2500,7 +2500,7 @@ java_test_host {
 `)
 
 	buildOS := result.Config.BuildOS.String()
-	args := result.ModuleForTests("foo", buildOS+"_common").
+	args := result.ModuleForTests(t, "foo", buildOS+"_common").
 		Output("out/soong/.intermediates/foo/" + buildOS + "_common/foo.config").Args
 	expected := proptools.NinjaAndShellEscape("<option name=\"test-timeout\" value=\"10m\" />\\n        ")
 	if args["extraTestRunnerConfigs"] != expected {
@@ -2521,7 +2521,7 @@ func TestJavaLibraryWithResourcesStem(t *testing.T) {
 			"test-jar/test/resource.txt": nil,
 		})
 
-	m := ctx.ModuleForTests("foo", "android_common")
+	m := ctx.ModuleForTests(t, "foo", "android_common")
 	outputs := fmt.Sprint(m.AllOutputs())
 	if !strings.Contains(outputs, "test.jar") {
 		t.Errorf("Module output does not contain expected jar %s", "test.jar")
@@ -2538,12 +2538,12 @@ func TestHeadersOnly(t *testing.T) {
 		}
 	`)
 
-	turbine := ctx.ModuleForTests("foo", "android_common").Rule("turbine")
+	turbine := ctx.ModuleForTests(t, "foo", "android_common").Rule("turbine")
 	if len(turbine.Inputs) != 1 || turbine.Inputs[0].String() != "a.java" {
 		t.Errorf(`foo inputs %v != ["a.java"]`, turbine.Inputs)
 	}
 
-	javac := ctx.ModuleForTests("foo", "android_common").MaybeRule("javac")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").MaybeRule("javac")
 	android.AssertDeepEquals(t, "javac rule", nil, javac.Rule)
 }
 
@@ -2568,7 +2568,7 @@ func TestJavaApiContributionImport(t *testing.T) {
 			api_surface: "public",
 		}
 	`)
-	m := ctx.ModuleForTests("foo", "android_common")
+	m := ctx.ModuleForTests(t, "foo", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx.TestContext, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
@@ -2591,7 +2591,7 @@ func TestJavaApiLibraryApiFilesSorting(t *testing.T) {
 			stubs_type: "everything",
 		}
 	`)
-	m := ctx.ModuleForTests("foo", "android_common")
+	m := ctx.ModuleForTests(t, "foo", "android_common")
 	manifest := m.Output("metalava.sbox.textproto")
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, manifest)
 	manifestCommand := sboxProto.Commands[0].GetCommand()
@@ -2666,9 +2666,9 @@ func TestApiLibraryDroidstubsDependency(t *testing.T) {
 	`)
 
 	currentApiTimestampPath := "api-stubs-docs-non-updatable/android_common/everything/check_current_api.timestamp"
-	foo := result.ModuleForTests("foo", "android_common").Module().(*ApiLibrary)
+	foo := result.ModuleForTests(t, "foo", "android_common").Module().(*ApiLibrary)
 	fooValidationPathsString := strings.Join(foo.validationPaths.Strings(), " ")
-	bar := result.ModuleForTests("bar", "android_common").Module().(*ApiLibrary)
+	bar := result.ModuleForTests(t, "bar", "android_common").Module().(*ApiLibrary)
 	barValidationPathsString := strings.Join(bar.validationPaths.Strings(), " ")
 	android.AssertStringDoesContain(t,
 		"Module expected to have validation",
@@ -2796,8 +2796,8 @@ func TestMultiplePrebuilts(t *testing.T) {
 		).RunTestWithBp(t, fmt.Sprintf(bp, tc.selectedDependencyName))
 
 		// check that rdep gets the correct variation of dep
-		foo := ctx.ModuleForTests("foo", "android_common")
-		expectedDependency := ctx.ModuleForTests(tc.expectedDependencyName, "android_common")
+		foo := ctx.ModuleForTests(t, "foo", "android_common")
+		expectedDependency := ctx.ModuleForTests(t, tc.expectedDependencyName, "android_common")
 		android.AssertBoolEquals(t, fmt.Sprintf("expected dependency from %s to %s\n", foo.Module().Name(), tc.expectedDependencyName), true, hasDep(ctx, foo.Module(), expectedDependency.Module()))
 
 		// check that output file of dep is always bar.jar
@@ -2866,7 +2866,7 @@ func TestMultiplePlatformCompatConfigPrebuilts(t *testing.T) {
 			android.PrepareForTestWithBuildFlag("RELEASE_APEX_CONTRIBUTIONS_ADSERVICES", "myapex_contributions"),
 		).RunTestWithBp(t, fmt.Sprintf(bp, tc.selectedDependencyName))
 
-		mergedGlobalConfig := ctx.SingletonForTests("platform_compat_config_singleton").Output("compat_config/merged_compat_config.xml")
+		mergedGlobalConfig := ctx.SingletonForTests(t, "platform_compat_config_singleton").Output("compat_config/merged_compat_config.xml")
 		android.AssertIntEquals(t, "The merged compat config file should only have a single dependency", 1, len(mergedGlobalConfig.Implicits))
 		android.AssertStringEquals(t, "The merged compat config file is missing the appropriate platform compat config", mergedGlobalConfig.Implicits[0].String(), tc.expectedPlatformCompatConfigXml)
 	}
@@ -2915,7 +2915,7 @@ func TestApiLibraryAconfigDeclarations(t *testing.T) {
 	android.AssertBoolEquals(t, "foo expected to depend on bar",
 		CheckModuleHasDependency(t, result.TestContext, "foo", "android_common", "bar"), true)
 
-	m := result.ModuleForTests("foo", "android_common")
+	m := result.ModuleForTests(t, "foo", "android_common")
 	android.AssertStringDoesContain(t, "foo generates revert annotations file",
 		strings.Join(m.AllOutputs(), ""), "revert-annotations-exportable.txt")
 
@@ -3030,7 +3030,7 @@ func TestJavaLibHostWithStem(t *testing.T) {
 	`)
 
 	buildOS := ctx.Config().BuildOS.String()
-	foo := ctx.ModuleForTests("foo", buildOS+"_common")
+	foo := ctx.ModuleForTests(t, "foo", buildOS+"_common")
 
 	outputs := fmt.Sprint(foo.AllOutputs())
 	if !strings.Contains(outputs, "foo-new.jar") {
@@ -3048,7 +3048,7 @@ func TestJavaLibWithStem(t *testing.T) {
 		}
 	`)
 
-	foo := ctx.ModuleForTests("foo", "android_common")
+	foo := ctx.ModuleForTests(t, "foo", "android_common")
 
 	outputs := fmt.Sprint(foo.AllOutputs())
 	if !strings.Contains(outputs, "foo-new.jar") {
@@ -3079,9 +3079,9 @@ func TestJavaLibraryOutputFilesRel(t *testing.T) {
 		}
 	`)
 
-	foo := result.ModuleForTests("foo", "android_common")
-	bar := result.ModuleForTests("bar", "android_common")
-	baz := result.ModuleForTests("baz", "android_common")
+	foo := result.ModuleForTests(t, "foo", "android_common")
+	bar := result.ModuleForTests(t, "bar", "android_common")
+	baz := result.ModuleForTests(t, "baz", "android_common")
 
 	fooOutputPaths := foo.OutputFiles(result.TestContext, t, "")
 	barOutputPaths := bar.OutputFiles(result.TestContext, t, "")
@@ -3124,8 +3124,8 @@ func TestCoverage(t *testing.T) {
 		}
 	`)
 
-	foo := result.ModuleForTests("foo", "android_common")
-	androidCar := result.ModuleForTests("android.car", "android_common")
+	foo := result.ModuleForTests(t, "foo", "android_common")
+	androidCar := result.ModuleForTests(t, "android.car", "android_common")
 
 	fooJacoco := foo.Rule("jacoco")
 	fooCombine := foo.Description("for javac")
@@ -3196,6 +3196,6 @@ cc_library_shared {
 }
 `
 	res, _ := testJava(t, bp)
-	deps := findDepsOfModule(res, res.ModuleForTests("myjavabin", "android_common").Module(), "mynativelib")
+	deps := findDepsOfModule(res, res.ModuleForTests(t, "myjavabin", "android_common").Module(), "mynativelib")
 	android.AssertIntEquals(t, "Create a dep on the first variant", 1, len(deps))
 }

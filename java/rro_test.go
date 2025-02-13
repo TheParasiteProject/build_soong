@@ -67,7 +67,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 		fs.AddToFixture(),
 	).RunTestWithBp(t, bp)
 
-	m := result.ModuleForTests("foo", "android_common")
+	m := result.ModuleForTests(t, "foo", "android_common")
 
 	// Check AAPT2 link flags.
 	aapt2Flags := m.Output("package-res.apk").Args["flags"]
@@ -116,7 +116,7 @@ func TestRuntimeResourceOverlay(t *testing.T) {
 	android.AssertStringPathsRelativeToTopEquals(t, "LOCAL_MODULE_PATH", result.Config, expectedPath, path)
 
 	// A themed module has a different device location
-	m = result.ModuleForTests("foo_themed", "android_common")
+	m = result.ModuleForTests(t, "foo_themed", "android_common")
 	androidMkEntries = android.AndroidMkEntriesForTest(t, result.TestContext, m.Module())[0]
 	path = androidMkEntries.EntryMap["LOCAL_MODULE_PATH"]
 	expectedPath = []string{shared.JoinPath("out/target/product/test_device/product/overlay/faza")}
@@ -155,7 +155,7 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 	//
 	// RRO module with defaults
 	//
-	m := result.ModuleForTests("foo_with_defaults", "android_common")
+	m := result.ModuleForTests(t, "foo_with_defaults", "android_common")
 
 	// Check AAPT2 link flags.
 	aapt2Flags := strings.Split(m.Output("package-res.apk").Args["flags"], " ")
@@ -173,7 +173,7 @@ func TestRuntimeResourceOverlay_JavaDefaults(t *testing.T) {
 	//
 	// RRO module without defaults
 	//
-	m = result.ModuleForTests("foo_barebones", "android_common")
+	m = result.ModuleForTests(t, "foo_barebones", "android_common")
 
 	// Check AAPT2 link flags.
 	aapt2Flags = strings.Split(m.Output("package-res.apk").Args["flags"], " ")
@@ -235,7 +235,7 @@ func TestOverrideRuntimeResourceOverlay(t *testing.T) {
 		},
 	}
 	for _, expected := range expectedVariants {
-		variant := ctx.ModuleForTests("foo_overlay", expected.variantName)
+		variant := ctx.ModuleForTests(t, "foo_overlay", expected.variantName)
 
 		// Check the final apk name
 		variant.Output(expected.apkPath)
@@ -306,7 +306,7 @@ func TestRuntimeResourceOverlayPartition(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		ctx, _ := testJava(t, bp)
-		mod := ctx.ModuleForTests(testCase.name, "android_common").Module().(*RuntimeResourceOverlay)
+		mod := ctx.ModuleForTests(t, testCase.name, "android_common").Module().(*RuntimeResourceOverlay)
 		android.AssertPathRelativeToTopEquals(t, "Install dir is not correct for "+testCase.name, testCase.expectedPath, mod.installDir)
 	}
 }
@@ -341,7 +341,7 @@ func TestRuntimeResourceOverlayFlagsPackages(t *testing.T) {
 		}
 	`)
 
-	foo := result.ModuleForTests("foo", "android_common")
+	foo := result.ModuleForTests(t, "foo", "android_common")
 
 	// runtime_resource_overlay module depends on aconfig_declarations listed in flags_packages
 	android.AssertBoolEquals(t, "foo expected to depend on bar", true,

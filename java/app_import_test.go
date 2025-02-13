@@ -38,7 +38,7 @@ func TestAndroidAppImport(t *testing.T) {
 		}
 		`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 
 	// Check dexpreopt outputs.
 	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule == nil ||
@@ -78,7 +78,7 @@ func TestAndroidAppImportWithDefaults(t *testing.T) {
 		}
 		`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 
 	// Check dexpreopt outputs.
 	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule == nil ||
@@ -113,7 +113,7 @@ func TestAndroidAppImport_NoDexPreopt(t *testing.T) {
 		}
 		`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 
 	// Check dexpreopt outputs. They shouldn't exist.
 	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule != nil ||
@@ -141,7 +141,7 @@ func TestAndroidAppImport_Presigned(t *testing.T) {
 		}
 		`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 
 	// Check dexpreopt outputs.
 	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule == nil ||
@@ -181,7 +181,7 @@ func TestAndroidAppImport_SigningLineage(t *testing.T) {
 		}
 	`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 
 	signedApk := variant.Output("signed/foo.apk")
 	// Check certificates
@@ -223,7 +223,7 @@ func TestAndroidAppImport_SigningLineageFilegroup(t *testing.T) {
 		}
 	`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 
 	signedApk := variant.Output("signed/foo.apk")
 	// Check cert signing lineage flag.
@@ -253,7 +253,7 @@ func TestAndroidAppImport_DefaultDevCert(t *testing.T) {
 		}
 		`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 
 	// Check dexpreopt outputs.
 	if variant.MaybeOutput("dexpreopt/foo/oat/arm64/package.vdex").Rule == nil ||
@@ -349,7 +349,7 @@ func TestAndroidAppImport_DpiVariants(t *testing.T) {
 			}),
 		).RunTestWithBp(t, bp)
 
-		variant := result.ModuleForTests("foo", "android_common")
+		variant := result.ModuleForTests(t, "foo", "android_common")
 		input := variant.Output("jnis-uncompressed/foo.apk").Input.String()
 		if strings.HasSuffix(input, test.expected) {
 			t.Errorf("wrong src apk, expected: %q got: %q", test.expected, input)
@@ -433,7 +433,7 @@ func TestAndroidAppImport_Filename(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		variant := ctx.ModuleForTests(test.name, "android_common")
+		variant := ctx.ModuleForTests(t, test.name, "android_common")
 		if variant.MaybeOutput(test.expected).Rule == nil {
 			t.Errorf("can't find output named %q - all outputs: %v", test.expected, variant.AllOutputs())
 		}
@@ -586,7 +586,7 @@ func TestAndroidAppImport_ArchVariants(t *testing.T) {
 			t.Parallel()
 			ctx, _ := testJava(t, test.bp)
 
-			variant := ctx.ModuleForTests("foo", "android_common")
+			variant := ctx.ModuleForTests(t, "foo", "android_common")
 			if test.expected == "" {
 				if variant.Module().Enabled(android.PanickingConfigAndErrorContext(ctx)) {
 					t.Error("module should have been disabled, but wasn't")
@@ -665,7 +665,7 @@ func TestAndroidAppImport_SoongConfigVariables(t *testing.T) {
 				}),
 			).RunTestWithBp(t, test.bp).TestContext
 
-			variant := ctx.ModuleForTests("foo", "android_common")
+			variant := ctx.ModuleForTests(t, "foo", "android_common")
 			if test.expected == "" {
 				if variant.Module().Enabled(android.PanickingConfigAndErrorContext(ctx)) {
 					t.Error("module should have been disabled, but wasn't")
@@ -704,7 +704,7 @@ func TestAndroidAppImport_overridesDisabledAndroidApp(t *testing.T) {
 		}
 		`)
 
-	variant := ctx.ModuleForTests("prebuilt_foo", "android_common")
+	variant := ctx.ModuleForTests(t, "prebuilt_foo", "android_common")
 	a := variant.Module().(*AndroidAppImport)
 	// The prebuilt module should still be enabled and active even if the source-based counterpart
 	// is disabled.
@@ -765,7 +765,7 @@ func TestAndroidAppImport_relativeInstallPath(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			ctx, _ := testJava(t, bp)
-			mod := ctx.ModuleForTests(testCase.name, "android_common").Module().(*AndroidAppImport)
+			mod := ctx.ModuleForTests(t, testCase.name, "android_common").Module().(*AndroidAppImport)
 			android.AssertPathRelativeToTopEquals(t, testCase.errorMessage, testCase.expectedInstallPath, mod.installPath)
 		})
 	}
@@ -782,7 +782,7 @@ func TestAndroidAppImport_ExtractApk(t *testing.T) {
 		}
 		`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 	extractRuleArgs := variant.Output("extract-apk/foo.apk").BuildParams.Args
 	if extractRuleArgs["extract_apk"] != "extract_path/sub_app.apk" {
 		t.Errorf("Unexpected extract apk args: %s", extractRuleArgs["extract_apk"])
@@ -801,7 +801,7 @@ func TestAndroidTestImport(t *testing.T) {
 		}
 		`)
 
-	test := ctx.ModuleForTests("foo", "android_common").Module().(*AndroidTestImport)
+	test := ctx.ModuleForTests(t, "foo", "android_common").Module().(*AndroidTestImport)
 
 	// Check android mks.
 	entries := android.AndroidMkEntriesForTest(t, ctx, test)[0]
@@ -839,13 +839,13 @@ func TestAndroidTestImport_NoJinUncompressForPresigned(t *testing.T) {
 		}
 		`)
 
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 	jniRule := variant.Output("jnis-uncompressed/foo.apk").BuildParams.Rule.String()
 	if jniRule == android.Cp.String() {
 		t.Errorf("Unexpected JNI uncompress rule command: %s", jniRule)
 	}
 
-	variant = ctx.ModuleForTests("foo_presigned", "android_common")
+	variant = ctx.ModuleForTests(t, "foo_presigned", "android_common")
 	jniRule = variant.Output("jnis-uncompressed/foo_presigned.apk").BuildParams.Rule.String()
 	if jniRule != android.Cp.String() {
 		t.Errorf("Unexpected JNI uncompress rule: %s", jniRule)
@@ -867,7 +867,7 @@ func TestAndroidTestImport_Preprocessed(t *testing.T) {
 		`)
 
 	apkName := "foo.apk"
-	variant := ctx.ModuleForTests("foo", "android_common")
+	variant := ctx.ModuleForTests(t, "foo", "android_common")
 	jniRule := variant.Output("jnis-uncompressed/" + apkName).BuildParams.Rule.String()
 	if jniRule != android.Cp.String() {
 		t.Errorf("Unexpected JNI uncompress rule: %s", jniRule)
@@ -912,7 +912,7 @@ func TestAndroidAppImport_Preprocessed(t *testing.T) {
 
 			// non-privileged app
 			apkName := "foo.apk"
-			variant := result.ModuleForTests("foo", "android_common")
+			variant := result.ModuleForTests(t, "foo", "android_common")
 			outputBuildParams := variant.Output(apkName).BuildParams
 			if outputBuildParams.Rule.String() != android.Cp.String() {
 				t.Errorf("Unexpected prebuilt android_app_import rule: %s", outputBuildParams.Rule.String())
@@ -934,7 +934,7 @@ func TestAndroidAppImport_Preprocessed(t *testing.T) {
 
 			// privileged app
 			apkName = "bar.apk"
-			variant = result.ModuleForTests("bar", "android_common")
+			variant = result.ModuleForTests(t, "bar", "android_common")
 			outputBuildParams = variant.Output(apkName).BuildParams
 			if outputBuildParams.Rule.String() != android.Cp.String() {
 				t.Errorf("Unexpected prebuilt android_app_import rule: %s", outputBuildParams.Rule.String())
@@ -1003,7 +1003,7 @@ func TestAndroidTestImport_UncompressDex(t *testing.T) {
 			}),
 		).RunTestWithBp(t, bp)
 
-		foo := result.ModuleForTests("foo", "android_common")
+		foo := result.ModuleForTests(t, "foo", "android_common")
 		actual := foo.MaybeRule("uncompress-dex").Rule != nil
 
 		expect := !unbundled
@@ -1047,7 +1047,7 @@ func TestAppImportMissingCertificateAllowMissingDependencies(t *testing.T) {
 			certificate: ":missing_certificate",
 		}`)
 
-	foo := result.ModuleForTests("foo", "android_common")
+	foo := result.ModuleForTests(t, "foo", "android_common")
 	fooApk := foo.Output("signed/foo.apk")
 	if fooApk.Rule != android.ErrorRule {
 		t.Fatalf("expected ErrorRule for foo.apk, got %s", fooApk.Rule.String())

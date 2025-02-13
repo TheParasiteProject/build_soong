@@ -160,7 +160,7 @@ func TestCompilationOutputFiles(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.testName, func(t *testing.T) {
-			modOutputs := ctx.ModuleForTests(tc.moduleName, tc.variant).AllOutputs()
+			modOutputs := ctx.ModuleForTests(t, tc.moduleName, tc.variant).AllOutputs()
 			sort.Strings(tc.expectedFiles)
 			sort.Strings(modOutputs)
 			android.AssertStringPathsRelativeToTopEquals(

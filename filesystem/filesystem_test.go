@@ -118,9 +118,9 @@ func TestFileSystemDeps(t *testing.T) {
 	`)
 
 	// produces "myfilesystem.img"
-	result.ModuleForTests("myfilesystem", "android_common").Output("myfilesystem.img")
+	result.ModuleForTests(t, "myfilesystem", "android_common").Output("myfilesystem.img")
 
-	fs := result.ModuleForTests("myfilesystem", "android_common").Module().(*filesystem)
+	fs := result.ModuleForTests(t, "myfilesystem", "android_common").Module().(*filesystem)
 	expected := []string{
 		"app/myapp/myapp.apk",
 		"bin/foo",
@@ -163,7 +163,7 @@ func TestFileSystemFillsLinkerConfigWithStubLibs(t *testing.T) {
 		}
 	`)
 
-	module := result.ModuleForTests("myfilesystem", "android_common")
+	module := result.ModuleForTests(t, "myfilesystem", "android_common")
 	output := module.Output("out/soong/.intermediates/myfilesystem/android_common/linker.config.pb")
 
 	linkerConfigCommand := output.RuleParams.Command
@@ -224,7 +224,7 @@ func TestFileSystemGathersItemsOnlyInSystemPartition(t *testing.T) {
 		}
 	`)
 
-	module := result.ModuleForTests("myfilesystem", "android_common").Module().(*systemImage)
+	module := result.ModuleForTests(t, "myfilesystem", "android_common").Module().(*systemImage)
 	android.AssertDeepEquals(t, "entries should have foo and not bar", []string{"components/foo", "etc/linker.config.pb"}, module.entries)
 }
 
@@ -236,7 +236,7 @@ func TestAvbGenVbmetaImage(t *testing.T) {
 			partition_name: "input_partition_name",
 			salt: "2222",
 		}`)
-	cmd := result.ModuleForTests("input_hashdesc", "android_arm64_armv8-a").Rule("avbGenVbmetaImage").RuleParams.Command
+	cmd := result.ModuleForTests(t, "input_hashdesc", "android_arm64_armv8-a").Rule("avbGenVbmetaImage").RuleParams.Command
 	android.AssertStringDoesContain(t, "Can't find correct --partition_name argument",
 		cmd, "--partition_name input_partition_name")
 	android.AssertStringDoesContain(t, "Can't find --do_not_append_vbmeta_image",
@@ -276,7 +276,7 @@ func TestAvbAddHashFooter(t *testing.T) {
 			include_descriptors_from_images: ["input_hashdesc"],
 		}
 	`)
-	cmd := result.ModuleForTests("myfooter", "android_arm64_armv8-a").Rule("avbAddHashFooter").RuleParams.Command
+	cmd := result.ModuleForTests(t, "myfooter", "android_arm64_armv8-a").Rule("avbAddHashFooter").RuleParams.Command
 	android.AssertStringDoesContain(t, "Can't find correct --partition_name argument",
 		cmd, "--partition_name mypartition")
 	android.AssertStringDoesContain(t, "Can't find correct --key argument",
@@ -331,7 +331,7 @@ func TestFileSystemWithCoverageVariants(t *testing.T) {
 		}
 	`)
 
-	filesystem := result.ModuleForTests("myfilesystem", "android_common_cov")
+	filesystem := result.ModuleForTests(t, "myfilesystem", "android_common_cov")
 	inputs := filesystem.Output("staging_dir.timestamp").Implicits
 	android.AssertStringListContains(t, "filesystem should have libfoo(cov)",
 		inputs.Strings(),
@@ -341,7 +341,7 @@ func TestFileSystemWithCoverageVariants(t *testing.T) {
 		"out/soong/.intermediates/libbar/android_arm64_armv8-a_shared_cov/libbar.so")
 
 	filesystemOutput := filesystem.OutputFiles(result.TestContext, t, "")[0]
-	prebuiltInput := result.ModuleForTests("prebuilt", "android_arm64_armv8-a").Rule("Cp").Input
+	prebuiltInput := result.ModuleForTests(t, "prebuilt", "android_arm64_armv8-a").Rule("Cp").Input
 	if filesystemOutput != prebuiltInput {
 		t.Error("prebuilt should use cov variant of filesystem")
 	}
@@ -403,7 +403,7 @@ func TestSystemImageDefaults(t *testing.T) {
 		}
 	`)
 
-	fs := result.ModuleForTests("system", "android_common").Module().(*systemImage)
+	fs := result.ModuleForTests(t, "system", "android_common").Module().(*systemImage)
 	expected := []string{
 		"bin/foo",
 		"lib/libbar.so",
@@ -483,7 +483,7 @@ func TestTrackPhonyAsRequiredDep(t *testing.T) {
 		}
 	`)
 
-	fs := result.ModuleForTests("fs", "android_common").Module().(*filesystem)
+	fs := result.ModuleForTests(t, "fs", "android_common").Module().(*filesystem)
 	expected := []string{
 		"bin/foo",
 		"lib64/libbar.so",
@@ -546,7 +546,7 @@ func TestFilterOutUnsupportedArches(t *testing.T) {
 		},
 	}
 	for _, c := range testcases {
-		fs := result.ModuleForTests(c.fsName, "android_common").Module().(*filesystem)
+		fs := result.ModuleForTests(t, c.fsName, "android_common").Module().(*filesystem)
 		for _, e := range c.expected {
 			android.AssertStringListContains(t, "missing entry", fs.entries, e)
 		}
@@ -573,7 +573,7 @@ func TestErofsPartition(t *testing.T) {
 		}
 	`)
 
-	partition := result.ModuleForTests("erofs_partition", "android_common")
+	partition := result.ModuleForTests(t, "erofs_partition", "android_common")
 	buildImageConfig := android.ContentFromFileRuleForTests(t, result.TestContext, partition.Output("prop_pre_processing"))
 	android.AssertStringDoesContain(t, "erofs fs type", buildImageConfig, "fs_type=erofs")
 	android.AssertStringDoesContain(t, "erofs fs type compress algorithm", buildImageConfig, "erofs_default_compressor=lz4hc,9")
@@ -589,7 +589,7 @@ func TestF2fsPartition(t *testing.T) {
 		}
 	`)
 
-	partition := result.ModuleForTests("f2fs_partition", "android_common")
+	partition := result.ModuleForTests(t, "f2fs_partition", "android_common")
 	buildImageConfig := android.ContentFromFileRuleForTests(t, result.TestContext, partition.Output("prop_pre_processing"))
 	android.AssertStringDoesContain(t, "f2fs fs type", buildImageConfig, "fs_type=f2fs")
 	android.AssertStringDoesContain(t, "f2fs fs type sparse", buildImageConfig, "f2fs_sparse_flag=-S")
@@ -631,7 +631,7 @@ func TestDoNotPackageCrossPartitionDependencies(t *testing.T) {
 		}
 	`)
 
-	partition := result.ModuleForTests("myfilesystem", "android_common")
+	partition := result.ModuleForTests(t, "myfilesystem", "android_common")
 	fileList := android.ContentFromFileRuleForTests(t, result.TestContext, partition.Output("fileList"))
 	android.AssertDeepEquals(t, "filesystem with dependencies on different partition", "bin/binfoo\n", fileList)
 }
@@ -650,7 +650,7 @@ func TestUseSharedVariationOfNativeLib(t *testing.T) {
 		}
 	`)
 
-	partition := result.ModuleForTests("myfilesystem", "android_common")
+	partition := result.ModuleForTests(t, "myfilesystem", "android_common")
 	fileList := android.ContentFromFileRuleForTests(t, result.TestContext, partition.Output("fileList"))
 	android.AssertDeepEquals(t, "cc_library listed in deps",
 		"lib64/bootstrap/libc.so\nlib64/bootstrap/libdl.so\nlib64/bootstrap/libm.so\nlib64/libc++.so\nlib64/libc.so\nlib64/libdl.so\nlib64/libfoo.so\nlib64/libm.so\n",
@@ -687,7 +687,7 @@ cc_library {
 }
 	`)
 
-	partition := result.ModuleForTests("myfilesystem", "android_common")
+	partition := result.ModuleForTests(t, "myfilesystem", "android_common")
 	fileList := android.ContentFromFileRuleForTests(t, result.TestContext, partition.Output("fileList"))
 	android.AssertDeepEquals(t, "Shared library dep of overridden binary should not be installed",
 		"bin/binfoo1\nlib64/bootstrap/libc.so\nlib64/bootstrap/libdl.so\nlib64/bootstrap/libm.so\nlib64/libc++.so\nlib64/libc.so\nlib64/libdl.so\nlib64/libfoo2.so\nlib64/libm.so\n",
@@ -716,7 +716,7 @@ cc_library {
 }
 	`)
 
-	linkerConfigCmd := result.ModuleForTests("myfilesystem", "android_common").Output("out/soong/.intermediates/myfilesystem/android_common/linker.config.pb").RuleParams.Command
+	linkerConfigCmd := result.ModuleForTests(t, "myfilesystem", "android_common").Output("out/soong/.intermediates/myfilesystem/android_common/linker.config.pb").RuleParams.Command
 	android.AssertStringDoesContain(t, "Could not find linker.config.json file in cmd", linkerConfigCmd, "conv_linker_config proto --force -s linker.config.json")
 	android.AssertStringDoesContain(t, "Could not find stub in `provideLibs`", linkerConfigCmd, "--key provideLibs --value libfoo_has_stubs.so")
 }
@@ -740,7 +740,7 @@ func TestOverrideModulesInDeps(t *testing.T) {
 		}
 	`)
 
-	partition := result.ModuleForTests("myfilesystem", "android_common")
+	partition := result.ModuleForTests(t, "myfilesystem", "android_common")
 	fileList := android.ContentFromFileRuleForTests(t, result.TestContext, partition.Output("fileList"))
 	android.AssertStringEquals(t, "filesystem with override app", "app/myoverrideapp/myoverrideapp.apk\n", fileList)
 }

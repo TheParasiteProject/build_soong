@@ -93,7 +93,7 @@ func TestPlatformBootclasspath(t *testing.T) {
 
 	checkSrcJarInputs := func(t *testing.T, result *android.TestResult, name string, expected []string) {
 		t.Helper()
-		srcjar := result.ModuleForTests(name, "android_common").Output(name + "-transitive.srcjar")
+		srcjar := result.ModuleForTests(t, name, "android_common").Output(name + "-transitive.srcjar")
 		android.AssertStringDoesContain(t, "srcjar arg", srcjar.Args["jarArgs"], "-srcjar")
 		android.AssertArrayString(t, "srcjar inputs", expected, srcjar.Implicits.Strings())
 	}
@@ -367,7 +367,7 @@ func TestPlatformBootclasspath_HiddenAPIMonolithicFiles(t *testing.T) {
 
 	// Make sure that the foo-hiddenapi-annotations.jar is included in the inputs to the rules that
 	// creates the index.csv file.
-	platformBootclasspath := result.ModuleForTests("myplatform-bootclasspath", "android_common")
+	platformBootclasspath := result.ModuleForTests(t, "myplatform-bootclasspath", "android_common")
 
 	var rule android.TestingBuildParams
 

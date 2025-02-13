@@ -53,15 +53,15 @@ func TestDeviceForHost(t *testing.T) {
 
 	ctx, config := testJava(t, bp)
 
-	deviceModule := ctx.ModuleForTests("device_module", "android_common")
+	deviceModule := ctx.ModuleForTests(t, "device_module", "android_common")
 	deviceTurbineCombined := deviceModule.Output("turbine-combined/device_module.jar")
 	deviceJavac := deviceModule.Output("javac/device_module.jar")
 	deviceRes := deviceModule.Output("res/device_module.jar")
 
-	deviceImportModule := ctx.ModuleForTests("device_import_module", "android_common")
+	deviceImportModule := ctx.ModuleForTests(t, "device_import_module", "android_common")
 	deviceImportCombined := deviceImportModule.Output("combined/device_import_module.jar")
 
-	hostModule := ctx.ModuleForTests("host_module", config.BuildOSCommonTarget.String())
+	hostModule := ctx.ModuleForTests(t, "host_module", config.BuildOSCommonTarget.String())
 	hostJavac := hostModule.Output("javac/host_module.jar")
 	hostRes := hostModule.Output("res/host_module.jar")
 	combined := hostModule.Output("combined/host_module.jar")
@@ -135,15 +135,15 @@ func TestHostForDevice(t *testing.T) {
 
 	ctx, config := testJava(t, bp)
 
-	hostModule := ctx.ModuleForTests("host_module", config.BuildOSCommonTarget.String())
+	hostModule := ctx.ModuleForTests(t, "host_module", config.BuildOSCommonTarget.String())
 	hostJavac := hostModule.Output("javac/host_module.jar")
 	hostJavacHeader := hostModule.Output("javac-header/host_module.jar")
 	hostRes := hostModule.Output("res/host_module.jar")
 
-	hostImportModule := ctx.ModuleForTests("host_import_module", config.BuildOSCommonTarget.String())
+	hostImportModule := ctx.ModuleForTests(t, "host_import_module", config.BuildOSCommonTarget.String())
 	hostImportCombined := hostImportModule.Output("combined/host_import_module.jar")
 
-	deviceModule := ctx.ModuleForTests("device_module", "android_common")
+	deviceModule := ctx.ModuleForTests(t, "device_module", "android_common")
 	deviceJavac := deviceModule.Output("javac/device_module.jar")
 	deviceRes := deviceModule.Output("res/device_module.jar")
 	combined := deviceModule.Output("combined/device_module.jar")

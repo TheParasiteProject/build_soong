@@ -27,8 +27,8 @@ func TestNoPlugin(t *testing.T) {
 		}
 	`)
 
-	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
-	turbine := ctx.ModuleForTests("foo", "android_common").MaybeRule("turbine")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Rule("javac")
+	turbine := ctx.ModuleForTests(t, "foo", "android_common").MaybeRule("turbine")
 
 	if turbine.Rule == nil {
 		t.Errorf("expected turbine to be enabled")
@@ -61,14 +61,14 @@ func TestPlugin(t *testing.T) {
 
 	buildOS := ctx.Config().BuildOS.String()
 
-	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
-	turbine := ctx.ModuleForTests("foo", "android_common").MaybeRule("turbine")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Rule("javac")
+	turbine := ctx.ModuleForTests(t, "foo", "android_common").MaybeRule("turbine")
 
 	if turbine.Rule == nil {
 		t.Errorf("expected turbine to be enabled")
 	}
 
-	bar := ctx.ModuleForTests("bar", buildOS+"_common").Rule("javac").Output.String()
+	bar := ctx.ModuleForTests(t, "bar", buildOS+"_common").Rule("javac").Output.String()
 
 	if !inList(bar, javac.Implicits.Strings()) {
 		t.Errorf("foo implicits %v does not contain %q", javac.Implicits.Strings(), bar)
@@ -102,14 +102,14 @@ func TestPluginGeneratesApi(t *testing.T) {
 
 	buildOS := ctx.Config().BuildOS.String()
 
-	javac := ctx.ModuleForTests("foo", "android_common").Rule("javac")
-	turbine := ctx.ModuleForTests("foo", "android_common").MaybeRule("turbine")
+	javac := ctx.ModuleForTests(t, "foo", "android_common").Rule("javac")
+	turbine := ctx.ModuleForTests(t, "foo", "android_common").MaybeRule("turbine")
 
 	if turbine.Rule != nil {
 		t.Errorf("expected turbine to be disabled")
 	}
 
-	bar := ctx.ModuleForTests("bar", buildOS+"_common").Rule("javac").Output.String()
+	bar := ctx.ModuleForTests(t, "bar", buildOS+"_common").Rule("javac").Output.String()
 
 	if !inList(bar, javac.Implicits.Strings()) {
 		t.Errorf("foo implicits %v does not contain %q", javac.Implicits.Strings(), bar)

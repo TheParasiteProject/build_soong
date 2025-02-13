@@ -1237,7 +1237,7 @@ func nestedCheckBootImageConfig(t *testing.T, result *android.TestResult, imageC
 	android.AssertPathRelativeToTopEquals(t, "zip", expected.zip, imageConfig.zip)
 
 	if !mutated {
-		dexBootJarModule := result.ModuleForTests("dex_bootjars", "android_common")
+		dexBootJarModule := result.ModuleForTests(t, "dex_bootjars", "android_common")
 		profileInstallInfo, _ := android.OtherModuleProvider(result, dexBootJarModule.Module(), profileInstallInfoProvider)
 		assertInstallsEqual(t, "profileInstalls", expected.profileInstalls, profileInstallInfo.profileInstalls)
 		android.AssertStringEquals(t, "profileLicenseMetadataFile", expected.profileLicenseMetadataFile, profileInstallInfo.profileLicenseMetadataFile.RelativeToTop().String())
@@ -1281,7 +1281,7 @@ func CheckMutatedFrameworkBootImageConfig(t *testing.T, result *android.TestResu
 // checkDexpreoptMakeVars checks the DEXPREOPT_ prefixed make vars produced by dexpreoptBootJars
 // singleton.
 func checkDexpreoptMakeVars(t *testing.T, result *android.TestResult, expectedLicenseMetadataFile string) {
-	vars := result.MakeVarsForTesting(func(variable android.MakeVarVariable) bool {
+	vars := result.MakeVarsForTesting(t, func(variable android.MakeVarVariable) bool {
 		return strings.HasPrefix(variable.Name(), "DEXPREOPT_")
 	})
 

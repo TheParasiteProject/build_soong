@@ -1118,7 +1118,7 @@ my_module_type {
 
 				for moduleName := range tc.providers {
 					expected := tc.providers[moduleName]
-					m := result.ModuleForTests(moduleName, "android_arm64_armv8-a")
+					m := result.ModuleForTests(t, moduleName, "android_arm64_armv8-a")
 					p, _ := OtherModuleProvider(result.testContext.OtherModuleProviderAdaptor(), m.Module(), selectsTestProviderKey)
 					if !reflect.DeepEqual(p, expected) {
 						t.Errorf("Expected:\n  %q\ngot:\n  %q", expected.String(), p.String())

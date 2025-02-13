@@ -46,7 +46,7 @@ func TestTestSuites(t *testing.T) {
 			]
 		}
 	`)
-	manifestPath := ctx.ModuleForTests("my-suite", "android_common").Output("out/soong/test_suites/my-suite/my-suite.json")
+	manifestPath := ctx.ModuleForTests(t, "my-suite", "android_common").Output("out/soong/test_suites/my-suite/my-suite.json")
 	var actual testSuiteManifest
 	if err := json.Unmarshal([]byte(android.ContentFromFileRuleForTests(t, ctx.TestContext, manifestPath)), &actual); err != nil {
 		t.Errorf("failed to unmarshal manifest: %v", err)
@@ -106,7 +106,7 @@ func TestTestSuitesWithNested(t *testing.T) {
 			]
 		}
 	`)
-	manifestPath := ctx.ModuleForTests("my-all-tests-suite", "android_common").Output("out/soong/test_suites/my-all-tests-suite/my-all-tests-suite.json")
+	manifestPath := ctx.ModuleForTests(t, "my-all-tests-suite", "android_common").Output("out/soong/test_suites/my-all-tests-suite/my-all-tests-suite.json")
 	var actual testSuiteManifest
 	if err := json.Unmarshal([]byte(android.ContentFromFileRuleForTests(t, ctx.TestContext, manifestPath)), &actual); err != nil {
 		t.Errorf("failed to unmarshal manifest: %v", err)

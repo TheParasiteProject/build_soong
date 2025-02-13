@@ -52,7 +52,7 @@ func TestBuildTestList(t *testing.T) {
 		}
 	`)
 
-	config := ctx.SingletonForTests("testsuites")
+	config := ctx.SingletonForTests(t, "testsuites")
 	allOutputs := config.AllOutputs()
 
 	wantContents := map[string]string{

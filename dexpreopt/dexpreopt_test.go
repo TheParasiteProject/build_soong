@@ -377,7 +377,7 @@ func TestUffdGcFlagForce(t *testing.T) {
 			result := preparers.RunTest(t)
 			ctx := result.TestContext
 
-			ctx.SingletonForTests("dexpreopt-soong-config").Output("out/soong/dexpreopt/uffd_gc_flag.txt")
+			ctx.SingletonForTests(t, "dexpreopt-soong-config").Output("out/soong/dexpreopt/uffd_gc_flag.txt")
 		})
 	}
 }
@@ -394,7 +394,7 @@ func TestUffdGcFlagDefault(t *testing.T) {
 	ctx := result.TestContext
 	config := ctx.Config()
 
-	rule := ctx.SingletonForTests("dexpreopt-soong-config").Rule("dexpreopt_uffd_gc_flag")
+	rule := ctx.SingletonForTests(t, "dexpreopt-soong-config").Rule("dexpreopt_uffd_gc_flag")
 
 	android.AssertStringDoesContain(t, "", rule.RuleParams.Command, "construct_uffd_gc_flag")
 	android.AssertStringPathsRelativeToTopEquals(t, "", config, []string{

@@ -57,7 +57,7 @@ func TestGenruleCmd(t *testing.T) {
 		t.Fatal(errs)
 	}
 
-	gen := ctx.ModuleForTests("gen", "android_common").Output("out")
+	gen := ctx.ModuleForTests(t, "gen", "android_common").Output("out")
 	expected := []string{"foo"}
 	if !reflect.DeepEqual(expected, gen.Implicits.Strings()[:len(expected)]) {
 		t.Errorf(`want arm inputs %v, got %v`, expected, gen.Implicits.Strings())
@@ -93,11 +93,11 @@ func TestJarGenrules(t *testing.T) {
 		}
 	`)
 
-	foo := ctx.ModuleForTests("foo", "android_common").Output("javac/foo.jar")
-	jargen := ctx.ModuleForTests("jargen", "android_common").Output("jargen.jar")
-	bar := ctx.ModuleForTests("bar", "android_common").Output("javac/bar.jar")
-	baz := ctx.ModuleForTests("baz", "android_common").Output("javac/baz.jar")
-	barCombined := ctx.ModuleForTests("bar", "android_common").Output("combined/bar.jar")
+	foo := ctx.ModuleForTests(t, "foo", "android_common").Output("javac/foo.jar")
+	jargen := ctx.ModuleForTests(t, "jargen", "android_common").Output("jargen.jar")
+	bar := ctx.ModuleForTests(t, "bar", "android_common").Output("javac/bar.jar")
+	baz := ctx.ModuleForTests(t, "baz", "android_common").Output("javac/baz.jar")
+	barCombined := ctx.ModuleForTests(t, "bar", "android_common").Output("combined/bar.jar")
 
 	if g, w := jargen.Implicits.Strings(), foo.Output.String(); !android.InList(w, g) {
 		t.Errorf("expected jargen inputs [%q], got %q", w, g)

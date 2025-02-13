@@ -105,6 +105,6 @@ func TestRobolectricJniTest(t *testing.T) {
 	CheckModuleHasDependency(t, ctx.TestContext, "robo-test", "android_common", "jni-lib1")
 
 	// Check that the .so files make it into the output.
-	module := ctx.ModuleForTests("robo-test", "android_common")
+	module := ctx.ModuleForTests(t, "robo-test", "android_common")
 	module.Output(installPathPrefix + "/robo-test/lib64/jni-lib1.so")
 }

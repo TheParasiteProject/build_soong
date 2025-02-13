@@ -371,7 +371,7 @@ func TestFromTextWidestApiScope(t *testing.T) {
 		}
 	`)
 
-	fragment := result.ModuleForTests("myfragment", "android_common")
+	fragment := result.ModuleForTests(t, "myfragment", "android_common")
 	dependencyStubDexFlag := "--dependency-stub-dex=out/soong/.intermediates/default/java/android-non-updatable.stubs.test_module_lib/android_common/dex/android-non-updatable.stubs.test_module_lib.jar"
 	stubFlagsCommand := fragment.Output("modular-hiddenapi/stub-flags.csv").RuleParams.Command
 	android.AssertStringDoesContain(t,
@@ -479,7 +479,7 @@ func TestSnapshotWithBootclasspathFragment_HiddenAPI(t *testing.T) {
 
 	// Make sure that the signature-patterns.csv is passed all the appropriate package properties
 	// from the bootclasspath_fragment and its contents.
-	fragment := result.ModuleForTests("mybootclasspathfragment", "android_common")
+	fragment := result.ModuleForTests(t, "mybootclasspathfragment", "android_common")
 	rule := fragment.Output("modular-hiddenapi/signature-patterns.csv")
 	expectedCommand := strings.Join([]string{
 		"--split-package newlibrary",

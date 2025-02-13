@@ -64,13 +64,13 @@ func TestArchGenruleCmd(t *testing.T) {
 		t.Fatal(errs)
 	}
 
-	gen := ctx.ModuleForTests("gen", "android_arm_armv7-a-neon").Output("out_arm")
+	gen := ctx.ModuleForTests(t, "gen", "android_arm_armv7-a-neon").Output("out_arm")
 	expected := []string{"foo"}
 	if !reflect.DeepEqual(expected, gen.Implicits.Strings()[:len(expected)]) {
 		t.Errorf(`want arm inputs %v, got %v`, expected, gen.Implicits.Strings())
 	}
 
-	gen = ctx.ModuleForTests("gen", "android_arm64_armv8-a").Output("out_arm")
+	gen = ctx.ModuleForTests(t, "gen", "android_arm64_armv8-a").Output("out_arm")
 	expected = []string{"bar"}
 	if !reflect.DeepEqual(expected, gen.Implicits.Strings()[:len(expected)]) {
 		t.Errorf(`want arm64 inputs %v, got %v`, expected, gen.Implicits.Strings())
@@ -105,7 +105,7 @@ func TestLibraryGenruleCmd(t *testing.T) {
 		`
 	ctx := testCc(t, bp)
 
-	gen := ctx.ModuleForTests("gen", "android_arm_armv7-a-neon").Output("out")
+	gen := ctx.ModuleForTests(t, "gen", "android_arm_armv7-a-neon").Output("out")
 	expected := []string{"libboth.so", "libshared.so", "libstatic.a"}
 	var got []string
 	for _, input := range gen.Implicits {
@@ -178,7 +178,7 @@ func TestCmdPrefix(t *testing.T) {
 				PrepareForIntegrationTestWithCc,
 				android.OptionalFixturePreparer(tt.preparer),
 			).RunTestWithBp(t, bp)
-			gen := result.ModuleForTests("gen", tt.variant)
+			gen := result.ModuleForTests(t, "gen", tt.variant)
 			sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, gen.Output("genrule.sbox.textproto"))
 			cmd := *sboxProto.Commands[0].Command
 			android.AssertStringDoesContain(t, "incorrect CC_ARCH", cmd, "CC_ARCH="+tt.arch+" ")
@@ -236,7 +236,7 @@ func TestMultilibGenruleOut(t *testing.T) {
 	}
 	`
 	result := PrepareForIntegrationTestWithCc.RunTestWithBp(t, bp)
-	gen_32bit := result.ModuleForTests("gen", "android_arm_armv7-a-neon").OutputFiles(result.TestContext, t, "")
+	gen_32bit := result.ModuleForTests(t, "gen", "android_arm_armv7-a-neon").OutputFiles(result.TestContext, t, "")
 	android.AssertPathsEndWith(t,
 		"genrule_out",
 		[]string{
@@ -245,7 +245,7 @@ func TestMultilibGenruleOut(t *testing.T) {
 		gen_32bit,
 	)
 
-	gen_64bit := result.ModuleForTests("gen", "android_arm64_armv8-a").OutputFiles(result.TestContext, t, "")
+	gen_64bit := result.ModuleForTests(t, "gen", "android_arm64_armv8-a").OutputFiles(result.TestContext, t, "")
 	android.AssertPathsEndWith(t,
 		"genrule_out",
 		[]string{

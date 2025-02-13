@@ -155,7 +155,7 @@ func TestJavaContainersModuleProperties(t *testing.T) {
 	}
 
 	for _, c := range testcases {
-		m := result.ModuleForTests(c.moduleName, "android_common")
+		m := result.ModuleForTests(t, c.moduleName, "android_common")
 		containers, _ := android.OtherModuleProvider(result.TestContext.OtherModuleProviderAdaptor(), m.Module(), android.ContainersInfoProvider)
 		belongingContainers := containers.BelongingContainers()
 		checkContainerMatch(t, c.moduleName, "system", c.isSystemContainer, android.InList(android.SystemContainer, belongingContainers))

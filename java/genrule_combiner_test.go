@@ -57,15 +57,15 @@ func TestJarGenruleCombinerSingle(t *testing.T) {
 		}
 	`).TestContext
 
-	fooMod := ctx.ModuleForTests("foo", "android_common")
+	fooMod := ctx.ModuleForTests(t, "foo", "android_common")
 	fooCombined := fooMod.Output("turbine-combined/foo.jar")
 	fooOutputFiles, _ := android.OtherModuleProvider(ctx.OtherModuleProviderAdaptor(), fooMod.Module(), android.OutputFilesProvider)
 	fooHeaderJars := fooOutputFiles.TaggedOutputFiles[".hjar"]
 
-	genMod := ctx.ModuleForTests("gen", "android_common")
+	genMod := ctx.ModuleForTests(t, "gen", "android_common")
 	gen := genMod.Output("gen.jar")
 
-	jarcombMod := ctx.ModuleForTests("jarcomb", "android_common")
+	jarcombMod := ctx.ModuleForTests(t, "jarcomb", "android_common")
 	jarcombInfo, _ := android.OtherModuleProvider(ctx.OtherModuleProviderAdaptor(), jarcombMod.Module(), JavaInfoProvider)
 	jarcombOutputFiles, _ := android.OtherModuleProvider(ctx.OtherModuleProviderAdaptor(), jarcombMod.Module(), android.OutputFilesProvider)
 
@@ -93,7 +93,7 @@ func TestJarGenruleCombinerSingle(t *testing.T) {
 			android.PathsRelativeToTop(jarcombInfo.HeaderJars), android.PathRelativeToTop(fooCombined.Output))
 	}
 
-	barMod := ctx.ModuleForTests("bar", "android_common")
+	barMod := ctx.ModuleForTests(t, "bar", "android_common")
 	bar := barMod.Output("javac/bar.jar")
 	barCombined := barMod.Output("combined/bar.jar")
 
@@ -105,7 +105,7 @@ func TestJarGenruleCombinerSingle(t *testing.T) {
 			barCombined.Inputs.Strings(), bar.Output.String(), gen.Output.String())
 	}
 
-	bazMod := ctx.ModuleForTests("baz", "android_common")
+	bazMod := ctx.ModuleForTests(t, "baz", "android_common")
 	baz := bazMod.Output("javac/baz.jar")
 
 	string_in_list := func(s string, l []string) bool {
@@ -176,12 +176,12 @@ func TestJarGenruleCombinerMulti(t *testing.T) {
 		}
 	`).TestContext
 
-	gen1Mod := ctx.ModuleForTests("gen1", "android_common")
+	gen1Mod := ctx.ModuleForTests(t, "gen1", "android_common")
 	gen1 := gen1Mod.Output("gen1.jar")
-	gen2Mod := ctx.ModuleForTests("gen2", "android_common")
+	gen2Mod := ctx.ModuleForTests(t, "gen2", "android_common")
 	gen2 := gen2Mod.Output("gen2.jar")
 
-	jarcombMod := ctx.ModuleForTests("jarcomb", "android_common")
+	jarcombMod := ctx.ModuleForTests(t, "jarcomb", "android_common")
 	jarcomb := jarcombMod.Output("combined/jarcomb.jar")
 	jarcombTurbine := jarcombMod.Output("turbine-combined/jarcomb.jar")
 	_ = jarcombTurbine
@@ -203,7 +203,7 @@ func TestJarGenruleCombinerMulti(t *testing.T) {
 			android.PathsRelativeToTop(jarcombHeaderJars), android.PathRelativeToTop(jarcombTurbine.Output))
 	}
 
-	barMod := ctx.ModuleForTests("bar", "android_common")
+	barMod := ctx.ModuleForTests(t, "bar", "android_common")
 	bar := barMod.Output("javac/bar.jar")
 	barCombined := barMod.Output("combined/bar.jar")
 
@@ -215,7 +215,7 @@ func TestJarGenruleCombinerMulti(t *testing.T) {
 			barCombined.Inputs.Strings(), bar.Output.String(), jarcomb.Output.String())
 	}
 
-	bazMod := ctx.ModuleForTests("baz", "android_common")
+	bazMod := ctx.ModuleForTests(t, "baz", "android_common")
 	baz := bazMod.Output("javac/baz.jar")
 
 	string_in_list := func(s string, l []string) bool {

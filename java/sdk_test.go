@@ -501,7 +501,7 @@ func testClasspathTestCases(t *testing.T, classpathTestcases []classpathTestCase
 			}
 
 			checkClasspath := func(t *testing.T, result *android.TestResult, isJava8 bool) {
-				foo := result.ModuleForTests("foo", variant(result))
+				foo := result.ModuleForTests(t, "foo", variant(result))
 				javac := foo.Rule("javac")
 				var deps []string
 
@@ -579,7 +579,7 @@ func testClasspathTestCases(t *testing.T, classpathTestcases []classpathTestCase
 				checkClasspath(t, result, true /* isJava8 */)
 
 				if testcase.host != android.Host {
-					aidl := result.ModuleForTests("foo", variant(result)).Rule("aidl")
+					aidl := result.ModuleForTests(t, "foo", variant(result)).Rule("aidl")
 
 					android.AssertStringDoesContain(t, "aidl command", aidl.RuleParams.Command, testcase.aidl+" -I.")
 				}
@@ -593,7 +593,7 @@ func testClasspathTestCases(t *testing.T, classpathTestcases []classpathTestCase
 				checkClasspath(t, result, false /* isJava8 */)
 
 				if testcase.host != android.Host {
-					aidl := result.ModuleForTests("foo", variant(result)).Rule("aidl")
+					aidl := result.ModuleForTests(t, "foo", variant(result)).Rule("aidl")
 
 					android.AssertStringDoesContain(t, "aidl command", aidl.RuleParams.Command, testcase.aidl+" -I.")
 				}

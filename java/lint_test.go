@@ -38,7 +38,7 @@ func TestJavaLintDoesntUseBaselineImplicitly(t *testing.T) {
 		"lint-baseline.xml": nil,
 	})
 
-	foo := ctx.ModuleForTests("foo", "android_common")
+	foo := ctx.ModuleForTests(t, "foo", "android_common")
 
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, foo.Output("lint.sbox.textproto"))
 	if strings.Contains(*sboxProto.Commands[0].Command, "--baseline lint-baseline.xml") {
@@ -87,7 +87,7 @@ func TestJavaLintUsesCorrectBpConfig(t *testing.T) {
 		"mybaseline.xml": nil,
 	})
 
-	foo := ctx.ModuleForTests("foo", "android_common")
+	foo := ctx.ModuleForTests(t, "foo", "android_common")
 
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, foo.Output("lint.sbox.textproto"))
 	if !strings.Contains(*sboxProto.Commands[0].Command, "--baseline mybaseline.xml") {
@@ -193,7 +193,7 @@ func TestJavaLintStrictUpdatabilityLinting(t *testing.T) {
 	result := android.GroupFixturePreparers(PrepareForTestWithJavaDefaultModules, fs.AddToFixture()).
 		RunTestWithBp(t, bp)
 
-	foo := result.ModuleForTests("foo", "android_common")
+	foo := result.ModuleForTests(t, "foo", "android_common")
 	strictUpdatabilityCheck := foo.Output("lint_strict_updatability_check.stamp")
 	if !strings.Contains(strictUpdatabilityCheck.RuleParams.Command,
 		"--disallowed_issues NewApi") {
@@ -256,7 +256,7 @@ func TestJavaLintDatabaseSelectionFull(t *testing.T) {
 		})).
 			RunTestWithBp(t, thisBp)
 
-		foo := result.ModuleForTests("foo", "android_common")
+		foo := result.ModuleForTests(t, "foo", "android_common")
 		sboxProto := android.RuleBuilderSboxProtoForTests(t, result.TestContext, foo.Output("lint.sbox.textproto"))
 		if !strings.Contains(*sboxProto.Commands[0].Command, "/"+testCase.expected_file) {
 			t.Error("did not use full api database for case", testCase)
@@ -313,7 +313,7 @@ func TestNotTestViaDefault(t *testing.T) {
 	result := PrepareForTestWithJavaDefaultModules.RunTestWithBp(t, bp)
 	ctx := result.TestContext
 
-	foo := ctx.ModuleForTests("foo", "android_common")
+	foo := ctx.ModuleForTests(t, "foo", "android_common")
 	sboxProto := android.RuleBuilderSboxProtoForTests(t, ctx, foo.Output("lint.sbox.textproto"))
 	command := *sboxProto.Commands[0].Command
 
@@ -321,7 +321,7 @@ func TestNotTestViaDefault(t *testing.T) {
 		t.Fatalf("Expected command to not contain --test")
 	}
 
-	foo2 := ctx.ModuleForTests("foo2", "android_common")
+	foo2 := ctx.ModuleForTests(t, "foo2", "android_common")
 	sboxProto2 := android.RuleBuilderSboxProtoForTests(t, ctx, foo2.Output("lint.sbox.textproto"))
 	command2 := *sboxProto2.Commands[0].Command
 

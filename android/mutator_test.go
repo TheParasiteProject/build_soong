@@ -78,7 +78,7 @@ func TestMutatorAddMissingDependencies(t *testing.T) {
 		FixtureWithRootAndroidBp(bp),
 	).RunTest(t)
 
-	foo := result.ModuleForTests("foo", "").Module().(*mutatorTestModule)
+	foo := result.ModuleForTests(t, "foo", "").Module().(*mutatorTestModule)
 
 	AssertDeepEquals(t, "foo missing deps", []string{"added_missing_dep", "regular_missing_dep"}, foo.missingDeps)
 }

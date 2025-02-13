@@ -78,9 +78,9 @@ func TestPrebuiltApis_WithExtensions(t *testing.T) {
 				"2": {"foo", "bar"},
 			}),
 		).RunTest(t)
-		foo_input = result.ModuleForTests("foo.api.public.latest", "").Rule("generator").Implicits[0].String()
-		bar_input = result.ModuleForTests("bar.api.public.latest", "").Rule("generator").Implicits[0].String()
-		baz_input = result.ModuleForTests("baz.api.public.latest", "").Rule("generator").Implicits[0].String()
+		foo_input = result.ModuleForTests(t, "foo.api.public.latest", "").Rule("generator").Implicits[0].String()
+		bar_input = result.ModuleForTests(t, "bar.api.public.latest", "").Rule("generator").Implicits[0].String()
+		baz_input = result.ModuleForTests(t, "baz.api.public.latest", "").Rule("generator").Implicits[0].String()
 		return
 	}
 	// Extension 2 is the latest for both foo and bar, finalized after the base extension version.
@@ -114,9 +114,9 @@ func TestPrebuiltApis_WithIncrementalApi(t *testing.T) {
 				"current": {"foo", "bar"},
 			}),
 		).RunTest(t)
-		foo_input = result.ModuleForTests("foo.api.public.latest", "").Rule("generator").Implicits[0].String()
-		bar_input = result.ModuleForTests("bar.api.public.latest", "").Rule("generator").Implicits[0].String()
-		baz_input = result.ModuleForTests("baz.api.public.latest", "").Rule("generator").Implicits[0].String()
+		foo_input = result.ModuleForTests(t, "foo.api.public.latest", "").Rule("generator").Implicits[0].String()
+		bar_input = result.ModuleForTests(t, "bar.api.public.latest", "").Rule("generator").Implicits[0].String()
+		baz_input = result.ModuleForTests(t, "baz.api.public.latest", "").Rule("generator").Implicits[0].String()
 		return
 	}
 	// 33.1 is the latest for baz, 33.2 is the latest for both foo & bar

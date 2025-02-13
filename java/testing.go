@@ -604,7 +604,7 @@ func gatherRequiredDepsForTest() string {
 
 func getModuleDependencies(t *testing.T, ctx *android.TestContext, name, variant string) []string {
 	t.Helper()
-	module := ctx.ModuleForTests(name, variant).Module()
+	module := ctx.ModuleForTests(t, name, variant).Module()
 	deps := []string{}
 	ctx.VisitDirectDeps(module, func(m blueprint.Module) {
 		deps = append(deps, m.Name())
@@ -635,7 +635,7 @@ func CheckModuleHasDependency(t *testing.T, ctx *android.TestContext, name, vari
 
 // CheckModuleHasDependency returns true if the module depends on the expected dependency.
 func CheckModuleHasDependencyWithTag(t *testing.T, ctx *android.TestContext, name, variant string, desiredTag blueprint.DependencyTag, expected string) bool {
-	module := ctx.ModuleForTests(name, variant).Module()
+	module := ctx.ModuleForTests(t, name, variant).Module()
 	found := false
 	ctx.VisitDirectDepsWithTags(module, func(m blueprint.Module, tag blueprint.DependencyTag) {
 		if tag == desiredTag && m.Name() == expected {
@@ -671,7 +671,7 @@ func CheckClasspathFragmentProtoContentInfoProvider(t *testing.T, result *androi
 // name of the apex, or platform is it is not part of an apex and <module> is the module name.
 func CheckPlatformBootclasspathDependencies(t *testing.T, ctx *android.TestContext, name, variant string, expected []string) {
 	t.Helper()
-	platformBootclasspath := ctx.ModuleForTests(name, variant).Module().(*platformBootclasspathModule)
+	platformBootclasspath := ctx.ModuleForTests(t, name, variant).Module().(*platformBootclasspathModule)
 	modules := []android.Module{}
 	ctx.VisitDirectDeps(platformBootclasspath, func(m blueprint.Module) {
 		modules = append(modules, m.(android.Module))
@@ -746,7 +746,7 @@ func CheckHiddenAPIRuleInputs(t *testing.T, message string, expected string, hid
 
 // Check that the merged file create by platform_compat_config_singleton has the correct inputs.
 func CheckMergedCompatConfigInputs(t *testing.T, result *android.TestResult, message string, expectedPaths ...string) {
-	sourceGlobalCompatConfig := result.SingletonForTests("platform_compat_config_singleton")
+	sourceGlobalCompatConfig := result.SingletonForTests(t, "platform_compat_config_singleton")
 	allOutputs := sourceGlobalCompatConfig.AllOutputs()
 	android.AssertIntEquals(t, message+": output len", 1, len(allOutputs))
 	output := sourceGlobalCompatConfig.Output(allOutputs[0])

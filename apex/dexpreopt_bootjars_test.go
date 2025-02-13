@@ -151,7 +151,7 @@ func testDexpreoptBoot(t *testing.T, ruleFile string, expectedInputs, expectedOu
 	}
 	result := fixture.RunTestWithBp(t, fmt.Sprintf(bp, preferPrebuilt))
 
-	dexBootJars := result.ModuleForTests("dex_bootjars", "android_common")
+	dexBootJars := result.ModuleForTests(t, "dex_bootjars", "android_common")
 	rule := dexBootJars.Output(ruleFile)
 
 	inputs := rule.Implicits.Strings()
@@ -419,7 +419,7 @@ func TestDexpreoptProfileWithMultiplePrebuiltArtApexes(t *testing.T) {
 			android.PrepareForTestWithBuildFlag("RELEASE_APEX_CONTRIBUTIONS_ART", tc.selectedArtApexContributions),
 		).RunTestWithBp(t, bp)
 
-		dexBootJars := result.ModuleForTests("dex_bootjars", "android_common")
+		dexBootJars := result.ModuleForTests(t, "dex_bootjars", "android_common")
 		rule := dexBootJars.Output(ruleFile)
 
 		inputs := rule.Implicits.Strings()
