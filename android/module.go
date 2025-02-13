@@ -3001,6 +3001,9 @@ func AddAncestors(ctx SingletonContext, dirMap map[string]Paths, mmName func(str
 func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 	var checkbuildDeps Paths
 
+	// Create a top level partialcompileclean target for modules to add dependencies to.
+	ctx.Phony("partialcompileclean")
+
 	mmTarget := func(dir string) string {
 		return "MODULES-IN-" + strings.Replace(filepath.Clean(dir), "/", "-", -1)
 	}

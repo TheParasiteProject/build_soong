@@ -386,10 +386,10 @@ type config struct {
 
 type partialCompileFlags struct {
 	// Is partial compilation enabled at all?
-	enabled bool
+	Enabled bool
 
 	// Whether to use d8 instead of r8
-	use_d8 bool
+	Use_d8 bool
 
 	// Add others as needed.
 }
@@ -429,7 +429,7 @@ type jsonConfigurable interface {
 // switch statement below.
 var defaultPartialCompileFlags = partialCompileFlags{
 	// Set any opt-out flags here.  Opt-in flags are off by default.
-	enabled: false,
+	Enabled: false,
 }
 
 func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags, error) {
@@ -473,14 +473,14 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 		switch tok {
 		case "true":
 			ret = defaultPartialCompileFlags
-			ret.enabled = true
+			ret.Enabled = true
 		case "false":
 			// Set everything to false.
 			ret = partialCompileFlags{}
 		case "enabled":
-			ret.enabled = makeVal(state, defaultPartialCompileFlags.enabled)
+			ret.Enabled = makeVal(state, defaultPartialCompileFlags.Enabled)
 		case "use_d8":
-			ret.use_d8 = makeVal(state, defaultPartialCompileFlags.use_d8)
+			ret.Use_d8 = makeVal(state, defaultPartialCompileFlags.Use_d8)
 		default:
 			return partialCompileFlags{}, fmt.Errorf("Unknown SOONG_PARTIAL_COMPILE value: %v", tok)
 		}

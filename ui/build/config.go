@@ -1685,6 +1685,10 @@ func (c *configImpl) DevicePreviousProductConfig() string {
 	return filepath.Join(c.ProductOut(), "previous_build_config.mk")
 }
 
+func (c *configImpl) DevicePreviousUsePartialCompile() string {
+	return filepath.Join(c.ProductOut(), "previous_use_partial_compile.txt")
+}
+
 func (c *configImpl) KatiPackageMkDir() string {
 	return filepath.Join(c.SoongOutDir(), "kati_packaging"+c.KatiSuffix())
 }

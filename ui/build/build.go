@@ -401,6 +401,7 @@ func Build(ctx Context, config Config) {
 		if what&RunKati != 0 {
 			installCleanIfNecessary(ctx, config)
 		}
+		partialCompileCleanIfNecessary(ctx, config)
 		runNinjaForBuild(ctx, config)
 		updateBuildIdDir(ctx, config)
 	}
