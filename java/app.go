@@ -512,10 +512,14 @@ func (a *AndroidApp) checkJniLibsSdkVersion(ctx android.ModuleContext, minSdkVer
 		// The domain of cc.sdk_version is "current" and <number>
 		// We can rely on android.SdkSpec to convert it to <number> so that "current" is
 		// handled properly regardless of sdk finalization.
-		jniSdkVersion, err := android.SdkSpecFrom(ctx, commonInfo.MinSdkVersion).EffectiveVersion(ctx)
+		ver := ""
+		if !commonInfo.MinSdkVersion.IsPlatform {
+			ver = commonInfo.MinSdkVersion.ApiLevel.String()
+		}
+		jniSdkVersion, err := android.SdkSpecFrom(ctx, ver).EffectiveVersion(ctx)
 		if err != nil || minSdkVersion.LessThan(jniSdkVersion) {
 			ctx.OtherModuleErrorf(m, "min_sdk_version(%v) is higher than min_sdk_version(%v) of the containing android_app(%v)",
-				commonInfo.MinSdkVersion, minSdkVersion, ctx.ModuleName())
+				ver, minSdkVersion, ctx.ModuleName())
 			return
 		}
 

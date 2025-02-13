@@ -1898,7 +1898,7 @@ type CommonModuleInfo struct {
 	SkipAndroidMkProcessing bool
 	BaseModuleName          string
 	CanHaveApexVariants     bool
-	MinSdkVersion           string
+	MinSdkVersion           ApiLevelOrPlatform
 	SdkVersion              string
 	NotAvailableForPlatform bool
 	// There some subtle differences between this one and the one above.
@@ -1912,6 +1912,11 @@ type CommonModuleInfo struct {
 	SkipInstall                      bool
 	IsStubsModule                    bool
 	Host                             bool
+}
+
+type ApiLevelOrPlatform struct {
+	ApiLevel   *ApiLevel
+	IsPlatform bool
 }
 
 var CommonModuleInfoKey = blueprint.NewProvider[CommonModuleInfo]()
@@ -2255,11 +2260,16 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		MinSdkVersion(ctx EarlyModuleContext) ApiLevel
 	}); ok {
 		ver := mm.MinSdkVersion(ctx)
-		if !ver.IsNone() {
-			commonData.MinSdkVersion = ver.String()
-		}
+		commonData.MinSdkVersion.ApiLevel = &ver
 	} else if mm, ok := m.module.(interface{ MinSdkVersion() string }); ok {
-		commonData.MinSdkVersion = mm.MinSdkVersion()
+		ver := mm.MinSdkVersion()
+		// Compile against the current platform
+		if ver == "" {
+			commonData.MinSdkVersion.IsPlatform = true
+		} else {
+			api := ApiLevelFrom(ctx, ver)
+			commonData.MinSdkVersion.ApiLevel = &api
+		}
 	}
 
 	if mm, ok := m.module.(interface {
