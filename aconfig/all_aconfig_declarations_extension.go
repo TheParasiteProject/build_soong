@@ -79,12 +79,10 @@ func (ext *allAconfigDeclarationsExtension) GenerateAndroidBuildActions(ctx andr
 
 	ctx.Phony(ctx.ModuleName(), ext.finalizedFlags)
 
+	ctx.DistForGoalWithFilename("sdk", ext.finalizedFlags, path.Join(proptools.String(ext.properties.Dist_dir), "finalized-flags.txt"))
+
 	// This module must not set any provider or call `ctx.SetOutputFiles`!
 	// This module is only used to depend on the singleton module all_aconfig_declarations and
 	// generate the custom finalized-flags.txt file in dist builds, and should not be depended
 	// by other modules.
-}
-
-func (ext *allAconfigDeclarationsExtension) MakeVars(ctx android.MakeVarsContext) {
-	ctx.DistForGoalWithFilename("sdk", ext.finalizedFlags, path.Join(proptools.String(ext.properties.Dist_dir), "finalized-flags.txt"))
 }
