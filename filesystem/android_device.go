@@ -454,6 +454,10 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		abOtaKeysSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_keys)
 		abOtaKeysSortedString := proptools.ShellEscape(strings.Join(abOtaKeysSorted, "\\n"))
 		builder.Command().Textf("echo -e").Flag(abOtaKeysSortedString).Textf(" > %s/META/otakeys.txt", targetFilesDir.String())
+		// selinuxfc
+		if a.getFsInfos(ctx)["system"].SelinuxFc != nil {
+			builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].SelinuxFc).Textf(" %s/META/file_contexts.bin", targetFilesDir.String())
+		}
 	}
 }
 
