@@ -868,7 +868,9 @@ func (f *filesystem) copyPackagingSpecs(ctx android.ModuleContext, builder *andr
 	dirsToSpecs[rootDir] = rootDirSpecs
 	dirsToSpecs[rebasedDir] = rebasedDirSpecs
 
-	return f.CopySpecsToDirs(ctx, builder, dirsToSpecs)
+	// Preserve timestamps for adb sync, so that this staging dir file matches the timestamp in the
+	// out/target/product staging directory.
+	return f.CopySpecsToDirs(ctx, builder, dirsToSpecs, true)
 }
 
 func (f *filesystem) rootDirString() string {

@@ -73,6 +73,12 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 							Rule:   android.CpWithBash,
 							Input:  fip.SourcePath,
 							Output: fip.FullInstallPath,
+							Args: map[string]string{
+								// Preserve timestamps for adb sync, so that this installed file's
+								// timestamp matches the timestamp in the filesystem's intermediate
+								// staging dir
+								"cpFlags": "-p",
+							},
 						})
 					} else {
 						ctx.Build(pctx, android.BuildParams{
