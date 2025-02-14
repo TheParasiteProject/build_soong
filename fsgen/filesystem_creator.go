@@ -320,6 +320,26 @@ func (f *filesystemCreator) createBootloaderFilegroup(ctx android.LoadHookContex
 	return bootloaderFilegroupName, true
 }
 
+func (f *filesystemCreator) createReleaseToolsFilegroup(ctx android.LoadHookContext) (string, bool) {
+	releaseToolsDir := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.ReleaseToolsExtensionDir
+	if releaseToolsDir == "" {
+		return "", false
+	}
+
+	releaseToolsFilegroupName := generatedModuleName(ctx.Config(), "releasetools")
+	filegroupProps := &struct {
+		Name       *string
+		Srcs       []string
+		Visibility []string
+	}{
+		Name:       proptools.StringPtr(releaseToolsFilegroupName),
+		Srcs:       []string{"releasetools.py"},
+		Visibility: []string{"//visibility:public"},
+	}
+	ctx.CreateModuleInDirectory(android.FileGroupFactory, releaseToolsDir, filegroupProps)
+	return releaseToolsFilegroupName, true
+}
+
 func (f *filesystemCreator) createDeviceModule(
 	ctx android.LoadHookContext,
 	partitions allGeneratedPartitionData,
@@ -387,8 +407,12 @@ func (f *filesystemCreator) createDeviceModule(
 		Ab_ota_postinstall_config: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPostInstallConfig,
 		Ramdisk_node_list:         proptools.StringPtr(":ramdisk_node_list"),
 	}
+
 	if bootloader, ok := f.createBootloaderFilegroup(ctx); ok {
 		deviceProps.Bootloader = proptools.StringPtr(":" + bootloader)
+	}
+	if releaseTools, ok := f.createReleaseToolsFilegroup(ctx); ok {
+		deviceProps.Releasetools_extension = proptools.StringPtr(":" + releaseTools)
 	}
 
 	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)

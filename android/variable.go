@@ -714,6 +714,8 @@ type PartitionVariables struct {
 	ProductFsCasefold    string `json:",omitempty"`
 	ProductQuotaProjid   string `json:",omitempty"`
 	ProductFsCompression string `json:",omitempty"`
+
+	ReleaseToolsExtensionDir string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {

@@ -75,7 +75,8 @@ type DeviceProperties struct {
 	Ab_ota_keys               []string
 	Ab_ota_postinstall_config []string
 
-	Ramdisk_node_list *string `android:"path"`
+	Ramdisk_node_list      *string `android:"path"`
+	Releasetools_extension *string `android:"path"`
 }
 
 type androidDevice struct {
@@ -477,7 +478,13 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		builder.Command().Textf("cp").Input(fsInfos[partition].FilesystemConfig).Textf(" %s/META/%s", targetFilesDir.String(), a.filesystemConfigNameForTargetFiles(partition))
 	}
 	// Copy ramdisk_node_list
-	builder.Command().Textf("cp").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Ramdisk_node_list))).Textf(" %s/META/", targetFilesDir.String())
+	if ramdiskNodeList := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Ramdisk_node_list)); ramdiskNodeList != nil {
+		builder.Command().Textf("cp").Input(ramdiskNodeList).Textf(" %s/META/", targetFilesDir.String())
+	}
+	// Copy releasetools.py
+	if releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension)); releaseTools != nil {
+		builder.Command().Textf("cp").Input(releaseTools).Textf(" %s/META/", targetFilesDir.String())
+	}
 }
 
 // Filenames for the partition specific fs_config files.
