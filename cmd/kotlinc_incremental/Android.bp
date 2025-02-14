@@ -34,9 +34,22 @@ java_library_host {
         "src/com/**/*.kt",
     ],
     static_libs: [
-        "kotlin-compiler-embeddable",
-        "kotlin-compiler-runner",
+        "kotlin-build-tools", // 2.1.10
+        "kotlin-compiler-embeddable", // 2.1.10
+        "kotlin-compiler-runner", // 2.1.10
         "kotlin-daemon-client",
+        "kotlin-daemon-embeddable",
+        "kotlinx_coroutines",
+    ],
+    libs: [
+        // Disabled until we use Kotlin's Build-Tools-API
+        //"kotlin-build-tools-impl",  // Must be dynamically linked in because of the way that
+        // build tools tries to cast the class loader to URLClassLoader.
+        // If we statically compile this, the cast fails.
+    ],
+    required: [
+        //        "kotlin-build-tools-impl",
+        //        "kotlin-compose-compiler-embeddable",
     ],
 
     plugins: [],
@@ -50,6 +63,11 @@ java_binary_host {
     name: "kotlin-incremental-client",
     manifest: "kotlin-incremental-client.mf",
     static_libs: ["kotlin-incremental-client-lib"],
+    libs: ["kotlin-build-tools-impl"],
+    required: [
+        "kotlin-build-tools-impl",
+        "kotlin-compose-compiler-embeddable",
+    ],
 }
 
 java_test_host {
