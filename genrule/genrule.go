@@ -281,6 +281,7 @@ func isModuleInBuildNumberAllowlist(ctx android.ModuleContext) bool {
 			"hardware/google/camera/common/hal/aidl_service:aidl_camera_build_version",
 			"tools/tradefederation/core:tradefed_zip",
 			"vendor/google/services/LyricCameraHAL/src/apex:com.google.pixel.camera.hal.manifest",
+			"vendor/google_tradefederation/core:gen_google_tradefed_zip",
 			// go/keep-sorted end
 		}
 		allowlistMap := make(map[string]bool, len(allowlist))
