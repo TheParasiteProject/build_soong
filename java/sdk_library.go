@@ -931,6 +931,8 @@ type commonSdkLibraryAndImportModule interface {
 	RootLibraryName() string
 }
 
+var _ android.ApexModule = (*SdkLibrary)(nil)
+
 func (m *SdkLibrary) RootLibraryName() string {
 	return m.BaseModuleName()
 }
@@ -2153,13 +2155,10 @@ func (m SdkLibraryImportDepIsInSameApexChecker) OutgoingDepIsInSameApex(tag blue
 }
 
 // Implements android.ApexModule
-func (module *SdkLibraryImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
-	sdkVersion android.ApiLevel) error {
-	// we don't check prebuilt modules for sdk_version
-	return nil
+func (m *SdkLibraryImport) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
+	return android.MinApiLevel
 }
 
-// Implements android.ApexModule
 func (module *SdkLibraryImport) UniqueApexVariations() bool {
 	return module.uniqueApexVariations()
 }

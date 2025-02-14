@@ -91,7 +91,6 @@ func (m *VintfFragmentModule) AndroidMkEntries() []AndroidMkEntries {
 var _ ApexModule = (*VintfFragmentModule)(nil)
 
 // Implements android.ApexModule
-func (m *VintfFragmentModule) ShouldSupportSdkVersion(ctx BaseModuleContext, sdkVersion ApiLevel) error {
-	// VintfFragmetModule is independent from the SDK version.
-	return nil
+func (m *VintfFragmentModule) MinSdkVersionSupported(ctx BaseModuleContext) ApiLevel {
+	return MinApiLevel
 }

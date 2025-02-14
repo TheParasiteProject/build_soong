@@ -459,9 +459,8 @@ func (m *syspropLibrary) AndroidMk() android.AndroidMkData {
 var _ android.ApexModule = (*syspropLibrary)(nil)
 
 // Implements android.ApexModule
-func (m *syspropLibrary) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
-	sdkVersion android.ApiLevel) error {
-	return fmt.Errorf("sysprop_library is not supposed to be part of apex modules")
+func (m *syspropLibrary) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
+	return android.MinApiLevel
 }
 
 // sysprop_library creates schematized APIs from sysprop description files (.sysprop).

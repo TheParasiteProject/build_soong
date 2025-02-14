@@ -2085,26 +2085,23 @@ func (mod *Module) MinSdkVersion() string {
 }
 
 // Implements android.ApexModule
-func (mod *Module) ShouldSupportSdkVersion(ctx android.BaseModuleContext, sdkVersion android.ApiLevel) error {
+func (mod *Module) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
 	minSdkVersion := mod.MinSdkVersion()
 	if minSdkVersion == "apex_inherit" {
-		return nil
-	}
-	if minSdkVersion == "" {
-		return fmt.Errorf("min_sdk_version is not specificed")
+		return android.MinApiLevel
 	}
 
+	if minSdkVersion == "" {
+		return android.NoneApiLevel
+	}
 	// Not using nativeApiLevelFromUser because the context here is not
 	// necessarily a native context.
-	ver, err := android.ApiLevelFromUser(ctx, minSdkVersion)
+	ver, err := android.ApiLevelFromUserWithConfig(ctx.Config(), minSdkVersion)
 	if err != nil {
-		return err
+		return android.NoneApiLevel
 	}
 
-	if ver.GreaterThan(sdkVersion) {
-		return fmt.Errorf("newer SDK(%v)", ver)
-	}
-	return nil
+	return ver
 }
 
 // Implements android.ApexModule

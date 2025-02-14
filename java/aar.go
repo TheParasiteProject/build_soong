@@ -1638,9 +1638,8 @@ func (m AARImportDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.Dep
 }
 
 // Implements android.ApexModule
-func (a *AARImport) ShouldSupportSdkVersion(ctx android.BaseModuleContext,
-	sdkVersion android.ApiLevel) error {
-	return nil
+func (a *AARImport) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
+	return android.MinApiLevel
 }
 
 var _ android.PrebuiltInterface = (*AARImport)(nil)
