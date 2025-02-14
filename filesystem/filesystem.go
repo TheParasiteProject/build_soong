@@ -37,6 +37,7 @@ func init() {
 	registerBuildComponents(android.InitRegistrationContext)
 	registerMutators(android.InitRegistrationContext)
 	pctx.HostBinToolVariable("fileslist", "fileslist")
+	pctx.HostBinToolVariable("fs_config", "fs_config")
 }
 
 func registerBuildComponents(ctx android.RegistrationContext) {
@@ -72,6 +73,10 @@ var (
 		Command:     `build/make/tools/fileslist_util.py -c ${in} > ${out}`,
 		CommandDeps: []string{"build/make/tools/fileslist_util.py"},
 	})
+	fsConfigRule = pctx.AndroidStaticRule("fs_config_rule", blueprint.RuleParams{
+		Command:     `(cd ${rootDir}; find . -type d | sed 's,$$,/,'; find . \! -type d) | cut -c 3- | sort | sed 's,^,${prefix},' | ${fs_config} -C -D ${rootDir} -R "${prefix}" > ${out}`,
+		CommandDeps: []string{"${fs_config}"},
+	}, "rootDir", "prefix")
 )
 
 type filesystem struct {
@@ -421,6 +426,8 @@ type FilesystemInfo struct {
 	ErofsCompressHints android.Path
 
 	SelinuxFc android.Path
+
+	FilesystemConfig android.Path
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -665,6 +672,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		},
 		ErofsCompressHints: erofsCompressHints,
 		SelinuxFc:          f.selinuxFc,
+		FilesystemConfig:   f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
@@ -680,6 +688,30 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 func (f *filesystem) fileystemStagingDirTimestamp(ctx android.ModuleContext) android.WritablePath {
 	return android.PathForModuleOut(ctx, "staging_dir.timestamp")
+}
+
+func (f *filesystem) generateFilesystemConfig(ctx android.ModuleContext, rootDir android.Path, rebasedDir android.Path) android.Path {
+	rootDirString := rootDir.String()
+	prefix := f.partitionName() + "/"
+	if f.partitionName() == "system" {
+		rootDirString = rebasedDir.String()
+	}
+	if f.partitionName() == "ramdisk" || f.partitionName() == "recovery" {
+		// Hardcoded to match make behavior.
+		// https://cs.android.com/android/_/android/platform/build/+/2a0ef42a432d4da00201e8eb7697dcaa68fd2389:core/Makefile;l=6957-6962;drc=9ea8ad9232cef4d0a24d70133b1b9d2ce2defe5f;bpv=1;bpt=0
+		prefix = ""
+	}
+	out := android.PathForModuleOut(ctx, "filesystem_config.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   fsConfigRule,
+		Input:  f.fileystemStagingDirTimestamp(ctx), // assemble the staging directory
+		Output: out,
+		Args: map[string]string{
+			"rootDir": rootDirString,
+			"prefix":  prefix,
+		},
+	})
+	return out
 }
 
 func (f *filesystem) setVbmetaPartitionProvider(ctx android.ModuleContext) {

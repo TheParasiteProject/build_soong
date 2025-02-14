@@ -385,6 +385,7 @@ func (f *filesystemCreator) createDeviceModule(
 		Ab_ota_updater:            proptools.BoolPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaUpdater),
 		Ab_ota_partitions:         ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPartitions,
 		Ab_ota_postinstall_config: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPostInstallConfig,
+		Ramdisk_node_list:         proptools.StringPtr(":ramdisk_node_list"),
 	}
 	if bootloader, ok := f.createBootloaderFilegroup(ctx); ok {
 		deviceProps.Bootloader = proptools.StringPtr(":" + bootloader)
