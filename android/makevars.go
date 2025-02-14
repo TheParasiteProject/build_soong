@@ -328,19 +328,12 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	sort.Slice(phonies, func(i, j int) bool {
 		return phonies[i].name < phonies[j].name
 	})
-	lessArr := func(a, b []string) bool {
-		if len(a) == len(b) {
-			for i := range a {
-				if a[i] < b[i] {
-					return true
-				}
-			}
-			return false
-		}
-		return len(a) < len(b)
-	}
 	sort.Slice(dists, func(i, j int) bool {
-		return lessArr(dists[i].goals, dists[j].goals) || lessArr(dists[i].paths.Strings(), dists[j].paths.Strings())
+		goals := slices.Compare(dists[i].goals, dists[j].goals)
+		if goals != 0 {
+			return goals < 0
+		}
+		return slices.Compare(dists[i].paths.Strings(), dists[j].paths.Strings()) < 0
 	})
 
 	outBytes := s.writeVars(vars)
