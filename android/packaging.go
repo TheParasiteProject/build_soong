@@ -202,11 +202,6 @@ func (p *PackagingSpec) SrcPath() Path {
 	return p.srcPath
 }
 
-// The symlink target of the PackagingSpec. Do not use, for the soong-only migration.
-func (p *PackagingSpec) SymlinkTarget() string {
-	return p.symlinkTarget
-}
-
 type PackageModule interface {
 	Module
 	packagingBase() *PackagingBase
