@@ -990,6 +990,10 @@ func (c *config) PlatformSdkVersion() ApiLevel {
 	return uncheckedFinalApiLevel(*c.productVariables.Platform_sdk_version)
 }
 
+func (c *config) PlatformSdkVersionFull() string {
+	return proptools.StringDefault(c.productVariables.Platform_sdk_version_full, "")
+}
+
 func (c *config) RawPlatformSdkVersion() *int {
 	return c.productVariables.Platform_sdk_version
 }
