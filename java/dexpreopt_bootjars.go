@@ -554,7 +554,10 @@ func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorConte
 				typ: dexpreoptBootJar,
 			}
 
-			ctx.AddFarVariationDependencies(ctx.Target().Variations(), tag, android.RemoveOptionalPrebuiltPrefix(selected))
+			dep := android.RemoveOptionalPrebuiltPrefix(selected)
+			if ctx.OtherModuleDependencyVariantExists(ctx.Target().Variations(), dep) {
+				ctx.AddFarVariationDependencies(ctx.Target().Variations(), tag, dep)
+			}
 		}
 	}
 }

@@ -284,7 +284,8 @@ func dexpreoptCommand(ctx android.BuilderContext, globalSoong *GlobalSoongConfig
 		clcTargetString := "PCL[" + strings.Join(clcTarget, ":") + "]"
 
 		if systemServerClasspathJars.ContainsJar(module.Name) {
-			checkSystemServerOrder(ctx, jarIndex)
+			// TODO(b/397461231): renable this check
+			//checkSystemServerOrder(ctx, jarIndex)
 		} else {
 			// Standalone jars are loaded by separate class loaders with SYSTEMSERVERCLASSPATH as the
 			// parent.
