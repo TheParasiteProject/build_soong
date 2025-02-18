@@ -226,6 +226,9 @@ type syspropLibraryProperties struct {
 	// Make this module available when building for ramdisk
 	Ramdisk_available *bool
 
+	// Make this module available when building for vendor ramdisk
+	Vendor_ramdisk_available *bool
+
 	// Make this module available when building for recovery
 	Recovery_available *bool
 
@@ -500,17 +503,18 @@ type ccLibraryProperties struct {
 			Static_libs []string
 		}
 	}
-	Required           []string
-	Recovery           *bool
-	Recovery_available *bool
-	Vendor_available   *bool
-	Product_available  *bool
-	Ramdisk_available  *bool
-	Host_supported     *bool
-	Apex_available     []string
-	Min_sdk_version    *string
-	Cflags             []string
-	Ldflags            []string
+	Required                 []string
+	Recovery                 *bool
+	Recovery_available       *bool
+	Vendor_available         *bool
+	Product_available        *bool
+	Ramdisk_available        *bool
+	Vendor_ramdisk_available *bool
+	Host_supported           *bool
+	Apex_available           []string
+	Min_sdk_version          *string
+	Cflags                   []string
+	Ldflags                  []string
 }
 
 type javaLibraryProperties struct {
@@ -603,6 +607,7 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 	ccProps.Vendor_available = m.properties.Vendor_available
 	ccProps.Product_available = m.properties.Product_available
 	ccProps.Ramdisk_available = m.properties.Ramdisk_available
+	ccProps.Vendor_ramdisk_available = m.properties.Vendor_ramdisk_available
 	ccProps.Host_supported = m.properties.Host_supported
 	ccProps.Apex_available = m.ApexProperties.Apex_available
 	ccProps.Min_sdk_version = m.properties.Cpp.Min_sdk_version
