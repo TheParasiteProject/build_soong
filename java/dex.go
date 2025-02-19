@@ -178,6 +178,71 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 		},
 	}, []string{"outDir", "d8Flags", "zipFlags", "mergeZipsFlags"}, nil)
 
+// Include all of the args for d8r8, so that we can generate the partialcompileclean target's build using the same list.
+var d8r8Clean = pctx.AndroidStaticRule("d8r8-partialcompileclean",
+	blueprint.RuleParams{
+		Command: `rm -rf "${outDir}" "${outDict}" "${outConfig}" "${outUsage}" "${outUsageZip}" "${outUsageDir}" ` +
+			`"${resourcesOutput}" "${outR8ArtProfile}" ${builtOut}`,
+	}, "outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir", "builtOut",
+	"d8Flags", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile", "implicits",
+)
+
+var d8r8, d8r8RE = pctx.MultiCommandRemoteStaticRules("d8r8",
+	blueprint.RuleParams{
+		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
+			`rm -f "$outDict" && rm -f "$outConfig" && rm -rf "${outUsageDir}" && ` +
+			`mkdir -p $$(dirname ${outUsage}) && ` +
+			`if [ -n "$${SOONG_USE_PARTIAL_COMPILE}" ]; then ` +
+			` for f in "${outConfig}" "${outDict}" "${outUsage}" "${resourcesOutput}"; do ` +
+			`   test -n "$${f}" && test ! -f "$${f}" && mkdir -p "$$(dirname "$${f}")" && touch "$${f}" || true; ` +
+			` done && ` +
+			` $d8Template${config.D8Cmd} ${config.D8Flags} $d8Flags --output $outDir --no-dex-input-jar $in; ` +
+			`else ` +
+			` $r8Template${config.R8Cmd} ${config.R8Flags} $r8Flags -injars $in --output $outDir ` +
+			` --no-data-resources ` +
+			` -printmapping ${outDict} ` +
+			` -printconfiguration ${outConfig} ` +
+			` -printusage ${outUsage} ` +
+			` --deps-file ${out}.d && ` +
+			` touch "${outDict}" "${outConfig}" "${outUsage}"; ` +
+			`fi && ` +
+			`${config.SoongZipCmd} -o ${outUsageZip} -C ${outUsageDir} -f ${outUsage} && ` +
+			`rm -rf ${outUsageDir} && ` +
+			`$zipTemplate${config.SoongZipCmd} $zipFlags -o $outDir/classes.dex.jar -C $outDir -f "$outDir/classes*.dex" && ` +
+			`${config.MergeZipsCmd} -D -stripFile "**/*.class" $mergeZipsFlags $out $outDir/classes.dex.jar $in && ` +
+			`rm -f "$outDir"/classes*.dex "$outDir/classes.dex.jar" `,
+		CommandDeps: []string{
+			"${config.D8Cmd}",
+			"${config.R8Cmd}",
+			"${config.SoongZipCmd}",
+			"${config.MergeZipsCmd}",
+		},
+	}, map[string]*remoteexec.REParams{
+		"$d8Template": &remoteexec.REParams{
+			Labels:          map[string]string{"type": "compile", "compiler": "d8"},
+			Inputs:          []string{"${config.D8Jar}"},
+			ExecStrategy:    "${config.RED8ExecStrategy}",
+			ToolchainInputs: []string{"${config.JavaCmd}"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+		"$r8Template": &remoteexec.REParams{
+			Labels:          map[string]string{"type": "compile", "compiler": "r8"},
+			Inputs:          []string{"$implicits", "${config.R8Jar}"},
+			OutputFiles:     []string{"${outUsage}", "${outConfig}", "${outDict}", "${resourcesOutput}", "${outR8ArtProfile}"},
+			ExecStrategy:    "${config.RER8ExecStrategy}",
+			ToolchainInputs: []string{"${config.JavaCmd}"},
+			Platform:        map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+		"$zipTemplate": &remoteexec.REParams{
+			Labels:       map[string]string{"type": "tool", "name": "soong_zip"},
+			Inputs:       []string{"${config.SoongZipCmd}", "$outDir"},
+			OutputFiles:  []string{"$outDir/classes.dex.jar"},
+			ExecStrategy: "${config.RED8ExecStrategy}",
+			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
+		},
+	}, []string{"outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir",
+		"d8Flags", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile"}, []string{"implicits"})
+
 var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	blueprint.RuleParams{
 		Command: `rm -rf "$outDir" && mkdir -p "$outDir" && ` +
@@ -494,6 +559,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 
 	// Compile classes.jar into classes.dex and then javalib.jar
 	javalibJar := android.PathForModuleOut(ctx, "dex", dexParams.jarName).OutputPath
+	cleanPhonyPath := android.PathForModuleOut(ctx, "dex", dexParams.jarName+"-partialcompileclean").OutputPath
 	outDir := android.PathForModuleOut(ctx, "dex")
 
 	zipFlags := "--ignore_missing_files"
@@ -510,7 +576,20 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	}
 
 	useR8 := d.effectiveOptimizeEnabled()
+	useD8 := !useR8 || ctx.Config().PartialCompileFlags().Use_d8
+	rbeR8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8")
+	rbeD8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8")
+	var rule blueprint.Rule
+	var description string
 	var artProfileOutputPath *android.OutputPath
+	var implicitOutputs android.WritablePaths
+	var flags []string
+	var deps android.Paths
+	args := map[string]string{
+		"zipFlags":       zipFlags,
+		"outDir":         outDir.String(),
+		"mergeZipsFlags": mergeZipsFlags,
+	}
 	if useR8 {
 		proguardDictionary := android.PathForModuleOut(ctx, "proguard_dictionary")
 		d.proguardDictionary = android.OptionalPathForPath(proguardDictionary)
@@ -523,25 +602,17 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		d.proguardUsageZip = android.OptionalPathForPath(proguardUsageZip)
 		resourcesOutput := android.PathForModuleOut(ctx, "package-res-shrunken.apk")
 		d.resourcesOutput = android.OptionalPathForPath(resourcesOutput)
-		implicitOutputs := android.WritablePaths{
+		implicitOutputs = append(implicitOutputs, android.WritablePaths{
 			proguardDictionary,
 			proguardUsageZip,
 			proguardConfiguration,
-		}
+		}...)
+		description = "r8"
 		debugMode := android.InList("--debug", commonFlags)
 		r8Flags, r8Deps, r8ArtProfileOutputPath := d.r8Flags(ctx, dexParams, debugMode)
-		rule := r8
-		args := map[string]string{
-			"r8Flags":        strings.Join(append(commonFlags, r8Flags...), " "),
-			"zipFlags":       zipFlags,
-			"outDict":        proguardDictionary.String(),
-			"outConfig":      proguardConfiguration.String(),
-			"outUsageDir":    proguardUsageDir.String(),
-			"outUsage":       proguardUsage.String(),
-			"outUsageZip":    proguardUsageZip.String(),
-			"outDir":         outDir.String(),
-			"mergeZipsFlags": mergeZipsFlags,
-		}
+		flags = append(flags, r8Flags...)
+		deps = append(deps, r8Deps...)
+		args["r8Flags"] = strings.Join(append(commonFlags, r8Flags...), " ")
 		if r8ArtProfileOutputPath != nil {
 			artProfileOutputPath = r8ArtProfileOutputPath
 			implicitOutputs = append(
@@ -552,27 +623,29 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			// about this implicit output
 			args["outR8ArtProfile"] = artProfileOutputPath.String()
 		}
-
-		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8") {
-			rule = r8RE
-			args["implicits"] = strings.Join(r8Deps.Strings(), ",")
-		}
+		args["outDict"] = proguardDictionary.String()
+		args["outConfig"] = proguardConfiguration.String()
+		args["outUsageDir"] = proguardUsageDir.String()
+		args["outUsage"] = proguardUsage.String()
+		args["outUsageZip"] = proguardUsageZip.String()
 		if d.resourcesInput.Valid() {
 			implicitOutputs = append(implicitOutputs, resourcesOutput)
 			args["resourcesOutput"] = resourcesOutput.String()
 		}
-		ctx.Build(pctx, android.BuildParams{
-			Rule:            rule,
-			Description:     "r8",
-			Output:          javalibJar,
-			ImplicitOutputs: implicitOutputs,
-			Input:           dexParams.classesJar,
-			Implicits:       r8Deps,
-			Args:            args,
-		})
-	} else {
-		implicitOutputs := android.WritablePaths{}
+
+		rule = r8
+		if rbeR8 {
+			rule = r8RE
+			args["implicits"] = strings.Join(deps.Strings(), ",")
+		}
+	}
+	if useD8 {
+		description = "d8"
 		d8Flags, d8Deps, d8ArtProfileOutputPath := d.d8Flags(ctx, dexParams)
+		flags = append(flags, d8Flags...)
+		deps = append(deps, d8Deps...)
+		deps = append(deps, commonDeps...)
+		args["d8Flags"] = strings.Join(append(commonFlags, d8Flags...), " ")
 		if d8ArtProfileOutputPath != nil {
 			artProfileOutputPath = d8ArtProfileOutputPath
 			implicitOutputs = append(
@@ -580,26 +653,42 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 				artProfileOutputPath,
 			)
 		}
-		d8Deps = append(d8Deps, commonDeps...)
-		rule := d8
-		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8") {
+		// If we are generating both d8 and r8, only use RBE when both are enabled.
+		switch {
+		case useR8 && rule == r8:
+			rule = d8r8
+			description = "d8r8"
+		case useR8 && rule == r8RE && rbeD8:
+			rule = d8r8RE
+			description = "d8r8"
+		case rbeD8:
 			rule = d8RE
+		default:
+			rule = d8
 		}
-		ctx.Build(pctx, android.BuildParams{
-			Rule:            rule,
-			Description:     "d8",
-			Output:          javalibJar,
-			Input:           dexParams.classesJar,
-			ImplicitOutputs: implicitOutputs,
-			Implicits:       d8Deps,
-			Args: map[string]string{
-				"d8Flags":        strings.Join(append(commonFlags, d8Flags...), " "),
-				"zipFlags":       zipFlags,
-				"outDir":         outDir.String(),
-				"mergeZipsFlags": mergeZipsFlags,
-			},
-		})
 	}
+	ctx.Build(pctx, android.BuildParams{
+		Rule:            rule,
+		Description:     description,
+		Output:          javalibJar,
+		ImplicitOutputs: implicitOutputs,
+		Input:           dexParams.classesJar,
+		Implicits:       deps,
+		Args:            args,
+	})
+	if useR8 && useD8 {
+		// Generate the rule for partial compile clean.
+		args["builtOut"] = javalibJar.String()
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        d8r8Clean,
+			Description: "d8r8Clean",
+			Output:      cleanPhonyPath,
+			Args:        args,
+			PhonyOutput: true,
+		})
+		ctx.Phony("partialcompileclean", cleanPhonyPath)
+	}
+
 	if proptools.Bool(d.dexProperties.Uncompress_dex) {
 		alignedJavalibJar := android.PathForModuleOut(ctx, "aligned", dexParams.jarName).OutputPath
 		TransformZipAlign(ctx, alignedJavalibJar, javalibJar, nil)

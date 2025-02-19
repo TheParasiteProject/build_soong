@@ -394,6 +394,17 @@ type partialCompileFlags struct {
 	// Add others as needed.
 }
 
+// These are the flags when `SOONG_PARTIAL_COMPILE` is empty or not set.
+var defaultPartialCompileFlags = partialCompileFlags{
+	Enabled: false,
+}
+
+// These are the flags when `SOONG_PARTIAL_COMPILE=true`.
+var enabledPartialCompileFlags = partialCompileFlags{
+	Enabled: true,
+	Use_d8:  true,
+}
+
 type deviceConfig struct {
 	config *config
 	OncePer
@@ -427,11 +438,6 @@ type jsonConfigurable interface {
 // To add a new feature to the list, add the field in the struct
 // `partialCompileFlags` above, and then add the name of the field in the
 // switch statement below.
-var defaultPartialCompileFlags = partialCompileFlags{
-	// Set any opt-out flags here.  Opt-in flags are off by default.
-	Enabled: false,
-}
-
 func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags, error) {
 	if !isEngBuild {
 		return partialCompileFlags{}, nil
@@ -472,8 +478,7 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 		}
 		switch tok {
 		case "true":
-			ret = defaultPartialCompileFlags
-			ret.Enabled = true
+			ret = enabledPartialCompileFlags
 		case "false":
 			// Set everything to false.
 			ret = partialCompileFlags{}
