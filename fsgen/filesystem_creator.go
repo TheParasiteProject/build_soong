@@ -377,7 +377,7 @@ func (f *filesystemCreator) createDeviceModule(
 	if modName := partitions.nameForType("userdata"); modName != "" {
 		partitionProps.Userdata_partition_name = proptools.StringPtr(modName)
 	}
-	if modName := partitions.nameForType("recovery"); modName != "" {
+	if modName := partitions.nameForType("recovery"); modName != "" && !ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
 		partitionProps.Recovery_partition_name = proptools.StringPtr(modName)
 	}
 	if modName := partitions.nameForType("system_dlkm"); modName != "" && !android.InList("system_dlkm", superImageSubPartitions) {

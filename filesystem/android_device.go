@@ -302,11 +302,6 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext) {
 		targetFilesZipCopy{a.partitionProps.Init_boot_partition_name, "INIT_BOOT/RAMDISK"},
 		targetFilesZipCopy{a.partitionProps.Vendor_boot_partition_name, "VENDOR_BOOT/RAMDISK"},
 	}
-	// TODO: Handle cases where recovery files are copied to BOOT/ or RECOVERY/
-	// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=6211-6219?q=core%2FMakefile&ss=android%2Fplatform%2Fsuperproject%2Fmain
-	if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
-		toCopy = append(toCopy, targetFilesZipCopy{a.partitionProps.Recovery_partition_name, "VENDOR_BOOT/RAMDISK"})
-	}
 
 	filesystemsToCopy := []targetFilesystemZipCopy{}
 	for _, zipCopy := range toCopy {
@@ -343,6 +338,12 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext) {
 			BuiltTool("acp").
 			Textf("-rd %s/. %s/%s", rootDirString, targetFilesDir, toCopy.destSubdir).
 			Implicit(toCopy.fsInfo.Output) // so that the staging dir is built
+		for _, extraRootDir := range toCopy.fsInfo.ExtraRootDirs {
+			builder.Command().
+				BuiltTool("acp").
+				Textf("-rd %s/. %s/%s", extraRootDir, targetFilesDir, toCopy.destSubdir).
+				Implicit(toCopy.fsInfo.Output) // so that the staging dir is built
+		}
 
 		if toCopy.destSubdir == "SYSTEM" {
 			// Create the ROOT partition in target_files.zip
