@@ -600,7 +600,8 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	specs := f.gatherFilteredPackagingSpecs(ctx)
 
 	var fullInstallPaths []FullInstallPathInfo
-	for _, spec := range specs {
+	for _, specRel := range android.SortedKeys(specs) {
+		spec := specs[specRel]
 		fullInstallPaths = append(fullInstallPaths, FullInstallPathInfo{
 			FullInstallPath:     spec.FullInstallPath(),
 			RequiresFullInstall: spec.RequiresFullInstall(),
