@@ -779,17 +779,6 @@ func (so *soongOnlyAndroidMkSingleton) GenerateBuildActions(ctx SingletonContext
 func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContext, mods []blueprint.Module) {
 	allDistContributions, moduleInfoJSONs := getSoongOnlyDataFromMods(ctx, mods)
 
-	for _, provider := range append(makeVarsInitProviders, *getSingletonMakevarsProviders(ctx.Config())...) {
-		mctx := &makeVarsContext{
-			SingletonContext: ctx,
-			pctx:             provider.pctx,
-		}
-		provider.call(mctx)
-		if contribution := distsToDistContributions(mctx.dists); contribution != nil {
-			allDistContributions = append(allDistContributions, *contribution)
-		}
-	}
-
 	singletonDists := getSingletonDists(ctx.Config())
 	singletonDists.lock.Lock()
 	if contribution := distsToDistContributions(singletonDists.dists); contribution != nil {
@@ -964,31 +953,6 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []blueprint.Module)
 					if contribution := entries.getDistContributions(mod); contribution != nil {
 						allDistContributions = append(allDistContributions, *contribution)
 					}
-				}
-			}
-			if x, ok := mod.(ModuleMakeVarsProvider); ok {
-				mctx := &makeVarsContext{
-					SingletonContext: ctx.(SingletonContext),
-					config:           ctx.Config(),
-					pctx:             pctx,
-				}
-				if !x.Enabled(ctx) {
-					continue
-				}
-				x.MakeVars(mctx)
-				if contribution := distsToDistContributions(mctx.dists); contribution != nil {
-					allDistContributions = append(allDistContributions, *contribution)
-				}
-			}
-			if x, ok := mod.(SingletonMakeVarsProvider); ok {
-				mctx := &makeVarsContext{
-					SingletonContext: ctx.(SingletonContext),
-					config:           ctx.Config(),
-					pctx:             pctx,
-				}
-				x.MakeVars(mctx)
-				if contribution := distsToDistContributions(mctx.dists); contribution != nil {
-					allDistContributions = append(allDistContributions, *contribution)
 				}
 			}
 		}

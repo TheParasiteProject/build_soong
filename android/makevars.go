@@ -65,24 +65,6 @@ type BaseMakeVarsContext interface {
 	// dependencies to be added to it.  Phony can be called on the same name multiple
 	// times to add additional dependencies.
 	Phony(names string, deps ...Path)
-
-	// DistForGoal creates a rule to copy one or more Paths to the artifacts
-	// directory on the build server when the specified goal is built.
-	DistForGoal(goal string, paths ...Path)
-
-	// DistForGoalWithFilename creates a rule to copy a Path to the artifacts
-	// directory on the build server with the given filename when the specified
-	// goal is built.
-	DistForGoalWithFilename(goal string, path Path, filename string)
-
-	// DistForGoals creates a rule to copy one or more Paths to the artifacts
-	// directory on the build server when any of the specified goals are built.
-	DistForGoals(goals []string, paths ...Path)
-
-	// DistForGoalsWithFilename creates a rule to copy a Path to the artifacts
-	// directory on the build server with the given filename when any of the
-	// specified goals are built.
-	DistForGoalsWithFilename(goals []string, path Path, filename string)
 }
 
 // MakeVarsContext contains the set of functions available for MakeVarsProvider
@@ -198,11 +180,9 @@ var makeVarsInitProviders []makeVarsProvider
 
 type makeVarsContext struct {
 	SingletonContext
-	config  Config
 	pctx    PackageContext
 	vars    []makeVarsVariable
 	phonies []phony
-	dists   []dist
 }
 
 var _ MakeVarsContext = &makeVarsContext{}
@@ -263,7 +243,6 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 		vars = append(vars, mctx.vars...)
 		phonies = append(phonies, mctx.phonies...)
-		dists = append(dists, mctx.dists...)
 	}
 
 	singletonDists := getSingletonDists(ctx.Config())
@@ -281,7 +260,6 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 			vars = append(vars, mctx.vars...)
 			phonies = append(phonies, mctx.phonies...)
-			dists = append(dists, mctx.dists...)
 		}
 
 		if m.ExportedToMake() {
@@ -611,13 +589,6 @@ func (c *makeVarsContext) addPhony(name string, deps []string) {
 	c.phonies = append(c.phonies, phony{name, deps})
 }
 
-func (c *makeVarsContext) addDist(goals []string, paths []distCopy) {
-	c.dists = append(c.dists, dist{
-		goals: goals,
-		paths: paths,
-	})
-}
-
 func (c *makeVarsContext) Strict(name, ninjaStr string) {
 	c.addVariable(name, ninjaStr, true, false)
 }
@@ -640,27 +611,4 @@ func (c *makeVarsContext) CheckRaw(name, value string) {
 
 func (c *makeVarsContext) Phony(name string, deps ...Path) {
 	c.addPhony(name, Paths(deps).Strings())
-}
-
-func (c *makeVarsContext) DistForGoal(goal string, paths ...Path) {
-	c.DistForGoals([]string{goal}, paths...)
-}
-
-func (c *makeVarsContext) DistForGoalWithFilename(goal string, path Path, filename string) {
-	c.DistForGoalsWithFilename([]string{goal}, path, filename)
-}
-
-func (c *makeVarsContext) DistForGoals(goals []string, paths ...Path) {
-	var copies distCopies
-	for _, path := range paths {
-		copies = append(copies, distCopy{
-			from: path,
-			dest: path.Base(),
-		})
-	}
-	c.addDist(goals, copies)
-}
-
-func (c *makeVarsContext) DistForGoalsWithFilename(goals []string, path Path, filename string) {
-	c.addDist(goals, distCopies{{from: path, dest: filename}})
 }
