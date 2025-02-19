@@ -1910,6 +1910,10 @@ func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, 
 		if j.testConfig != nil {
 			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".config", j.testConfig)
 		}
+		dynamicConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
+		if dynamicConfig.Valid() {
+			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".dynamic", dynamicConfig.Path())
+		}
 		testDeps := append(j.data, j.extraTestConfigs...)
 		for _, data := range android.SortedUniquePaths(testDeps) {
 			dataPath := android.DataPath{SrcPath: data}

@@ -208,6 +208,10 @@ func (test *testDecorator) install(ctx ModuleContext) {
 			if test.testConfig != nil {
 				ctx.InstallFile(testCases, ctx.ModuleName()+".config", test.testConfig)
 			}
+			dynamicConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
+			if dynamicConfig.Valid() {
+				ctx.InstallFile(testCases, ctx.ModuleName()+".dynamic", dynamicConfig.Path())
+			}
 		}
 		// Install tests and data in arch specific subdir $PRODUCT_OUT/testcases/$module/$arch
 		testCases = testCases.Join(ctx, ctx.Target().Arch.ArchType.String())

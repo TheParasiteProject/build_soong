@@ -418,6 +418,10 @@ func (test *testBinary) install(ctx ModuleContext, file android.Path) {
 			if test.testConfig != nil {
 				ctx.InstallFile(testCases, ctx.ModuleName()+".config", test.testConfig)
 			}
+			dynamicConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
+			if dynamicConfig.Valid() {
+				ctx.InstallFile(testCases, ctx.ModuleName()+".dynamic", dynamicConfig.Path())
+			}
 			for _, extraTestConfig := range test.extraTestConfigs {
 				ctx.InstallFile(testCases, extraTestConfig.Base(), extraTestConfig)
 			}
