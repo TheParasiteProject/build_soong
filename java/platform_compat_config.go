@@ -43,6 +43,13 @@ func registerPlatformCompatConfigBuildComponents(ctx android.RegistrationContext
 	ctx.RegisterModuleType("global_compat_config", globalCompatConfigFactory)
 }
 
+type PlatformCompatConfigInfo struct {
+	CompatConfig android.OutputPath
+	SubDir       string
+}
+
+var PlatformCompatConfigInfoProvider = blueprint.NewProvider[PlatformCompatConfigInfo]()
+
 var PrepareForTestWithPlatformCompatConfig = android.FixtureRegisterWithContext(registerPlatformCompatConfigBuildComponents)
 
 func platformCompatConfigPath(ctx android.PathContext) android.OutputPath {
@@ -124,6 +131,11 @@ func (p *platformCompatConfig) GenerateAndroidBuildActions(ctx android.ModuleCon
 	rule.Build(configFileName, "Extract compat/compat_config.xml and install it")
 	ctx.InstallFile(p.installDirPath, p.configFile.Base(), p.configFile)
 	ctx.SetOutputFiles(android.Paths{p.configFile}, "")
+
+	android.SetProvider(ctx, PlatformCompatConfigInfoProvider, PlatformCompatConfigInfo{
+		CompatConfig: p.CompatConfig(),
+		SubDir:       p.SubDir(),
+	})
 }
 
 func (p *platformCompatConfig) AndroidMkEntries() []android.AndroidMkEntries {

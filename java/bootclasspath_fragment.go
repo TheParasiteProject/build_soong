@@ -41,6 +41,10 @@ func registerBootclasspathFragmentBuildComponents(ctx android.RegistrationContex
 	ctx.RegisterModuleType("prebuilt_bootclasspath_fragment", prebuiltBootclasspathFragmentFactory)
 }
 
+type BootclasspathFragmentInfo struct{}
+
+var BootclasspathFragmentInfoProvider = blueprint.NewProvider[BootclasspathFragmentInfo]()
+
 // BootclasspathFragmentSdkMemberType is the member type used to add bootclasspath_fragments to
 // the SDK snapshot. It is exported for use by apex.
 var BootclasspathFragmentSdkMemberType = &bootclasspathFragmentMemberType{
@@ -557,6 +561,8 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	if !ctx.IsFinalModule(ctx.Module()) {
 		b.HideFromMake()
 	}
+
+	android.SetProvider(ctx, BootclasspathFragmentInfoProvider, BootclasspathFragmentInfo{})
 }
 
 // getProfileProviderApex returns the name of the apex that provides a boot image profile, or an

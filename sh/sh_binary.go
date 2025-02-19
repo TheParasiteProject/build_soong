@@ -41,6 +41,14 @@ func init() {
 	registerShBuildComponents(android.InitRegistrationContext)
 }
 
+type ShBinaryInfo struct {
+	SubDir     string
+	OutputFile android.Path
+	Symlinks   []string
+}
+
+var ShBinaryInfoProvider = blueprint.NewProvider[ShBinaryInfo]()
+
 func registerShBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("sh_binary", ShBinaryFactory)
 	ctx.RegisterModuleType("sh_binary_host", ShBinaryHostFactory)
@@ -313,6 +321,12 @@ func (s *ShBinary) generateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	s.properties.SubName = s.GetSubname(ctx)
+
+	android.SetProvider(ctx, ShBinaryInfoProvider, ShBinaryInfo{
+		SubDir:     s.SubDir(),
+		OutputFile: s.OutputFile(),
+		Symlinks:   s.Symlinks(),
+	})
 
 	ctx.SetOutputFiles(android.Paths{s.outputFilePath}, "")
 }

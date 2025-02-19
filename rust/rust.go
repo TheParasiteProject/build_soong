@@ -841,7 +841,7 @@ func (mod *Module) getSharedFlags() *cc.SharedFlags {
 	return shared
 }
 
-func (mod *Module) ImplementationModuleNameForMake(ctx android.BaseModuleContext) string {
+func (mod *Module) ImplementationModuleNameForMake() string {
 	name := mod.BaseModuleName()
 	if versioned, ok := mod.compiler.(cc.VersionedInterface); ok {
 		name = versioned.ImplementationModuleName(name)
@@ -1411,7 +1411,7 @@ func rustMakeLibName(rustInfo *RustInfo, linkableInfo *cc.LinkableInfo, commonIn
 	if rustInfo != nil {
 		// Use base module name for snapshots when exporting to Makefile.
 		if rustInfo.SnapshotInfo != nil {
-			baseName := linkableInfo.BaseModuleName
+			baseName := commonInfo.BaseModuleName
 			return baseName + rustInfo.SnapshotInfo.SnapshotAndroidMkSuffix + rustInfo.AndroidMkSuffix
 		}
 	}

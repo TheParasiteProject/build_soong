@@ -354,6 +354,12 @@ func (a *AndroidAppImport) stripEmbeddedJniLibsUnusedArch(
 
 func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.generateAndroidBuildActions(ctx)
+
+	appInfo := &AppInfo{
+		Prebuilt: true,
+	}
+	setCommonAppInfo(appInfo, a)
+	android.SetProvider(ctx, AppInfoProvider, appInfo)
 }
 
 func (a *AndroidAppImport) InstallApkName() string {

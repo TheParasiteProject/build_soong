@@ -72,6 +72,16 @@ type AppInfo struct {
 	EmbeddedJNILibs android.Paths
 
 	MergedManifestFile android.Path
+
+	Prebuilt                      bool
+	AppSet                        bool
+	Privileged                    bool
+	OutputFile                    android.Path
+	InstallApkName                string
+	JacocoReportClassesFile       android.Path
+	Certificate                   Certificate
+	PrivAppAllowlist              android.OptionalPath
+	OverriddenManifestPackageName *string
 }
 
 var AppInfoProvider = blueprint.NewProvider[*AppInfo]()
@@ -401,10 +411,12 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 	android.SetProvider(ctx, android.TestOnlyProviderKey, android.TestModuleInformation{
 		TestOnly: true,
 	})
-	android.SetProvider(ctx, AppInfoProvider, &AppInfo{
+	appInfo := &AppInfo{
 		Updatable:     Bool(a.appProperties.Updatable),
 		TestHelperApp: true,
-	})
+	}
+	setCommonAppInfo(appInfo, a)
+	android.SetProvider(ctx, AppInfoProvider, appInfo)
 
 	moduleInfoJSON := ctx.ModuleInfoJSON()
 	moduleInfoJSON.Tags = append(moduleInfoJSON.Tags, "tests")
@@ -428,12 +440,16 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			embeddedJniLibs = append(embeddedJniLibs, jni.path)
 		}
 	}
-	android.SetProvider(ctx, AppInfoProvider, &AppInfo{
-		Updatable:          Bool(a.appProperties.Updatable),
-		TestHelperApp:      false,
-		EmbeddedJNILibs:    embeddedJniLibs,
-		MergedManifestFile: a.mergedManifest,
-	})
+	overriddenName := a.OverriddenManifestPackageName()
+	appInfo := &AppInfo{
+		Updatable:                     Bool(a.appProperties.Updatable),
+		TestHelperApp:                 false,
+		EmbeddedJNILibs:               embeddedJniLibs,
+		MergedManifestFile:            a.mergedManifest,
+		OverriddenManifestPackageName: &overriddenName,
+	}
+	setCommonAppInfo(appInfo, a)
+	android.SetProvider(ctx, AppInfoProvider, appInfo)
 
 	a.requiredModuleNames = a.getRequiredModuleNames(ctx)
 }
@@ -2048,7 +2064,7 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 			if _, ok := android.OtherModuleProvider(ctx, m, SdkLibraryInfoProvider); ok {
 				// Skip java_sdk_library dependencies that provide stubs, but not an implementation.
 				// This will be restricted to optional_uses_libs
-				if tag == usesLibOptTag && lib.DexJarBuildPath.PathOrNil() == nil {
+				if tag == usesLibOptTag && javaInfo.DexJarBuildPath.PathOrNil() == nil {
 					u.shouldDisableDexpreopt = true
 					return
 				}
@@ -2058,7 +2074,7 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 				libName = *ulib.ProvidesUsesLib
 			}
 			clcMap.AddContext(ctx, tag.sdkVersion, libName, tag.optional,
-				lib.DexJarBuildPath.PathOrNil(), lib.DexJarInstallPath,
+				javaInfo.DexJarBuildPath.PathOrNil(), lib.DexJarInstallPath,
 				lib.ClassLoaderContexts)
 		} else if ctx.Config().AllowMissingDependencies() {
 			ctx.AddMissingDependencies([]string{dep})
@@ -2150,4 +2166,30 @@ func (u *usesLibrary) verifyUsesLibrariesManifest(ctx android.ModuleContext, man
 func (u *usesLibrary) verifyUsesLibrariesAPK(ctx android.ModuleContext, apk android.Path,
 	classLoaderContexts *dexpreopt.ClassLoaderContextMap) {
 	u.verifyUsesLibraries(ctx, apk, nil, classLoaderContexts) // for APKs manifest_check does not write output file
+}
+
+// androidApp is an interface to handle all app modules (android_app, android_app_import, etc.) in
+// the same way.
+type androidApp interface {
+	android.Module
+	Privileged() bool
+	InstallApkName() string
+	OutputFile() android.Path
+	JacocoReportClassesFile() android.Path
+	Certificate() Certificate
+	BaseModuleName() string
+	PrivAppAllowlist() android.OptionalPath
+}
+
+var _ androidApp = (*AndroidApp)(nil)
+var _ androidApp = (*AndroidAppImport)(nil)
+var _ androidApp = (*AndroidTestHelperApp)(nil)
+
+func setCommonAppInfo(appInfo *AppInfo, m androidApp) {
+	appInfo.Privileged = m.Privileged()
+	appInfo.OutputFile = m.OutputFile()
+	appInfo.InstallApkName = m.InstallApkName()
+	appInfo.JacocoReportClassesFile = m.JacocoReportClassesFile()
+	appInfo.Certificate = m.Certificate()
+	appInfo.PrivAppAllowlist = m.PrivAppAllowlist()
 }

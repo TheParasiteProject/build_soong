@@ -658,11 +658,11 @@ func (j *Module) checkSdkVersions(ctx android.ModuleContext) {
 	// See rank() for details.
 	ctx.VisitDirectDepsProxy(func(module android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(module)
-		_, isJavaLibrary := android.OtherModuleProvider(ctx, module, JavaLibraryInfoProvider)
+		libInfo, isJavaLibrary := android.OtherModuleProvider(ctx, module, JavaLibraryInfoProvider)
 		_, isAndroidLibrary := android.OtherModuleProvider(ctx, module, AndroidLibraryInfoProvider)
 		_, isJavaAconfigLibrary := android.OtherModuleProvider(ctx, module, android.CodegenInfoProvider)
 		// Exclude java_aconfig_library modules to maintain consistency with existing behavior.
-		if (isJavaLibrary && !isJavaAconfigLibrary) || isAndroidLibrary {
+		if (isJavaLibrary && !libInfo.Prebuilt && !isJavaAconfigLibrary) || isAndroidLibrary {
 			// TODO(satayev): cover other types as well, e.g. imports
 			switch tag {
 			case bootClasspathTag, sdkLibTag, libTag, staticLibTag, java9LibTag:

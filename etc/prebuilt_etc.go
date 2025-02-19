@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -89,6 +90,15 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
 
 }
+
+type PrebuiltEtcInfo struct {
+	// Returns the base install directory, such as "etc", "usr/share".
+	BaseDir string
+	// Returns the sub install directory relative to BaseDir().
+	SubDir string
+}
+
+var PrebuiltEtcInfoProvider = blueprint.NewProvider[PrebuiltEtcInfo]()
 
 var PrepareForTestWithPrebuiltEtc = android.FixtureRegisterWithContext(RegisterPrebuiltEtcBuildComponents)
 
@@ -502,6 +512,15 @@ func (p *PrebuiltEtc) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	p.updateModuleInfoJSON(ctx)
 
 	ctx.SetOutputFiles(p.outputFilePaths.Paths(), "")
+
+	SetCommonPrebuiltEtcInfo(ctx, p)
+}
+
+func SetCommonPrebuiltEtcInfo(ctx android.ModuleContext, p PrebuiltEtcModule) {
+	android.SetProvider(ctx, PrebuiltEtcInfoProvider, PrebuiltEtcInfo{
+		BaseDir: p.BaseDir(),
+		SubDir:  p.SubDir(),
+	})
 }
 
 func (p *PrebuiltEtc) updateModuleInfoJSON(ctx android.ModuleContext) {
