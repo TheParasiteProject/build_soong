@@ -15,7 +15,9 @@
 package filesystem
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -245,6 +247,38 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.setVbmetaPhonyTargets(ctx)
 
 	a.distFiles(ctx)
+}
+
+// Returns a list of modules that are installed, which are collected from the dependency
+// filesystem and super_image modules.
+func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.Module {
+	fsInfoMap := a.getFsInfos(ctx)
+	allOwners := make(map[string][]string)
+	for _, partition := range android.SortedKeys(fsInfoMap) {
+		fsInfo := fsInfoMap[partition]
+		for _, owner := range fsInfo.Owners {
+			allOwners[owner.Name] = append(allOwners[owner.Name], owner.Variation)
+		}
+	}
+
+	ret := []android.Module{}
+	ctx.WalkDepsProxy(func(mod, _ android.ModuleProxy) bool {
+		if variations, ok := allOwners[mod.Name()]; ok && android.InList(ctx.OtherModuleSubDir(mod), variations) {
+			ret = append(ret, mod)
+		}
+		return true
+	})
+
+	// Remove duplicates
+	ret = android.FirstUniqueFunc(ret, func(a, b android.Module) bool {
+		return a.String() == b.String()
+	})
+
+	// Sort the modules by their names and variants
+	slices.SortFunc(ret, func(a, b android.Module) int {
+		return cmp.Compare(a.String(), b.String())
+	})
+	return ret
 }
 
 func (a *androidDevice) distFiles(ctx android.ModuleContext) {
