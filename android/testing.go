@@ -1161,7 +1161,7 @@ func SetKatiEnabledForTests(config Config) {
 	config.katiEnabled = true
 }
 
-func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) []AndroidMkEntries {
+func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod Module) []AndroidMkEntries {
 	t.Helper()
 	var p AndroidMkEntriesProvider
 	var ok bool
@@ -1170,15 +1170,15 @@ func AndroidMkEntriesForTest(t *testing.T, ctx *TestContext, mod blueprint.Modul
 	}
 
 	entriesList := p.AndroidMkEntries()
-	aconfigUpdateAndroidMkEntries(ctx, mod.(Module), &entriesList)
+	aconfigUpdateAndroidMkEntries(ctx, mod, &entriesList)
 	for i := range entriesList {
 		entriesList[i].fillInEntries(ctx, mod)
 	}
 	return entriesList
 }
 
-func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) *AndroidMkProviderInfo {
-	if runtime.GOOS == "darwin" && mod.(Module).base().Os() != Darwin {
+func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod Module) *AndroidMkProviderInfo {
+	if runtime.GOOS == "darwin" && mod.base().Os() != Darwin {
 		// The AndroidMkInfo provider is not set in this case.
 		t.Skip("AndroidMkInfo provider is not set on darwin")
 	}
@@ -1190,7 +1190,7 @@ func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 	}
 
 	info := OtherModuleProviderOrDefault(ctx, mod, AndroidMkInfoProvider)
-	aconfigUpdateAndroidMkInfos(ctx, mod.(Module), info)
+	aconfigUpdateAndroidMkInfos(ctx, mod, info)
 	info.PrimaryInfo.fillInEntries(ctx, mod)
 	if len(info.ExtraInfo) > 0 {
 		for _, ei := range info.ExtraInfo {
@@ -1201,7 +1201,7 @@ func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 	return info
 }
 
-func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) AndroidMkData {
+func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod Module) AndroidMkData {
 	t.Helper()
 	var p AndroidMkDataProvider
 	var ok bool
@@ -1210,7 +1210,7 @@ func AndroidMkDataForTest(t *testing.T, ctx *TestContext, mod blueprint.Module) 
 	}
 	data := p.AndroidMk()
 	data.fillInData(ctx, mod)
-	aconfigUpdateAndroidMkData(ctx, mod.(Module), &data)
+	aconfigUpdateAndroidMkData(ctx, mod, &data)
 	return data
 }
 
