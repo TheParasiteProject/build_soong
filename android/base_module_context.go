@@ -53,6 +53,9 @@ type BaseModuleContext interface {
 	// dependencies on the module being visited, it returns the dependency tag used for the current dependency.
 	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
 
+	// OtherModuleSubDir returns the string representing the variations of a module.
+	OtherModuleSubDir(m blueprint.Module) string
+
 	// OtherModuleExists returns true if a module with the specified name exists, as determined by the NameInterface
 	// passed to Context.SetNameInterface, or SimpleNameInterface if it was not called.
 	OtherModuleExists(name string) bool
@@ -283,6 +286,9 @@ func (b *baseModuleContext) OtherModuleErrorf(m blueprint.Module, fmt string, ar
 }
 func (b *baseModuleContext) OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag {
 	return b.bp.OtherModuleDependencyTag(getWrappedModule(m))
+}
+func (b *baseModuleContext) OtherModuleSubDir(m blueprint.Module) string {
+	return b.bp.OtherModuleSubDir(getWrappedModule(m))
 }
 func (b *baseModuleContext) OtherModuleExists(name string) bool { return b.bp.OtherModuleExists(name) }
 func (b *baseModuleContext) OtherModuleDependencyVariantExists(variations []blueprint.Variation, name string) bool {
