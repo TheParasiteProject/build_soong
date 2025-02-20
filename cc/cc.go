@@ -4045,15 +4045,6 @@ func installable(c LinkableInterface, apexInfo android.ApexInfo) bool {
 		return ret
 	}
 
-	// Special case for modules that are configured to be installed to /data, which includes
-	// test modules. For these modules, both APEX and non-APEX variants are considered as
-	// installable. This is because even the APEX variants won't be included in the APEX, but
-	// will anyway be installed to /data/*.
-	// See b/146995717
-	if c.InstallInData() {
-		return ret
-	}
-
 	return false
 }
 
