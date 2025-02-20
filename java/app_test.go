@@ -1480,7 +1480,6 @@ func TestAndroidResourceOverlays(t *testing.T) {
 					"device/vendor/blah/overlay/bar/res/values/strings.xml",
 				},
 				{"lib", "android_common"}: {
-					"out/soong/.intermediates/lib2/android_common/package-res.apk",
 					"lib/res/res/values/strings.xml",
 					"device/vendor/blah/overlay/lib/res/values/strings.xml",
 				},
@@ -1515,12 +1514,10 @@ func TestAndroidResourceOverlays(t *testing.T) {
 					"device/vendor/blah/overlay/bar/res/values/strings.xml",
 				},
 				{"lib", "android_common"}: {
-					"out/soong/.intermediates/lib2/android_common/package-res.apk",
 					"lib/res/res/values/strings.xml",
 					"device/vendor/blah/overlay/lib/res/values/strings.xml",
 				},
 				{"lib", "android_common_rro"}: {
-					"out/soong/.intermediates/lib2/android_common_rro/package-res.apk",
 					"lib/res/res/values/strings.xml",
 				},
 			},
@@ -1560,7 +1557,6 @@ func TestAndroidResourceOverlays(t *testing.T) {
 				},
 				{"bar", "android_common"}: {"device/vendor/blah/static_overlay/bar/res/values/strings.xml"},
 				{"lib", "android_common"}: {
-					"out/soong/.intermediates/lib2/android_common/package-res.apk",
 					"lib/res/res/values/strings.xml",
 				},
 			},
