@@ -351,7 +351,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext) {
 	if a.partitionProps.Super_partition_name != nil {
 		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
-			for _, partition := range android.SortedStringKeys(info.SubImageInfo) {
+			for _, partition := range android.SortedKeys(info.SubImageInfo) {
 				filesystemsToCopy = append(
 					filesystemsToCopy,
 					targetFilesystemZipCopy{info.SubImageInfo[partition], strings.ToUpper(partition)},
