@@ -84,6 +84,9 @@ type SingletonContext interface {
 	VisitAllModuleVariantProxies(module Module, visit func(proxy ModuleProxy))
 
 	PrimaryModule(module Module) Module
+
+	PrimaryModuleProxy(module ModuleProxy) ModuleProxy
+
 	IsFinalModule(module Module) bool
 
 	AddNinjaFileDeps(deps ...string)
@@ -271,6 +274,22 @@ func predAdaptor(pred func(Module) bool) func(blueprint.Module) bool {
 	}
 }
 
+func (s *singletonContextAdaptor) ModuleName(module blueprint.Module) string {
+	return s.SingletonContext.ModuleName(getWrappedModule(module))
+}
+
+func (s *singletonContextAdaptor) ModuleDir(module blueprint.Module) string {
+	return s.SingletonContext.ModuleDir(getWrappedModule(module))
+}
+
+func (s *singletonContextAdaptor) ModuleSubDir(module blueprint.Module) string {
+	return s.SingletonContext.ModuleSubDir(getWrappedModule(module))
+}
+
+func (s *singletonContextAdaptor) ModuleType(module blueprint.Module) string {
+	return s.SingletonContext.ModuleType(getWrappedModule(module))
+}
+
 func (s *singletonContextAdaptor) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
 	s.SingletonContext.VisitAllModules(visit)
 }
@@ -313,6 +332,10 @@ func (s *singletonContextAdaptor) VisitAllModuleVariantProxies(module Module, vi
 
 func (s *singletonContextAdaptor) PrimaryModule(module Module) Module {
 	return s.SingletonContext.PrimaryModule(module).(Module)
+}
+
+func (s *singletonContextAdaptor) PrimaryModuleProxy(module ModuleProxy) ModuleProxy {
+	return ModuleProxy{s.SingletonContext.PrimaryModuleProxy(module.module)}
 }
 
 func (s *singletonContextAdaptor) IsFinalModule(module Module) bool {

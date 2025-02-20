@@ -1919,6 +1919,9 @@ type CommonModuleInfo struct {
 	IsStubsModule       bool
 	Host                bool
 	IsApexModule        bool
+	// The primary licenses property, may be nil, records license metadata for the module.
+	PrimaryLicensesProperty applicableLicensesProperty
+	Owner                   string
 }
 
 type ApiLevelOrPlatform struct {
@@ -2254,6 +2257,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	buildComplianceMetadataProvider(ctx, m)
 
 	commonData := CommonModuleInfo{
+		Enabled:                          m.Enabled(ctx),
 		ReplacedByPrebuilt:               m.commonProperties.ReplacedByPrebuilt,
 		Target:                           m.commonProperties.CompileTarget,
 		SkipAndroidMkProcessing:          shouldSkipAndroidMkProcessing(ctx, m),
@@ -2261,6 +2265,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		HideFromMake:                     m.commonProperties.HideFromMake,
 		SkipInstall:                      m.commonProperties.SkipInstall,
 		Host:                             m.Host(),
+		PrimaryLicensesProperty:          m.primaryLicensesProperty,
+		Owner:                            m.Owner(),
 	}
 	if mm, ok := m.module.(interface {
 		MinSdkVersion(ctx EarlyModuleContext) ApiLevel
@@ -2289,11 +2295,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		commonData.SdkVersion = mm.SdkVersion()
 	}
 
-	if m.commonProperties.ForcedDisabled {
-		commonData.Enabled = false
-	} else {
-		commonData.Enabled = m.commonProperties.Enabled.GetOrDefault(m.ConfigurableEvaluator(ctx), !m.Os().DefaultDisabled)
-	}
 	if am, ok := m.module.(ApexModule); ok {
 		commonData.CanHaveApexVariants = am.CanHaveApexVariants()
 		commonData.NotAvailableForPlatform = am.NotAvailableForPlatform()

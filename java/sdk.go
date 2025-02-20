@@ -358,7 +358,7 @@ func createAPIFingerprint(ctx android.SingletonContext) {
 			"api_fingerprint",
 		}
 		count := 0
-		ctx.VisitAllModules(func(module android.Module) {
+		ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
 			name := ctx.ModuleName(module)
 			if android.InList(name, apiTxtFileModules) {
 				cmd.Inputs(android.OutputFilesForModule(ctx, module, ""))

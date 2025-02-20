@@ -279,6 +279,10 @@ func (r *robolectricTest) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	} else {
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: r.TestSuites(),
+	})
 }
 
 func generateSameDirRoboTestConfigJar(ctx android.ModuleContext, outputFile android.ModuleOutPath) {
@@ -415,6 +419,10 @@ func (r *robolectricRuntimes) GenerateAndroidBuildActions(ctx android.ModuleCont
 
 	android.SetProvider(ctx, RobolectricRuntimesInfoProvider, RobolectricRuntimesInfo{
 		Runtimes: r.runtimes,
+	})
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: r.TestSuites(),
 	})
 }
 
