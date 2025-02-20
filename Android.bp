@@ -150,10 +150,11 @@ cc_defaults {
     arch: {
         arm64: {
             cflags: [
-                // Prevent the compiler from optimizing code using SVE, as the
-                // baremetal environment might not have configured the hardware.
-                "-Xclang -target-feature",
-                "-Xclang -sve",
+                // Override the global -march= flag (as set by TARGET_ARCH_VARIANT)
+                // and explicitly use the baseline architecture (ARMv8-A is the first
+                // version with 64-bit support) to avoid emitting potentially
+                // unsupported instructions.
+                "-march=armv8-a",
             ],
         },
     },
