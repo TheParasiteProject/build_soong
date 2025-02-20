@@ -931,6 +931,7 @@ func (b baseTestingComponent) maybeBuildParamsFromRule(rule string) (TestingBuil
 }
 
 func (b baseTestingComponent) buildParamsFromRule(rule string) TestingBuildParams {
+	b.t.Helper()
 	p, searchRules := b.maybeBuildParamsFromRule(rule)
 	if p.Rule == nil {
 		b.t.Fatalf("couldn't find rule %q.\nall rules:\n%s", rule, strings.Join(searchRules, "\n"))
@@ -950,6 +951,7 @@ func (b baseTestingComponent) maybeBuildParamsFromDescription(desc string) (Test
 }
 
 func (b baseTestingComponent) buildParamsFromDescription(desc string) TestingBuildParams {
+	b.t.Helper()
 	p, searchedDescriptions := b.maybeBuildParamsFromDescription(desc)
 	if p.Rule == nil {
 		b.t.Fatalf("couldn't find description %q\nall descriptions:\n%s", desc, strings.Join(searchedDescriptions, "\n"))
@@ -983,6 +985,7 @@ func (b baseTestingComponent) maybeBuildParamsFromOutput(file string) (TestingBu
 }
 
 func (b baseTestingComponent) buildParamsFromOutput(file string) TestingBuildParams {
+	b.t.Helper()
 	p, searchedOutputs := b.maybeBuildParamsFromOutput(file)
 	if p.Rule == nil {
 		b.t.Fatalf("couldn't find output %q.\nall outputs:\n    %s\n",
@@ -1008,6 +1011,7 @@ func (b baseTestingComponent) MaybeRule(rule string) TestingBuildParams {
 
 // Rule finds a call to ctx.Build with BuildParams.Rule set to a rule with the given name.  Panics if no rule is found.
 func (b baseTestingComponent) Rule(rule string) TestingBuildParams {
+	b.t.Helper()
 	return b.buildParamsFromRule(rule)
 }
 
@@ -1021,6 +1025,7 @@ func (b baseTestingComponent) MaybeDescription(desc string) TestingBuildParams {
 // Description finds a call to ctx.Build with BuildParams.Description set to a the given string.  Panics if no rule is
 // found.
 func (b baseTestingComponent) Description(desc string) TestingBuildParams {
+	b.t.Helper()
 	return b.buildParamsFromDescription(desc)
 }
 
@@ -1034,6 +1039,7 @@ func (b baseTestingComponent) MaybeOutput(file string) TestingBuildParams {
 // Output finds a call to ctx.Build with a BuildParams.Output or BuildParams.Outputs whose String() or Rel()
 // value matches the provided string.  Panics if no rule is found.
 func (b baseTestingComponent) Output(file string) TestingBuildParams {
+	b.t.Helper()
 	return b.buildParamsFromOutput(file)
 }
 
