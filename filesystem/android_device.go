@@ -214,7 +214,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	allImagesZip := android.PathForModuleOut(ctx, "all_images.zip")
 	allImagesZipBuilder := android.NewRuleBuilder(pctx, ctx)
-	cmd := allImagesZipBuilder.Command().BuiltTool("soong_zip").Flag("--sort_entries")
+	cmd := allImagesZipBuilder.Command().BuiltTool("soong_zip")
 	for _, dep := range deps {
 		cmd.FlagWithArg("-e ", dep.Base())
 		cmd.FlagWithInput("-f ", dep)
