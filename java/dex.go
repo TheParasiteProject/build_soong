@@ -583,7 +583,6 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	var description string
 	var artProfileOutputPath *android.OutputPath
 	var implicitOutputs android.WritablePaths
-	var flags []string
 	var deps android.Paths
 	args := map[string]string{
 		"zipFlags":       zipFlags,
@@ -610,18 +609,13 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		description = "r8"
 		debugMode := android.InList("--debug", commonFlags)
 		r8Flags, r8Deps, r8ArtProfileOutputPath := d.r8Flags(ctx, dexParams, debugMode)
-		flags = append(flags, r8Flags...)
 		deps = append(deps, r8Deps...)
 		args["r8Flags"] = strings.Join(append(commonFlags, r8Flags...), " ")
 		if r8ArtProfileOutputPath != nil {
 			artProfileOutputPath = r8ArtProfileOutputPath
-			implicitOutputs = append(
-				implicitOutputs,
-				artProfileOutputPath,
-			)
 			// Add the implicit r8 Art profile output to args so that r8RE knows
 			// about this implicit output
-			args["outR8ArtProfile"] = artProfileOutputPath.String()
+			args["outR8ArtProfile"] = r8ArtProfileOutputPath.String()
 		}
 		args["outDict"] = proguardDictionary.String()
 		args["outConfig"] = proguardConfiguration.String()
@@ -642,16 +636,11 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	if useD8 {
 		description = "d8"
 		d8Flags, d8Deps, d8ArtProfileOutputPath := d.d8Flags(ctx, dexParams)
-		flags = append(flags, d8Flags...)
 		deps = append(deps, d8Deps...)
 		deps = append(deps, commonDeps...)
 		args["d8Flags"] = strings.Join(append(commonFlags, d8Flags...), " ")
 		if d8ArtProfileOutputPath != nil {
 			artProfileOutputPath = d8ArtProfileOutputPath
-			implicitOutputs = append(
-				implicitOutputs,
-				artProfileOutputPath,
-			)
 		}
 		// If we are generating both d8 and r8, only use RBE when both are enabled.
 		switch {
@@ -666,6 +655,12 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		default:
 			rule = d8
 		}
+	}
+	if artProfileOutputPath != nil {
+		implicitOutputs = append(
+			implicitOutputs,
+			artProfileOutputPath,
+		)
 	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:            rule,
