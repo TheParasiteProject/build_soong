@@ -190,6 +190,10 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 		}
 
 		for _, installedFile := range installedFilesInfo.InstallFiles {
+			// there are additional installed files for some app-class modules, we only need the .apk files in the test package
+			if class == "app" && installedFile.Ext() != ".apk" {
+				continue
+			}
 			name := removeFileExtension(installedFile.Base())
 			f := strings.TrimPrefix(installedFile.String(), productOut+"/")
 			if strings.HasPrefix(f, "out") {
