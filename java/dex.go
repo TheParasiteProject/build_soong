@@ -435,6 +435,11 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 		android.PathForSource(ctx, "build/make/core/proguard.flags"),
 	}
 
+	if ctx.Config().UseR8GlobalCheckNotNullFlags() {
+		flagFiles = append(flagFiles, android.PathForSource(ctx,
+			"build/make/core/proguard/checknotnull.flags"))
+	}
+
 	flagFiles = append(flagFiles, d.extraProguardFlagsFiles...)
 	// TODO(ccross): static android library proguard files
 
