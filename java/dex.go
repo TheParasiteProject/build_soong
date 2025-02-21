@@ -697,3 +697,13 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 
 	return javalibJar, artProfileOutputPath
 }
+
+type ProguardInfo struct {
+	ModuleName         string
+	Class              string
+	ProguardDictionary android.Path
+	ProguardUsageZip   android.Path
+	ClassesJar         android.Path
+}
+
+var ProguardProvider = blueprint.NewProvider[ProguardInfo]()

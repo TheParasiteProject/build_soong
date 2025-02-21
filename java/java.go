@@ -1172,6 +1172,16 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	buildComplianceMetadata(ctx)
 
 	j.createApiXmlFile(ctx)
+
+	if j.dexer.proguardDictionary.Valid() {
+		android.SetProvider(ctx, ProguardProvider, ProguardInfo{
+			ModuleName:         ctx.ModuleName(),
+			Class:              "JAVA_LIBRARIES",
+			ProguardDictionary: j.dexer.proguardDictionary.Path(),
+			ProguardUsageZip:   j.dexer.proguardUsageZip.Path(),
+			ClassesJar:         j.implementationAndResourcesJar,
+		})
+	}
 }
 
 func (j *Library) javaLibraryModuleInfoJSON(ctx android.ModuleContext) *android.ModuleInfoJSON {

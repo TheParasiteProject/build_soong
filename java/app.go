@@ -452,6 +452,16 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, AppInfoProvider, appInfo)
 
 	a.requiredModuleNames = a.getRequiredModuleNames(ctx)
+
+	if a.dexer.proguardDictionary.Valid() {
+		android.SetProvider(ctx, ProguardProvider, ProguardInfo{
+			ModuleName:         ctx.ModuleName(),
+			Class:              "APPS",
+			ProguardDictionary: a.dexer.proguardDictionary.Path(),
+			ProguardUsageZip:   a.dexer.proguardUsageZip.Path(),
+			ClassesJar:         a.implementationAndResourcesJar,
+		})
+	}
 }
 
 func (a *AndroidApp) getRequiredModuleNames(ctx android.ModuleContext) []string {
