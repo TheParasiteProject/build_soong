@@ -427,6 +427,12 @@ type FuzzProperties struct {
 	// device's first architecture's variant. Can be useful to add device-built apps to the data
 	// of a host test.
 	Device_first_data []string `android:"path_device_first"`
+
+	// Same as data, but will add dependencies on modules using the host's os variation and
+	// the common arch variation. Useful for a device test that wants to depend on a host
+	// module, for example to include a custom Tradefed test runner.
+	Host_common_data []string `android:"path_host_common"`
+
 	// Optional dictionary to be installed to the fuzz target's output directory.
 	Dictionary *string `android:"path"`
 	// Define the fuzzing frameworks this fuzz target can be built for. If

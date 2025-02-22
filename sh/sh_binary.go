@@ -138,6 +138,11 @@ type TestProperties struct {
 	// host test.
 	Device_first_data []string `android:"path_device_first"`
 
+	// Same as data, but will add dependencies on modules using the host's os variation and
+	// the common arch variation. Useful for a device test that wants to depend on a host
+	// module, for example to include a custom Tradefed test runner.
+	Host_common_data []string `android:"path_host_common"`
+
 	// Add RootTargetPreparer to auto generated test config. This guarantees the test to run
 	// with root permission.
 	Require_root *bool
@@ -436,6 +441,7 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	expandedData := android.PathsForModuleSrc(ctx, s.testProperties.Data)
 	expandedData = append(expandedData, android.PathsForModuleSrc(ctx, s.testProperties.Device_common_data)...)
 	expandedData = append(expandedData, android.PathsForModuleSrc(ctx, s.testProperties.Device_first_data)...)
+	expandedData = append(expandedData, android.PathsForModuleSrc(ctx, s.testProperties.Host_common_data)...)
 	// Emulate the data property for java_data dependencies.
 	for _, javaData := range ctx.GetDirectDepsProxyWithTag(shTestJavaDataTag) {
 		expandedData = append(expandedData, android.OutputFilesForModule(ctx, javaData, "")...)

@@ -585,6 +585,29 @@ func TestTest(t *testing.T) {
 	}
 }
 
+func TestHostCommonData(t *testing.T) {
+	t.Parallel()
+	ctx, _ := testJava(t, `
+		java_library_host {
+			name: "host",
+			srcs: ["a.java"],
+		}
+
+		java_test {
+			name: "foo",
+			srcs: ["a.java"],
+			host_common_data: [":host"],
+		}
+	`)
+
+	foo := ctx.ModuleForTests(t, "foo", "android_common").Module().(*Test)
+	host := ctx.ModuleForTests(t, "host", ctx.Config().BuildOSCommonTarget.String()).Module().(*Library)
+
+	if g, w := foo.data.RelativeToTop().Strings(), []string{host.outputFile.RelativeToTop().String()}; !slices.Equal(g, w) {
+		t.Errorf("expected test data %q, got %q\n", w, g)
+	}
+}
+
 func TestHostBinaryNoJavaDebugInfoOverride(t *testing.T) {
 	t.Parallel()
 	bp := `
