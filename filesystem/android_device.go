@@ -97,6 +97,10 @@ type androidDevice struct {
 	deviceProps DeviceProperties
 
 	allImagesZip android.Path
+
+	proguardDictZip     android.Path
+	proguardDictMapping android.Path
+	proguardUsageZip    android.Path
 }
 
 func AndroidDeviceFactory() android.Module {
@@ -293,22 +297,32 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	return ret
 }
 
+func insertBeforeExtension(file, insertion string) string {
+	ext := filepath.Ext(file)
+	return strings.TrimSuffix(file, ext) + insertion + ext
+}
+
 func (a *androidDevice) distFiles(ctx android.ModuleContext) {
-	if !ctx.Config().KatiEnabled() {
-		if proptools.Bool(a.deviceProps.Main_device) {
-			fsInfoMap := a.getFsInfos(ctx)
-			for _, partition := range android.SortedKeys(fsInfoMap) {
-				fsInfo := fsInfoMap[partition]
-				if fsInfo.InstalledFiles.Json != nil {
-					ctx.DistForGoal("droidcore-unbundled", fsInfo.InstalledFiles.Json)
-				}
-				if fsInfo.InstalledFiles.Txt != nil {
-					ctx.DistForGoal("droidcore-unbundled", fsInfo.InstalledFiles.Txt)
-				}
+	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
+		fsInfoMap := a.getFsInfos(ctx)
+		for _, partition := range android.SortedKeys(fsInfoMap) {
+			fsInfo := fsInfoMap[partition]
+			if fsInfo.InstalledFiles.Json != nil {
+				ctx.DistForGoal("droidcore-unbundled", fsInfo.InstalledFiles.Json)
+			}
+			if fsInfo.InstalledFiles.Txt != nil {
+				ctx.DistForGoal("droidcore-unbundled", fsInfo.InstalledFiles.Txt)
 			}
 		}
-	}
 
+		namePrefix := ""
+		if ctx.Config().HasDeviceProduct() {
+			namePrefix = ctx.Config().DeviceProduct() + "-"
+		}
+		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardDictZip, namePrefix+insertBeforeExtension(a.proguardDictZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardDictMapping, namePrefix+insertBeforeExtension(a.proguardDictMapping.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardUsageZip, namePrefix+insertBeforeExtension(a.proguardUsageZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+	}
 }
 
 func (a *androidDevice) MakeVars(ctx android.MakeVarsModuleContext) {
@@ -361,6 +375,10 @@ func (a *androidDevice) buildProguardZips(ctx android.ModuleContext, allInstalle
 	dictZipBuilder.Build("proguard_dict_zip", "Building proguard dictionary zip")
 	dictMappingBuilder.Build("proguard_dict_mapping_proto", "Building proguard mapping proto")
 	usageZipBuilder.Build("proguard_usage_zip", "Building proguard usage zip")
+
+	a.proguardDictZip = dictZip
+	a.proguardDictMapping = dictMapping
+	a.proguardUsageZip = usageZip
 }
 
 // Helper structs for target_files.zip creation
