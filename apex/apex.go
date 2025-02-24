@@ -82,10 +82,6 @@ type apexBundleProperties struct {
 	// /system/sepolicy/apex/<module_name>_file_contexts.
 	File_contexts *string `android:"path"`
 
-	// By default, file_contexts is amended by force-labelling / and /apex_manifest.pb as system_file
-	// to avoid mistakes. When set as true, no force-labelling.
-	Use_file_contexts_as_is *bool
-
 	// Path to the canned fs config file for customizing file's
 	// uid/gid/mod/capabilities. The content of this file is appended to the
 	// default config, so that the custom entries are preferred. The format is
