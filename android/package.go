@@ -38,6 +38,12 @@ type packageProperties struct {
 	Default_team                *string `android:"path"`
 }
 
+type PackageInfo struct {
+	Properties packageProperties
+}
+
+var PackageInfoProvider = blueprint.NewProvider[PackageInfo]()
+
 type packageModule struct {
 	ModuleBase
 
@@ -59,6 +65,10 @@ func (p *packageModule) GenerateBuildActions(ctx blueprint.ModuleContext) {
 	ctx.SetProvider(CommonModuleInfoKey, CommonModuleInfo{
 		Enabled:                 true,
 		PrimaryLicensesProperty: p.primaryLicensesProperty,
+	})
+
+	ctx.SetProvider(PackageInfoProvider, PackageInfo{
+		Properties: p.properties,
 	})
 }
 

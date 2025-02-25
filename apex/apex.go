@@ -2258,6 +2258,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.enforcePartitionTagOnApexSystemServerJar(ctx)
 
 	a.verifyNativeImplementationLibs(ctx)
+
+	android.SetProvider(ctx, android.ApexBundleDepsDataProvider, android.ApexBundleDepsData{
+		FlatListPath: a.FlatListPath(),
+		Updatable:    a.Updatable(),
+	})
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file

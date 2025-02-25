@@ -1929,6 +1929,7 @@ type CommonModuleInfo struct {
 	VintfFragmentModuleNames                     []string
 	Dists                                        []Dist
 	ExportedToMake                               bool
+	Team                                         string
 }
 
 type ApiLevelOrPlatform struct {
@@ -2289,6 +2290,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		VintfFragmentModuleNames:                     m.module.VintfFragmentModuleNames(ctx),
 		Dists:                                        m.Dists(),
 		ExportedToMake:                               m.ExportedToMake(),
+		Team:                                         m.Team(),
 	}
 	if mm, ok := m.module.(interface {
 		MinSdkVersion(ctx EarlyModuleContext) ApiLevel

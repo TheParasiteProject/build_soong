@@ -290,6 +290,10 @@ func (s *singletonContextAdaptor) ModuleType(module blueprint.Module) string {
 	return s.SingletonContext.ModuleType(getWrappedModule(module))
 }
 
+func (s *singletonContextAdaptor) BlueprintFile(module blueprint.Module) string {
+	return s.SingletonContext.BlueprintFile(getWrappedModule(module))
+}
+
 func (s *singletonContextAdaptor) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
 	s.SingletonContext.VisitAllModules(visit)
 }

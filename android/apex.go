@@ -646,6 +646,13 @@ type ApexBundleDepsInfoIntf interface {
 	FullListPath() Path
 }
 
+type ApexBundleDepsData struct {
+	Updatable    bool
+	FlatListPath Path
+}
+
+var ApexBundleDepsDataProvider = blueprint.NewProvider[ApexBundleDepsData]()
+
 func (d *ApexBundleDepsInfo) FlatListPath() Path {
 	return d.flatListPath
 }
