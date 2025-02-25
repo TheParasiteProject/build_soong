@@ -61,6 +61,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_usr_keychars", PrebuiltUserKeyCharsFactory)
 	ctx.RegisterModuleType("prebuilt_usr_idc", PrebuiltUserIdcFactory)
 	ctx.RegisterModuleType("prebuilt_usr_srec", PrebuiltUserSrecFactory)
+	ctx.RegisterModuleType("prebuilt_usr_odml", PrebuiltUserOdmlFactory)
 	ctx.RegisterModuleType("prebuilt_font", PrebuiltFontFactory)
 	ctx.RegisterModuleType("prebuilt_overlay", PrebuiltOverlayFactory)
 	ctx.RegisterModuleType("prebuilt_firmware", PrebuiltFirmwareFactory)
@@ -780,6 +781,17 @@ func PrebuiltUserIdcFactory() android.Module {
 func PrebuiltUserSrecFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/srec")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_usr_odml is for a prebuilt artifact that is installed in
+// <partition>/usr/odml/<sub_dir> directory.
+func PrebuiltUserOdmlFactory() android.Module {
+	module := &PrebuiltEtc{}
+	InitPrebuiltEtcModule(module, "usr/odml")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
