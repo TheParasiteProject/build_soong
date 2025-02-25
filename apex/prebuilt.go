@@ -245,6 +245,7 @@ func (p *prebuiltCommon) installApexSystemServerFiles(ctx android.ModuleContext)
 		}
 		p.extraInstalledFiles = append(p.extraInstalledFiles, installedFile)
 		p.extraInstalledPairs = append(p.extraInstalledPairs, installPair{install.OutputPathOnHost, installedFile})
+		ctx.PackageFile(install.InstallDirOnDevice, install.InstallFileOnDevice, install.OutputPathOnHost)
 	}
 
 	for _, dexJar := range p.systemServerDexJars {

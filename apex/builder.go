@@ -588,6 +588,7 @@ func (a *apexBundle) installApexSystemServerFiles(ctx android.ModuleContext) {
 			}
 			a.extraInstalledFiles = append(a.extraInstalledFiles, installedFile)
 			a.extraInstalledPairs = append(a.extraInstalledPairs, installPair{install.OutputPathOnHost, installedFile})
+			ctx.PackageFile(install.InstallDirOnDevice, install.InstallFileOnDevice, install.OutputPathOnHost)
 		}
 		if performInstalls {
 			for _, dexJar := range fi.systemServerDexJars {
