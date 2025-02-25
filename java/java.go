@@ -432,6 +432,9 @@ type JavaInfo struct {
 	DexJarBuildPath OptionalDexJarPath
 
 	DexpreopterInfo *DexpreopterInfo
+
+	XrefJavaFiles   android.Paths
+	XrefKotlinFiles android.Paths
 }
 
 var JavaInfoProvider = blueprint.NewProvider[*JavaInfo]()
@@ -3649,10 +3652,10 @@ type kytheExtractJavaSingleton struct {
 func (ks *kytheExtractJavaSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var xrefTargets android.Paths
 	var xrefKotlinTargets android.Paths
-	ctx.VisitAllModules(func(module android.Module) {
-		if javaModule, ok := module.(xref); ok {
-			xrefTargets = append(xrefTargets, javaModule.XrefJavaFiles()...)
-			xrefKotlinTargets = append(xrefKotlinTargets, javaModule.XrefKotlinFiles()...)
+	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
+		if javaInfo, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
+			xrefTargets = append(xrefTargets, javaInfo.XrefJavaFiles...)
+			xrefKotlinTargets = append(xrefKotlinTargets, javaInfo.XrefKotlinFiles...)
 		}
 	})
 	// TODO(asmundak): perhaps emit a rule to output a warning if there were no xrefTargets
@@ -3852,5 +3855,10 @@ func setExtraJavaInfo(ctx android.ModuleContext, module android.Module, javaInfo
 			ApexSystemServerDexpreoptInstalls: di.ApexSystemServerDexpreoptInstalls(),
 			ApexSystemServerDexJars:           di.ApexSystemServerDexJars(),
 		}
+	}
+
+	if xr, ok := module.(xref); ok {
+		javaInfo.XrefJavaFiles = xr.XrefJavaFiles()
+		javaInfo.XrefKotlinFiles = xr.XrefKotlinFiles()
 	}
 }

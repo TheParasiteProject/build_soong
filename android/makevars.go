@@ -84,6 +84,7 @@ type MakeVarsContext interface {
 	Errorf(format string, args ...interface{})
 
 	VisitAllModules(visit func(Module))
+	VisitAllModuleProxies(visit func(proxy ModuleProxy))
 	VisitAllModulesIf(pred func(Module) bool, visit func(Module))
 
 	// Verify the make variable matches the Soong version, fail the build
@@ -108,7 +109,7 @@ type MakeVarsContext interface {
 // MakeVarsModuleContext contains the set of functions available for modules
 // implementing the ModuleMakeVarsProvider interface.
 type MakeVarsModuleContext interface {
-	BaseMakeVarsContext
+	Config() Config
 }
 
 var _ PathContext = MakeVarsContext(nil)
@@ -150,13 +151,20 @@ func singletonMakeVarsProviderAdapter(singleton SingletonMakeVarsProvider) MakeV
 	return func(ctx MakeVarsContext) { singleton.MakeVars(ctx) }
 }
 
+type ModuleMakeVarsValue struct {
+	// Make variable name.
+	Name string
+	// Make variable value.
+	Value string
+}
+
 // ModuleMakeVarsProvider is a Module with an extra method to provide extra values to be exported to Make.
 type ModuleMakeVarsProvider interface {
-	Module
-
 	// MakeVars uses a MakeVarsModuleContext to provide extra values to be exported to Make.
-	MakeVars(ctx MakeVarsModuleContext)
+	MakeVars(ctx MakeVarsModuleContext) []ModuleMakeVarsValue
 }
+
+var ModuleMakeVarsInfoProvider = blueprint.NewProvider[[]ModuleMakeVarsValue]()
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -250,19 +258,24 @@ func (s *makeVarsSingleton) GenerateBuildActions(ctx SingletonContext) {
 	dists = append(dists, singletonDists.dists...)
 	singletonDists.lock.Unlock()
 
-	ctx.VisitAllModules(func(m Module) {
-		if provider, ok := m.(ModuleMakeVarsProvider); ok && m.Enabled(ctx) {
+	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
+		commonInfo, _ := OtherModuleProvider(ctx, m, CommonModuleInfoKey)
+		if provider, ok := OtherModuleProvider(ctx, m, ModuleMakeVarsInfoProvider); ok &&
+			commonInfo.Enabled {
 			mctx := &makeVarsContext{
 				SingletonContext: ctx,
 			}
-
-			provider.MakeVars(mctx)
+			for _, val := range provider {
+				if val.Name != "" {
+					mctx.StrictRaw(val.Name, val.Value)
+				}
+			}
 
 			vars = append(vars, mctx.vars...)
 			phonies = append(phonies, mctx.phonies...)
 		}
 
-		if m.ExportedToMake() {
+		if commonInfo.ExportedToMake {
 			info := OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider)
 			katiInstalls = append(katiInstalls, info.KatiInstalls...)
 			katiInitRcInstalls = append(katiInitRcInstalls, info.KatiInitRcInstalls...)

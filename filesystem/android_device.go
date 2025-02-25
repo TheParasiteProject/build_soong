@@ -325,10 +325,11 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 	}
 }
 
-func (a *androidDevice) MakeVars(ctx android.MakeVarsModuleContext) {
+func (a *androidDevice) MakeVars(_ android.MakeVarsModuleContext) []android.ModuleMakeVarsValue {
 	if proptools.Bool(a.deviceProps.Main_device) {
-		ctx.StrictRaw("SOONG_ONLY_ALL_IMAGES_ZIP", a.allImagesZip.String())
+		return []android.ModuleMakeVarsValue{{"SOONG_ONLY_ALL_IMAGES_ZIP", a.allImagesZip.String()}}
 	}
+	return nil
 }
 
 func (a *androidDevice) buildProguardZips(ctx android.ModuleContext, allInstalledModules []android.Module) {

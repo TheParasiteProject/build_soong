@@ -104,12 +104,20 @@ type TestBinaryInfo struct {
 }
 type BenchmarkDecoratorInfo struct{}
 
-type StubDecoratorInfo struct{}
+type StubDecoratorInfo struct {
+	AbiDumpPath  android.OutputPath
+	HasAbiDump   bool
+	AbiDiffPaths android.Paths
+}
 
 type ObjectLinkerInfo struct{}
 
 type LibraryInfo struct {
 	BuildStubs bool
+}
+
+type InstallerInfo struct {
+	StubDecoratorInfo *StubDecoratorInfo
 }
 
 // Common info about the cc module.
@@ -122,6 +130,7 @@ type CcInfo struct {
 	LinkerInfo             *LinkerInfo
 	SnapshotInfo           *SnapshotInfo
 	LibraryInfo            *LibraryInfo
+	InstallerInfo          *InstallerInfo
 }
 
 var CcInfoProvider = blueprint.NewProvider[*CcInfo]()
@@ -2364,6 +2373,16 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.library != nil {
 		ccInfo.LibraryInfo = &LibraryInfo{
 			BuildStubs: c.library.BuildStubs(),
+		}
+	}
+	if c.installer != nil {
+		ccInfo.InstallerInfo = &InstallerInfo{}
+		if installer, ok := c.installer.(*stubDecorator); ok {
+			ccInfo.InstallerInfo.StubDecoratorInfo = &StubDecoratorInfo{
+				HasAbiDump:   installer.hasAbiDump,
+				AbiDumpPath:  installer.abiDumpPath,
+				AbiDiffPaths: installer.abiDiffPaths,
+			}
 		}
 	}
 	android.SetProvider(ctx, CcInfoProvider, &ccInfo)

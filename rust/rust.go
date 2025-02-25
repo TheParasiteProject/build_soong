@@ -60,6 +60,7 @@ type RustInfo struct {
 	CompilerInfo                  *CompilerInfo
 	SnapshotInfo                  *cc.SnapshotInfo
 	SourceProviderInfo            *SourceProviderInfo
+	XrefRustFiles                 android.Paths
 }
 
 var RustInfoProvider = blueprint.NewProvider[*RustInfo]()
@@ -1171,6 +1172,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		AndroidMkSuffix:               mod.AndroidMkSuffix(),
 		RustSubName:                   mod.Properties.RustSubName,
 		TransitiveAndroidMkSharedLibs: mod.transitiveAndroidMkSharedLibs,
+		XrefRustFiles:                 mod.XrefRustFiles(),
 	}
 	if mod.compiler != nil {
 		rustInfo.CompilerInfo = &CompilerInfo{
@@ -2236,9 +2238,9 @@ type kytheExtractRustSingleton struct {
 
 func (k kytheExtractRustSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var xrefTargets android.Paths
-	ctx.VisitAllModules(func(module android.Module) {
-		if rustModule, ok := module.(xref); ok {
-			xrefTargets = append(xrefTargets, rustModule.XrefRustFiles()...)
+	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
+		if rustModule, ok := android.OtherModuleProvider(ctx, module, RustInfoProvider); ok {
+			xrefTargets = append(xrefTargets, rustModule.XrefRustFiles...)
 		}
 	})
 	if len(xrefTargets) > 0 {

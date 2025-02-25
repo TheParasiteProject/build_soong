@@ -229,6 +229,8 @@ func ReportPathErrorf(ctx PathContext, format string, args ...interface{}) {
 	}
 }
 
+// TODO(b/397766191): Change the signature to take ModuleProxy
+// Please only access the module's internal data through providers.
 func pathContextName(ctx PathContext, module blueprint.Module) string {
 	if x, ok := ctx.(interface{ ModuleName(blueprint.Module) string }); ok {
 		return x.ModuleName(module)
