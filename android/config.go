@@ -2279,10 +2279,18 @@ func (c *config) OemProperties() []string {
 }
 
 func (c *config) UseDebugArt() bool {
+	// If the ArtTargetIncludeDebugBuild product variable is set then return its value.
 	if c.productVariables.ArtTargetIncludeDebugBuild != nil {
 		return Bool(c.productVariables.ArtTargetIncludeDebugBuild)
 	}
 
+	// If the RELEASE_APEX_CONTRIBUTIONS_ART build flag is set to use a prebuilt ART apex
+	// then don't use the debug apex.
+	if val, ok := c.GetBuildFlag("RELEASE_APEX_CONTRIBUTIONS_ART"); ok && val != "" {
+		return false
+	}
+
+	// Default to the debug apex for eng builds.
 	return Bool(c.productVariables.Eng)
 }
 
