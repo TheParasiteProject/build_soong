@@ -107,8 +107,6 @@ type AndroidMkEntries struct {
 	SubName string
 	// If set, this value overrides the base module name. SubName is still appended.
 	OverrideName string
-	// Dist files to output
-	DistFiles TaggedDistFiles
 	// The output file for Kati to process and/or install. If absent, the module is skipped.
 	OutputFile OptionalPath
 	// If true, the module is skipped and does not appear on the final Android-<product name>.mk
@@ -360,15 +358,9 @@ func (a *AndroidMkEntries) getDistContributions(mod Module) *distContributions {
 	// Start with an empty (nil) set.
 	var availableTaggedDists TaggedDistFiles
 
-	// Then merge in any that are provided explicitly by the module.
-	if a.DistFiles != nil {
-		// Merge the DistFiles into the set.
-		availableTaggedDists = availableTaggedDists.merge(a.DistFiles)
-	}
-
 	// If no paths have been provided for the DefaultDistTag and the output file is
 	// valid then add that as the default dist path.
-	if _, ok := availableTaggedDists[DefaultDistTag]; !ok && a.OutputFile.Valid() {
+	if a.OutputFile.Valid() {
 		availableTaggedDists = availableTaggedDists.addPathsForTag(DefaultDistTag, a.OutputFile.Path())
 	}
 
@@ -1295,8 +1287,6 @@ type AndroidMkInfo struct {
 	SubName string
 	// If set, this value overrides the base module name. SubName is still appended.
 	OverrideName string
-	// Dist files to output
-	DistFiles TaggedDistFiles
 	// The output file for Kati to process and/or install. If absent, the module is skipped.
 	OutputFile OptionalPath
 	// If true, the module is skipped and does not appear on the final Android-<product name>.mk
@@ -1682,15 +1672,9 @@ func (a *AndroidMkInfo) getDistContributions(ctx fillInEntriesContext, mod Modul
 	// Start with an empty (nil) set.
 	var availableTaggedDists TaggedDistFiles
 
-	// Then merge in any that are provided explicitly by the module.
-	if a.DistFiles != nil {
-		// Merge the DistFiles into the set.
-		availableTaggedDists = availableTaggedDists.merge(a.DistFiles)
-	}
-
 	// If no paths have been provided for the DefaultDistTag and the output file is
 	// valid then add that as the default dist path.
-	if _, ok := availableTaggedDists[DefaultDistTag]; !ok && a.OutputFile.Valid() {
+	if a.OutputFile.Valid() {
 		availableTaggedDists = availableTaggedDists.addPathsForTag(DefaultDistTag, a.OutputFile.Path())
 	}
 
@@ -1815,9 +1799,8 @@ func deepCopyAndroidMkInfo(mkinfo *AndroidMkInfo) AndroidMkInfo {
 		Class:        mkinfo.Class,
 		SubName:      mkinfo.SubName,
 		OverrideName: mkinfo.OverrideName,
-		// There is no modification on DistFiles or OutputFile, so no need to
+		// There is no modification on OutputFile, so no need to
 		// make their deep copy.
-		DistFiles:       mkinfo.DistFiles,
 		OutputFile:      mkinfo.OutputFile,
 		Disabled:        mkinfo.Disabled,
 		Include:         mkinfo.Include,

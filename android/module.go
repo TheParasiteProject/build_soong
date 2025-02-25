@@ -613,17 +613,6 @@ func (t TaggedDistFiles) merge(other TaggedDistFiles) TaggedDistFiles {
 	return t
 }
 
-func MakeDefaultDistFiles(paths ...Path) TaggedDistFiles {
-	for _, p := range paths {
-		if p == nil {
-			panic("The path to a dist file cannot be nil.")
-		}
-	}
-
-	// The default OutputFile tag is the empty "" string.
-	return TaggedDistFiles{DefaultDistTag: paths}
-}
-
 type hostAndDeviceProperties struct {
 	// If set to true, build a variant of the module for the host.  Defaults to false.
 	Host_supported *bool

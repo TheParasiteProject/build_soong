@@ -754,6 +754,10 @@ type linker interface {
 	// Get the deps that have been explicitly specified in the properties.
 	linkerSpecifiedDeps(ctx android.ConfigurableEvaluatorContext, module *Module, specifiedDeps specifiedDeps) specifiedDeps
 
+	// Gets a list of files that will be disted when using the dist property without specifying
+	// an output file tag.
+	defaultDistFiles() []android.Path
+
 	moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON)
 }
 
@@ -2423,6 +2427,10 @@ func (c *Module) setOutputFiles(ctx ModuleContext) {
 	if c.linker != nil {
 		ctx.SetOutputFiles(android.PathsIfNonNil(c.linker.unstrippedOutputFilePath()), "unstripped")
 		ctx.SetOutputFiles(android.PathsIfNonNil(c.linker.strippedAllOutputFilePath()), "stripped_all")
+		defaultDistFiles := c.linker.defaultDistFiles()
+		if len(defaultDistFiles) > 0 {
+			ctx.SetOutputFiles(defaultDistFiles, android.DefaultDistTag)
+		}
 	}
 }
 

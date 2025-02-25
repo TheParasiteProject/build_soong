@@ -34,7 +34,6 @@ type customModule struct {
 	}
 
 	data       AndroidMkData
-	distFiles  TaggedDistFiles
 	outputFile OptionalPath
 }
 
@@ -73,7 +72,6 @@ func (m *customModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 		path := PathForTesting("default-dist.out")
 		defaultDistPaths = Paths{path}
 		m.setOutputFiles(ctx, defaultDistPaths)
-		m.distFiles = MakeDefaultDistFiles(path)
 
 	case defaultDistFiles_Tagged:
 		// Module types that set AndroidMkEntry.DistFiles to the result of calling
@@ -84,11 +82,6 @@ func (m *customModule) GenerateAndroidBuildActions(ctx ModuleContext) {
 		// will be the same as empty-string-tag output.
 		defaultDistPaths = PathsForTesting("one.out")
 		m.setOutputFiles(ctx, defaultDistPaths)
-
-		// This must be called after setting defaultDistPaths/outputFile as
-		// GenerateTaggedDistFiles calls into outputFiles property which may use
-		// those fields.
-		m.distFiles = m.GenerateTaggedDistFiles(ctx)
 	}
 }
 
@@ -113,7 +106,6 @@ func (m *customModule) AndroidMkEntries() []AndroidMkEntries {
 	return []AndroidMkEntries{
 		{
 			Class:      "CUSTOM_MODULE",
-			DistFiles:  m.distFiles,
 			OutputFile: m.outputFile,
 		},
 	}

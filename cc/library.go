@@ -419,8 +419,8 @@ type libraryDecorator struct {
 	// Location of the linked, stripped library for shared libraries, strip: "all"
 	strippedAllOutputFile android.Path
 
-	// Location of the file that should be copied to dist dir when requested
-	distFile android.Path
+	// Location of the file that should be copied to dist dir when no explicit tag is requested
+	defaultDistFile android.Path
 
 	versionScriptPath android.OptionalPath
 
@@ -1066,7 +1066,7 @@ func (library *libraryDecorator) linkStatic(ctx ModuleContext,
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		} else {
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
-			library.distFile = versionedOutputFile
+			library.defaultDistFile = versionedOutputFile
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		}
 	}
@@ -1206,11 +1206,11 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 			library.injectVersionSymbol(ctx, outputFile, versionedOutputFile)
 		} else {
 			versionedOutputFile := android.PathForModuleOut(ctx, "versioned", fileName)
-			library.distFile = versionedOutputFile
+			library.defaultDistFile = versionedOutputFile
 
 			if library.stripper.NeedsStrip(ctx) {
 				out := android.PathForModuleOut(ctx, "versioned-stripped", fileName)
-				library.distFile = out
+				library.defaultDistFile = out
 				library.stripper.StripExecutableOrSharedLib(ctx, versionedOutputFile, out, stripFlags)
 			}
 
@@ -2088,6 +2088,13 @@ func (library *libraryDecorator) setAPIListCoverageXMLPath(xml android.ModuleOut
 
 func (library *libraryDecorator) overriddenModules() []string {
 	return library.Properties.Overrides
+}
+
+func (library *libraryDecorator) defaultDistFiles() []android.Path {
+	if library.defaultDistFile == nil {
+		return nil
+	}
+	return []android.Path{library.defaultDistFile}
 }
 
 var _ overridable = (*libraryDecorator)(nil)
