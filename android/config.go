@@ -2226,7 +2226,6 @@ var (
 		"RELEASE_APEX_CONTRIBUTIONS_NFC":                     "com.android.nfcservices",
 		"RELEASE_APEX_CONTRIBUTIONS_ONDEVICEPERSONALIZATION": "com.android.ondevicepersonalization",
 		"RELEASE_APEX_CONTRIBUTIONS_PERMISSION":              "com.android.permission",
-		"RELEASE_APEX_CONTRIBUTIONS_PRIMARY_LIBS":            "",
 		"RELEASE_APEX_CONTRIBUTIONS_PROFILING":               "com.android.profiling",
 		"RELEASE_APEX_CONTRIBUTIONS_REMOTEKEYPROVISIONING":   "com.android.rkpd",
 		"RELEASE_APEX_CONTRIBUTIONS_RESOLV":                  "com.android.resolv",
