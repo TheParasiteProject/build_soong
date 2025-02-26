@@ -193,6 +193,9 @@ type LinkableInfo struct {
 	// Symlinks returns a list of symlinks that should be created for this module.
 	Symlinks               []string
 	APIListCoverageXMLPath android.ModuleOutPath
+	// FuzzSharedLibraries returns the shared library dependencies for this module.
+	// Expects that IsFuzzModule returns true.
+	FuzzSharedLibraries android.RuleBuilderInstalls
 }
 
 var LinkableInfoProvider = blueprint.NewProvider[*LinkableInfo]()
@@ -2444,6 +2447,12 @@ func CreateCommonLinkableInfo(ctx android.ModuleContext, mod VersionedLinkableIn
 	if vi != nil {
 		info.IsStubsImplementationRequired = vi.IsStubsImplementationRequired()
 		info.APIListCoverageXMLPath = vi.GetAPIListCoverageXMLPath()
+	}
+
+	if !mod.PreventInstall() && fuzz.IsValid(ctx, mod.FuzzModuleStruct()) && mod.IsFuzzModule() {
+		info.FuzzSharedLibraries = mod.FuzzSharedLibraries()
+		fm := mod.FuzzPackagedModule()
+		fuzz.SetFuzzPackagedModuleInfo(ctx, &fm)
 	}
 
 	return info
