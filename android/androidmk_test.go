@@ -346,7 +346,7 @@ func TestGetDistContributions(t *testing.T) {
 			if len(entries) != 1 {
 				t.Errorf("Expected a single AndroidMk entry, got %d", len(entries))
 			}
-			distContributions := entries[0].getDistContributions(module)
+			distContributions := getDistContributions(ctx, module)
 
 			if err := compareContributions(expectedContributions, distContributions); err != nil {
 				t.Errorf("%s\nExpected Contributions\n%sActualContributions\n%s",
@@ -648,8 +648,8 @@ func TestGetDistContributions(t *testing.T) {
 				default_dist_files: "none",
 				dist_output_file: false,
 				dists: [
-					// The following is silently ignored because there is not default file
-					// in either the dist files or the output file.
+					// The following will dist one.out because there's no default dist file provided
+					// (default_dist_files: "none") and one.out is the outputfile for the "" tag.
 					{
 						targets: ["my_goal"],
 					},
@@ -661,6 +661,12 @@ func TestGetDistContributions(t *testing.T) {
 			}
 `, &distContributions{
 		copiesForGoals: []*copiesForGoals{
+			{
+				goals: "my_goal",
+				copies: []distCopy{
+					distCopyForTest("one.out", "one.out"),
+				},
+			},
 			{
 				goals: "my_goal",
 				copies: []distCopy{

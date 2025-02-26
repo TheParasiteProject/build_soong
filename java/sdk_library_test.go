@@ -494,7 +494,7 @@ func TestJavaSdkLibrary_AccessOutputFiles_NoAnnotations(t *testing.T) {
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": unsupported module reference tag ".public.annotations.zip"`)).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": unsupported output tag ".public.annotations.zip"`)).
 		RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
@@ -520,7 +520,7 @@ func TestJavaSdkLibrary_AccessOutputFiles_MissingScope(t *testing.T) {
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo"),
 	).
-		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": unsupported module reference tag ".system.stubs.source"`)).
+		ExtendWithErrorHandler(android.FixtureExpectsAtLeastOneErrorMatchingPattern(`module "bar" variant "android_common": unsupported output tag ".system.stubs.source"`)).
 		RunTestWithBp(t, `
 		java_sdk_library {
 			name: "foo",
