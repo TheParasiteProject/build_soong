@@ -814,11 +814,18 @@ func (c *config) HostCcSharedLibPath(ctx PathContext, lib string) Path {
 func (c *config) PrebuiltOS() string {
 	switch runtime.GOOS {
 	case "linux":
-		return "linux-x86"
+		switch runtime.GOARCH {
+		case "amd64":
+			return "linux-x86"
+		case "arm64":
+			return "linux-arm64"
+		default:
+			panic(fmt.Errorf("Unknown GOARCH %s", runtime.GOARCH))
+		}
 	case "darwin":
 		return "darwin-x86"
 	default:
-		panic("Unknown GOOS")
+		panic(fmt.Errorf("Unknown GOOS %s", runtime.GOOS))
 	}
 }
 

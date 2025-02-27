@@ -209,6 +209,10 @@ type ModuleErrorfContext interface {
 
 var _ ModuleErrorfContext = blueprint.ModuleContext(nil)
 
+type AddMissingDependenciesContext interface {
+	AddMissingDependencies([]string)
+}
+
 // reportPathError will register an error with the attached context. It
 // attempts ctx.ModuleErrorf for a better error message first, then falls
 // back to ctx.Errorf.
@@ -220,7 +224,9 @@ func reportPathError(ctx PathContext, err error) {
 // attempts ctx.ModuleErrorf for a better error message first, then falls
 // back to ctx.Errorf.
 func ReportPathErrorf(ctx PathContext, format string, args ...interface{}) {
-	if mctx, ok := ctx.(ModuleErrorfContext); ok {
+	if mctx, ok := ctx.(AddMissingDependenciesContext); ok && ctx.Config().AllowMissingDependencies() {
+		mctx.AddMissingDependencies([]string{fmt.Sprintf(format, args...)})
+	} else if mctx, ok := ctx.(ModuleErrorfContext); ok {
 		mctx.ModuleErrorf(format, args...)
 	} else if ectx, ok := ctx.(errorfContext); ok {
 		ectx.Errorf(format, args...)
