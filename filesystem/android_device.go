@@ -279,7 +279,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 
 	ret := []android.Module{}
 	ctx.WalkDepsProxy(func(mod, _ android.ModuleProxy) bool {
-		if variations, ok := allOwners[mod.Name()]; ok && android.InList(ctx.OtherModuleSubDir(mod), variations) {
+		if variations, ok := allOwners[ctx.OtherModuleName(mod)]; ok && android.InList(ctx.OtherModuleSubDir(mod), variations) {
 			ret = append(ret, mod)
 		}
 		return true
