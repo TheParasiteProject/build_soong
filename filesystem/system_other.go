@@ -172,15 +172,30 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	builder.Build("build_system_other_hermetic", "build system other")
 
 	fsInfo := FilesystemInfo{
-		Output:         output,
-		OutputHermetic: outputHermetic,
-		RootDir:        stagingDir,
+		Output:           output,
+		OutputHermetic:   outputHermetic,
+		RootDir:          stagingDir,
+		FilesystemConfig: m.generateFilesystemConfig(ctx, stagingDir, stagingDirTimestamp),
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
 
 	ctx.SetOutputFiles(android.Paths{output}, "")
 	ctx.CheckbuildFile(output)
+}
+
+func (s *systemOtherImage) generateFilesystemConfig(ctx android.ModuleContext, stagingDir, stagingDirTimestamp android.Path) android.Path {
+	out := android.PathForModuleOut(ctx, "filesystem_config.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   fsConfigRule,
+		Input:  stagingDirTimestamp, // assemble the staging directory
+		Output: out,
+		Args: map[string]string{
+			"rootDir": stagingDir.String(),
+			"prefix":  "system/",
+		},
+	})
+	return out
 }
 
 func (f *systemOtherImage) propFileForHermeticImg(ctx android.ModuleContext, builder *android.RuleBuilder, inputPropFile android.Path) android.Path {
