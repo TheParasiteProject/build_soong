@@ -587,7 +587,22 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		if android.InList(partition, []string{"userdata"}) {
 			continue
 		}
-		builder.Command().Textf("cp").Input(fsInfos[partition].FilesystemConfig).Textf(" %s/META/%s", targetFilesDir.String(), a.filesystemConfigNameForTargetFiles(partition))
+		if partition != "vendor_ramdisk" {
+			// vendor_ramdisk will be handled separately.
+			builder.Command().Textf("cp").Input(fsInfos[partition].FilesystemConfig).Textf(" %s/META/%s", targetFilesDir.String(), a.filesystemConfigNameForTargetFiles(partition))
+		}
+		if partition == "ramdisk" {
+			// Create an additional copy at boot_filesystem_config.txt
+			builder.Command().Textf("cp").Input(fsInfos[partition].FilesystemConfig).Textf(" %s/META/boot_filesystem_config.txt", targetFilesDir.String())
+		}
+		if partition == "system" {
+			// Create root_filesystem_config from the assembled ROOT/ intermediates directory
+			a.generateFilesystemConfigForTargetFiles(ctx, builder, targetFilesDir.String(), targetFilesDir.String()+"/ROOT", "root_filesystem_config.txt")
+		}
+		if partition == "vendor_ramdisk" {
+			// Create vendor_boot_filesystem_config from the assembled VENDOR_BOOT/RAMDISK intermediates directory
+			a.generateFilesystemConfigForTargetFiles(ctx, builder, targetFilesDir.String(), targetFilesDir.String()+"/VENDOR_BOOT/RAMDISK", "vendor_boot_filesystem_config.txt")
+		}
 	}
 	// Copy ramdisk_node_list
 	if ramdiskNodeList := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Ramdisk_node_list)); ramdiskNodeList != nil {
@@ -614,6 +629,19 @@ type ApexKeyPathInfo struct {
 }
 
 var ApexKeyPathInfoProvider = blueprint.NewProvider[ApexKeyPathInfo]()
+
+func (a *androidDevice) generateFilesystemConfigForTargetFiles(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir, stagingDir, filename string) {
+	fsConfigOut := android.PathForModuleOut(ctx, filename)
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   fsConfigRule,
+		Output: fsConfigOut,
+		Args: map[string]string{
+			"rootDir": stagingDir,
+			"prefix":  "",
+		},
+	})
+	builder.Command().Textf("cp").Input(fsConfigOut).Textf(" %s/META/", targetFilesDir)
+}
 
 // Filenames for the partition specific fs_config files.
 // Hardcode the ramdisk files to their boot image prefix
