@@ -3363,19 +3363,10 @@ func (j *Import) UseProfileGuidedDexpreopt() bool {
 
 // Add compile time check for interface implementation
 var _ android.IDEInfo = (*Import)(nil)
-var _ android.IDECustomizedModuleName = (*Import)(nil)
 
 // Collect information for opening IDE project files in java/jdeps.go.
-
 func (j *Import) IDEInfo(ctx android.BaseModuleContext, dpInfo *android.IdeInfo) {
 	dpInfo.Jars = append(dpInfo.Jars, j.combinedImplementationFile.String())
-}
-
-func (j *Import) IDECustomizedModuleName() string {
-	// TODO(b/113562217): Extract the base module name from the Import name, often the Import name
-	// has a prefix "prebuilt_". Remove the prefix explicitly if needed until we find a better
-	// solution to get the Import name.
-	return android.RemoveOptionalPrebuiltPrefix(j.Name())
 }
 
 var _ android.PrebuiltInterface = (*Import)(nil)

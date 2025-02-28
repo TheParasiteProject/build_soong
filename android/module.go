@@ -2370,8 +2370,16 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		})
 	}
 
-	if v, ok := m.module.(ModuleMakeVarsProvider); m.Enabled(ctx) && ok {
-		SetProvider(ctx, ModuleMakeVarsInfoProvider, v.MakeVars(ctx))
+	if m.Enabled(ctx) {
+		if v, ok := m.module.(ModuleMakeVarsProvider); ok {
+			SetProvider(ctx, ModuleMakeVarsInfoProvider, v.MakeVars(ctx))
+		}
+
+		if am, ok := m.module.(AndroidMkDataProvider); ok {
+			SetProvider(ctx, AndroidMkDataInfoProvider, AndroidMkDataInfo{
+				Class: am.AndroidMk().Class,
+			})
+		}
 	}
 }
 
@@ -3170,14 +3178,6 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 type IDEInfo interface {
 	IDEInfo(ctx BaseModuleContext, ideInfo *IdeInfo)
 	BaseModuleName() string
-}
-
-// Extract the base module name from the Import name.
-// Often the Import name has a prefix "prebuilt_".
-// Remove the prefix explicitly if needed
-// until we find a better solution to get the Import name.
-type IDECustomizedModuleName interface {
-	IDECustomizedModuleName() string
 }
 
 // Collect information for opening IDE project files in java/jdeps.go.

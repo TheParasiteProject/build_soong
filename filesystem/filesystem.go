@@ -474,11 +474,7 @@ type FullInstallPathInfo struct {
 
 var FilesystemProvider = blueprint.NewProvider[FilesystemInfo]()
 
-type FilesystemDefaultsInfo struct {
-	// Identifies which partition this is for //visibility:any_system_image (and others) visibility
-	// checks, and will be used in the future for API surface checks.
-	PartitionType string
-}
+type FilesystemDefaultsInfo struct{}
 
 var FilesystemDefaultsInfoProvider = blueprint.NewProvider[FilesystemDefaultsInfo]()
 
@@ -696,6 +692,10 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
 
+	android.SetProvider(ctx, android.PartitionTypeInfoProvider, android.PartitionTypeInfo{
+		PartitionType: f.PartitionType(),
+	})
+
 	f.fileListFile = fileListFile
 
 	if proptools.Bool(f.properties.Unchecked_module) {
@@ -822,11 +822,12 @@ func validatePartitionType(ctx android.ModuleContext, p partition) {
 	}
 
 	ctx.VisitDirectDepsProxyWithTag(android.DefaultsDepTag, func(m android.ModuleProxy) {
-		if fdm, ok := android.OtherModuleProvider(ctx, m, FilesystemDefaultsInfoProvider); ok {
-			if p.PartitionType() != fdm.PartitionType {
+		if _, ok := android.OtherModuleProvider(ctx, m, FilesystemDefaultsInfoProvider); ok {
+			partitionInfo := android.OtherModuleProviderOrDefault(ctx, m, android.PartitionTypeInfoProvider)
+			if p.PartitionType() != partitionInfo.PartitionType {
 				ctx.PropertyErrorf("partition_type",
 					"%s doesn't match with the partition type %s of the filesystem default module %s",
-					p.PartitionType(), fdm.PartitionType, m.Name())
+					p.PartitionType(), partitionInfo.PartitionType, m.Name())
 			}
 		}
 	})
@@ -1413,7 +1414,8 @@ var _ partition = (*filesystemDefaults)(nil)
 
 func (f *filesystemDefaults) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	validatePartitionType(ctx, f)
-	android.SetProvider(ctx, FilesystemDefaultsInfoProvider, FilesystemDefaultsInfo{
+	android.SetProvider(ctx, FilesystemDefaultsInfoProvider, FilesystemDefaultsInfo{})
+	android.SetProvider(ctx, android.PartitionTypeInfoProvider, android.PartitionTypeInfo{
 		PartitionType: f.PartitionType(),
 	})
 }
