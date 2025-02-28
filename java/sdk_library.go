@@ -1580,7 +1580,9 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		setOutputFilesFromJavaInfo(ctx, module.implLibraryInfo)
 	}
 
-	javaInfo := &JavaInfo{}
+	javaInfo := &JavaInfo{
+		JacocoReportClassesFile: module.jacocoReportClassesFile,
+	}
 	setExtraJavaInfo(ctx, ctx.Module(), javaInfo)
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
 
@@ -2240,6 +2242,10 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 	}
 
 	javaInfo := &JavaInfo{}
+	if module.implLibraryInfo != nil {
+		javaInfo.JacocoReportClassesFile = module.implLibraryInfo.JacocoReportClassesFile
+	}
+
 	setExtraJavaInfo(ctx, ctx.Module(), javaInfo)
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
 
