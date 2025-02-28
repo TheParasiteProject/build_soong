@@ -175,7 +175,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	allInstalledModules := a.allInstalledModules(ctx)
 
-	a.buildTargetFilesZip(ctx)
+	a.buildTargetFilesZip(ctx, allInstalledModules)
 	a.buildProguardZips(ctx, allInstalledModules)
 
 	var deps []android.Path
@@ -393,7 +393,7 @@ type targetFilesystemZipCopy struct {
 	destSubdir string
 }
 
-func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext) {
+func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstalledModules []android.Module) {
 	targetFilesDir := android.PathForModuleOut(ctx, "target_files_dir")
 	targetFilesZip := android.PathForModuleOut(ctx, "target_files.zip")
 
@@ -497,7 +497,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext) {
 	}
 
 	a.copyImagesToTargetZip(ctx, builder, targetFilesDir)
-	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir)
+	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir, allInstalledModules)
 
 	builder.Command().
 		BuiltTool("soong_zip").
@@ -549,7 +549,7 @@ func (a *androidDevice) copyImagesToTargetZip(ctx android.ModuleContext, builder
 	}
 }
 
-func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.WritablePath) {
+func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.WritablePath, allInstalledModules []android.Module) {
 	// Create a META/ subdirectory
 	builder.Command().Textf("mkdir -p %s/META", targetFilesDir.String())
 	if proptools.Bool(a.deviceProps.Ab_ota_updater) {
@@ -597,7 +597,23 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	if releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension)); releaseTools != nil {
 		builder.Command().Textf("cp").Input(releaseTools).Textf(" %s/META/", targetFilesDir.String())
 	}
+	// apexkeys.txt
+	var installedApexKeys []android.Path
+	for _, installedModule := range allInstalledModules {
+		if info, ok := android.OtherModuleProvider(ctx, installedModule, ApexKeyPathInfoProvider); ok {
+			installedApexKeys = append(installedApexKeys, info.ApexKeyPath)
+		}
+	}
+	installedApexKeys = android.SortedUniquePaths(installedApexKeys) // Sort by keypath to match make
+	builder.Command().Text("cat").Inputs(installedApexKeys).Textf(" >> %s/META/apexkeys.txt", targetFilesDir.String())
+
 }
+
+type ApexKeyPathInfo struct {
+	ApexKeyPath android.Path
+}
+
+var ApexKeyPathInfoProvider = blueprint.NewProvider[ApexKeyPathInfo]()
 
 // Filenames for the partition specific fs_config files.
 // Hardcode the ramdisk files to their boot image prefix

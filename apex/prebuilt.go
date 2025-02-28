@@ -21,6 +21,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
+	"android/soong/filesystem"
 	"android/soong/java"
 	"android/soong/provenance"
 
@@ -677,6 +678,8 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	ctx.SetOutputFiles(android.Paths{p.outputApex}, "")
+
+	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{p.apexKeysPath})
 }
 
 func (p *Prebuilt) ProvenanceMetaDataFile() android.Path {
@@ -873,4 +876,6 @@ func (a *ApexSet) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	ctx.SetOutputFiles(android.Paths{a.outputApex}, "")
+
+	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{a.apexKeysPath})
 }
