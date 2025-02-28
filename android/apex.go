@@ -196,7 +196,7 @@ func IsDepInSameApex(ctx BaseModuleContext, module, dep Module) bool {
 		return false
 	}
 
-	if !ctx.EqualModules(ctx.Module(), module) {
+	if !EqualModules(ctx.Module(), module) {
 		if moduleInfo, ok := OtherModuleProvider(ctx, module, DepInSameApexInfoProvider); ok {
 			if !moduleInfo.Checker.OutgoingDepIsInSameApex(depTag) {
 				return false

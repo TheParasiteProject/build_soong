@@ -1849,7 +1849,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 		return false
 	}
 	depName := ctx.OtherModuleName(child)
-	if ctx.EqualModules(parent, ctx.Module()) {
+	if android.EqualModules(parent, ctx.Module()) {
 		switch depTag {
 		case sharedLibTag, jniLibTag:
 			isJniLib := depTag == jniLibTag
@@ -2893,7 +2893,7 @@ func (a *apexBundle) verifyNativeImplementationLibs(ctx android.ModuleContext) {
 
 				tag := ctx.OtherModuleDependencyTag(child)
 
-				if ctx.EqualModules(parent, ctx.Module()) {
+				if android.EqualModules(parent, ctx.Module()) {
 					if !checkApexTag(tag) {
 						return false
 					}

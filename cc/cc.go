@@ -3713,7 +3713,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 func ShouldUseStubForApex(ctx android.ModuleContext, parent android.Module, dep android.ModuleProxy) bool {
 	inVendorOrProduct := false
 	bootstrap := false
-	if ctx.EqualModules(ctx.Module(), parent) {
+	if android.EqualModules(ctx.Module(), parent) {
 		if linkable, ok := parent.(LinkableInterface); !ok {
 			ctx.ModuleErrorf("Not a Linkable module: %q", ctx.ModuleName())
 		} else {

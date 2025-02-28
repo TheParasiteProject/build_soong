@@ -412,7 +412,7 @@ func PrebuiltGetPreferred(ctx BaseModuleContext, module Module) Module {
 		if prebuiltMod != nil {
 			return false
 		}
-		if ctx.EqualModules(parent, ctx.Module()) {
+		if EqualModules(parent, ctx.Module()) {
 			// First level: Only recurse if the module is found as a direct dependency.
 			sourceModDepFound = child == module
 			return sourceModDepFound

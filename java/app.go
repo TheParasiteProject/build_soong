@@ -1175,7 +1175,7 @@ func collectAppDeps(ctx android.ModuleContext, app appDepsInterface,
 			apkInApex := ctx.Module().(android.ApexModule).NotInPlatform()
 			childLinkable, _ := android.OtherModuleProvider(ctx, child, cc.LinkableInfoProvider)
 			parentIsLinkable := false
-			if ctx.EqualModules(ctx.Module(), parent) {
+			if android.EqualModules(ctx.Module(), parent) {
 				parentLinkable, _ := ctx.Module().(cc.LinkableInterface)
 				parentIsLinkable = parentLinkable != nil
 			} else {

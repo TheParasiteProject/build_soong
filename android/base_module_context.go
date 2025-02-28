@@ -34,8 +34,6 @@ type BaseModuleContext interface {
 
 	blueprintBaseModuleContext() blueprint.BaseModuleContext
 
-	EqualModules(m1, m2 Module) bool
-
 	// OtherModuleName returns the name of another Module.  See BaseModuleContext.ModuleName for more information.
 	// It is intended for use inside the visit functions of Visit* and WalkDeps.
 	OtherModuleName(m blueprint.Module) string
@@ -271,8 +269,8 @@ func getWrappedModule(module blueprint.Module) blueprint.Module {
 	return module
 }
 
-func (b *baseModuleContext) EqualModules(m1, m2 Module) bool {
-	return b.bp.EqualModules(getWrappedModule(m1), getWrappedModule(m2))
+func EqualModules(m1, m2 Module) bool {
+	return blueprint.EqualModules(getWrappedModule(m1), getWrappedModule(m2))
 }
 
 func (b *baseModuleContext) OtherModuleName(m blueprint.Module) string {
