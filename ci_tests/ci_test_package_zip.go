@@ -165,70 +165,17 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	builder.Command().Text("rm").Flag("-rf").Text(stagingDir.String())
 	builder.Command().Text("mkdir").Flag("-p").Output(stagingDir)
 	builder.Temporary(stagingDir)
-	ctx.VisitDirectDepsWithTag(testPackageZipDepTag, func(m android.Module) {
-		info, ok := android.OtherModuleProvider(ctx, m, android.ModuleInfoJSONProvider)
-		if !ok {
-			ctx.OtherModuleErrorf(m, "doesn't set ModuleInfoJSON provider")
-		} else if len(info) != 1 {
-			ctx.OtherModuleErrorf(m, "doesn't provide exactly one ModuleInfoJSON")
-		}
-
-		classes := info[0].GetClass()
-		if len(info[0].Class) != 1 {
-			ctx.OtherModuleErrorf(m, "doesn't have exactly one class in its ModuleInfoJSON")
-		}
-		class := strings.ToLower(classes[0])
-		if class == "apps" {
-			class = "app"
-		} else if class == "java_libraries" {
-			class = "framework"
-		}
-
-		installedFilesInfo, ok := android.OtherModuleProvider(ctx, m, android.InstallFilesProvider)
-		if !ok {
-			ctx.ModuleErrorf("Module %s doesn't set InstallFilesProvider", m.Name())
-		}
-
-		for _, installedFile := range installedFilesInfo.InstallFiles {
-			ext := installedFile.Ext()
-			// there are additional installed files for some app-class modules, we only need the .apk, .odex and .vdex files in the test package
-			excludeInstalledFile := ext != ".apk" && ext != ".odex" && ext != ".vdex"
-			if class == "app" && excludeInstalledFile {
-				continue
-			}
-			// only .jar files should be included for a framework dep
-			if class == "framework" && ext != ".jar" {
-				continue
-			}
-			name := removeFileExtension(installedFile.Base())
-			// some apks have other apk as installed files, these additional files shouldn't be included
-			isAppOrFramework := class == "app" || class == "framework"
-			if isAppOrFramework && name != ctx.OtherModuleName(m) {
-				continue
-			}
-
-			f := strings.TrimPrefix(installedFile.String(), productOut+"/")
-			if strings.HasPrefix(f, "out") {
-				continue
-			}
-			f = strings.ReplaceAll(f, "system/", "DATA/")
-			f = strings.ReplaceAll(f, filepath.Join("testcases", name, arch), filepath.Join("DATA", class, name))
-			f = strings.ReplaceAll(f, filepath.Join("testcases", name, secondArch), filepath.Join("DATA", class, name))
-			f = strings.ReplaceAll(f, "testcases", filepath.Join("DATA", class))
-			f = strings.ReplaceAll(f, "data/", "DATA/")
-			f = strings.ReplaceAll(f, "DATA_other", "system_other")
-			f = strings.ReplaceAll(f, "system_other/DATA", "system_other/system")
-			dir := filepath.Dir(f)
-
-			// ignore the additional installed files from test
-			if strings.Contains(dir, "DATA/native_tests") || strings.Count(dir, "DATA") > 1 {
-				continue
-			}
-
-			tempOut := android.PathForModuleOut(ctx, "STAGING", f)
-			builder.Command().Text("mkdir").Flag("-p").Text(filepath.Join(stagingDir.String(), dir))
-			builder.Command().Text("cp").Flag("-Rf").Input(installedFile).Output(tempOut)
-			builder.Temporary(tempOut)
+	ctx.WalkDeps(func(child, parent android.Module) bool {
+		if android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == testPackageZipDepTag {
+			// handle direct deps
+			extendBuilderCommand(ctx, child, builder, stagingDir, productOut, arch, secondArch)
+			return true
+		} else if !android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == android.RequiredDepTag {
+			// handle the "required" from deps
+			extendBuilderCommand(ctx, child, builder, stagingDir, productOut, arch, secondArch)
+			return true
+		} else {
+			return false
 		}
 	})
 
@@ -241,6 +188,73 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	builder.Command().Text("rm").Flag("-rf").Text(stagingDir.String())
 	builder.Build("test_package", fmt.Sprintf("build test_package for %s", ctx.ModuleName()))
 	return output
+}
+
+func extendBuilderCommand(ctx android.ModuleContext, m android.Module, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
+	info, ok := android.OtherModuleProvider(ctx, m, android.ModuleInfoJSONProvider)
+	if !ok {
+		ctx.OtherModuleErrorf(m, "doesn't set ModuleInfoJSON provider")
+	} else if len(info) != 1 {
+		ctx.OtherModuleErrorf(m, "doesn't provide exactly one ModuleInfoJSON")
+	}
+
+	classes := info[0].GetClass()
+	if len(info[0].Class) != 1 {
+		ctx.OtherModuleErrorf(m, "doesn't have exactly one class in its ModuleInfoJSON")
+	}
+	class := strings.ToLower(classes[0])
+	if class == "apps" {
+		class = "app"
+	} else if class == "java_libraries" {
+		class = "framework"
+	}
+
+	installedFilesInfo, ok := android.OtherModuleProvider(ctx, m, android.InstallFilesProvider)
+	if !ok {
+		ctx.ModuleErrorf("Module %s doesn't set InstallFilesProvider", m.Name())
+	}
+
+	for _, installedFile := range installedFilesInfo.InstallFiles {
+		ext := installedFile.Ext()
+		// there are additional installed files for some app-class modules, we only need the .apk, .odex and .vdex files in the test package
+		excludeInstalledFile := ext != ".apk" && ext != ".odex" && ext != ".vdex"
+		if class == "app" && excludeInstalledFile {
+			continue
+		}
+		// only .jar files should be included for a framework dep
+		if class == "framework" && ext != ".jar" {
+			continue
+		}
+		name := removeFileExtension(installedFile.Base())
+		// some apks have other apk as installed files, these additional files shouldn't be included
+		isAppOrFramework := class == "app" || class == "framework"
+		if isAppOrFramework && name != ctx.OtherModuleName(m) {
+			continue
+		}
+
+		f := strings.TrimPrefix(installedFile.String(), productOut+"/")
+		if strings.HasPrefix(f, "out") {
+			continue
+		}
+		f = strings.ReplaceAll(f, "system/", "DATA/")
+		f = strings.ReplaceAll(f, filepath.Join("testcases", name, arch), filepath.Join("DATA", class, name))
+		f = strings.ReplaceAll(f, filepath.Join("testcases", name, secondArch), filepath.Join("DATA", class, name))
+		f = strings.ReplaceAll(f, "testcases", filepath.Join("DATA", class))
+		f = strings.ReplaceAll(f, "data/", "DATA/")
+		f = strings.ReplaceAll(f, "DATA_other", "system_other")
+		f = strings.ReplaceAll(f, "system_other/DATA", "system_other/system")
+		dir := filepath.Dir(f)
+
+		// ignore the additional installed files from test
+		if strings.Contains(dir, "DATA/native_tests") || strings.Count(dir, "DATA") > 1 {
+			continue
+		}
+
+		tempOut := android.PathForModuleOut(ctx, "STAGING", f)
+		builder.Command().Text("mkdir").Flag("-p").Text(filepath.Join(stagingDir.String(), dir))
+		builder.Command().Text("cp").Flag("-Rf").Input(installedFile).Output(tempOut)
+		builder.Temporary(tempOut)
+	}
 }
 
 func removeFileExtension(filename string) string {
