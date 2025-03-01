@@ -148,9 +148,9 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	ctx.SetOutputFiles(android.Paths{p.output}, "")
 
 	// dist the test output
-	if ctx.ModuleName() == "platform_tests_soong" {
+	if ctx.ModuleName() == "platform_tests" {
 		distedName := ctx.Config().Getenv("TARGET_PRODUCT") + "-tests-" + ctx.Config().BuildId() + ".zip"
-		ctx.DistForGoalsWithFilename([]string{"droid", "platform_tests"}, p.output, distedName)
+		ctx.DistForGoalWithFilename("platform_tests", p.output, distedName)
 	}
 }
 
@@ -190,11 +190,23 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 		}
 
 		for _, installedFile := range installedFilesInfo.InstallFiles {
-			// there are additional installed files for some app-class modules, we only need the .apk files in the test package
-			if class == "app" && installedFile.Ext() != ".apk" {
+			ext := installedFile.Ext()
+			// there are additional installed files for some app-class modules, we only need the .apk, .odex and .vdex files in the test package
+			excludeInstalledFile := ext != ".apk" && ext != ".odex" && ext != ".vdex"
+			if class == "app" && excludeInstalledFile {
+				continue
+			}
+			// only .jar files should be included for a framework dep
+			if class == "framework" && ext != ".jar" {
 				continue
 			}
 			name := removeFileExtension(installedFile.Base())
+			// some apks have other apk as installed files, these additional files shouldn't be included
+			isAppOrFramework := class == "app" || class == "framework"
+			if isAppOrFramework && name != ctx.OtherModuleName(m) {
+				continue
+			}
+
 			f := strings.TrimPrefix(installedFile.String(), productOut+"/")
 			if strings.HasPrefix(f, "out") {
 				continue
@@ -207,6 +219,12 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 			f = strings.ReplaceAll(f, "DATA_other", "system_other")
 			f = strings.ReplaceAll(f, "system_other/DATA", "system_other/system")
 			dir := filepath.Dir(f)
+
+			// ignore the additional installed files from test
+			if strings.Contains(dir, "DATA/native_tests") || strings.Count(dir, "DATA") > 1 {
+				continue
+			}
+
 			tempOut := android.PathForModuleOut(ctx, "STAGING", f)
 			builder.Command().Text("mkdir").Flag("-p").Text(filepath.Join(stagingDir.String(), dir))
 			builder.Command().Text("cp").Flag("-Rf").Input(installedFile).Output(tempOut)
