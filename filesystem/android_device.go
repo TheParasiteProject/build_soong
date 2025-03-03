@@ -87,6 +87,7 @@ type DeviceProperties struct {
 
 	Ramdisk_node_list      *string `android:"path"`
 	Releasetools_extension *string `android:"path"`
+	FastbootInfo           *string `android:"path"`
 }
 
 type androidDevice struct {
@@ -621,6 +622,23 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	}
 	installedApexKeys = android.SortedUniquePaths(installedApexKeys) // Sort by keypath to match make
 	builder.Command().Text("cat").Inputs(installedApexKeys).Textf(" >> %s/META/apexkeys.txt", targetFilesDir.String())
+	// Copy fastboot-info.txt
+	if fastbootInfo := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.FastbootInfo)); fastbootInfo != nil {
+		// TODO (b/399788523): Autogenerate fastboot-info.txt if there is no source fastboot-info.txt
+		// https://cs.android.com/android/_/android/platform/build/+/80b9546f8f69e78b8fe1870e0e745d70fc18dfcd:core/Makefile;l=5831-5893;drc=077490384423dff9eac954da5c001c6f0be3fa6e;bpv=0;bpt=0
+		builder.Command().Textf("cp").Input(fastbootInfo).Textf(" %s/META/fastboot-info.txt", targetFilesDir.String())
+	}
+
+	if a.partitionProps.Super_partition_name != nil {
+		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
+		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
+			// dynamic_partitions_info.txt
+			// TODO (b/390192334): Add `building_super_empty_partition=true`
+			builder.Command().Text("cp").Input(info.DynamicPartitionsInfo).Textf(" %s/META/", targetFilesDir.String())
+		} else {
+			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
+		}
+	}
 
 }
 

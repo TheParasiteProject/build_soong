@@ -340,6 +340,26 @@ func (f *filesystemCreator) createReleaseToolsFilegroup(ctx android.LoadHookCont
 	return releaseToolsFilegroupName, true
 }
 
+func (f *filesystemCreator) createFastbootInfoFilegroup(ctx android.LoadHookContext) (string, bool) {
+	fastbootInfoFile := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardFastbootInfoFile
+	if fastbootInfoFile == "" {
+		return "", false
+	}
+
+	fastbootInfoFilegroupName := generatedModuleName(ctx.Config(), "fastboot")
+	filegroupProps := &struct {
+		Name       *string
+		Srcs       []string
+		Visibility []string
+	}{
+		Name:       proptools.StringPtr(fastbootInfoFilegroupName),
+		Srcs:       []string{fastbootInfoFile},
+		Visibility: []string{"//visibility:public"},
+	}
+	ctx.CreateModuleInDirectory(android.FileGroupFactory, ".", filegroupProps)
+	return fastbootInfoFilegroupName, true
+}
+
 func (f *filesystemCreator) createDeviceModule(
 	ctx android.LoadHookContext,
 	partitions allGeneratedPartitionData,
@@ -412,6 +432,9 @@ func (f *filesystemCreator) createDeviceModule(
 	}
 	if releaseTools, ok := f.createReleaseToolsFilegroup(ctx); ok {
 		deviceProps.Releasetools_extension = proptools.StringPtr(":" + releaseTools)
+	}
+	if fastbootInfo, ok := f.createFastbootInfoFilegroup(ctx); ok {
+		deviceProps.FastbootInfo = proptools.StringPtr(":" + fastbootInfo)
 	}
 
 	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
