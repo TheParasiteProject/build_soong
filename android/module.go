@@ -2167,6 +2167,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			} else {
 				hostRequired = m.baseProperties.Host_required
 			}
+			hostRequired = append(hostRequired, moduleInfoJSON.ExtraHostRequired...)
 
 			var data []string
 			for _, d := range ctx.testData {
