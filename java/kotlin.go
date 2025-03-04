@@ -47,8 +47,8 @@ const nonIncKotlinCmd = `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "
 	` -kotlin-home $emptyDir ` +
 	` -Xplugin=${config.KotlinAbiGenPluginJar} ` +
 	` -P plugin:org.jetbrains.kotlin.jvm.abi:outputDir=$headerClassesDir && ` +
-	`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
-	`${config.SoongZipCmd} -jar -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
+	`${config.SoongZipCmd} -jar $jarArgs -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
+	`${config.SoongZipCmd} -jar $jarArgs -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
 	`rm -rf "$srcJarDir" "$classesDir" "$headerClassesDir" `
 
 const moveDeltaStateFile = `mv $newStateFile $priorStateFile && rm $sourceDeltaFile`
@@ -77,7 +77,7 @@ var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports
 	},
 	"kotlincFlags", "composePluginFlag", "kotlincPluginFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir",
 	"classesDir", "headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir",
-	"newStateFile", "priorStateFile", "sourceDeltaFile", "name")
+	"newStateFile", "priorStateFile", "sourceDeltaFile", "name", "jarArgs")
 
 var kotlinJarSnapshot = pctx.AndroidRemoteStaticRule("kotlin-jar-snapshot", android.RemoteRuleSupports{},
 	blueprint.RuleParams{
@@ -94,7 +94,6 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 		Command: // Incremental
 
 		inputDeltaCmd + ` && ` +
-
 			`if [ "$$SOONG_USE_PARTIAL_COMPILE" = "true" ]; then ` +
 			`rm -rf "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
 			`mkdir -p "$headerClassesDir" "$srcJarDir" "$emptyDir" && ` +
@@ -114,8 +113,8 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 			` -working-dir=$workDir ` +
 			` -Xplugin=${config.KotlinAbiGenPluginJar} ` +
 			` -P plugin:org.jetbrains.kotlin.jvm.abi:outputDir=$headerClassesDir && ` +
-			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
-			`${config.SoongZipCmd} -jar -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
+			`${config.SoongZipCmd} -jar $jarArgs -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
+			`${config.SoongZipCmd} -jar $jarArgs -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
 			`rm -rf "$srcJarDir" ; ` +
 
 			// Else non incremental
@@ -123,7 +122,6 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 			nonIncKotlinCmd + ` ; ` +
 			`fi && ` +
 			moveDeltaStateFile,
-
 		CommandDeps: []string{
 			"${config.FindInputDeltaCmd}",
 			"${config.KotlincCmd}",
@@ -146,7 +144,7 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 	},
 	"kotlincFlags", "composeEmbeddablePluginFlag", "composePluginFlag", "kotlincPluginFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "incrementalRootDir",
 	"classesDir", "headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir",
-	"name", "outputDir", "buildDir", "workDir", "newStateFile", "priorStateFile", "sourceDeltaFile")
+	"name", "outputDir", "buildDir", "workDir", "newStateFile", "priorStateFile", "sourceDeltaFile", "jarArgs")
 
 var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 	blueprint.RuleParams{
@@ -211,7 +209,8 @@ func SnapshotJarForKotlin(ctx android.ModuleContext, jarFile android.WritablePat
 
 // kotlinCompile takes .java and .kt sources and srcJars, and compiles the .kt sources into a classes jar in outputFile.
 func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutputFile android.WritablePath,
-	srcFiles, commonSrcFiles, srcJars android.Paths, flags javaBuilderFlags, compileData KotlinCompileData, incremental bool) {
+	srcFiles, commonSrcFiles, srcJars android.Paths, flags javaBuilderFlags, manifest android.OptionalPath,
+	compileData KotlinCompileData, incremental bool) {
 
 	var deps android.Paths
 	var orderOnlyDeps android.Paths
@@ -278,6 +277,12 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 		deps = append(deps, snapshotDeps...)
 	}
 
+	var jarArgs string
+	if manifest.Valid() {
+		jarArgs = "-m " + manifest.Path().String()
+		deps = append(deps, manifest.Path())
+	}
+
 	rule := kotlinc
 	description := "kotlinc"
 	incrementalRootDir := android.PathForModuleOut(ctx, "kotlinc")
@@ -302,6 +307,7 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 		"priorStateFile":     compileData.pcStateFilePrior.String(),
 		"sourceDeltaFile":    compileData.diffFile.String(),
 		"composePluginFlag":  flags.composePluginFlag,
+		"jarArgs":            jarArgs,
 	}
 	if incremental {
 		rule = kotlinIncremental
