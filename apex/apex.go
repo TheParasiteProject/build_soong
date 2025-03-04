@@ -18,6 +18,7 @@ package apex
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -2258,6 +2259,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.enforcePartitionTagOnApexSystemServerJar(ctx)
 
 	a.verifyNativeImplementationLibs(ctx)
+	a.enforceNoVintfInUpdatable(ctx)
 
 	android.SetProvider(ctx, android.ApexBundleDepsDataProvider, android.ApexBundleDepsData{
 		FlatListPath: a.FlatListPath(),
@@ -2915,6 +2917,19 @@ func (a *apexBundle) verifyNativeImplementationLibs(ctx android.ModuleContext) {
 				}
 				return
 			}
+		}
+	}
+}
+
+// TODO(b/399527905) libvintf is not forward compatible.
+func (a *apexBundle) enforceNoVintfInUpdatable(ctx android.ModuleContext) {
+	if !a.Updatable() {
+		return
+	}
+	for _, fi := range a.filesInfo {
+		if match, _ := path.Match("etc/vintf/*", fi.path()); match {
+			ctx.ModuleErrorf("VINTF fragment (%s) is not supported in updatable APEX.", fi.path())
+			break
 		}
 	}
 }
