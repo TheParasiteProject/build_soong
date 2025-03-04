@@ -88,6 +88,13 @@ type DeviceProperties struct {
 	Ramdisk_node_list      *string `android:"path"`
 	Releasetools_extension *string `android:"path"`
 	FastbootInfo           *string `android:"path"`
+
+	// The kernel version in the build. Will be verified against the actual kernel.
+	// If not provided, will attempt to extract it from the loose kernel or the kernel inside
+	// the boot image. The version is later used to decide whether or not to enable uffd_gc
+	// when dexpreopting apps. So setting this doesn't really do anything except enforce that the
+	// actual kernel version is as specified here.
+	Kernel_version *string
 }
 
 type androidDevice struct {
@@ -178,6 +185,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.buildTargetFilesZip(ctx, allInstalledModules)
 	a.buildProguardZips(ctx, allInstalledModules)
+	a.extractKernelVersionAndConfigs(ctx)
 
 	var deps []android.Path
 	if proptools.String(a.partitionProps.Super_partition_name) != "" {
@@ -697,4 +705,73 @@ func (a *androidDevice) setVbmetaPhonyTargets(ctx android.ModuleContext) {
 			}
 		}
 	}
+}
+
+func (a *androidDevice) getKernel(ctx android.ModuleContext) android.Path {
+	if a.partitionProps.Boot_partition_name != nil {
+		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_partition_name), filesystemDepTag)
+		bootImgInfo, _ := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		return bootImgInfo.Kernel
+	}
+	return nil
+}
+
+// Gets the kernel version and configs from the actual kernel file itself. Roughly equivalent to
+// this make code: https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=5443;drc=c0b66fc59de069e06ce0ffd703d4d21613be30c6
+// However, it is a simplified version of that make code. Differences include:
+//   - Not handling BOARD_KERNEL_CONFIG_FILE because BOARD_KERNEL_CONFIG_FILE was never used.
+//   - Not unpacking the bootimage, as we should be able to just always export the kernel directly
+//     in the BootimgInfo. We don't currently support prebuilt boot images, but even if we add that
+//     in the future, it can be done in a prebuilt_bootimage module type that still exports the same
+//     BootimgInfo.
+//   - We don't print a warning and output '<unknown-kernel>' to kernel_version_for_uffd_gc.txt
+//     because we expect the kernel to always be present. If it's not, we will get an error that
+//     kernel_version_for_uffd_gc.txt doesn't exist. This may require later tweaking to the
+//     dexpreopt rules so that they don't attempt to access that file in builds that don't have
+//     a kernel.
+func (a *androidDevice) extractKernelVersionAndConfigs(ctx android.ModuleContext) (android.Path, android.Path) {
+	kernel := a.getKernel(ctx)
+	// If there's no kernel, don't create kernel version / kernel config files. Reverse dependencies
+	// on those files have to account for this, for example by disabling dexpreopt in unbundled
+	// builds.
+	if kernel == nil {
+		return nil, nil
+	}
+
+	lz4tool := ctx.Config().HostToolPath(ctx, "lz4")
+
+	extractedVersionFile := android.PathForModuleOut(ctx, "kernel_version.txt")
+	extractedConfigsFile := android.PathForModuleOut(ctx, "kernel_configs.txt")
+	builder := android.NewRuleBuilder(pctx, ctx)
+	builder.Command().BuiltTool("extract_kernel").
+		Flag("--tools lz4:"+lz4tool.String()).Implicit(lz4tool).
+		FlagWithInput("--input ", kernel).
+		FlagWithOutput("--output-release ", extractedVersionFile).
+		FlagWithOutput("--output-configs ", extractedConfigsFile)
+
+	if specifiedVersion := proptools.String(a.deviceProps.Kernel_version); specifiedVersion != "" {
+		specifiedVersionFile := android.PathForModuleOut(ctx, "specified_kernel_version.txt")
+		android.WriteFileRuleVerbatim(ctx, specifiedVersionFile, specifiedVersion)
+		builder.Command().Text("diff -q").
+			Input(specifiedVersionFile).
+			Input(extractedVersionFile).
+			Textf(`|| (echo "Specified kernel version '$(cat %s)' does not match actual kernel version '$(cat %s)'"; exit 1)`, specifiedVersionFile, extractedVersionFile)
+	}
+
+	builder.Build("extract_kernel_info", "Extract kernel version and configs")
+
+	if proptools.Bool(a.deviceProps.Main_device) && !ctx.Config().KatiEnabled() {
+		if ctx.Config().EnableUffdGc() == "default" {
+			kernelVersionFile := android.PathForOutput(ctx, "dexpreopt/kernel_version_for_uffd_gc.txt")
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.CpIfChanged,
+				Input:  extractedVersionFile,
+				Output: kernelVersionFile,
+			})
+		}
+
+		ctx.DistForGoal("droid_targets", extractedVersionFile)
+	}
+
+	return extractedVersionFile, extractedConfigsFile
 }

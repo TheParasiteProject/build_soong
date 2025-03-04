@@ -425,6 +425,7 @@ func (f *filesystemCreator) createDeviceModule(
 		Ab_ota_postinstall_config: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPostInstallConfig,
 		Ramdisk_node_list:         proptools.StringPtr(":ramdisk_node_list"),
 		Android_info:              proptools.StringPtr(":" + generatedModuleName(ctx.Config(), "android_info.prop{.txt}")),
+		Kernel_version:            ctx.Config().ProductVariables().BoardKernelVersion,
 	}
 
 	if bootloader, ok := f.createBootloaderFilegroup(ctx); ok {
