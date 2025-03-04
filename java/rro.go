@@ -406,10 +406,11 @@ func (a *AutogenRuntimeResourceOverlay) GenerateAndroidBuildActions(ctx android.
 
 	a.aapt.buildActions(ctx,
 		aaptBuildActionOptions{
-			sdkContext:      a,
-			extraLinkFlags:  aaptLinkFlags,
-			rroDirs:         &rroDirs,
-			manifestForAapt: genManifest,
+			sdkContext:       a,
+			extraLinkFlags:   aaptLinkFlags,
+			rroDirs:          &rroDirs,
+			manifestForAapt:  genManifest,
+			aconfigTextFiles: getAconfigFilePaths(ctx),
 		},
 	)
 
