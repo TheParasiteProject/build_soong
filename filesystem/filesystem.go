@@ -208,11 +208,6 @@ type FilesystemProperties struct {
 	// Install aconfig_flags.pb file for the modules installed in this partition.
 	Gen_aconfig_flags_pb *bool
 
-	// List of names of other filesystem partitions to import their aconfig flags from.
-	// This is used for the system partition to import system_ext's aconfig flags, as currently
-	// those are considered one "container": aosp/3261300
-	Import_aconfig_flags_from []string
-
 	Fsverity fsverityProperties
 
 	// If this property is set to true, the filesystem will call ctx.UncheckedModule(), causing
@@ -358,9 +353,6 @@ func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	if f.properties.Android_filesystem_deps.System_ext != nil {
 		ctx.AddDependency(ctx.Module(), interPartitionDependencyTag, proptools.String(f.properties.Android_filesystem_deps.System_ext))
-	}
-	for _, partition := range f.properties.Import_aconfig_flags_from {
-		ctx.AddDependency(ctx.Module(), importAconfigDependencyTag, partition)
 	}
 	for _, partition := range f.properties.Include_files_of {
 		ctx.AddDependency(ctx.Module(), interPartitionInstallDependencyTag, partition)

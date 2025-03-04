@@ -493,10 +493,6 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		fsProps.Base_dir = proptools.StringPtr("system")
 		fsProps.Dirs = proptools.NewSimpleConfigurable(commonPartitionDirs)
 		fsProps.Security_patch = proptools.StringPtr(ctx.Config().PlatformSecurityPatch())
-
-		if systemExtName := partitions.nameForType("system_ext"); systemExtName != "" {
-			fsProps.Import_aconfig_flags_from = []string{systemExtName}
-		}
 		fsProps.Stem = proptools.StringPtr("system.img")
 	case "system_ext":
 		if partitionVars.ProductFsverityGenerateMetadata {

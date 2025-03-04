@@ -47,7 +47,7 @@ type DeclarationsModule struct {
 		// are from RELEASE_ACONFIG_EXTRA_RELEASE_CONFIGS.
 		ReleaseConfigValues []AconfigReleaseConfigValue
 
-		// Container(system/vendor/apex) that this module belongs to
+		// Container(system/system_ext/vendor/apex) that this module belongs to
 		Container string
 
 		// The flags will only be repackaged if this prop is true.
