@@ -436,6 +436,8 @@ type FilesystemInfo struct {
 	FilesystemConfig android.Path
 
 	Owners []InstalledModuleInfo
+
+	UseAvb bool
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -680,6 +682,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		SelinuxFc:          f.selinuxFc,
 		FilesystemConfig:   f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
 		Owners:             f.gatherOwners(specs),
+		UseAvb:             proptools.Bool(f.properties.Use_avb),
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
