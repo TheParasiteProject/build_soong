@@ -1187,7 +1187,11 @@ func (c *RuleBuilderCommand) Text(text string) *RuleBuilderCommand {
 // Textf adds the specified formatted text to the command line.  The text should not contain input or output paths or
 // the rule will not have them listed in its dependencies or outputs.
 func (c *RuleBuilderCommand) Textf(format string, a ...interface{}) *RuleBuilderCommand {
-	return c.Text(fmt.Sprintf(format, a...))
+	if c.buf.Len() > 0 {
+		c.buf.WriteByte(' ')
+	}
+	fmt.Fprintf(&c.buf, format, a...)
+	return c
 }
 
 // Flag adds the specified raw text to the command line.  The text should not contain input or output paths or the
