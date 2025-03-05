@@ -106,12 +106,14 @@ type androidDevice struct {
 
 	allImagesZip android.Path
 
-	proguardDictZip     android.Path
-	proguardDictMapping android.Path
-	proguardUsageZip    android.Path
-	kernelConfig        android.Path
-	kernelVersion       android.Path
-	miscInfo            android.Path
+	proguardDictZip             android.Path
+	proguardDictMapping         android.Path
+	proguardUsageZip            android.Path
+	kernelConfig                android.Path
+	kernelVersion               android.Path
+	miscInfo                    android.Path
+	rootDirForFsConfig          string
+	rootDirForFsConfigTimestamp android.Path
 }
 
 func AndroidDeviceFactory() android.Module {
@@ -476,6 +478,17 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		if toCopy.destSubdir == "SYSTEM" {
 			// Create the ROOT partition in target_files.zip
 			builder.Command().Textf("rsync --links --exclude=system/* %s/ -r %s/ROOT", toCopy.fsInfo.RootDir, targetFilesDir.String())
+			// Add a duplicate rule to assemble the ROOT/ directory in separate intermediates.
+			// The output timestamp will be an input to a separate fs_config call.
+			a.rootDirForFsConfig = android.PathForModuleOut(ctx, "root_dir_for_fs_config").String()
+			rootDirBuilder := android.NewRuleBuilder(pctx, ctx)
+			rootDirForFsConfigTimestamp := android.PathForModuleOut(ctx, "root_dir_for_fs_config.timestamp")
+			rootDirBuilder.Command().Textf("rsync --links --exclude=system/* %s/ -r %s", toCopy.fsInfo.RootDir, a.rootDirForFsConfig).
+				Implicit(toCopy.fsInfo.Output).
+				Text("&& touch").
+				Output(rootDirForFsConfigTimestamp)
+			rootDirBuilder.Build("assemble_root_dir_for_fs_config", "Assemble ROOT/ for fs_config")
+			a.rootDirForFsConfigTimestamp = rootDirForFsConfigTimestamp
 		}
 	}
 	// Copy cmdline, kernel etc. files of boot images
@@ -614,11 +627,11 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		}
 		if partition == "system" {
 			// Create root_filesystem_config from the assembled ROOT/ intermediates directory
-			a.generateFilesystemConfigForTargetFiles(ctx, builder, targetFilesDir.String(), targetFilesDir.String()+"/ROOT", "root_filesystem_config.txt")
+			a.generateFilesystemConfigForTargetFiles(ctx, builder, a.rootDirForFsConfigTimestamp, targetFilesDir.String(), a.rootDirForFsConfig, "root_filesystem_config.txt")
 		}
 		if partition == "vendor_ramdisk" {
 			// Create vendor_boot_filesystem_config from the assembled VENDOR_BOOT/RAMDISK intermediates directory
-			a.generateFilesystemConfigForTargetFiles(ctx, builder, targetFilesDir.String(), targetFilesDir.String()+"/VENDOR_BOOT/RAMDISK", "vendor_boot_filesystem_config.txt")
+			a.generateFilesystemConfigForTargetFiles(ctx, builder, nil, targetFilesDir.String(), targetFilesDir.String()+"/VENDOR_BOOT/RAMDISK", "vendor_boot_filesystem_config.txt")
 		}
 	}
 	// Copy ramdisk_node_list
@@ -731,11 +744,12 @@ type ApexKeyPathInfo struct {
 
 var ApexKeyPathInfoProvider = blueprint.NewProvider[ApexKeyPathInfo]()
 
-func (a *androidDevice) generateFilesystemConfigForTargetFiles(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir, stagingDir, filename string) {
+func (a *androidDevice) generateFilesystemConfigForTargetFiles(ctx android.ModuleContext, builder *android.RuleBuilder, stagingDirTimestamp android.Path, targetFilesDir, stagingDir, filename string) {
 	fsConfigOut := android.PathForModuleOut(ctx, filename)
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   fsConfigRule,
-		Output: fsConfigOut,
+		Rule:     fsConfigRule,
+		Implicit: stagingDirTimestamp,
+		Output:   fsConfigOut,
 		Args: map[string]string{
 			"rootDir": stagingDir,
 			"prefix":  "",
