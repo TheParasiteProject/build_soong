@@ -335,6 +335,10 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardDictZip, namePrefix+insertBeforeExtension(a.proguardDictZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
 		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardDictMapping, namePrefix+insertBeforeExtension(a.proguardDictMapping.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
 		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardUsageZip, namePrefix+insertBeforeExtension(a.proguardUsageZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+
+		if a.deviceProps.Android_info != nil {
+			ctx.DistForGoal("droidcore-unbundled", android.PathForModuleSrc(ctx, *a.deviceProps.Android_info))
+		}
 	}
 }
 
