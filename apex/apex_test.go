@@ -11667,7 +11667,7 @@ func TestAconfifDeclarationsValidation(t *testing.T) {
 
 	// Arguments passed to aconfig to retrieve the state of the flags defined in the
 	// textproto files
-	aconfigFlagArgs := m.Output("released-flagged-apis-exportable.txt").Args["flags_path"]
+	aconfigFlagArgs := m.Output("released-flags-exportable.pb").Args["flags_path"]
 
 	// "bar-lib" is a static_lib of "foo" and is passed to metalava as classpath. Thus the
 	// cache file provided by the associated aconfig_declarations module "bar" should be passed
