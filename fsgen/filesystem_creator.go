@@ -505,6 +505,7 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		}
 		fsProps.Security_patch = proptools.StringPtr(ctx.Config().PlatformSecurityPatch())
 		fsProps.Stem = proptools.StringPtr("system_ext.img")
+		fsProps.Gen_aconfig_flags_pb = proptools.BoolPtr(true)
 	case "product":
 		fsProps.Gen_aconfig_flags_pb = proptools.BoolPtr(true)
 		fsProps.Android_filesystem_deps.System = proptools.StringPtr(partitions.nameForType("system"))
