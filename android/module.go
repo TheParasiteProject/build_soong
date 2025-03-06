@@ -1915,6 +1915,7 @@ type CommonModuleInfo struct {
 	Dists                                        []Dist
 	ExportedToMake                               bool
 	Team                                         string
+	PartitionTag                                 string
 }
 
 type ApiLevelOrPlatform struct {
@@ -2282,6 +2283,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		Dists:                                        m.Dists(),
 		ExportedToMake:                               m.ExportedToMake(),
 		Team:                                         m.Team(),
+		PartitionTag:                                 m.PartitionTag(ctx.DeviceConfig()),
 	}
 	if mm, ok := m.module.(interface {
 		MinSdkVersion(ctx EarlyModuleContext) ApiLevel
