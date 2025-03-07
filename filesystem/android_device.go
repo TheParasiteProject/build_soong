@@ -191,7 +191,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	allInstalledModules := a.allInstalledModules(ctx)
 
 	a.apkCertsInfo = a.buildApkCertsInfo(ctx, allInstalledModules)
-	a.kernelConfig, a.kernelVersion = a.extractKernelVersionAndConfigs(ctx)
+	a.kernelVersion, a.kernelConfig = a.extractKernelVersionAndConfigs(ctx)
 	a.miscInfo = a.addMiscInfo(ctx)
 	a.buildTargetFilesZip(ctx, allInstalledModules)
 	a.buildProguardZips(ctx, allInstalledModules)
@@ -881,11 +881,12 @@ func (a *androidDevice) extractKernelVersionAndConfigs(ctx android.ModuleContext
 		Flag("--tools lz4:"+lz4tool.String()).Implicit(lz4tool).
 		FlagWithInput("--input ", kernel).
 		FlagWithOutput("--output-release ", extractedVersionFile).
-		FlagWithOutput("--output-configs ", extractedConfigsFile)
+		FlagWithOutput("--output-configs ", extractedConfigsFile).
+		Textf(`&& printf "\n" >> %s`, extractedVersionFile)
 
 	if specifiedVersion := proptools.String(a.deviceProps.Kernel_version); specifiedVersion != "" {
 		specifiedVersionFile := android.PathForModuleOut(ctx, "specified_kernel_version.txt")
-		android.WriteFileRuleVerbatim(ctx, specifiedVersionFile, specifiedVersion)
+		android.WriteFileRule(ctx, specifiedVersionFile, specifiedVersion)
 		builder.Command().Text("diff -q").
 			Input(specifiedVersionFile).
 			Input(extractedVersionFile).
