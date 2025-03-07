@@ -345,22 +345,32 @@ func insertBeforeExtension(file, insertion string) string {
 	return strings.TrimSuffix(file, ext) + insertion + ext
 }
 
+func (a *androidDevice) distInstalledFiles(ctx android.ModuleContext) {
+	distInstalledFilesJsonAndTxt := func(installedFiles InstalledFilesStruct) {
+		if installedFiles.Json != nil {
+			ctx.DistForGoal("droidcore-unbundled", installedFiles.Json)
+		}
+		if installedFiles.Txt != nil {
+			ctx.DistForGoal("droidcore-unbundled", installedFiles.Txt)
+		}
+	}
+
+	fsInfoMap := a.getFsInfos(ctx)
+	for _, partition := range android.SortedKeys(fsInfoMap) {
+		// installed-files-*{.txt | .json} is not disted for userdata partition
+		if partition == "userdata" {
+			continue
+		}
+		fsInfo := fsInfoMap[partition]
+		for _, installedFiles := range fsInfo.InstalledFilesDepSet.ToList() {
+			distInstalledFilesJsonAndTxt(installedFiles)
+		}
+	}
+}
+
 func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
-		fsInfoMap := a.getFsInfos(ctx)
-		for _, partition := range android.SortedKeys(fsInfoMap) {
-			// installed-files-*{.txt | .json} is not disted for userdata partition
-			if partition == "userdata" {
-				continue
-			}
-			fsInfo := fsInfoMap[partition]
-			if fsInfo.InstalledFiles.Json != nil {
-				ctx.DistForGoal("droidcore-unbundled", fsInfo.InstalledFiles.Json)
-			}
-			if fsInfo.InstalledFiles.Txt != nil {
-				ctx.DistForGoal("droidcore-unbundled", fsInfo.InstalledFiles.Txt)
-			}
-		}
+		a.distInstalledFiles(ctx)
 
 		namePrefix := ""
 		if ctx.Config().HasDeviceProduct() {

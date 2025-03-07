@@ -30,6 +30,7 @@ import (
 	"android/soong/linkerconfig"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/depset"
 	"github.com/google/blueprint/proptools"
 )
 
@@ -424,8 +425,8 @@ type FilesystemInfo struct {
 
 	FullInstallPaths []FullInstallPathInfo
 
-	// Installed files list
-	InstalledFiles InstalledFilesStruct
+	// Installed files dep set of this module and its dependency filesystem modules
+	InstalledFilesDepSet depset.DepSet[InstalledFilesStruct]
 
 	// Path to compress hints file for erofs filesystems
 	// This will be nil for other fileystems like ext4
@@ -543,13 +544,13 @@ func (f *filesystem) ModifyPackagingSpec(ps *android.PackagingSpec) {
 	}
 }
 
-func buildInstalledFiles(ctx android.ModuleContext, partition string, rootDir android.Path, image android.Path) (txt android.ModuleOutPath, json android.ModuleOutPath) {
+func buildInstalledFiles(ctx android.ModuleContext, partition string, rootDir android.Path, image android.Path) InstalledFilesStruct {
 	fileName := "installed-files"
 	if len(partition) > 0 {
 		fileName += fmt.Sprintf("-%s", partition)
 	}
-	txt = android.PathForModuleOut(ctx, fmt.Sprintf("%s.txt", fileName))
-	json = android.PathForModuleOut(ctx, fmt.Sprintf("%s.json", fileName))
+	txt := android.PathForModuleOut(ctx, fmt.Sprintf("%s.txt", fileName))
+	json := android.PathForModuleOut(ctx, fmt.Sprintf("%s.json", fileName))
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        installedFilesJsonRule,
@@ -568,7 +569,10 @@ func buildInstalledFiles(ctx android.ModuleContext, partition string, rootDir an
 		Description: "Installed file list txt",
 	})
 
-	return txt, json
+	return InstalledFilesStruct{
+		Txt:  txt,
+		Json: json,
+	}
 }
 
 func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -660,7 +664,6 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	default:
 		partitionNameForInstalledFiles = f.partitionName()
 	}
-	installedFileTxt, installedFileJson := buildInstalledFiles(ctx, partitionNameForInstalledFiles, rootDir, f.output)
 
 	var erofsCompressHints android.Path
 	if f.properties.Erofs.Compress_hints != nil {
@@ -681,10 +684,11 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		BuildImagePropFileDeps: buildImagePropFileDeps,
 		SpecsForSystemOther:    f.systemOtherFiles(ctx),
 		FullInstallPaths:       fullInstallPaths,
-		InstalledFiles: InstalledFilesStruct{
-			Txt:  installedFileTxt,
-			Json: installedFileJson,
-		},
+		InstalledFilesDepSet: depset.New(
+			depset.POSTORDER,
+			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rootDir, f.output)},
+			includeFilesInstalledFiles(ctx),
+		),
 		ErofsCompressHints: erofsCompressHints,
 		SelinuxFc:          f.selinuxFc,
 		FilesystemConfig:   f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
@@ -1192,6 +1196,15 @@ func includeFilesRootDir(ctx android.ModuleContext) (rootDirs android.Paths, par
 		}
 	})
 	return rootDirs, partitions
+}
+
+func includeFilesInstalledFiles(ctx android.ModuleContext) (ret []depset.DepSet[InstalledFilesStruct]) {
+	ctx.VisitDirectDepsWithTag(interPartitionInstallDependencyTag, func(m android.Module) {
+		if fsProvider, ok := android.OtherModuleProvider(ctx, m, FilesystemProvider); ok {
+			ret = append(ret, fsProvider.InstalledFilesDepSet)
+		}
+	})
+	return
 }
 
 func (f *filesystem) buildCpioImage(
