@@ -651,11 +651,16 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	fileListFile := android.PathForModuleOut(ctx, "fileList")
 	android.WriteFileRule(ctx, fileListFile, f.installedFilesList())
 
-	partitionName := f.partitionName()
-	if partitionName == "system" {
-		partitionName = ""
+	var partitionNameForInstalledFiles string
+	switch f.partitionName() {
+	case "system":
+		partitionNameForInstalledFiles = ""
+	case "vendor_ramdisk":
+		partitionNameForInstalledFiles = "vendor-ramdisk"
+	default:
+		partitionNameForInstalledFiles = f.partitionName()
 	}
-	installedFileTxt, installedFileJson := buildInstalledFiles(ctx, partitionName, rootDir, f.output)
+	installedFileTxt, installedFileJson := buildInstalledFiles(ctx, partitionNameForInstalledFiles, rootDir, f.output)
 
 	var erofsCompressHints android.Path
 	if f.properties.Erofs.Compress_hints != nil {

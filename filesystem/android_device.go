@@ -349,6 +349,10 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
 		fsInfoMap := a.getFsInfos(ctx)
 		for _, partition := range android.SortedKeys(fsInfoMap) {
+			// installed-files-*{.txt | .json} is not disted for userdata partition
+			if partition == "userdata" {
+				continue
+			}
 			fsInfo := fsInfoMap[partition]
 			if fsInfo.InstalledFiles.Json != nil {
 				ctx.DistForGoal("droidcore-unbundled", fsInfo.InstalledFiles.Json)
