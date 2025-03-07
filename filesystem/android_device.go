@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"sync/atomic"
 
@@ -280,6 +281,31 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.setVbmetaPhonyTargets(ctx)
 
 	a.distFiles(ctx)
+
+	android.SetProvider(ctx, android.AndroidDeviceInfoProvider, android.AndroidDeviceInfo{
+		Main_device: android.Bool(a.deviceProps.Main_device),
+	})
+
+	if proptools.String(a.partitionProps.Super_partition_name) != "" {
+		buildComplianceMetadata(ctx, superPartitionDepTag, filesystemDepTag)
+	} else {
+		buildComplianceMetadata(ctx, filesystemDepTag)
+	}
+}
+
+func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
+	filesContained := make([]string, 0)
+	for _, tag := range tags {
+		ctx.VisitDirectDepsProxyWithTag(tag, func(m android.ModuleProxy) {
+			if complianceMetadataInfo, ok := android.OtherModuleProvider(ctx, m, android.ComplianceMetadataProvider); ok {
+				filesContained = append(filesContained, complianceMetadataInfo.GetFilesContained()...)
+			}
+		})
+	}
+	sort.Strings(filesContained)
+
+	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
+	complianceMetadataInfo.SetFilesContained(filesContained)
 }
 
 // Returns a list of modules that are installed, which are collected from the dependency

@@ -263,6 +263,11 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		PublicKey:             extractedPublicKey,
 		Output:                output,
 	})
+
+	// Dump compliance metadata
+	if ramdisk := proptools.String(b.properties.Ramdisk_module); ramdisk != "" {
+		buildComplianceMetadata(ctx, bootimgRamdiskDep)
+	}
 }
 
 var BootimgInfoProvider = blueprint.NewProvider[BootimgInfo]()

@@ -183,6 +183,8 @@ func (s *superImage) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 	ctx.SetOutputFiles([]android.Path{output}, "")
 	ctx.CheckbuildFile(output)
+
+	buildComplianceMetadata(ctx, subImageDepTag)
 }
 
 func (s *superImage) installFileName() string {
