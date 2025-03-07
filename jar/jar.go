@@ -17,7 +17,6 @@ package jar
 import (
 	"bytes"
 	"fmt"
-	"hash/crc32"
 	"io"
 	"os"
 	"strings"
@@ -94,9 +93,7 @@ func ManifestFileContents(contents []byte) (*zip.FileHeader, []byte, error) {
 	fh := &zip.FileHeader{
 		Name:               ManifestFile,
 		Method:             zip.Store,
-		CompressedSize64:   uint64(len(b)),
 		UncompressedSize64: uint64(len(b)),
-		CRC32:              crc32.ChecksumIEEE(b),
 	}
 	fh.SetMode(0644)
 	fh.SetModTime(DefaultTime)
