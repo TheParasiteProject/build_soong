@@ -2209,3 +2209,7 @@ func setCommonAppInfo(appInfo *AppInfo, m androidApp) {
 	appInfo.Certificate = m.Certificate()
 	appInfo.PrivAppAllowlist = m.PrivAppAllowlist()
 }
+
+type AppInfos []AppInfo
+
+var AppInfosProvider = blueprint.NewProvider[AppInfos]()

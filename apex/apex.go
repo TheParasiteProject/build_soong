@@ -550,6 +550,9 @@ type apexBundle struct {
 
 	// Required modules, filled out during GenerateAndroidBuildActions and used in AndroidMk
 	required []string
+
+	// appinfo of the apk-in-apex of this module
+	appInfos java.AppInfos
 }
 
 // apexFileClass represents a type of file that can be included in APEX.
@@ -1931,6 +1934,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 			}
 		case androidAppTag:
 			if appInfo, ok := android.OtherModuleProvider(ctx, child, java.AppInfoProvider); ok {
+				a.appInfos = append(a.appInfos, *appInfo)
 				if appInfo.AppSet {
 					appDir := "app"
 					if appInfo.Privileged {
@@ -2267,6 +2271,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	android.SetProvider(ctx, filesystem.ApexKeyPathInfoProvider, filesystem.ApexKeyPathInfo{a.apexKeysPath})
+
+	android.SetProvider(ctx, java.AppInfosProvider, a.appInfos)
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file

@@ -438,6 +438,8 @@ type FilesystemInfo struct {
 	Owners []InstalledModuleInfo
 
 	UseAvb bool
+
+	HasFsverity bool
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -683,6 +685,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FilesystemConfig:   f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
 		Owners:             f.gatherOwners(specs),
 		UseAvb:             proptools.Bool(f.properties.Use_avb),
+		HasFsverity:        f.properties.Fsverity.Inputs.GetOrDefault(ctx, nil) != nil,
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
