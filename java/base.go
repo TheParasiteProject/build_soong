@@ -1160,7 +1160,14 @@ func (j *Module) addGeneratedSrcJars(path android.Path) {
 	j.properties.Generated_srcjars = append(j.properties.Generated_srcjars, path)
 }
 
-func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspathJars, extraCombinedJars, extraDepCombinedJars android.Paths) *JavaInfo {
+func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspathJars, extraCombinedJars,
+	extraDepCombinedJars android.Paths) *JavaInfo {
+
+	manifest := j.overrideManifest
+	if !manifest.Valid() && j.properties.Manifest != nil {
+		manifest = android.OptionalPathForPath(android.PathForModuleSrc(ctx, *j.properties.Manifest))
+	}
+
 	// Auto-propagating jarjar rules
 	jarjarProviderData := j.collectJarJarRules(ctx)
 	if jarjarProviderData != nil {
@@ -1281,7 +1288,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		transitiveStaticLibsHeaderJars := deps.transitiveStaticLibsHeaderJars
 
 		localHeaderJars, combinedHeaderJarFile := j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName,
-			extraCombinedJars)
+			extraCombinedJars, manifest)
 
 		combinedHeaderJarFile, jarjared := j.jarjarIfNecessary(ctx, combinedHeaderJarFile, jarName, "turbine", false)
 		if jarjared {
@@ -1394,7 +1401,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
 		kotlinHeaderJar := android.PathForModuleOut(ctx, "kotlin_headers", jarName)
-		j.kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, uniqueSrcFiles, kotlinCommonSrcFiles, srcJars, flags)
+		j.kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, uniqueSrcFiles, kotlinCommonSrcFiles, srcJars, flags, manifest)
 		if ctx.Failed() {
 			return nil
 		}
@@ -1429,7 +1436,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		extraJars := slices.Clone(kotlinHeaderJars)
 		extraJars = append(extraJars, extraCombinedJars...)
 		var combinedHeaderJarFile android.Path
-		localHeaderJars, combinedHeaderJarFile = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, extraJars)
+		localHeaderJars, combinedHeaderJarFile = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, extraJars, manifest)
 		shardingHeaderJars = localHeaderJars
 
 		var jarjared bool
@@ -1608,11 +1615,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		TransformJarsToJar(ctx, combinedJar, "for resources", resourceJars, android.OptionalPath{},
 			false, nil, nil)
 		combinedResourceJar = combinedJar
-	}
-
-	manifest := j.overrideManifest
-	if !manifest.Valid() && j.properties.Manifest != nil {
-		manifest = android.OptionalPathForPath(android.PathForModuleSrc(ctx, *j.properties.Manifest))
 	}
 
 	// Combine the classes built from sources, any manifests, and any static libraries into
@@ -2069,7 +2071,7 @@ func CheckKotlincFlags(ctx android.ModuleContext, flags []string) {
 
 func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars android.Paths,
 	deps deps, flags javaBuilderFlags, jarName string,
-	extraJars android.Paths) (localHeaderJars android.Paths, combinedHeaderJar android.Path) {
+	extraJars android.Paths, manifest android.OptionalPath) (localHeaderJars android.Paths, combinedHeaderJar android.Path) {
 
 	if len(srcFiles) > 0 || len(srcJars) > 0 {
 		// Compile java sources into turbine.jar.
@@ -2088,7 +2090,7 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	// we cannot skip the combine step for now if there is only one jar
 	// since we have to strip META-INF/TRANSITIVE dir from turbine.jar
 	combinedHeaderJarOutputPath := android.PathForModuleOut(ctx, "turbine-combined", jarName)
-	TransformJarsToJar(ctx, combinedHeaderJarOutputPath, "for turbine", jars, android.OptionalPath{},
+	TransformJarsToJar(ctx, combinedHeaderJarOutputPath, "for turbine", jars, manifest,
 		false, nil, []string{"META-INF/TRANSITIVE"})
 
 	return localHeaderJars, combinedHeaderJarOutputPath
