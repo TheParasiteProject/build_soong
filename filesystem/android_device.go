@@ -673,7 +673,13 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		}
 		if partition == "vendor_ramdisk" {
 			// Create vendor_boot_filesystem_config from the assembled VENDOR_BOOT/RAMDISK intermediates directory
-			a.generateFilesystemConfigForTargetFiles(ctx, builder, nil, targetFilesDir.String(), targetFilesDir.String()+"/VENDOR_BOOT/RAMDISK", "vendor_boot_filesystem_config.txt")
+			vendorRamdiskStagingDir := targetFilesDir.String() + "/VENDOR_BOOT/RAMDISK"
+			vendorRamdiskFsConfigOut := targetFilesDir.String() + "/META/vendor_boot_filesystem_config.txt"
+			fsConfigBin := ctx.Config().HostToolPath(ctx, "fs_config")
+			builder.Command().Textf(
+				`(cd %s; find . -type d | sed 's,$,/,'; find . \! -type d) | cut -c 3- | sort | sed 's,^,,' | %s -C -D %s -R \"\" > %s`,
+				vendorRamdiskStagingDir, fsConfigBin, vendorRamdiskStagingDir, vendorRamdiskFsConfigOut).
+				Implicit(fsConfigBin)
 		}
 	}
 	// Copy ramdisk_node_list
