@@ -942,7 +942,9 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 			apkCerts = append(apkCerts, formatLine(info.Certificate, info.InstallApkName+".apk", partition))
 		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, java.AppInfosProvider); ok {
 			for _, certInfo := range info {
-				apkCerts = append(apkCerts, formatLine(certInfo.Certificate, certInfo.InstallApkName+".apk", partition))
+				// Partition information of apk-in-apex is not exported to the legacy Make packaging system.
+				// Hardcode the partition to "system"
+				apkCerts = append(apkCerts, formatLine(certInfo.Certificate, certInfo.InstallApkName+".apk", "system"))
 			}
 		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, java.RuntimeResourceOverlayInfoProvider); ok {
 			apkCerts = append(apkCerts, formatLine(info.Certificate, info.OutputFile.Base(), partition))
