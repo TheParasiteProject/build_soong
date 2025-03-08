@@ -294,18 +294,26 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
+	// Collect metadata from deps
 	filesContained := make([]string, 0)
+	prebuiltFilesCopied := make([]string, 0)
 	for _, tag := range tags {
 		ctx.VisitDirectDepsProxyWithTag(tag, func(m android.ModuleProxy) {
 			if complianceMetadataInfo, ok := android.OtherModuleProvider(ctx, m, android.ComplianceMetadataProvider); ok {
 				filesContained = append(filesContained, complianceMetadataInfo.GetFilesContained()...)
+				prebuiltFilesCopied = append(prebuiltFilesCopied, complianceMetadataInfo.GetPrebuiltFilesCopied()...)
 			}
 		})
 	}
-	sort.Strings(filesContained)
-
+	// Merge to module's ComplianceMetadataInfo
 	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
+	filesContained = append(filesContained, complianceMetadataInfo.GetFilesContained()...)
+	sort.Strings(filesContained)
 	complianceMetadataInfo.SetFilesContained(filesContained)
+
+	prebuiltFilesCopied = append(prebuiltFilesCopied, complianceMetadataInfo.GetPrebuiltFilesCopied()...)
+	sort.Strings(prebuiltFilesCopied)
+	complianceMetadataInfo.SetPrebuiltFilesCopied(prebuiltFilesCopied)
 }
 
 // Returns a list of modules that are installed, which are collected from the dependency
