@@ -85,7 +85,7 @@ func fileSizesSingleton() android.Singleton {
 func (singleton *sizesSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 	var deps android.Paths
 	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
-		if !android.OtherModuleProviderOrDefault(ctx, m, android.CommonModuleInfoKey).ExportedToMake {
+		if !android.OtherModuleProviderOrDefault(ctx, m, android.CommonModuleInfoProvider).ExportedToMake {
 			return
 		}
 		filePaths, ok := android.OtherModuleProvider(ctx, m, fileSizeMeasurerKey)

@@ -941,7 +941,7 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 	apkCerts := []string{}
 	for _, installedModule := range allInstalledModules {
 		partition := ""
-		if commonInfo, ok := android.OtherModuleProvider(ctx, installedModule, android.CommonModuleInfoKey); ok {
+		if commonInfo, ok := android.OtherModuleProvider(ctx, installedModule, android.CommonModuleInfoProvider); ok {
 			partition = commonInfo.PartitionTag
 		} else {
 			ctx.ModuleErrorf("%s does not set CommonModuleInfoKey", installedModule.Name())

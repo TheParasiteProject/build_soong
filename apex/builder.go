@@ -1111,7 +1111,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 
 		// Skip dependencies that are only available to APEXes; they are developed with updatability
 		// in mind and don't need manual approval.
-		if android.OtherModuleProviderOrDefault(ctx, to, android.CommonModuleInfoKey).NotAvailableForPlatform {
+		if android.OtherModuleProviderOrDefault(ctx, to, android.CommonModuleInfoProvider).NotAvailableForPlatform {
 			return !externalDep
 		}
 
@@ -1129,7 +1129,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 			depInfos[to.Name()] = info
 		} else {
 			toMinSdkVersion := "(no version)"
-			if info, ok := android.OtherModuleProvider(ctx, to, android.CommonModuleInfoKey); ok &&
+			if info, ok := android.OtherModuleProvider(ctx, to, android.CommonModuleInfoProvider); ok &&
 				!info.MinSdkVersion.IsPlatform && info.MinSdkVersion.ApiLevel != nil {
 				toMinSdkVersion = info.MinSdkVersion.ApiLevel.String()
 			}

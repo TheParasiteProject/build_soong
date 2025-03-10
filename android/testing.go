@@ -1197,7 +1197,7 @@ func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod Module) *AndroidMk
 
 	info := OtherModuleProviderOrDefault(ctx, mod, AndroidMkInfoProvider)
 	aconfigUpdateAndroidMkInfos(ctx, mod, info)
-	commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoKey)
+	commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider)
 	info.PrimaryInfo.fillInEntries(ctx, mod, &commonInfo)
 	if len(info.ExtraInfo) > 0 {
 		for _, ei := range info.ExtraInfo {
