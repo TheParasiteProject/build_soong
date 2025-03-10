@@ -111,7 +111,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 		// Find all of the aconfig_declarations modules
 		var packages = make(map[string]int)
 		var cacheFiles android.Paths
-		ctx.VisitAllModules(func(module android.Module) {
+		ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
 			decl, ok := android.OtherModuleProvider(ctx, module, android.AconfigReleaseDeclarationsProviderKey)
 			if !ok {
 				return
