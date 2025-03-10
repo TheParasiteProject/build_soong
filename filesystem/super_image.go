@@ -200,6 +200,7 @@ func (s *superImage) buildMiscInfo(ctx android.ModuleContext) (android.Path, and
 		miscInfoString.WriteString(value)
 		miscInfoString.WriteRune('\n')
 	}
+	addStr("ab_update", strconv.FormatBool(proptools.Bool(s.properties.Ab_update)))
 
 	subImageInfo := make(map[string]FilesystemInfo)
 	var deps android.Paths
@@ -328,8 +329,6 @@ func (s *superImage) dumpDynamicPartitionInfo(ctx android.ModuleContext, sb *str
 	}
 	addStr("super_partition_groups", strings.Join(groups, " "))
 	addStr("dynamic_partition_list", strings.Join(partitionList, " "))
-
-	addStr("ab_update", strconv.FormatBool(proptools.Bool(s.properties.Ab_update)))
 
 	if proptools.Bool(s.properties.Virtual_ab.Enable) {
 		addStr("virtual_ab", "true")
