@@ -695,7 +695,7 @@ func (d *ApexBundleDepsInfo) BuildDepsInfoLists(ctx ModuleContext, minSdkVersion
 // Function called while walking an APEX's payload dependencies.
 //
 // Return true if the `to` module should be visited, false otherwise.
-type PayloadDepsCallback func(ctx BaseModuleContext, from Module, to ApexModule, externalDep bool) bool
+type PayloadDepsCallback func(ctx BaseModuleContext, from, to ModuleProxy, externalDep bool) bool
 type WalkPayloadDepsFunc func(ctx BaseModuleContext, do PayloadDepsCallback)
 
 // ModuleWithMinSdkVersionCheck represents a module that implements min_sdk_version checks
@@ -723,7 +723,7 @@ func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayl
 		return
 	}
 
-	walk(ctx, func(ctx BaseModuleContext, from Module, to ApexModule, externalDep bool) bool {
+	walk(ctx, func(ctx BaseModuleContext, from, to ModuleProxy, externalDep bool) bool {
 		if externalDep {
 			// external deps are outside the payload boundary, which is "stable"
 			// interface. We don't have to check min_sdk_version for external

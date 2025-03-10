@@ -1607,33 +1607,6 @@ func apexFileForFilesystem(ctx android.BaseModuleContext, buildFile android.Path
 // to the child modules. Returning false makes the visit to continue in the sibling or the parent
 // modules. This is used in check* functions below.
 func (a *apexBundle) WalkPayloadDeps(ctx android.BaseModuleContext, do android.PayloadDepsCallback) {
-	ctx.WalkDeps(func(child, parent android.Module) bool {
-		am, ok := child.(android.ApexModule)
-		if !ok || !am.CanHaveApexVariants() {
-			return false
-		}
-
-		// Filter-out unwanted depedendencies
-		depTag := ctx.OtherModuleDependencyTag(child)
-		if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
-			return false
-		}
-		if dt, ok := depTag.(*dependencyTag); ok && !dt.payload {
-			return false
-		}
-		if depTag == android.RequiredDepTag {
-			return false
-		}
-
-		externalDep := !android.IsDepInSameApex(ctx, parent, child)
-
-		// Visit actually
-		return do(ctx, parent, am, externalDep)
-	})
-}
-
-func (a *apexBundle) WalkPayloadDepsProxy(ctx android.BaseModuleContext,
-	do func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool) {
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		if !android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoProvider).CanHaveApexVariants {
 			return false
@@ -2557,7 +2530,7 @@ func (a *apexBundle) checkStaticLinkingToStubLibraries(ctx android.ModuleContext
 		librariesDirectlyInApex[ctx.OtherModuleName(dep)] = true
 	})
 
-	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from android.Module, to android.ApexModule, externalDep bool) bool {
+	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool {
 		if info, ok := android.OtherModuleProvider(ctx, to, cc.LinkableInfoProvider); ok {
 			// If `to` is not actually in the same APEX as `from` then it does not need
 			// apex_available and neither do any of its dependencies.
@@ -2671,7 +2644,7 @@ func (a *apexBundle) checkApexAvailability(ctx android.ModuleContext) {
 		return
 	}
 
-	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from android.Module, to android.ApexModule, externalDep bool) bool {
+	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool {
 		// As soon as the dependency graph crosses the APEX boundary, don't go further.
 		if externalDep {
 			return false
