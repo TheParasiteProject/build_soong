@@ -81,12 +81,13 @@ type LinkerInfo struct {
 	HeaderLibs               []string
 	ImplementationModuleName *string
 
-	BinaryDecoratorInfo    *BinaryDecoratorInfo
-	LibraryDecoratorInfo   *LibraryDecoratorInfo
-	TestBinaryInfo         *TestBinaryInfo
-	BenchmarkDecoratorInfo *BenchmarkDecoratorInfo
-	ObjectLinkerInfo       *ObjectLinkerInfo
-	StubDecoratorInfo      *StubDecoratorInfo
+	BinaryDecoratorInfo       *BinaryDecoratorInfo
+	LibraryDecoratorInfo      *LibraryDecoratorInfo
+	TestBinaryInfo            *TestBinaryInfo
+	BenchmarkDecoratorInfo    *BenchmarkDecoratorInfo
+	ObjectLinkerInfo          *ObjectLinkerInfo
+	StubDecoratorInfo         *StubDecoratorInfo
+	PrebuiltLibraryLinkerInfo *PrebuiltLibraryLinkerInfo
 }
 
 type BinaryDecoratorInfo struct{}
@@ -96,6 +97,7 @@ type LibraryDecoratorInfo struct {
 	// Location of the static library in the sysroot. Empty if the library is
 	// not included in the NDK.
 	NdkSysrootPath android.Path
+	VndkFileName   string
 }
 
 type SnapshotInfo struct {
@@ -120,12 +122,23 @@ type ObjectLinkerInfo struct {
 	NdkSysrootPath android.Path
 }
 
+type PrebuiltLibraryLinkerInfo struct {
+	VndkFileName string
+}
+
 type LibraryInfo struct {
 	BuildStubs bool
 }
 
 type InstallerInfo struct {
 	StubDecoratorInfo *StubDecoratorInfo
+}
+
+type LocalOrGlobalFlagsInfo struct {
+	CommonFlags []string // Flags that apply to C, C++, and assembly source files
+	CFlags      []string // Flags that apply to C and C++ source files
+	ConlyFlags  []string // Flags that apply to C source files
+	CppFlags    []string // Flags that apply to C++ source files
 }
 
 // Common info about the cc module.
@@ -148,6 +161,7 @@ type LinkableInfo struct {
 	StaticExecutable     bool
 	Static               bool
 	Shared               bool
+	Header               bool
 	HasStubsVariants     bool
 	StubsVersion         string
 	IsStubs              bool
@@ -195,7 +209,11 @@ type LinkableInfo struct {
 	APIListCoverageXMLPath android.ModuleOutPath
 	// FuzzSharedLibraries returns the shared library dependencies for this module.
 	// Expects that IsFuzzModule returns true.
-	FuzzSharedLibraries android.RuleBuilderInstalls
+	FuzzSharedLibraries      android.RuleBuilderInstalls
+	IsVndkPrebuiltLibrary    bool
+	HasLLNDKStubs            bool
+	IsLLNDKMovedToApex       bool
+	ImplementationModuleName string
 }
 
 var LinkableInfoProvider = blueprint.NewProvider[*LinkableInfo]()
@@ -2356,9 +2374,11 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		case *binaryDecorator:
 			ccInfo.LinkerInfo.BinaryDecoratorInfo = &BinaryDecoratorInfo{}
 		case *libraryDecorator:
+			lk := c.linker.(*libraryDecorator)
 			ccInfo.LinkerInfo.LibraryDecoratorInfo = &LibraryDecoratorInfo{
-				InjectBsslHash: Bool(c.linker.(*libraryDecorator).Properties.Inject_bssl_hash),
-				NdkSysrootPath: c.linker.(*libraryDecorator).ndkSysrootPath,
+				InjectBsslHash: Bool(lk.Properties.Inject_bssl_hash),
+				NdkSysrootPath: lk.ndkSysrootPath,
+				VndkFileName:   lk.getLibNameHelper(c.BaseModuleName(), true, false) + ".so",
 			}
 		case *testBinary:
 			ccInfo.LinkerInfo.TestBinaryInfo = &TestBinaryInfo{
@@ -2372,6 +2392,11 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			}
 		case *stubDecorator:
 			ccInfo.LinkerInfo.StubDecoratorInfo = &StubDecoratorInfo{}
+		case *prebuiltLibraryLinker:
+			ccInfo.LinkerInfo.PrebuiltLibraryLinkerInfo = &PrebuiltLibraryLinkerInfo{
+				VndkFileName: c.linker.(*prebuiltLibraryLinker).getLibNameHelper(
+					c.BaseModuleName(), true, false) + ".so",
+			}
 		}
 
 		if s, ok := c.linker.(SnapshotInterface); ok {
@@ -2441,12 +2466,17 @@ func CreateCommonLinkableInfo(ctx android.ModuleContext, mod VersionedLinkableIn
 		Multilib:                        mod.Multilib(),
 		ImplementationModuleNameForMake: mod.ImplementationModuleNameForMake(),
 		Symlinks:                        mod.Symlinks(),
+		Header:                          mod.Header(),
+		IsVndkPrebuiltLibrary:           mod.IsVndkPrebuiltLibrary(),
 	}
 
 	vi := mod.VersionedInterface()
 	if vi != nil {
 		info.IsStubsImplementationRequired = vi.IsStubsImplementationRequired()
 		info.APIListCoverageXMLPath = vi.GetAPIListCoverageXMLPath()
+		info.HasLLNDKStubs = vi.HasLLNDKStubs()
+		info.IsLLNDKMovedToApex = vi.IsLLNDKMovedToApex()
+		info.ImplementationModuleName = vi.ImplementationModuleName(mod.BaseModuleName())
 	}
 
 	if !mod.PreventInstall() && fuzz.IsValid(ctx, mod.FuzzModuleStruct()) && mod.IsFuzzModule() {

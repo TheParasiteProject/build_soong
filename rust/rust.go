@@ -61,6 +61,7 @@ type RustInfo struct {
 	SnapshotInfo                  *cc.SnapshotInfo
 	SourceProviderInfo            *SourceProviderInfo
 	XrefRustFiles                 android.Paths
+	DocTimestampFile              android.OptionalPath
 }
 
 var RustInfoProvider = blueprint.NewProvider[*RustInfo]()
@@ -1173,6 +1174,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		RustSubName:                   mod.Properties.RustSubName,
 		TransitiveAndroidMkSharedLibs: mod.transitiveAndroidMkSharedLibs,
 		XrefRustFiles:                 mod.XrefRustFiles(),
+		DocTimestampFile:              mod.docTimestampFile,
 	}
 	if mod.compiler != nil {
 		rustInfo.CompilerInfo = &CompilerInfo{
