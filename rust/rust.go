@@ -1480,7 +1480,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		rustInfo, hasRustInfo := android.OtherModuleProvider(ctx, dep, RustInfoProvider)
 		ccInfo, _ := android.OtherModuleProvider(ctx, dep, cc.CcInfoProvider)
 		linkableInfo, hasLinkableInfo := android.OtherModuleProvider(ctx, dep, cc.LinkableInfoProvider)
-		commonInfo := android.OtherModuleProviderOrDefault(ctx, dep, android.CommonModuleInfoKey)
+		commonInfo := android.OtherModuleProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
 		if hasRustInfo && !linkableInfo.Static && !linkableInfo.Shared {
 			//Handle Rust Modules
 			makeLibName := rustMakeLibName(rustInfo, linkableInfo, &commonInfo, depName+rustInfo.RustSubName)

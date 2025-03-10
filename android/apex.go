@@ -733,7 +733,7 @@ func CheckMinSdkVersion(ctx ModuleContext, minSdkVersion ApiLevel, walk WalkPayl
 		if !IsDepInSameApex(ctx, from, to) {
 			return false
 		}
-		if info, ok := OtherModuleProvider(ctx, to, CommonModuleInfoKey); ok && info.ModuleWithMinSdkVersionCheck {
+		if info, ok := OtherModuleProvider(ctx, to, CommonModuleInfoProvider); ok && info.ModuleWithMinSdkVersionCheck {
 			if info.MinSdkVersion.ApiLevel == nil || !info.MinSdkVersion.ApiLevel.Specified() {
 				// This dependency performs its own min_sdk_version check, just make sure it sets min_sdk_version
 				// to trigger the check.
@@ -765,7 +765,7 @@ type MinSdkVersionFromValueContext interface {
 // implementing this interface should provide an implementation. A module supports an sdk
 // version when the module's min_sdk_version is equal to or less than the given sdk version.
 func ShouldSupportSdkVersion(ctx BaseModuleContext, module Module, sdkVersion ApiLevel) error {
-	info, ok := OtherModuleProvider(ctx, module, CommonModuleInfoKey)
+	info, ok := OtherModuleProvider(ctx, module, CommonModuleInfoProvider)
 	if !ok || info.MinSdkVersionSupported.IsNone() {
 		return fmt.Errorf("min_sdk_version is not specified")
 	}

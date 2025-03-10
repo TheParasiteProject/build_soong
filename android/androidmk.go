@@ -880,7 +880,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []Module) ([]distCo
 			}
 		}
 
-		commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoKey)
+		commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider)
 		if commonInfo.SkipAndroidMkProcessing {
 			continue
 		}
@@ -1312,7 +1312,7 @@ var AndroidMkInfoProvider = blueprint.NewProvider[*AndroidMkProviderInfo]()
 // Please only access the module's internal data through providers.
 func translateAndroidMkEntriesInfoModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *[]*ModuleInfoJSON,
 	mod Module, providerInfo *AndroidMkProviderInfo) error {
-	commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoKey)
+	commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider)
 	if commonInfo.SkipAndroidMkProcessing {
 		return nil
 	}

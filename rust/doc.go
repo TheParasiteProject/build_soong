@@ -38,7 +38,7 @@ func (n *rustdocSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 		FlagWithArg("-D ", docDir.String())
 
 	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
-		if !android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey).Enabled {
+		if !android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoProvider).Enabled {
 			return
 		}
 

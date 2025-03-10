@@ -1502,7 +1502,7 @@ func apexFileForJavaModule(ctx android.ModuleContext, module android.Module, jav
 func apexFileForJavaModuleWithFile(ctx android.ModuleContext, module android.Module,
 	javaInfo *java.JavaInfo, dexImplementationJar android.Path) apexFile {
 	dirInApex := "javalib"
-	commonInfo := android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey)
+	commonInfo := android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoProvider)
 	af := newApexFile(ctx, dexImplementationJar, commonInfo.BaseModuleName, dirInApex, javaSharedLib, module)
 	af.jacocoReportClassesFile = javaInfo.JacocoReportClassesFile
 	if lintInfo, ok := android.OtherModuleProvider(ctx, module, java.LintProvider); ok {
@@ -1635,7 +1635,7 @@ func (a *apexBundle) WalkPayloadDeps(ctx android.BaseModuleContext, do android.P
 func (a *apexBundle) WalkPayloadDepsProxy(ctx android.BaseModuleContext,
 	do func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool) {
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
-		if !android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoKey).CanHaveApexVariants {
+		if !android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoProvider).CanHaveApexVariants {
 			return false
 		}
 		// Filter-out unwanted depedendencies
@@ -1848,7 +1848,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 	if _, ok := depTag.(android.ExcludeFromApexContentsTag); ok {
 		return false
 	}
-	commonInfo := android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoKey)
+	commonInfo := android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoProvider)
 	if !commonInfo.Enabled {
 		return false
 	}

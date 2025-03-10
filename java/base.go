@@ -629,7 +629,7 @@ func CheckStableSdkVersion(ctx android.BaseModuleContext, module android.ModuleP
 			return nil
 		}
 		if info.SdkVersion.Kind == android.SdkCorePlatform {
-			if useLegacyCorePlatformApi(ctx, android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoKey).BaseModuleName) {
+			if useLegacyCorePlatformApi(ctx, android.OtherModuleProviderOrDefault(ctx, module, android.CommonModuleInfoProvider).BaseModuleName) {
 				return fmt.Errorf("non stable SDK %v - uses legacy core platform", info.SdkVersion)
 			} else {
 				// Treat stable core platform as stable.
