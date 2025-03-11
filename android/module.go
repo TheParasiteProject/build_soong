@@ -520,6 +520,11 @@ type baseProperties struct {
 
 	// names of other modules to install on target if this module is installed
 	Target_required []string `android:"arch_variant"`
+
+	// If this is a soong config module, this property will be set to the name of the original
+	// module type. This is used by neverallow to ensure you can't bypass a ModuleType() matcher
+	// just by creating a soong config module type.
+	Soong_config_base_module_type *string `blueprint:"mutated"`
 }
 
 type distProperties struct {

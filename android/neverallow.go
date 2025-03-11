@@ -412,7 +412,8 @@ func neverallowMutator(ctx BottomUpMutatorContext) {
 			continue
 		}
 
-		if !n.appliesToModuleType(ctx.ModuleType()) {
+		modType := proptools.StringDefault(m.base().baseProperties.Soong_config_base_module_type, ctx.ModuleType())
+		if !n.appliesToModuleType(modType) {
 			continue
 		}
 
