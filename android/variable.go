@@ -656,6 +656,7 @@ type PartitionVariables struct {
 	ProductUseDynamicPartitions       bool                                     `json:",omitempty"`
 	ProductRetrofitDynamicPartitions  bool                                     `json:",omitempty"`
 	ProductBuildSuperPartition        bool                                     `json:",omitempty"`
+	BuildingSuperEmptyImage           bool                                     `json:",omitempty"`
 	BoardSuperPartitionSize           string                                   `json:",omitempty"`
 	BoardSuperPartitionMetadataDevice string                                   `json:",omitempty"`
 	BoardSuperPartitionBlockDevices   []string                                 `json:",omitempty"`

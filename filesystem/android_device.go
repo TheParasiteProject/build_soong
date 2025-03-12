@@ -623,6 +623,10 @@ func (a *androidDevice) copyImagesToTargetZip(ctx android.ModuleContext, builder
 					builder.Command().Textf("cp ").Input(info.SubImageInfo[partition].MapFile).Textf(" %s/IMAGES/", targetFilesDir.String())
 				}
 			}
+			// super_empty.img
+			if info.SuperEmptyImage != nil {
+				builder.Command().Textf("cp ").Input(info.SuperEmptyImage).Textf(" %s/IMAGES/", targetFilesDir.String())
+			}
 		} else {
 			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
 		}
