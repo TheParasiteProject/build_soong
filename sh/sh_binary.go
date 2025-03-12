@@ -574,6 +574,10 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, s.testConfig.String())
 	}
 	moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, s.extraTestConfigs.Strings()...)
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: s.testProperties.Test_suites,
+	})
 }
 
 func addArch(archType string, paths android.Paths) []string {

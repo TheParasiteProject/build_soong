@@ -787,6 +787,10 @@ func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContex
 	a.updateModuleInfoJSON(ctx)
 
 	a.data = android.PathsForModuleSrc(ctx, a.testProperties.Data)
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: a.testProperties.Test_suites,
+	})
 }
 
 func (a *AndroidTestImport) updateModuleInfoJSON(ctx android.ModuleContext) {

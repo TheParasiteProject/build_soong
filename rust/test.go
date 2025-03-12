@@ -320,6 +320,10 @@ func (test *testDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *and
 	} else {
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: test.Properties.Test_suites,
+	})
 }
 
 func rustTestHostMultilib(ctx android.LoadHookContext) {
