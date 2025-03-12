@@ -425,6 +425,10 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 	} else {
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: a.appTestHelperAppProperties.Test_suites,
+	})
 }
 
 func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -1703,6 +1707,10 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		moduleInfoJSON.AutoTestConfig = []string{"true"}
 	}
 	moduleInfoJSON.TestMainlineModules = append(moduleInfoJSON.TestMainlineModules, a.testProperties.Test_mainline_modules...)
+
+	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
+		TestSuites: a.testProperties.Test_suites,
+	})
 }
 
 func testcaseRel(paths android.Paths) []string {

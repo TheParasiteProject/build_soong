@@ -528,6 +528,14 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module) {
 
 	fmt.Fprintf(&a.header, "\ninclude $(CLEAR_VARS)  # type: %s, name: %s, variant: %s\n", ctx.ModuleType(mod), base.BaseModuleName(), ctx.ModuleSubDir(mod))
 
+	// Add the TestSuites from the provider to LOCAL_SOONG_PROVIDER_TEST_SUITES.
+	// LOCAL_SOONG_PROVIDER_TEST_SUITES will be compared against LOCAL_COMPATIBILITY_SUITES
+	// in make and enforced they're the same, to ensure we've successfully translated all
+	// LOCAL_COMPATIBILITY_SUITES usages to the provider.
+	if testSuiteInfo, ok := OtherModuleProvider(ctx, mod, TestSuiteInfoProvider); ok {
+		a.AddStrings("LOCAL_SOONG_PROVIDER_TEST_SUITES", testSuiteInfo.TestSuites...)
+	}
+
 	// Collect make variable assignment entries.
 	a.SetString("LOCAL_PATH", ctx.ModuleDir(mod))
 	a.SetString("LOCAL_MODULE", name+a.SubName)
@@ -1476,11 +1484,16 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod Module, comm
 	a.Host_required = append(a.Host_required, commonInfo.HostRequiredModuleNames...)
 	a.Target_required = append(a.Target_required, commonInfo.TargetRequiredModuleNames...)
 
-	for _, distString := range a.GetDistForGoals(ctx, mod, commonInfo) {
-		a.HeaderStrings = append(a.HeaderStrings, distString)
-	}
-
+	a.HeaderStrings = append(a.HeaderStrings, a.GetDistForGoals(ctx, mod, commonInfo)...)
 	a.HeaderStrings = append(a.HeaderStrings, fmt.Sprintf("\ninclude $(CLEAR_VARS)  # type: %s, name: %s, variant: %s", ctx.ModuleType(mod), commonInfo.BaseModuleName, ctx.ModuleSubDir(mod)))
+
+	// Add the TestSuites from the provider to LOCAL_SOONG_PROVIDER_TEST_SUITES.
+	// LOCAL_SOONG_PROVIDER_TEST_SUITES will be compared against LOCAL_COMPATIBILITY_SUITES
+	// in make and enforced they're the same, to ensure we've successfully translated all
+	// LOCAL_COMPATIBILITY_SUITES usages to the provider.
+	if testSuiteInfo, ok := OtherModuleProvider(ctx, mod, TestSuiteInfoProvider); ok {
+		helperInfo.AddStrings("LOCAL_SOONG_PROVIDER_TEST_SUITES", testSuiteInfo.TestSuites...)
+	}
 
 	// Collect make variable assignment entries.
 	helperInfo.SetString("LOCAL_PATH", ctx.ModuleDir(mod))
