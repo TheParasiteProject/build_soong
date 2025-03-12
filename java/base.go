@@ -888,6 +888,10 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	// Add dependency on libraries that provide additional hidden api annotations.
 	ctx.AddVariationDependencies(nil, hiddenApiAnnotationsTag, j.properties.Hiddenapi_additional_annotations...)
 
+	// Add dependency on (soft) downstream libs from which to trace references during optimization.
+	traceRefs := j.dexProperties.Optimize.Trace_references_from.GetOrDefault(ctx, []string{})
+	ctx.AddVariationDependencies(nil, traceReferencesTag, traceRefs...)
+
 	// For library dependencies that are component libraries (like stubs), add the implementation
 	// as a dependency (dexpreopt needs to be against the implementation library, not stubs).
 	for _, dep := range libDeps {

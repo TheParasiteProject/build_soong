@@ -578,6 +578,7 @@ var (
 	extraLintCheckTag       = dependencyTag{name: "extra-lint-check", toolchain: true}
 	jniLibTag               = dependencyTag{name: "jnilib", runtimeLinked: true}
 	r8LibraryJarTag         = dependencyTag{name: "r8-libraryjar", runtimeLinked: true}
+	traceReferencesTag      = dependencyTag{name: "trace-references"}
 	syspropPublicStubDepTag = dependencyTag{name: "sysprop public stub"}
 	javaApiContributionTag  = dependencyTag{name: "java-api-contribution"}
 	aconfigDeclarationTag   = dependencyTag{name: "aconfig-declaration"}
@@ -608,6 +609,7 @@ var (
 		kotlinPluginTag,
 		syspropPublicStubDepTag,
 		instrumentationForTag,
+		traceReferencesTag,
 	}
 )
 
