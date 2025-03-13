@@ -325,39 +325,43 @@ func (s *superImage) dumpDynamicPartitionInfo(ctx android.ModuleContext, sb *str
 		sb.WriteRune('\n')
 	}
 
-	addStr("build_super_partition", "true")
-	if proptools.Bool(s.properties.Create_super_empty) {
-		addStr("build_super_empty_partition", "true")
-	}
 	addStr("use_dynamic_partitions", strconv.FormatBool(proptools.Bool(s.properties.Use_dynamic_partitions)))
 	if proptools.Bool(s.properties.Retrofit) {
 		addStr("dynamic_partition_retrofit", "true")
 	}
 	addStr("lpmake", "lpmake")
+	addStr("build_super_partition", "true")
+	if proptools.Bool(s.properties.Create_super_empty) {
+		addStr("build_super_empty_partition", "true")
+	}
 	addStr("super_metadata_device", proptools.String(s.properties.Metadata_device))
 	if len(s.properties.Block_devices) > 0 {
 		addStr("super_block_devices", strings.Join(s.properties.Block_devices, " "))
 	}
-	if proptools.Bool(s.properties.Super_image_in_update_package) {
-		addStr("super_image_in_update_package", "true")
-	}
-	addStr("super_partition_size", strconv.Itoa(proptools.Int(s.properties.Size)))
 	// TODO: In make, there's more complicated logic than just this surrounding super_*_device_size
 	addStr("super_super_device_size", strconv.Itoa(proptools.Int(s.properties.Size)))
 	var groups, partitionList []string
 	for _, groupInfo := range s.properties.Partition_groups {
 		groups = append(groups, groupInfo.Name)
 		partitionList = append(partitionList, groupInfo.PartitionList...)
-		addStr("super_"+groupInfo.Name+"_group_size", groupInfo.GroupSize)
-		addStr("super_"+groupInfo.Name+"_partition_list", strings.Join(groupInfo.PartitionList, " "))
 	}
+	addStr("dynamic_partition_list", strings.Join(android.SortedUniqueStrings(partitionList), " "))
+	addStr("super_partition_groups", strings.Join(groups, " "))
 	initialPartitionListLen := len(partitionList)
 	partitionList = android.SortedUniqueStrings(partitionList)
 	if len(partitionList) != initialPartitionListLen {
 		ctx.ModuleErrorf("Duplicate partitions found in the partition_groups property")
 	}
-	addStr("super_partition_groups", strings.Join(groups, " "))
-	addStr("dynamic_partition_list", strings.Join(partitionList, " "))
+	// Add Partition group info after adding `super_partition_groups` and `dynamic_partition_list`
+	for _, groupInfo := range s.properties.Partition_groups {
+		addStr("super_"+groupInfo.Name+"_group_size", groupInfo.GroupSize)
+		addStr("super_"+groupInfo.Name+"_partition_list", strings.Join(groupInfo.PartitionList, " "))
+	}
+
+	if proptools.Bool(s.properties.Super_image_in_update_package) {
+		addStr("super_image_in_update_package", "true")
+	}
+	addStr("super_partition_size", strconv.Itoa(proptools.Int(s.properties.Size)))
 
 	if proptools.Bool(s.properties.Virtual_ab.Enable) {
 		addStr("virtual_ab", "true")
@@ -372,11 +376,11 @@ func (s *superImage) dumpDynamicPartitionInfo(ctx android.ModuleContext, sb *str
 			}
 			addStr("virtual_ab_compression_method", *s.properties.Virtual_ab.Compression_method)
 		}
-		if s.properties.Virtual_ab.Compression_factor != nil {
-			addStr("virtual_ab_compression_factor", strconv.FormatInt(*s.properties.Virtual_ab.Compression_factor, 10))
-		}
 		if s.properties.Virtual_ab.Cow_version != nil {
 			addStr("virtual_ab_cow_version", strconv.FormatInt(*s.properties.Virtual_ab.Cow_version, 10))
+		}
+		if s.properties.Virtual_ab.Compression_factor != nil {
+			addStr("virtual_ab_compression_factor", strconv.FormatInt(*s.properties.Virtual_ab.Compression_factor, 10))
 		}
 
 	} else {
@@ -401,6 +405,6 @@ func (s *superImage) generateDynamicPartitionsInfo(ctx android.ModuleContext) an
 	var contents strings.Builder
 	s.dumpDynamicPartitionInfo(ctx, &contents)
 	dynamicPartitionsInfo := android.PathForModuleOut(ctx, "dynamic_partitions_info.txt")
-	android.WriteFileRule(ctx, dynamicPartitionsInfo, contents.String())
+	android.WriteFileRuleVerbatim(ctx, dynamicPartitionsInfo, contents.String())
 	return dynamicPartitionsInfo
 }
