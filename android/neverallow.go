@@ -309,6 +309,10 @@ func createLimitGenruleRules() []Rule {
 		"trusty_tee_package_goog",
 		"trusty_tee_package",
 		// Trusty vm target names
+		"trusty_desktop_vm_arm64.bin",
+		"trusty_desktop_vm_x86_64.elf",
+		"trusty_desktop_test_vm_arm64.bin",
+		"trusty_desktop_test_vm_x86_64.elf",
 		"trusty_test_vm_arm64.bin",
 		"trusty_test_vm_x86_64.elf",
 		"trusty_test_vm_os_arm64.bin",
