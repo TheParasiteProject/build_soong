@@ -140,6 +140,9 @@ func TestPackageZipFactory() android.Module {
 }
 
 func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	// Never install this test package, it's for disting only
+	p.SkipInstall()
+
 	if !android.InList(ctx.ModuleName(), moduleNamesAllowed) {
 		ctx.ModuleErrorf("%s is not allowed to use module type test_package")
 	}
