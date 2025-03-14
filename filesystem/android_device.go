@@ -780,6 +780,16 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		builder.Command().Textf("echo boot_images=boot.img >> %s", miscInfo)
 	}
 
+	if a.partitionProps.Super_partition_name != nil {
+		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
+		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
+			// cat dynamic_partition_info.txt
+			builder.Command().Text("cat").Input(info.DynamicPartitionsInfo).Textf(" >> %s", miscInfo)
+		} else {
+			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
+		}
+	}
+
 	builder.Build("misc_info", "Building misc_info")
 
 	return miscInfo
