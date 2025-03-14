@@ -464,7 +464,7 @@ func (d dex2oatDependencyTag) AllowDisabledModuleDependency(target android.Modul
 
 func (d dex2oatDependencyTag) AllowDisabledModuleDependencyProxy(
 	ctx android.OtherModuleProviderContext, target android.ModuleProxy) bool {
-	return android.OtherModuleProviderOrDefault(
+	return android.OtherModulePointerProviderOrDefault(
 		ctx, target, android.CommonModuleInfoProvider).ReplacedByPrebuilt
 }
 

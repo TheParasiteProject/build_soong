@@ -510,7 +510,7 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				// so that it's compatible with the default rpath values.
 				var relPath string
 				linkableInfo := android.OtherModuleProviderOrDefault(ctx, dep, cc.LinkableInfoProvider)
-				commonInfo := android.OtherModuleProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
+				commonInfo := android.OtherModulePointerProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
 
 				if commonInfo.Target.Arch.ArchType.Multilib == "lib64" {
 					relPath = filepath.Join("lib64", linkableInfo.OutputFile.Path().Base())
