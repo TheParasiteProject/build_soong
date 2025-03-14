@@ -2654,6 +2654,8 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 			return proptools.ConfigurableValueBool(ctx.Config().UseDebugArt())
 		case "selinux_ignore_neverallows":
 			return proptools.ConfigurableValueBool(ctx.Config().SelinuxIgnoreNeverallows())
+		case "always_use_prebuilt_sdks":
+			return proptools.ConfigurableValueBool(ctx.Config().AlwaysUsePrebuiltSdks())
 		default:
 			// TODO(b/323382414): Might add these on a case-by-case basis
 			ctx.OtherModulePropertyErrorf(m, property, fmt.Sprintf("TODO(b/323382414): Product variable %q is not yet supported in selects", variable))
