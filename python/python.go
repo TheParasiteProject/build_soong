@@ -768,14 +768,13 @@ func (p *PythonLibraryModule) zipSharedLibs(ctx android.ModuleContext, bundleSha
 		Rule:        zip,
 		Description: "bundle shared libraries for python binary",
 		Output:      srcsZip,
-		Implicits:      paths,
+		Implicits:   paths,
 		Args: map[string]string{
 			"args": strings.Join(parArgs, " "),
 		},
 	})
 	return srcsZip
 }
-
 
 // chckForDuplicateOutputPath checks whether outputPath has already been included in map m, which
 // would result in two files being placed in the same location.
