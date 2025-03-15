@@ -1002,8 +1002,16 @@ func (m *ModuleBase) baseDepsMutator(ctx BottomUpMutatorContext) {
 	pv := ctx.Config().productVariables
 	fullManifest := pv.DeviceArch != nil && pv.DeviceName != nil
 	if fullManifest {
-		addRequiredDeps(ctx)
 		addVintfFragmentDeps(ctx)
+	}
+}
+
+// required property can be overridden too; handle it separately
+func (m *ModuleBase) baseOverridablePropertiesDepsMutator(ctx BottomUpMutatorContext) {
+	pv := ctx.Config().productVariables
+	fullManifest := pv.DeviceArch != nil && pv.DeviceName != nil
+	if fullManifest {
+		addRequiredDeps(ctx)
 	}
 }
 
