@@ -613,6 +613,8 @@ func (s *ShTest) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.AddStrings("LOCAL_EXTRA_FULL_TEST_CONFIGS", s.extraTestConfigs.Strings()...)
 				}
 
+				entries.SetBoolIfTrue("LOCAL_DISABLE_AUTO_GENERATE_TEST_CONFIG", !proptools.BoolDefault(s.testProperties.Auto_gen_config, true))
+
 				s.testProperties.Test_options.SetAndroidMkEntries(entries)
 			},
 		},
