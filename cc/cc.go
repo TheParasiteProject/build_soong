@@ -3422,7 +3422,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
-		commonInfo := android.OtherModuleProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
+		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
 		if commonInfo.Target.Os != ctx.Os() {
 			ctx.ModuleErrorf("OS mismatch between %q (%s) and %q (%s)", ctx.ModuleName(), ctx.Os().Name, depName, dep.Target().Os.Name)
 			return
@@ -3676,7 +3676,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					c.sabi.Properties.ReexportedSystemIncludes, depExporterInfo.SystemIncludeDirs.Strings()...)
 			}
 
-			makeLibName := MakeLibName(ccInfo, linkableInfo, &commonInfo, commonInfo.BaseModuleName) + libDepTag.makeSuffix
+			makeLibName := MakeLibName(ccInfo, linkableInfo, commonInfo, commonInfo.BaseModuleName) + libDepTag.makeSuffix
 			switch {
 			case libDepTag.header():
 				c.Properties.AndroidMkHeaderLibs = append(
@@ -3703,7 +3703,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			switch depTag {
 			case runtimeDepTag:
 				c.Properties.AndroidMkRuntimeLibs = append(
-					c.Properties.AndroidMkRuntimeLibs, MakeLibName(ccInfo, linkableInfo, &commonInfo,
+					c.Properties.AndroidMkRuntimeLibs, MakeLibName(ccInfo, linkableInfo, commonInfo,
 						commonInfo.BaseModuleName)+libDepTag.makeSuffix)
 			case objDepTag:
 				depPaths.Objs.objFiles = append(depPaths.Objs.objFiles, linkFile.Path())
@@ -3779,7 +3779,7 @@ func ShouldUseStubForApex(ctx android.ModuleContext, parent android.Module, dep 
 		// platform APIs, use stubs only when it is from an APEX (and not from
 		// platform) However, for host, ramdisk, vendor_ramdisk, recovery or
 		// bootstrap modules, always link to non-stub variant
-		isNotInPlatform := android.OtherModuleProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider).NotInPlatform
+		isNotInPlatform := android.OtherModulePointerProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider).NotInPlatform
 
 		useStubs = isNotInPlatform && !bootstrap
 	} else {

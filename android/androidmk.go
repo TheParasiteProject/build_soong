@@ -888,14 +888,14 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []Module) ([]distCo
 			}
 		}
 
-		commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider)
+		commonInfo := OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
 		if commonInfo.SkipAndroidMkProcessing {
 			continue
 		}
 		if info, ok := OtherModuleProvider(ctx, mod, AndroidMkInfoProvider); ok {
 			// Deep copy the provider info since we need to modify the info later
 			info := deepCopyAndroidMkProviderInfo(info)
-			info.PrimaryInfo.fillInEntries(ctx, mod, &commonInfo)
+			info.PrimaryInfo.fillInEntries(ctx, mod, commonInfo)
 			if info.PrimaryInfo.disabled() {
 				continue
 			}
@@ -1320,7 +1320,7 @@ var AndroidMkInfoProvider = blueprint.NewProvider[*AndroidMkProviderInfo]()
 // Please only access the module's internal data through providers.
 func translateAndroidMkEntriesInfoModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *[]*ModuleInfoJSON,
 	mod Module, providerInfo *AndroidMkProviderInfo) error {
-	commonInfo, _ := OtherModuleProvider(ctx, mod, CommonModuleInfoProvider)
+	commonInfo := OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
 	if commonInfo.SkipAndroidMkProcessing {
 		return nil
 	}
@@ -1331,11 +1331,11 @@ func translateAndroidMkEntriesInfoModule(ctx SingletonContext, w io.Writer, modu
 	aconfigUpdateAndroidMkInfos(ctx, mod, &info)
 
 	// Any new or special cases here need review to verify correct propagation of license information.
-	info.PrimaryInfo.fillInEntries(ctx, mod, &commonInfo)
+	info.PrimaryInfo.fillInEntries(ctx, mod, commonInfo)
 	info.PrimaryInfo.write(w)
 	if len(info.ExtraInfo) > 0 {
 		for _, ei := range info.ExtraInfo {
-			ei.fillInEntries(ctx, mod, &commonInfo)
+			ei.fillInEntries(ctx, mod, commonInfo)
 			ei.write(w)
 		}
 	}

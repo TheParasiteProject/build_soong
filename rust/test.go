@@ -165,7 +165,7 @@ func (test *testDecorator) install(ctx ModuleContext) {
 		if linkableDep.OutputFile.Valid() {
 			// Copy the output in "lib[64]" so that it's compatible with
 			// the default rpath values.
-			commonInfo := android.OtherModuleProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
+			commonInfo := android.OtherModulePointerProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
 			libDir := "lib"
 			if commonInfo.Target.Arch.ArchType.Multilib == "lib64" {
 				libDir = "lib64"

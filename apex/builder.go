@@ -1111,7 +1111,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 
 		// Skip dependencies that are only available to APEXes; they are developed with updatability
 		// in mind and don't need manual approval.
-		if android.OtherModuleProviderOrDefault(ctx, to, android.CommonModuleInfoProvider).NotAvailableForPlatform {
+		if android.OtherModulePointerProviderOrDefault(ctx, to, android.CommonModuleInfoProvider).NotAvailableForPlatform {
 			return !externalDep
 		}
 

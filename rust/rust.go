@@ -1480,10 +1480,10 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		rustInfo, hasRustInfo := android.OtherModuleProvider(ctx, dep, RustInfoProvider)
 		ccInfo, _ := android.OtherModuleProvider(ctx, dep, cc.CcInfoProvider)
 		linkableInfo, hasLinkableInfo := android.OtherModuleProvider(ctx, dep, cc.LinkableInfoProvider)
-		commonInfo := android.OtherModuleProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
+		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, dep, android.CommonModuleInfoProvider)
 		if hasRustInfo && !linkableInfo.Static && !linkableInfo.Shared {
 			//Handle Rust Modules
-			makeLibName := rustMakeLibName(rustInfo, linkableInfo, &commonInfo, depName+rustInfo.RustSubName)
+			makeLibName := rustMakeLibName(rustInfo, linkableInfo, commonInfo, depName+rustInfo.RustSubName)
 
 			switch {
 			case depTag == dylibDepTag:
@@ -1628,7 +1628,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			}
 		} else if hasLinkableInfo {
 			//Handle C dependencies
-			makeLibName := cc.MakeLibName(ccInfo, linkableInfo, &commonInfo, depName)
+			makeLibName := cc.MakeLibName(ccInfo, linkableInfo, commonInfo, depName)
 			if !hasRustInfo {
 				if commonInfo.Target.Os != ctx.Os() {
 					ctx.ModuleErrorf("OS mismatch between %q and %q", ctx.ModuleName(), depName)

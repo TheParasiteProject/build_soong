@@ -39,7 +39,7 @@ type StubsAvailableModule interface {
 
 // Returns true if the dependency module is a stubs module
 var depIsStubsModule exceptionHandleFunc = func(mctx ModuleContext, _ Module, dep ModuleProxy) bool {
-	return OtherModuleProviderOrDefault(mctx, dep, CommonModuleInfoProvider).IsStubsModule
+	return OtherModulePointerProviderOrDefault(mctx, dep, CommonModuleInfoProvider).IsStubsModule
 }
 
 // Returns true if the dependency module belongs to any of the apexes.

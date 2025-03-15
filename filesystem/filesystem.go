@@ -1473,7 +1473,7 @@ func (f *filesystem) getLibsForLinkerConfig(ctx android.ModuleContext) ([]androi
 
 	deps := f.gatherFilteredPackagingSpecs(ctx)
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
-		if !android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoProvider).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, child, android.CommonModuleInfoProvider).Enabled {
 			return false
 		}
 		for _, ps := range android.OtherModuleProviderOrDefault(
@@ -1494,7 +1494,7 @@ func (f *filesystem) getLibsForLinkerConfig(ctx android.ModuleContext) ([]androi
 
 	var requireModules []android.ModuleProxy
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
-		if !android.OtherModuleProviderOrDefault(ctx, child, android.CommonModuleInfoProvider).Enabled {
+		if !android.OtherModulePointerProviderOrDefault(ctx, child, android.CommonModuleInfoProvider).Enabled {
 			return false
 		}
 		_, parentInPackage := modulesInPackageByModule[parent]
