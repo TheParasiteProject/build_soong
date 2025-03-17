@@ -452,9 +452,9 @@ type FilesystemInfo struct {
 
 	Owners []InstalledModuleInfo
 
-	UseAvb bool
-
 	HasFsverity bool
+
+	PropFileForMiscInfo android.Path
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -638,9 +638,11 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	var buildImagePropFile android.Path
 	var buildImagePropFileDeps android.Paths
 	var extraRootDirs android.Paths
+	var propFileForMiscInfo android.Path
 	switch f.fsType(ctx) {
 	case ext4Type, erofsType, f2fsType:
 		buildImagePropFile, buildImagePropFileDeps = f.buildPropFile(ctx)
+		propFileForMiscInfo = f.buildPropFileForMiscInfo(ctx)
 		output := android.PathForModuleOut(ctx, f.installFileName())
 		f.buildImageUsingBuildImage(ctx, builder, buildImageParams{rootDir, buildImagePropFile, buildImagePropFileDeps, output})
 		f.output = output
@@ -703,12 +705,12 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rootDir, f.output)},
 			includeFilesInstalledFiles(ctx),
 		),
-		ErofsCompressHints: erofsCompressHints,
-		SelinuxFc:          f.selinuxFc,
-		FilesystemConfig:   f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
-		Owners:             f.gatherOwners(specs),
-		UseAvb:             proptools.Bool(f.properties.Use_avb),
-		HasFsverity:        f.properties.Fsverity.Inputs.GetOrDefault(ctx, nil) != nil,
+		ErofsCompressHints:  erofsCompressHints,
+		SelinuxFc:           f.selinuxFc,
+		FilesystemConfig:    f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
+		Owners:              f.gatherOwners(specs),
+		HasFsverity:         f.properties.Fsverity.Inputs.GetOrDefault(ctx, nil) != nil,
+		PropFileForMiscInfo: propFileForMiscInfo,
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
@@ -1142,6 +1144,79 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 		Output: propFile,
 	})
 	return propFile, deps
+}
+
+func (f *filesystem) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Path {
+	var lines []string
+	addStr := func(name string, value string) {
+		lines = append(lines, fmt.Sprintf("%s=%s", name, value))
+	}
+
+	addStr("use_dynamic_partition_size", "true")
+	addStr("ext_mkuserimg", "mkuserimg_mke2fs")
+
+	addStr("building_"+f.partitionName()+"_image", "true")
+	addStr(f.partitionName()+"_fs_type", f.fsType(ctx).String())
+
+	if proptools.Bool(f.properties.Use_avb) {
+		addStr("avb_"+f.partitionName()+"_hashtree_enable", "true")
+		if f.properties.Avb_private_key != nil {
+			key := android.PathForModuleSrc(ctx, *f.properties.Avb_private_key)
+			addStr("avb_"+f.partitionName()+"_key_path", key.String())
+		}
+		addStr("avb_"+f.partitionName()+"_add_hashtree_footer_args", strings.TrimSpace(f.getAvbAddHashtreeFooterArgs(ctx)))
+	}
+
+	if f.selinuxFc != nil {
+		addStr(f.partitionName()+"_selinux_fc", f.selinuxFc.String())
+	}
+
+	// Disable sparse only when partition size is not defined. disable_sparse has the same
+	// effect as <partition name>_disable_sparse.
+	if f.properties.Partition_size == nil {
+		addStr(f.partitionName()+"_disable_sparse", "true")
+	}
+
+	fst := f.fsType(ctx)
+	switch fst {
+	case erofsType:
+		// Add erofs properties
+		addStr("erofs_default_compressor", proptools.StringDefault(f.properties.Erofs.Compressor, "lz4hc,9"))
+		if proptools.BoolDefault(f.properties.Erofs.Sparse, true) {
+			// https://source.corp.google.com/h/googleplex-android/platform/build/+/88b1c67239ca545b11580237242774b411f2fed9:core/Makefile;l=2292;bpv=1;bpt=0;drc=ea8f34bc1d6e63656b4ec32f2391e9d54b3ebb6b
+			addStr("erofs_sparse_flag", "-s")
+		}
+	case f2fsType:
+		if proptools.BoolDefault(f.properties.F2fs.Sparse, true) {
+			// https://source.corp.google.com/h/googleplex-android/platform/build/+/88b1c67239ca545b11580237242774b411f2fed9:core/Makefile;l=2294;drc=ea8f34bc1d6e63656b4ec32f2391e9d54b3ebb6b;bpv=1;bpt=0
+			addStr("f2fs_sparse_flag", "-S")
+		}
+	}
+
+	if proptools.BoolDefault(f.properties.Support_casefolding, false) {
+		addStr("needs_casefold", "1")
+	}
+
+	if proptools.BoolDefault(f.properties.Support_project_quota, false) {
+		addStr("needs_projid", "1")
+	}
+
+	if proptools.BoolDefault(f.properties.Enable_compression, false) {
+		addStr("needs_compress", "1")
+	}
+
+	sort.Strings(lines)
+
+	propFilePreProcessing := android.PathForModuleOut(ctx, "prop_misc_info_pre_processing")
+	android.WriteFileRule(ctx, propFilePreProcessing, strings.Join(lines, "\n"))
+	propFile := android.PathForModuleOut(ctx, "prop_file_for_misc_info")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   textFileProcessorRule,
+		Input:  propFilePreProcessing,
+		Output: propFile,
+	})
+
+	return propFile
 }
 
 func (f *filesystem) getAvbAddHashtreeFooterArgs(ctx android.ModuleContext) string {

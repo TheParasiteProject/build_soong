@@ -766,8 +766,8 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	}
 	fsInfos := a.getFsInfos(ctx)
 	for _, partition := range android.SortedKeys(fsInfos) {
-		if fsInfos[partition].UseAvb {
-			builder.Command().Textf("echo 'avb_%s_hashtree_enable=true' >> %s", partition, miscInfo)
+		if fsInfos[partition].PropFileForMiscInfo != nil {
+			builder.Command().Text("cat").Input(fsInfos[partition].PropFileForMiscInfo).Textf(" >> %s", miscInfo)
 		}
 	}
 	if len(a.partitionProps.Vbmeta_partitions) > 0 {
@@ -804,6 +804,9 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		// cat avb_ metadata of the boot images
 		builder.Command().Text("cat").Input(bootImgInfo.PropFileForMiscInfo).Textf(" >> %s", miscInfo)
 	}
+
+	// Sort and dedup
+	builder.Command().Textf("sort -u %s -o %s", miscInfo, miscInfo)
 
 	builder.Build("misc_info", "Building misc_info")
 
