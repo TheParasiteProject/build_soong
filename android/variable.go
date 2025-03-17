@@ -65,12 +65,6 @@ type variableProperties struct {
 			Enabled proptools.Configurable[bool] `android:"arch_variant,replace_instead_of_append"`
 		} `android:"arch_variant"`
 
-		// similar to `Unbundled_build`, but `Always_use_prebuilt_sdks` means that it uses prebuilt
-		// sdk specifically.
-		Always_use_prebuilt_sdks struct {
-			Enabled proptools.Configurable[bool] `android:"arch_variant,replace_instead_of_append"`
-		} `android:"arch_variant"`
-
 		Malloc_low_memory struct {
 			Cflags              []string `android:"arch_variant"`
 			Shared_libs         []string `android:"arch_variant"`
