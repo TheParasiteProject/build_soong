@@ -748,6 +748,11 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 
 }
 
+var (
+	// https://cs.android.com/android/_/android/platform/build/+/30f05352c3e6f4333c77d4af66c253572d3ea6c9:core/Makefile;l=2111-2120;drc=519f75666431ee2926e0ec8991c682b28a4c9521;bpv=1;bpt=0
+	defaultTargetRecoveryFstypeMountOptions = "ext4=max_batch_time=0,commit=1,data=ordered,barrier=1,errors=panic,nodelalloc"
+)
+
 // A partial implementation of make's $PRODUCT_OUT/misc_info.txt
 // https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=5894?q=misc_info.txt%20f:build%2Fmake%2Fcore%2FMakefile&ss=android%2Fplatform%2Fsuperproject%2Fmain
 // This file is subsequently used by add_img_to_target_files to create additioanl metadata files like apex_info.pb
@@ -775,6 +780,7 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		Textf("&& echo fstab_version=%s >> %s", ctx.Config().VendorConfig("recovery").String("recovery_fstab_version"), miscInfo).
 		Textf("&& echo build_type=%s >> %s", buildType(), miscInfo).
 		Textf("&& echo default_system_dev_certificate=%s >> %s", defaultAppCertificate(), miscInfo).
+		Textf("&& echo root_dir=%s >> %s", android.PathForModuleInPartitionInstall(ctx, "root"), miscInfo).
 		ImplicitOutput(miscInfo)
 	if len(ctx.Config().ExtraOtaRecoveryKeys()) > 0 {
 		builder.Command().Textf(`echo "extra_recovery_keys=%s" >> %s`, strings.Join(ctx.Config().ExtraOtaRecoveryKeys(), ""), miscInfo)
@@ -801,6 +807,17 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	if fsInfos["system"].ErofsCompressHints != nil {
 		builder.Command().Textf("echo erofs_default_compress_hints=%s >> %s", fsInfos["system"].ErofsCompressHints, miscInfo)
 	}
+	if releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension)); releaseTools != nil {
+		builder.Command().Textf("echo tool_extensions=%s >> %s", filepath.Dir(releaseTools.String()), miscInfo)
+	}
+	// ramdisk uses `compressed_cpio` fs_type
+	// https://cs.android.com/android/_/android/platform/build/+/30f05352c3e6f4333c77d4af66c253572d3ea6c9:core/Makefile;l=5923-5925;drc=519f75666431ee2926e0ec8991c682b28a4c9521;bpv=1;bpt=0
+	if _, ok := fsInfos["ramdisk"]; ok {
+		builder.Command().Textf("echo lz4_ramdisks=true >> %s", miscInfo)
+	}
+	// recovery_mount_options
+	// TODO: Add support for TARGET_RECOVERY_FSTYPE_MOUNT_OPTIONS which can be used to override the default
+	builder.Command().Textf("echo recovery_mount_options=%s >> %s", defaultTargetRecoveryFstypeMountOptions, miscInfo)
 
 	if a.partitionProps.Recovery_partition_name == nil {
 		builder.Command().Textf("echo no_recovery=true >> %s", miscInfo)
@@ -825,6 +842,10 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
 			// cat dynamic_partition_info.txt
 			builder.Command().Text("cat").Input(info.DynamicPartitionsInfo).Textf(" >> %s", miscInfo)
+			if info.AbUpdate {
+				builder.Command().Textf("echo ab_update=true >> %s", miscInfo)
+			}
+
 		} else {
 			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
 		}
