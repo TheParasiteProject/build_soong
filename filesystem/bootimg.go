@@ -510,6 +510,25 @@ func (b *bootimg) buildPropFile(ctx android.ModuleContext) (android.Path, androi
 	return propFile, deps
 }
 
+func (b *bootimg) getAvbHashFooterArgs(ctx android.ModuleContext) string {
+	ret := ""
+	if !b.bootImageType.isVendorBoot() {
+		ret += "--prop " + fmt.Sprintf("com.android.build.%s.os_version:%s", b.bootImageType.String(), ctx.Config().PlatformVersionLastStable())
+	}
+
+	fingerprintFile := ctx.Config().BuildFingerprintFile(ctx)
+	ret += " --prop " + fmt.Sprintf("com.android.build.%s.fingerprint:{CONTENTS_OF:%s}", b.bootImageType.String(), fingerprintFile.String())
+
+	if b.properties.Security_patch != nil {
+		ret += " --prop " + fmt.Sprintf("com.android.build.%s.security_patch:%s", b.bootImageType.String(), *b.properties.Security_patch)
+	}
+
+	if b.properties.Avb_rollback_index != nil {
+		ret += " --rollback_index " + strconv.FormatInt(*b.properties.Avb_rollback_index, 10)
+	}
+	return strings.TrimSpace(ret)
+}
+
 func (b *bootimg) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Path {
 	var sb strings.Builder
 	addStr := func(name string, value string) {
@@ -517,15 +536,28 @@ func (b *bootimg) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Pa
 	}
 
 	bootImgType := proptools.String(b.properties.Boot_image_type)
-	addStr("avb_"+bootImgType+"_add_hash_footer_args", "TODO(b/398036609)")
+	addStr("avb_"+bootImgType+"_add_hash_footer_args", b.getAvbHashFooterArgs(ctx))
 	if b.properties.Avb_private_key != nil {
 		addStr("avb_"+bootImgType+"_algorithm", proptools.StringDefault(b.properties.Avb_algorithm, "SHA256_RSA4096"))
 		addStr("avb_"+bootImgType+"_key_path", android.PathForModuleSrc(ctx, proptools.String(b.properties.Avb_private_key)).String())
 		addStr("avb_"+bootImgType+"_rollback_index_location", strconv.Itoa(proptools.Int(b.properties.Avb_rollback_index_location)))
 	}
+	if b.properties.Partition_size != nil {
+		addStr(bootImgType+"_size", strconv.FormatInt(*b.properties.Partition_size, 10))
+	}
+	if bootImgType != "boot" {
+		addStr(bootImgType, "true")
+	}
 
-	propFile := android.PathForModuleOut(ctx, "prop_for_misc_info")
-	android.WriteFileRuleVerbatim(ctx, propFile, sb.String())
+	propFilePreProcessing := android.PathForModuleOut(ctx, "prop_for_misc_info_pre_processing")
+	android.WriteFileRuleVerbatim(ctx, propFilePreProcessing, sb.String())
+	propFile := android.PathForModuleOut(ctx, "prop_file_for_misc_info")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   textFileProcessorRule,
+		Input:  propFilePreProcessing,
+		Output: propFile,
+	})
+
 	return propFile
 }
 
