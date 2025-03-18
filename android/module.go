@@ -128,6 +128,9 @@ type Module interface {
 	// WARNING: This should not be used outside build/soong/fsgen
 	// Overrides returns the list of modules which should not be installed if this module is installed.
 	Overrides() []string
+
+	// If this is true, the module must not read product-specific configurations.
+	UseGenericConfig() bool
 }
 
 // Qualified id for a module
@@ -507,6 +510,10 @@ type commonProperties struct {
 	// List of module names that are prevented from being installed when this module gets
 	// installed.
 	Overrides []string
+
+	// Set to true if this module must be generic and does not require product-specific information.
+	// To be included in the system image, this property must be set to true.
+	Use_generic_config *bool
 }
 
 // Properties common to all modules inheriting from ModuleBase. Unlike commonProperties, these
@@ -2586,6 +2593,10 @@ func (m *ModuleBase) DecodeMultilib(ctx ConfigContext) (string, string) {
 
 func (m *ModuleBase) Overrides() []string {
 	return m.commonProperties.Overrides
+}
+
+func (m *ModuleBase) UseGenericConfig() bool {
+	return proptools.Bool(m.commonProperties.Use_generic_config)
 }
 
 type ConfigContext interface {
