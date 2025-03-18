@@ -1303,6 +1303,10 @@ func (c *config) ExtraOtaKeys(ctx PathContext, recovery bool) []SourcePath {
 	return otaPaths
 }
 
+func (c *config) ExtraOtaRecoveryKeys() []string {
+	return c.productVariables.ExtraOtaRecoveryKeys
+}
+
 func (c *config) BuildKeys() string {
 	defaultCert := String(c.productVariables.DefaultAppCertificate)
 	if defaultCert == "" || defaultCert == filepath.Join(testKeyDir, "testkey") {

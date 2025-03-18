@@ -244,6 +244,7 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Bootconfig:          b.getBootconfigPath(ctx),
 		Output:              output,
 		PropFileForMiscInfo: b.buildPropFileForMiscInfo(ctx),
+		HeaderVersion:       proptools.String(b.properties.Header_version),
 	})
 
 	extractedPublicKey := android.PathForModuleOut(ctx, b.partitionName()+".avbpubkey")
@@ -292,6 +293,7 @@ type BootimgInfo struct {
 	Bootconfig          android.Path
 	Output              android.Path
 	PropFileForMiscInfo android.Path
+	HeaderVersion       string
 }
 
 func (b *bootimg) getKernelPath(ctx android.ModuleContext) android.Path {
