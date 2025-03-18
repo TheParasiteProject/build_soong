@@ -225,8 +225,8 @@ type ProductVariables struct {
 	Platform_version_last_stable           *string  `json:",omitempty"`
 	Platform_version_known_codenames       *string  `json:",omitempty"`
 
-	DeviceName                            *string  `json:",omitempty"`
-	DeviceProduct                         *string  `json:",omitempty"`
+	DeviceName                            *string  `json:",omitempty" generic:"generic"`
+	DeviceProduct                         *string  `json:",omitempty" generic:"generic"`
 	DeviceArch                            *string  `json:",omitempty"`
 	DeviceArchVariant                     *string  `json:",omitempty"`
 	DeviceCpuVariant                      *string  `json:",omitempty"`
