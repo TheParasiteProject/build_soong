@@ -1175,6 +1175,10 @@ func (f *filesystem) buildPropFileForMiscInfo(ctx android.ModuleContext) android
 	// effect as <partition name>_disable_sparse.
 	if f.properties.Partition_size == nil {
 		addStr(f.partitionName()+"_disable_sparse", "true")
+	} else if f.partitionName() == "userdata" {
+		// Add userdata's partition size to misc_info.txt.
+		// userdata has been special-cased to make the make packaging misc_info.txt implementation
+		addStr("userdata_size", strconv.FormatInt(*f.properties.Partition_size, 10))
 	}
 
 	fst := f.fsType(ctx)
