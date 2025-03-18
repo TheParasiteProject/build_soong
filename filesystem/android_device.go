@@ -819,6 +819,14 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	// TODO: Add support for TARGET_RECOVERY_FSTYPE_MOUNT_OPTIONS which can be used to override the default
 	builder.Command().Textf("echo recovery_mount_options=%s >> %s", defaultTargetRecoveryFstypeMountOptions, miscInfo)
 
+	// vintf information
+	if proptools.Bool(ctx.Config().ProductVariables().Enforce_vintf_manifest) {
+		builder.Command().Textf("echo vintf_enforce=true >> %s", miscInfo)
+	}
+	if len(ctx.Config().DeviceManifestFiles()) > 0 {
+		builder.Command().Textf("echo vintf_include_empty_vendor_sku=true >> %s", miscInfo)
+	}
+
 	if a.partitionProps.Recovery_partition_name == nil {
 		builder.Command().Textf("echo no_recovery=true >> %s", miscInfo)
 	}
