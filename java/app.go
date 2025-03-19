@@ -1180,6 +1180,14 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.setOutputFiles(ctx)
 
 	buildComplianceMetadata(ctx)
+
+	if !a.hideApexVariantFromMake && !a.IsHideFromMake() {
+		if a.embeddedJniLibs {
+			cc.CopySymbolsAndSetSymbolsInfoProvider(ctx, &cc.SymbolInfos{
+				Symbols: a.GetJniSymbolInfos(ctx, a.installPathForJNISymbols),
+			})
+		}
+	}
 }
 
 func (a *AndroidApp) setOutputFiles(ctx android.ModuleContext) {
