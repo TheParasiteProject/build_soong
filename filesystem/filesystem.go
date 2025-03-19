@@ -455,6 +455,14 @@ type FilesystemInfo struct {
 	HasFsverity bool
 
 	PropFileForMiscInfo android.Path
+
+	// Additional avb and partition size information.
+	// `system_other` will use this information of `system` dep for misc_info.txt processing.
+	PartitionSize    *int64
+	UseAvb           bool
+	AvbAlgorithm     string
+	AvbHashAlgorithm string
+	AvbKey           android.Path
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -711,6 +719,15 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Owners:              f.gatherOwners(specs),
 		HasFsverity:         f.properties.Fsverity.Inputs.GetOrDefault(ctx, nil) != nil,
 		PropFileForMiscInfo: propFileForMiscInfo,
+		PartitionSize:       f.properties.Partition_size,
+	}
+	if proptools.Bool(f.properties.Use_avb) {
+		fsInfo.UseAvb = true
+		fsInfo.AvbAlgorithm = proptools.StringDefault(f.properties.Avb_algorithm, "SHA256_RSA4096")
+		fsInfo.AvbHashAlgorithm = proptools.StringDefault(f.properties.Avb_hash_algorithm, "sha256")
+		if f.properties.Avb_private_key != nil {
+			fsInfo.AvbKey = android.PathForModuleSrc(ctx, *f.properties.Avb_private_key)
+		}
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
