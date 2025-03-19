@@ -16,8 +16,11 @@ package filesystem
 
 import (
 	"android/soong/android"
+	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -172,10 +175,11 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	builder.Build("build_system_other_hermetic", "build system other")
 
 	fsInfo := FilesystemInfo{
-		Output:           output,
-		OutputHermetic:   outputHermetic,
-		RootDir:          stagingDir,
-		FilesystemConfig: m.generateFilesystemConfig(ctx, stagingDir, stagingDirTimestamp),
+		Output:              output,
+		OutputHermetic:      outputHermetic,
+		RootDir:             stagingDir,
+		FilesystemConfig:    m.generateFilesystemConfig(ctx, stagingDir, stagingDirTimestamp),
+		PropFileForMiscInfo: m.buildPropFileForMiscInfo(ctx),
 	}
 
 	android.SetProvider(ctx, FilesystemProvider, fsInfo)
@@ -203,4 +207,53 @@ func (f *systemOtherImage) propFileForHermeticImg(ctx android.ModuleContext, bui
 	builder.Command().Textf("cat").Input(inputPropFile).Flag(">").Output(propFilePinnedTimestamp).
 		Textf(" && echo use_fixed_timestamp=true >> %s", propFilePinnedTimestamp)
 	return propFilePinnedTimestamp
+}
+
+func (f *systemOtherImage) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Path {
+	var lines []string
+	addStr := func(name string, value string) {
+		lines = append(lines, fmt.Sprintf("%s=%s", name, value))
+	}
+
+	addStr("building_system_other_image", "true")
+
+	systemImage := ctx.GetDirectDepProxyWithTag(*f.properties.System_image, systemImageDependencyTag)
+	systemInfo, ok := android.OtherModuleProvider(ctx, systemImage, FilesystemProvider)
+	if !ok {
+		ctx.PropertyErrorf("system_image", "Expected system_image module to provide FilesystemProvider")
+		return nil
+	}
+	if systemInfo.PartitionSize == nil {
+		addStr("system_other_disable_sparse", "true")
+	}
+	if systemInfo.UseAvb {
+		addStr("avb_system_other_hashtree_enable", "true")
+		addStr("avb_system_other_algorithm", systemInfo.AvbAlgorithm)
+		footerArgs := fmt.Sprintf("--hash_algorithm %s", systemInfo.AvbHashAlgorithm)
+		if rollbackIndex, err := f.avbRollbackIndex(ctx); err == nil {
+			footerArgs += fmt.Sprintf(" --rollback_index %d", rollbackIndex)
+		} else {
+			ctx.ModuleErrorf("Could not determine rollback_index %s\n", err)
+		}
+		addStr("avb_system_other_add_hashtree_footer_args", footerArgs)
+		if systemInfo.AvbKey != nil {
+			addStr("avb_system_other_key_path", systemInfo.AvbKey.String())
+		}
+	}
+
+	sort.Strings(lines)
+
+	propFile := android.PathForModuleOut(ctx, "prop_file")
+	android.WriteFileRule(ctx, propFile, strings.Join(lines, "\n"))
+	return propFile
+}
+
+// Use the default: PlatformSecurityPatch
+// TODO: Get this value from vbmeta_system
+func (f *systemOtherImage) avbRollbackIndex(ctx android.ModuleContext) (int64, error) {
+	t, err := time.Parse(time.DateOnly, ctx.Config().PlatformSecurityPatch())
+	if err != nil {
+		return -1, err
+	}
+	return t.Unix(), err
 }
