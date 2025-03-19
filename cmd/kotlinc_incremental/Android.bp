@@ -48,6 +48,7 @@ java_library_host {
     kotlincflags: [
         "-Werror",
     ],
+    kotlin_incremental: false,
 }
 
 java_binary_host {
@@ -59,6 +60,7 @@ java_binary_host {
         "kotlin-build-tools-impl",
         "kotlin-compose-compiler-embeddable",
     ],
+    kotlin_incremental: false,
 }
 
 java_binary_host {
