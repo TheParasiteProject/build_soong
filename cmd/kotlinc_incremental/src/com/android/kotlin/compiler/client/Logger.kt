@@ -18,31 +18,32 @@ package com.android.kotlin.compiler.client
 
 import org.jetbrains.kotlin.buildtools.api.KotlinLogger
 
-class Logger : KotlinLogger {
-    override val isDebugEnabled: Boolean
-        get() = true
-
+class Logger(private val verbose: Boolean, override val isDebugEnabled: Boolean) : KotlinLogger {
     override fun debug(msg: String) {
-        println(msg)
+        if (isDebugEnabled) {
+            println("DEBUG: " + msg)
+        }
     }
 
     override fun error(msg: String, throwable: Throwable?) {
-        println(msg)
+        println("ERROR: " + msg)
         if (throwable != null) {
             println(throwable)
         }
     }
 
     override fun info(msg: String) {
-        println(msg)
+        if (verbose) {
+            println("INFO: " + msg)
+        }
     }
 
     override fun lifecycle(msg: String) {
-        println(msg)
+        println("LIFECYCLE: " + msg)
     }
 
     override fun warn(msg: String, throwable: Throwable?) {
-        println(msg)
+        println("WARN: " + msg)
         if (throwable != null) {
             println(throwable)
         }
