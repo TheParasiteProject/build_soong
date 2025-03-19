@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -2699,6 +2700,13 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 					return proptools.ConfigurableValueString(v)
 				case "bool":
 					return proptools.ConfigurableValueBool(v == "true")
+				case "int":
+					i, err := strconv.ParseInt(v, 10, 64)
+					if err != nil {
+						ctx.OtherModulePropertyErrorf(m, property, "integer soong_config_variable was not an int: %q", v)
+						return proptools.ConfigurableValueUndefined()
+					}
+					return proptools.ConfigurableValueInt(i)
 				case "string_list":
 					return proptools.ConfigurableValueStringList(strings.Split(v, " "))
 				default:
