@@ -840,6 +840,15 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 			Textf("echo avb_enable=true >> %s", miscInfo).
 			Textf("&& echo avb_building_vbmeta_image=true >> %s", miscInfo).
 			Textf("&& echo avb_avbtool=avbtool >> %s", miscInfo)
+		for _, vbmetaPartitionName := range a.partitionProps.Vbmeta_partitions {
+			img := ctx.GetDirectDepProxyWithTag(vbmetaPartitionName, filesystemDepTag)
+			if provider, ok := android.OtherModuleProvider(ctx, img, vbmetaPartitionProvider); ok {
+				builder.Command().Text("cat").Input(provider.PropFileForMiscInfo).Textf(" >> %s", miscInfo)
+			} else {
+				ctx.ModuleErrorf("vbmeta dep %s does not set vbmetaPartitionProvider\n", vbmetaPartitionName)
+			}
+		}
+
 	}
 	if a.partitionProps.Boot_partition_name != nil {
 		builder.Command().Textf("echo boot_images=boot.img >> %s", miscInfo)

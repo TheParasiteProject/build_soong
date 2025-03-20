@@ -16,7 +16,10 @@ package filesystem
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -124,6 +127,10 @@ type vbmetaPartitionInfo struct {
 
 	// The output of the vbmeta module
 	Output android.Path
+
+	// Information about the vbmeta partition that will be added to misc_info.txt
+	// created by android_device
+	PropFileForMiscInfo android.Path
 }
 
 var vbmetaPartitionProvider = blueprint.NewProvider[vbmetaPartitionInfo]()
@@ -302,12 +309,48 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		RollbackIndexLocation: ril,
 		PublicKey:             extractedPublicKey,
 		Output:                output,
+		PropFileForMiscInfo:   v.buildPropFileForMiscInfo(ctx),
 	})
 
 	ctx.SetOutputFiles([]android.Path{output}, "")
 	v.output = output
 
 	setCommonFilesystemInfo(ctx, v)
+}
+
+func (v *vbmeta) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Path {
+	var lines []string
+	addStr := func(name string, value string) {
+		lines = append(lines, fmt.Sprintf("%s=%s", name, value))
+	}
+
+	addStr(fmt.Sprintf("avb_%s_algorithm", v.partitionName()), proptools.StringDefault(v.properties.Algorithm, "SHA256_RSA4096"))
+	if v.properties.Private_key != nil {
+		addStr(fmt.Sprintf("avb_%s_key_path", v.partitionName()), android.PathForModuleSrc(ctx, proptools.String(v.properties.Private_key)).String())
+	}
+	if v.properties.Rollback_index_location != nil {
+		addStr(fmt.Sprintf("avb_%s_rollback_index_location", v.partitionName()), strconv.FormatInt(*v.properties.Rollback_index_location, 10))
+	}
+
+	var partitionDepNames []string
+	ctx.VisitDirectDepsProxyWithTag(vbmetaPartitionDep, func(child android.ModuleProxy) {
+		if info, ok := android.OtherModuleProvider(ctx, child, vbmetaPartitionProvider); ok {
+			partitionDepNames = append(partitionDepNames, info.Name)
+		} else {
+			ctx.ModuleErrorf("vbmeta dep %s does not set vbmetaPartitionProvider\n", child)
+		}
+	})
+	if v.partitionName() != "vbmeta" { // skip for vbmeta to match Make's misc_info.txt
+		addStr(fmt.Sprintf("avb_%s", v.partitionName()), strings.Join(android.SortedUniqueStrings(partitionDepNames), " "))
+	}
+
+	addStr(fmt.Sprintf("avb_%s_args", v.partitionName()), fmt.Sprintf("--padding_size 4096 --rollback_index %s", v.rollbackIndexString(ctx)))
+
+	sort.Strings(lines)
+
+	propFile := android.PathForModuleOut(ctx, "prop_file_for_misc_info")
+	android.WriteFileRule(ctx, propFile, strings.Join(lines, "\n"))
+	return propFile
 }
 
 // Returns the embedded shell command that prints the rollback index
@@ -317,6 +360,17 @@ func (v *vbmeta) rollbackIndexCommand(ctx android.ModuleContext) string {
 	} else {
 		// Take the first line and remove the newline char
 		return "$(date -d 'TZ=\"GMT\" " + ctx.Config().PlatformSecurityPatch() + "' +%s | head -1 | tr -d '\n'" + ")"
+	}
+}
+
+// Similar to rollbackIndexCommand, but guarantees that the rollback index is
+// always computed during Soong analysis, even if v.properties.Rollback_index is nil
+func (v *vbmeta) rollbackIndexString(ctx android.ModuleContext) string {
+	if v.properties.Rollback_index != nil {
+		return fmt.Sprintf("%d", *v.properties.Rollback_index)
+	} else {
+		t, _ := time.Parse(time.DateOnly, ctx.Config().PlatformSecurityPatch())
+		return fmt.Sprintf("%d", t.Unix())
 	}
 }
 
