@@ -82,6 +82,7 @@ type AppInfo struct {
 	Certificate                   Certificate
 	PrivAppAllowlist              android.OptionalPath
 	OverriddenManifestPackageName *string
+	ApkCertsFile                  android.Path
 }
 
 var AppInfoProvider = blueprint.NewProvider[*AppInfo]()

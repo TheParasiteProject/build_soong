@@ -1055,6 +1055,7 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 	}
 
 	apkCerts := []string{}
+	var apkCertsFiles android.Paths
 	for _, installedModule := range allInstalledModules {
 		partition := ""
 		if commonInfo, ok := android.OtherModuleProvider(ctx, installedModule, android.CommonModuleInfoProvider); ok {
@@ -1063,7 +1064,11 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 			ctx.ModuleErrorf("%s does not set CommonModuleInfoKey", installedModule.Name())
 		}
 		if info, ok := android.OtherModuleProvider(ctx, installedModule, java.AppInfoProvider); ok {
-			apkCerts = append(apkCerts, formatLine(info.Certificate, info.InstallApkName+".apk", partition))
+			if info.AppSet {
+				apkCertsFiles = append(apkCertsFiles, info.ApkCertsFile)
+			} else {
+				apkCerts = append(apkCerts, formatLine(info.Certificate, info.InstallApkName+".apk", partition))
+			}
 		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, java.AppInfosProvider); ok {
 			for _, certInfo := range info {
 				// Partition information of apk-in-apex is not exported to the legacy Make packaging system.
@@ -1084,7 +1089,14 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 		}
 	}
 
+	apkCertsInfoWithoutAppSets := android.PathForModuleOut(ctx, "apkcerts_without_app_sets.txt")
+	android.WriteFileRuleVerbatim(ctx, apkCertsInfoWithoutAppSets, strings.Join(apkCerts, "\n")+"\n")
 	apkCertsInfo := android.PathForModuleOut(ctx, "apkcerts.txt")
-	android.WriteFileRuleVerbatim(ctx, apkCertsInfo, strings.Join(apkCerts, "\n")+"\n")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        android.Cat,
+		Description: "combine apkcerts.txt",
+		Output:      apkCertsInfo,
+		Inputs:      append(apkCertsFiles, apkCertsInfoWithoutAppSets),
+	})
 	return apkCertsInfo
 }
