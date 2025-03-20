@@ -83,6 +83,7 @@ bootstrap_go_package {
         "nothing.go",
         "notices.go",
         "onceper.go",
+        "otatools_package_cert_zip.go",
         "override_module.go",
         "package.go",
         "package_ctx.go",
