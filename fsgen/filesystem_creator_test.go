@@ -289,6 +289,10 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 				"device/sample/etc/apns-full-conf.xml:product/etc/apns-conf-2.xml",
 				"device/sample/etc/apns-full-conf.xml:system/foo/file.txt",
 				"device/sample/etc/apns-full-conf.xml:system/foo/apns-full-conf.xml",
+				"device/sample/firmware/firmware.bin:recovery/root/firmware.bin",
+				"device/sample/firmware/firmware.bin:recovery/root/firmware-2.bin",
+				"device/sample/firmware/firmware.bin:recovery/root/lib/firmware/firmware.bin",
+				"device/sample/firmware/firmware.bin:recovery/root/lib/firmware/firmware-2.bin",
 			}
 			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.PartitionQualifiedVariables =
 				map[string]android.PartitionQualifiedVariablesType{
@@ -309,6 +313,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 			"frameworks/base/data/keyboards/Vendor_0079_Product_0011.kl": nil,
 			"frameworks/base/data/keyboards/Vendor_0079_Product_18d4.kl": nil,
 			"device/sample/etc/apns-full-conf.xml":                       nil,
+			"device/sample/firmware/firmware.bin":                        nil,
 		}),
 	).RunTest(t)
 
@@ -324,7 +329,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 
 	// check generated prebuilt_* module type install path and install partition
 	generatedModule := result.ModuleForTests(t, "system-frameworks_base_config-etc-0", "android_arm64_armv8-a").Module()
-	etcModule, _ := generatedModule.(*etc.PrebuiltEtc)
+	etcModule := generatedModule.(*etc.PrebuiltEtc)
 	android.AssertStringEquals(
 		t,
 		"module expected to have etc install path",
@@ -342,7 +347,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 
 	// check generated prebuilt_* module specifies correct relative_install_path property
 	generatedModule = result.ModuleForTests(t, "system-frameworks_base_data_keyboards-usr_keylayout_subdir-0", "android_arm64_armv8-a").Module()
-	etcModule, _ = generatedModule.(*etc.PrebuiltEtc)
+	etcModule = generatedModule.(*etc.PrebuiltEtc)
 	android.AssertStringEquals(
 		t,
 		"module expected to set correct relative_install_path properties",
@@ -490,7 +495,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 	)
 
 	// check generated prebuilt_* module specifies correct install path and relative install path
-	etcModule, _ = generatedModule1.(*etc.PrebuiltEtc)
+	etcModule = generatedModule1.(*etc.PrebuiltEtc)
 	android.AssertStringEquals(
 		t,
 		"module expected to have . install path",
@@ -515,6 +520,140 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 				srcs := p.Srcs.GetOrDefault(eval, nil)
 				if len(srcs) == 1 {
 					return srcs[0]
+				}
+			}
+			return ""
+		}),
+	)
+
+	generatedModule0 = result.ModuleForTests(t, "recovery-device_sample_firmware-0", "android_recovery_arm64_armv8-a").Module()
+	generatedModule1 = result.ModuleForTests(t, "recovery-device_sample_firmware-1", "android_recovery_common").Module()
+
+	// check generated prebuilt_* module specifies correct install path and relative install path
+	etcModule = generatedModule0.(*etc.PrebuiltEtc)
+	android.AssertStringEquals(
+		t,
+		"module expected to have . install path",
+		".",
+		etcModule.BaseDir(),
+	)
+	android.AssertStringEquals(
+		t,
+		"module expected to set empty relative_install_path properties",
+		"",
+		etcModule.SubDir(),
+	)
+
+	// check that generated prebuilt_* module don't set dsts
+	eval = generatedModule0.ConfigurableEvaluator(android.PanickingConfigAndErrorContext(result.TestContext))
+	android.AssertStringEquals(
+		t,
+		"module expected to not set dsts property",
+		"",
+		getModuleProp(generatedModule0, func(actual interface{}) string {
+			if p, ok := actual.(*etc.PrebuiltDstsProperties); ok {
+				dsts := p.Dsts.GetOrDefault(eval, nil)
+				if len(dsts) != 0 {
+					return dsts[0]
+				}
+			}
+			return ""
+		}),
+	)
+
+	// check generated prebuilt_* module specifies correct install path and relative install path
+	etcModule = generatedModule1.(*etc.PrebuiltEtc)
+	android.AssertStringEquals(
+		t,
+		"module expected to have . install path",
+		".",
+		etcModule.BaseDir(),
+	)
+	android.AssertStringEquals(
+		t,
+		"module expected to set empty relative_install_path properties",
+		"",
+		etcModule.SubDir(),
+	)
+
+	// check that generated prebuilt_* module sets correct dsts
+	eval = generatedModule1.ConfigurableEvaluator(android.PanickingConfigAndErrorContext(result.TestContext))
+	android.AssertStringEquals(
+		t,
+		"module expected to set correct dsts property",
+		"firmware-2.bin",
+		getModuleProp(generatedModule1, func(actual interface{}) string {
+			if p, ok := actual.(*etc.PrebuiltDstsProperties); ok {
+				dsts := p.Dsts.GetOrDefault(eval, nil)
+				if len(dsts) == 1 {
+					return dsts[0]
+				}
+			}
+			return ""
+		}),
+	)
+
+	generatedModule0 = result.ModuleForTests(t, "recovery-device_sample_firmware-lib_firmware-0", "android_recovery_common").Module()
+	generatedModule1 = result.ModuleForTests(t, "recovery-device_sample_firmware-lib_firmware-1", "android_recovery_common").Module()
+
+	// check generated prebuilt_* module specifies correct install path and relative install path
+	etcModule = generatedModule0.(*etc.PrebuiltEtc)
+	android.AssertStringEquals(
+		t,
+		"module expected to have . install path",
+		".",
+		etcModule.BaseDir(),
+	)
+	android.AssertStringEquals(
+		t,
+		"module expected to set correct relative_install_path properties",
+		"lib/firmware",
+		etcModule.SubDir(),
+	)
+
+	// check that generated prebuilt_* module sets correct srcs
+	eval = generatedModule0.ConfigurableEvaluator(android.PanickingConfigAndErrorContext(result.TestContext))
+	android.AssertStringEquals(
+		t,
+		"module expected to not set dsts property",
+		"",
+		getModuleProp(generatedModule0, func(actual interface{}) string {
+			if p, ok := actual.(*etc.PrebuiltDstsProperties); ok {
+				dsts := p.Dsts.GetOrDefault(eval, nil)
+				if len(dsts) != 0 {
+					return dsts[0]
+				}
+			}
+			return ""
+		}),
+	)
+
+	// check generated prebuilt_* module specifies correct install path and relative install path
+	etcModule = generatedModule1.(*etc.PrebuiltEtc)
+	android.AssertStringEquals(
+		t,
+		"module expected to have . install path",
+		".",
+		etcModule.BaseDir(),
+	)
+	android.AssertStringEquals(
+		t,
+		"module expected to set empty relative_install_path properties",
+		"",
+		etcModule.SubDir(),
+	)
+
+	// check that generated prebuilt_* module sets correct srcs
+	eval = generatedModule1.ConfigurableEvaluator(android.PanickingConfigAndErrorContext(result.TestContext))
+	android.AssertStringEquals(
+		t,
+		"module expected to set correct dsts property",
+		"lib/firmware/firmware-2.bin",
+		getModuleProp(generatedModule1, func(actual interface{}) string {
+			if p, ok := actual.(*etc.PrebuiltDstsProperties); ok {
+				dsts := p.Dsts.GetOrDefault(eval, nil)
+				if len(dsts) == 1 {
+					return dsts[0]
 				}
 			}
 			return ""
