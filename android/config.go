@@ -307,6 +307,10 @@ func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_RUST_USE_ARM_TARGET_ARCH_VARIANT")
 }
 
+func (c Config) ReleaseUseSparseEncoding() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_SOONG_SPARSE_ENCODING")
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
