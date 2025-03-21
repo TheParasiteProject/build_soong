@@ -574,6 +574,7 @@ var (
 	kotlinPluginTag         = dependencyTag{name: "kotlin-plugin", toolchain: true}
 	proguardRaiseTag        = dependencyTag{name: "proguard-raise"}
 	certificateTag          = dependencyTag{name: "certificate"}
+	headerJarOverrideTag    = dependencyTag{name: "header-jar-override"}
 	instrumentationForTag   = dependencyTag{name: "instrumentation_for"}
 	extraLintCheckTag       = dependencyTag{name: "extra-lint-check", toolchain: true}
 	jniLibTag               = dependencyTag{name: "jnilib", runtimeLinked: true}
@@ -717,6 +718,7 @@ type deps struct {
 	aidlPreprocess          android.OptionalPath
 	kotlinPlugins           android.Paths
 	aconfigProtoFiles       android.Paths
+	headerJarOverride       android.OptionalPath
 
 	disableTurbine bool
 
@@ -1280,6 +1282,9 @@ func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.usesLibrary.deps(ctx, false)
 	j.deps(ctx)
 
+	if ctx.Config().GetBuildFlagBool("RELEASE_JAVA_HEADER_JAR_OVERRIDE") && j.properties.Header_jar_override != "" {
+		ctx.AddVariationDependencies(nil, headerJarOverrideTag, j.properties.Header_jar_override)
+	}
 	if j.SdkLibraryName() != nil && strings.HasSuffix(j.Name(), ".impl") {
 		if dexpreopt.IsDex2oatNeeded(ctx) {
 			dexpreopt.RegisterToolDeps(ctx)
