@@ -969,14 +969,14 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 		ctx.AddVariationDependencies(nil, staticLibTag, "jacocoagent")
 	}
 
+	incremental := j.incrementalKotlin(ctx.Config())
 	if j.useCompose(ctx) {
-		if j.incrementalKotlin(ctx.Config()) {
-			ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag,
+		if incremental {
+			ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), composeEmbeddablePluginTag,
 				"kotlin-compose-compiler-embeddable-plugin")
-		} else {
-			ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag,
-				"kotlin-compose-compiler-plugin")
 		}
+		ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), composePluginTag,
+			"kotlin-compose-compiler-plugin")
 	}
 }
 
@@ -1414,6 +1414,17 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		}
 		flags.kotlincDeps = append(flags.kotlincDeps, deps.kotlinPlugins...)
 
+		if deps.composePlugin.Valid() {
+			flags.composePluginFlag = "-Xplugin=" + deps.composePlugin.String()
+			ctx.Variable(pctx, "composePluginFlag", flags.composePluginFlag)
+			flags.kotlincDeps = append(flags.kotlincDeps, deps.composePlugin.Path())
+		}
+		if deps.composeEmbeddablePlugin.Valid() {
+			flags.composeEmbeddablePluginFlag = "-Xplugin=" + deps.composeEmbeddablePlugin.String()
+			ctx.Variable(pctx, "composeEmbeddablePluginFlag", flags.composeEmbeddablePluginFlag)
+			flags.kotlincDeps = append(flags.kotlincDeps, deps.composeEmbeddablePlugin.Path())
+		}
+
 		// TODO(b/403236545): Remove this once the Kotlin compiler version is >= 2.2.0.
 		if j.useCompose(ctx) {
 			kotlincFlags = append(kotlincFlags, "-P", "plugin:androidx.compose.compiler.plugins.kotlin:featureFlag=+OptimizeNonSkippingGroups")
@@ -1433,6 +1444,18 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		flags.kotlincClasspath = append(flags.kotlincClasspath, flags.bootClasspath...)
 		flags.kotlincClasspath = append(flags.kotlincClasspath, flags.classpath...)
 
+		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
+		kotlinHeaderJar := android.PathForModuleOut(ctx, "kotlin_headers", jarName)
+
+		kotlinCompileData := KotlinCompileData{
+			target:           kotlinJar,
+			diffFile:         kotlinJar.ReplaceExtension(ctx, "source_diff"),
+			pcStateFileNew:   kotlinJar.ReplaceExtension(ctx, "pc_state.new"),
+			pcStateFilePrior: kotlinJar.ReplaceExtension(ctx, "pc_state"),
+		}
+		// Always calculate diff file for metrics reasons
+		j.kotlinInputDelta(ctx, kotlinCompileData, uniqueSrcFiles, kotlinCommonSrcFiles)
+
 		if len(flags.processorPath) > 0 {
 			// Use kapt for annotation processing
 			kaptSrcJar := android.PathForModuleOut(ctx, "kapt", "kapt-sources.jar")
@@ -1445,9 +1468,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			flags.processors = nil
 		}
 
-		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
-		kotlinHeaderJar := android.PathForModuleOut(ctx, "kotlin_headers", jarName)
-		j.kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, uniqueSrcFiles, kotlinCommonSrcFiles, srcJars, flags, incrementalKotlin)
+		j.kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, uniqueSrcFiles, kotlinCommonSrcFiles, srcJars, flags, kotlinCompileData, incrementalKotlin)
 		if ctx.Failed() {
 			return nil
 		}
@@ -2628,6 +2649,18 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					j.exportedDisableTurbine = plugin.GeneratesApi
 				} else {
 					ctx.PropertyErrorf("exported_plugins", "%q is not a java_plugin module", otherName)
+				}
+			case composeEmbeddablePluginTag:
+				if _, ok := android.OtherModuleProvider(ctx, module, KotlinPluginInfoProvider); ok {
+					deps.composeEmbeddablePlugin = android.OptionalPathForPath(dep.ImplementationAndResourcesJars[0])
+				} else {
+					ctx.PropertyErrorf("kotlin_plugins", "%q is not a kotlin_plugin module", otherName)
+				}
+			case composePluginTag:
+				if _, ok := android.OtherModuleProvider(ctx, module, KotlinPluginInfoProvider); ok {
+					deps.composePlugin = android.OptionalPathForPath(dep.ImplementationAndResourcesJars[0])
+				} else {
+					ctx.PropertyErrorf("kotlin_plugins", "%q is not a kotlin_plugin module", otherName)
 				}
 			case kotlinPluginTag:
 				if _, ok := android.OtherModuleProvider(ctx, module, KotlinPluginInfoProvider); ok {

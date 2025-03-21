@@ -206,6 +206,23 @@ class BuildDirArgument : SubdirectoryArgument<ClientOptions>() {
     }
 }
 
+class SourceDeltaArgument : StringArgument<ClientOptions>() {
+    override val argumentName = "source-delta-file"
+    override val helpText =
+        """
+        Input file containing a list of added, modified, and deleted source files since the last
+        run. Additions and modifications should be the file name preceded by a +. Deletions should
+        be the file name preceded by a -. Files should be separated by white space.
+    """
+            .trimIndent()
+
+    override val default = null
+
+    override fun setOption(option: String, opts: ClientOptions) {
+        opts.sourceDeltaFileName = option
+    }
+}
+
 class BuildHistoryFileArgument : StringArgument<ClientOptions>() {
     override val argumentName = "build-history"
     override val helpText =

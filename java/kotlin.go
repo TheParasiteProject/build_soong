@@ -26,6 +26,25 @@ import (
 	"github.com/google/blueprint"
 )
 
+type KotlinCompileData struct {
+	target           android.ModuleOutPath
+	pcStateFileNew   android.OutputPath
+	pcStateFilePrior android.OutputPath
+	diffFile         android.OutputPath
+}
+
+var inputDeltaRule = pctx.AndroidRemoteStaticRule("input-delta", android.RemoteRuleSupports{Goma: true},
+	blueprint.RuleParams{
+		Command: `${config.FindInputDeltaCmd} --target "$target" --inputs_file "$target.rsp" --new_state "$newStateFile" --prior_state "$priorStateFile" > $out`,
+		CommandDeps: []string{
+			"${config.FindInputDeltaCmd}",
+		},
+		Rspfile:        "$target.rsp",
+		RspfileContent: `$in`,
+		Restat:         true,
+	},
+	"target", "newStateFile", "priorStateFile")
+
 const NonIncKotlinCmd = `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
 	`mkdir -p "$classesDir" "$headerClassesDir" "$srcJarDir" "$emptyDir" && ` +
 	`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" -f "*.kt" $srcJars && ` +
@@ -34,7 +53,7 @@ const NonIncKotlinCmd = `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "
 	` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
 	`${config.KotlincCmd} ${config.KotlincGlobalFlags} ` +
 	` ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
-	` $kotlincFlags -jvm-target $kotlinJvmTarget $kotlincPluginFlags -Xbuild-file=$kotlinBuildFile ` +
+	` $kotlincFlags -jvm-target $kotlinJvmTarget $composePluginFlag $kotlincPluginFlags -Xbuild-file=$kotlinBuildFile ` +
 	` -kotlin-home $emptyDir ` +
 	` -Xplugin=${config.KotlinAbiGenPluginJar} ` +
 	` -P plugin:org.jetbrains.kotlin.jvm.abi:outputDir=$headerClassesDir && ` +
@@ -42,9 +61,11 @@ const NonIncKotlinCmd = `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "
 	`${config.SoongZipCmd} -jar -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
 	`rm -rf "$srcJarDir" "$classesDir" "$headerClassesDir" `
 
+const MoveDeltaStateFile = `mv $inputDeltaFileNew $inputDeltaFileOld `
+
 var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports{Goma: true},
 	blueprint.RuleParams{
-		Command: NonIncKotlinCmd,
+		Command: NonIncKotlinCmd + ` && ` + MoveDeltaStateFile,
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
 			"${config.KotlinCompilerJar}",
@@ -63,15 +84,15 @@ var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports
 		RspfileContent: `$in`,
 		Restat:         true,
 	},
-	"kotlincFlags", "kotlincPluginFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir",
+	"kotlincFlags", "composePluginFlag", "kotlincPluginFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir",
 	"classesDir", "headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir",
-	"name")
+	"inputDeltaFileNew", "inputDeltaFileOld", "name")
 
 // TODO: does incremental work with RBE?
 var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", android.RemoteRuleSupports{Goma: false},
 	blueprint.RuleParams{
 		Command: // Incremental
-		`if [ -n $$(SOONG_USE_PARTIAL_COMPILE" ]; then ` +
+		`if [ "$$SOONG_USE_PARTIAL_COMPILE" = "true" ]; then ` +
 			`rm -rf "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
 			`mkdir -p "$headerClassesDir" "$srcJarDir" "$emptyDir" && ` +
 			`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" -f "*.kt" $srcJars && ` +
@@ -80,22 +101,25 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 			` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
 			`${config.KotlinIncrementalClientBinary} ${config.KotlincGlobalFlags} ` +
 			` ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
-			` $kotlincFlags $kotlincPluginFlags -jvm-target $kotlinJvmTarget -build-file=$kotlinBuildFile ` +
+			` $kotlincFlags $composeEmbeddablePluginFlag $kotlincPluginFlags ` +
+			` -jvm-target $kotlinJvmTarget -build-file=$kotlinBuildFile ` +
+			` -source-delta-file=$sourceDeltaFile` +
 			` -kotlin-home=$emptyDir ` +
 			` -root-dir=$incrementalRootDir` +
 			` -output-dir=$outputDir` +
 			` -build-dir=$buildDir ` +
-			` -work-dir=$workDir ` +
+			` -working-dir=$workDir ` +
 			` -Xplugin=${config.KotlinAbiGenPluginJar} ` +
 			` -P plugin:org.jetbrains.kotlin.jvm.abi:outputDir=$headerClassesDir && ` +
 			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
 			`${config.SoongZipCmd} -jar -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
-			`rm -rf "$srcJarDir" ` +
+			`rm -rf "$srcJarDir" ; ` +
 
 			// Else non incremental
-			` else ` +
-			NonIncKotlinCmd +
-			` fi`,
+			`else ` +
+			NonIncKotlinCmd + ` ; ` +
+			`fi && ` +
+			MoveDeltaStateFile,
 
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
@@ -116,9 +140,9 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 		RspfileContent: `$in`,
 		Restat:         true,
 	},
-	"kotlincFlags", "kotlincPluginFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "incrementalRootDir",
+	"kotlincFlags", "composeEmbeddablePluginFlag", "composePluginFlag", "kotlincPluginFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "incrementalRootDir",
 	"classesDir", "headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir",
-	"name", "outputDir", "buildDir", "workDir")
+	"name", "outputDir", "buildDir", "workDir", "inputDeltaFileNew", "inputDeltaFileOld", "sourceDeltaFile")
 
 var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 	blueprint.RuleParams{
@@ -142,6 +166,13 @@ var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 	"classpath", "kotlincFlags", "kotlincPluginFlags", "commonSrcFilesList", "kotlinJvmTarget", "outJar", "srcJars", "srcJarDir",
 )
 
+var kotlinIncrementalClean = pctx.AndroidStaticRule("kotlin-partialcompileclean",
+	blueprint.RuleParams{
+		Command: `rm -rf "$cpSnapshot" "$outDir" "$buildDir" "$workDir"`,
+	},
+	"cpSnapshot", "outDir", "buildDir", "workDir",
+)
+
 func kotlinCommonSrcsList(ctx android.ModuleContext, commonSrcFiles android.Paths) android.OptionalPath {
 	if len(commonSrcFiles) > 0 {
 		// The list of common_srcs may be too long to put on the command line, but
@@ -158,10 +189,31 @@ func kotlinCommonSrcsList(ctx android.ModuleContext, commonSrcFiles android.Path
 	return android.OptionalPath{}
 }
 
+// kotlin can compile incrementally if it has a list of sources that have been added, modified, or
+// deleted. This rule calculates that, for use by both main kotlin compilation and kapt.
+func (j *Module) kotlinInputDelta(ctx android.ModuleContext, data KotlinCompileData, srcFiles android.Paths, commonSrcFiles android.Paths) {
+
+	var srcs android.Paths
+	srcs = append(srcs, srcFiles...)
+	srcs = append(srcs, commonSrcFiles...)
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:            inputDeltaRule,
+		Description:     "Calculate source changes for kotlin",
+		Inputs:          srcs,
+		Output:          data.diffFile,
+		ImplicitOutputs: []android.WritablePath{data.pcStateFileNew},
+		Args: map[string]string{
+			"target":         data.target.String(),
+			"newStateFile":   data.pcStateFileNew.String(),
+			"priorStateFile": data.pcStateFilePrior.String(),
+		},
+	})
+}
+
 // kotlinCompile takes .java and .kt sources and srcJars, and compiles the .kt sources into a classes jar in outputFile.
 func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutputFile android.WritablePath,
-	srcFiles, commonSrcFiles, srcJars android.Paths,
-	flags javaBuilderFlags, incremental bool) {
+	srcFiles, commonSrcFiles, srcJars android.Paths, flags javaBuilderFlags, compileData KotlinCompileData, incremental bool) {
 
 	var deps android.Paths
 	deps = append(deps, flags.kotlincClasspath...)
@@ -195,6 +247,9 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 	android.WriteFileRule(ctx, classpathRspFile, strings.Join(flags.kotlincClasspath.Strings(), " "))
 	deps = append(deps, classpathRspFile)
 
+	// Creates a dependency on the `input-delta` rule.
+	deps = append(deps, compileData.diffFile)
+
 	rule := kotlinc
 	description := "kotlinc"
 	incrementalRootDir := android.PathForModuleOut(ctx, "kotlinc")
@@ -215,29 +270,48 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 		"emptyDir":           android.PathForModuleOut(ctx, "kotlinc", "empty").String(),
 		"kotlinJvmTarget":    flags.javaVersion.StringForKotlinc(),
 		"name":               kotlinName,
+		"inputDeltaFileNew":  compileData.pcStateFileNew.String(),
+		"inputDeltaFileOld":  compileData.pcStateFilePrior.String(),
+		"composePluginFlag":  flags.composePluginFlag,
 	}
 	if incremental {
 		rule = kotlinIncremental
 		description = "kotlin-incremental"
-		// TODO: add this cp snapshot as a param to the incremental compiler.
-		ctx.Phony("partialCompileClean", incrementalRootDir.Join(ctx, "shrunk-classpath-snapshot.bin"))
-		ctx.Phony("partialCompileClean", incrementalRootDir.Join(ctx, outputDir))
-		ctx.Phony("partialCompileClean", incrementalRootDir.Join(ctx, buildDir))
-		ctx.Phony("partialCompileClean", incrementalRootDir.Join(ctx, workDir))
-		args["incrementalRootDir"] = incrementalRootDir.String()
+		deps = append(deps, compileData.diffFile)
 		args["outputDir"] = outputDir
 		args["buildDir"] = buildDir
 		args["workDir"] = workDir
+		args["incrementalRootDir"] = incrementalRootDir.String()
+		args["sourceDeltaFile"] = compileData.diffFile.String()
+		args["composeEmbeddablePluginFlag"] = flags.composeEmbeddablePluginFlag
 	}
+
 	ctx.Build(pctx, android.BuildParams{
-		Rule:           rule,
-		Description:    description,
-		Output:         outputFile,
-		ImplicitOutput: headerOutputFile,
-		Inputs:         srcFiles,
-		Implicits:      deps,
-		Args:           args,
+		Rule:            rule,
+		Description:     description,
+		Inputs:          srcFiles,
+		Implicits:       deps,
+		Output:          outputFile,
+		ImplicitOutputs: []android.WritablePath{headerOutputFile, compileData.pcStateFilePrior},
+		Args:            args,
 	})
+
+	cleanPhonyPath := android.PathForModuleOut(ctx, "partialcompileclean", kotlinName)
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        kotlinIncrementalClean,
+		Description: "kotlin-partialcompileclean",
+		Output:      cleanPhonyPath,
+		Inputs:      android.Paths{},
+		Args: map[string]string{
+			// TODO: add this cp snapshot as a param to the incremental compiler.
+			"cpSnapshot": incrementalRootDir.Join(ctx, "shrunk-classpath-snapshot.bin").String(),
+			"outDir":     incrementalRootDir.Join(ctx, outputDir).String(),
+			"buildDir":   incrementalRootDir.Join(ctx, buildDir).String(),
+			"workDir":    incrementalRootDir.Join(ctx, workDir).String(),
+		},
+		PhonyOutput: true,
+	})
+	ctx.Phony("partialcompileclean", cleanPhonyPath)
 
 	// Emit kythe xref rule
 	if (ctx.Config().EmitXrefRules()) && ctx.Module() == ctx.PrimaryModule() {
@@ -331,7 +405,6 @@ var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupp
 			`$kaptProcessor ` +
 			`-Xbuild-file=$kotlinBuildFile && ` +
 			`${config.SoongZipCmd} -jar -write_if_changed -o $out -C $kaptDir/stubs -D $kaptDir/stubs && ` +
-			`if [ -f "$out.pc_state.new" ]; then mv "$out.pc_state.new" "$out.pc_state"; fi && ` +
 			`rm -rf "$srcJarDir"`,
 		CommandDeps: []string{
 			"${config.FindInputDeltaCmd}",
