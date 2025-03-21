@@ -1182,10 +1182,6 @@ func (f *filesystem) buildPropFileForMiscInfo(ctx android.ModuleContext) android
 
 	if proptools.Bool(f.properties.Use_avb) {
 		addStr("avb_"+f.partitionName()+"_hashtree_enable", "true")
-		if f.properties.Avb_private_key != nil {
-			key := android.PathForModuleSrc(ctx, *f.properties.Avb_private_key)
-			addStr("avb_"+f.partitionName()+"_key_path", key.String())
-		}
 		addStr("avb_"+f.partitionName()+"_add_hashtree_footer_args", strings.TrimSpace(f.getAvbAddHashtreeFooterArgs(ctx)))
 	}
 
