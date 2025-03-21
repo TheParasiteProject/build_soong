@@ -55,6 +55,10 @@ type VbmetaProperties struct {
 	// Name of the partition stored in vbmeta desc. Defaults to the name of this module.
 	Partition_name *string
 
+	// Type of the `android_filesystem` for which the vbmeta.img is created.
+	// Examples are system, vendor, product.
+	Filesystem_partition_type *string
+
 	// Set the name of the output. Defaults to <module_name>.img.
 	Stem *string
 
@@ -117,6 +121,9 @@ type ChainedPartitionProperties struct {
 type vbmetaPartitionInfo struct {
 	// Name of the partition
 	Name string
+
+	// Partition type of the correspdonding android_filesystem.
+	FilesystemPartitionType string
 
 	// Rollback index location, non-negative int
 	RollbackIndexLocation int
@@ -305,11 +312,12 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	android.SetProvider(ctx, vbmetaPartitionProvider, vbmetaPartitionInfo{
-		Name:                  v.partitionName(),
-		RollbackIndexLocation: ril,
-		PublicKey:             extractedPublicKey,
-		Output:                output,
-		PropFileForMiscInfo:   v.buildPropFileForMiscInfo(ctx),
+		Name:                    v.partitionName(),
+		FilesystemPartitionType: proptools.String(v.properties.Filesystem_partition_type),
+		RollbackIndexLocation:   ril,
+		PublicKey:               extractedPublicKey,
+		Output:                  output,
+		PropFileForMiscInfo:     v.buildPropFileForMiscInfo(ctx),
 	})
 
 	ctx.SetOutputFiles([]android.Path{output}, "")

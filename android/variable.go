@@ -715,6 +715,10 @@ type PartitionVariables struct {
 
 	ReleaseToolsExtensionDir string `json:",omitempty"`
 
+	BoardPartialOtaUpdatePartitionsList []string `json:",omitempty"`
+	BoardFlashBlockSize                 string   `json:",omitempty"`
+	BootloaderInUpdatePackage           bool     `json:",omitempty"`
+
 	BoardFastbootInfoFile string `json:",omitempty"`
 }
 
