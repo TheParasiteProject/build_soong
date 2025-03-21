@@ -39,7 +39,7 @@ func OtatoolsPackageFactory() Module {
 
 var (
 	otatoolsPackageCertRule = pctx.AndroidStaticRule("otatools_package_cert_files", blueprint.RuleParams{
-		Command:     "echo $out: > ${out}.d && cat $in >> ${out}.d && ${SoongZipCmd} -o $out -l $in",
+		Command:     "echo '$out : ' $$(cat $in) > ${out}.d && ${SoongZipCmd} -o $out -l $in",
 		CommandDeps: []string{"${SoongZipCmd}"},
 		Depfile:     "${out}.d",
 		Description: "Zip otatools-package cert files",
