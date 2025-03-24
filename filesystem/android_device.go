@@ -120,6 +120,7 @@ type androidDevice struct {
 	rootDirForFsConfig          string
 	rootDirForFsConfigTimestamp android.Path
 	apkCertsInfo                android.Path
+	targetFilesZip              android.Path
 }
 
 func AndroidDeviceFactory() android.Module {
@@ -401,6 +402,9 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 				ctx.DistForGoalWithFilename("dist_files", a.miscInfo, "super_misc_info.txt")
 			}
 		}
+		if a.targetFilesZip != nil {
+			ctx.DistForGoalWithFilename("target-files-package", a.targetFilesZip, namePrefix+insertBeforeExtension(a.targetFilesZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+		}
 
 	}
 }
@@ -590,6 +594,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	a.copyImagesToTargetZip(ctx, builder, targetFilesDir)
 	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir, allInstalledModules)
 
+	a.targetFilesZip = targetFilesZip
 	builder.Command().
 		BuiltTool("soong_zip").
 		Text("-d").
