@@ -121,6 +121,7 @@ type androidDevice struct {
 	rootDirForFsConfigTimestamp android.Path
 	apkCertsInfo                android.Path
 	targetFilesZip              android.Path
+	updatePackage               android.Path
 }
 
 func AndroidDeviceFactory() android.Module {
@@ -200,6 +201,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.miscInfo = a.addMiscInfo(ctx)
 	a.buildTargetFilesZip(ctx, allInstalledModules)
 	a.buildProguardZips(ctx, allInstalledModules)
+	a.buildUpdatePackage(ctx)
 
 	var deps []android.Path
 	if proptools.String(a.partitionProps.Super_partition_name) != "" {
@@ -404,6 +406,9 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		}
 		if a.targetFilesZip != nil {
 			ctx.DistForGoalWithFilename("target-files-package", a.targetFilesZip, namePrefix+insertBeforeExtension(a.targetFilesZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+		}
+		if a.updatePackage != nil {
+			ctx.DistForGoalWithFilename("updatepackage", a.updatePackage, namePrefix+insertBeforeExtension(a.updatePackage.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
 		}
 
 	}
@@ -946,6 +951,38 @@ func (a *androidDevice) addImgToTargetFiles(ctx android.ModuleContext, builder *
 		Flag("-a -v -p").
 		Flag(ctx.Config().HostToolDir()).
 		Text(targetFilesDir)
+}
+
+func (a *androidDevice) buildUpdatePackage(ctx android.ModuleContext) {
+	var exclusions []string
+	fsInfos := a.getFsInfos(ctx)
+	// Exclude the partitions that are not supported by flashall
+	for _, partition := range android.SortedKeys(fsInfos) {
+		if fsInfos[partition].NoFlashall {
+			exclusions = append(exclusions, fmt.Sprintf("IMAGES/%s.img", partition))
+			exclusions = append(exclusions, fmt.Sprintf("IMAGES/%s.map", partition))
+		}
+	}
+
+	updatePackage := android.PathForModuleOut(ctx, "img.zip")
+	rule := android.NewRuleBuilder(pctx, ctx)
+
+	buildSuperImage := ctx.Config().HostToolPath(ctx, "build_super_image")
+	zip2zip := ctx.Config().HostToolPath(ctx, "zip2zip")
+
+	rule.Command().
+		BuiltTool("img_from_target_files").
+		Text("--additional IMAGES/VerifiedBootParams.textproto:VerifiedBootParams.textproto").
+		FlagForEachArg("--exclude ", exclusions).
+		FlagWithArg("--build_super_image ", buildSuperImage.String()).
+		Implicit(buildSuperImage).
+		Implicit(zip2zip).
+		Input(a.targetFilesZip).
+		Output(updatePackage)
+
+	rule.Build("updatepackage", "Building updatepackage")
+
+	a.updatePackage = updatePackage
 }
 
 type ApexKeyPathInfo struct {
