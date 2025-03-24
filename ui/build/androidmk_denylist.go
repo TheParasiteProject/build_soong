@@ -77,8 +77,16 @@ func getAllLines(ctx Context, filename string) []string {
 }
 
 func blockAndroidMks(ctx Context, androidMks []string) {
-	allowlist := getAllLines(ctx, "vendor/google/build/androidmk/allowlist.txt")
-	androidmk_allowlist = append(androidmk_allowlist, allowlist...)
+	allowlist_files := []string{
+		"vendor/google/build/androidmk/allowlist.txt",
+		"device/google/clockwork/build/androidmk/allowlist.txt",
+	}
+	for _, allowlist_file := range allowlist_files {
+		allowlist := getAllLines(ctx, allowlist_file)
+		androidmk_allowlist = append(androidmk_allowlist, allowlist...)
+	}
+	slices.Sort(androidmk_allowlist)
+	androidmk_allowlist = slices.Compact(androidmk_allowlist)
 
 	denylist := getAllLines(ctx, "vendor/google/build/androidmk/denylist.txt")
 	androidmk_denylist = append(androidmk_denylist, denylist...)
