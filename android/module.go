@@ -1951,6 +1951,9 @@ type CommonModuleInfo struct {
 	ExportedToMake                               bool
 	Team                                         string
 	PartitionTag                                 string
+	IsPrebuilt                                   bool
+	PrebuiltSourceExists                         bool
+	UsePrebuilt                                  bool
 }
 
 type ApiLevelOrPlatform struct {
@@ -1959,13 +1962,6 @@ type ApiLevelOrPlatform struct {
 }
 
 var CommonModuleInfoProvider = blueprint.NewProvider[*CommonModuleInfo]()
-
-type PrebuiltModuleInfo struct {
-	SourceExists bool
-	UsePrebuilt  bool
-}
-
-var PrebuiltModuleInfoProvider = blueprint.NewProvider[PrebuiltModuleInfo]()
 
 type HostToolProviderInfo struct {
 	HostToolPath OptionalPath
@@ -2366,13 +2362,13 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	if mm, ok := m.module.(interface{ BaseModuleName() string }); ok {
 		commonData.BaseModuleName = mm.BaseModuleName()
 	}
-	SetProvider(ctx, CommonModuleInfoProvider, &commonData)
 	if p, ok := m.module.(PrebuiltInterface); ok && p.Prebuilt() != nil {
-		SetProvider(ctx, PrebuiltModuleInfoProvider, PrebuiltModuleInfo{
-			SourceExists: p.Prebuilt().SourceExists(),
-			UsePrebuilt:  p.Prebuilt().UsePrebuilt(),
-		})
+		commonData.IsPrebuilt = true
+		commonData.PrebuiltSourceExists = p.Prebuilt().SourceExists()
+		commonData.UsePrebuilt = p.Prebuilt().UsePrebuilt()
 	}
+	SetProvider(ctx, CommonModuleInfoProvider, &commonData)
+
 	if h, ok := m.module.(HostToolProvider); ok {
 		SetProvider(ctx, HostToolProviderInfoProvider, HostToolProviderInfo{
 			HostToolPath: h.HostToolPath()})
