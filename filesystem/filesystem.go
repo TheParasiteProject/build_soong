@@ -401,6 +401,7 @@ type InstalledFilesStruct struct {
 type InstalledModuleInfo struct {
 	Name      string
 	Variation string
+	Prebuilt  bool
 }
 
 type FilesystemInfo struct {
@@ -454,7 +455,7 @@ type FilesystemInfo struct {
 
 	FilesystemConfig android.Path
 
-	Owners []InstalledModuleInfo
+	Owners depset.DepSet[InstalledModuleInfo]
 
 	HasFsverity bool
 
@@ -721,10 +722,14 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rootDir, f.output)},
 			includeFilesInstalledFiles(ctx),
 		),
-		ErofsCompressHints:  erofsCompressHints,
-		SelinuxFc:           f.selinuxFc,
-		FilesystemConfig:    f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
-		Owners:              f.gatherOwners(specs),
+		ErofsCompressHints: erofsCompressHints,
+		SelinuxFc:          f.selinuxFc,
+		FilesystemConfig:   f.generateFilesystemConfig(ctx, rootDir, rebasedDir),
+		Owners: depset.New(
+			depset.POSTORDER,
+			f.gatherOwners(specs),
+			f.gatherSubPartitionOwners(ctx),
+		),
 		HasFsverity:         f.properties.Fsverity.Inputs.GetOrDefault(ctx, nil) != nil,
 		PropFileForMiscInfo: propFileForMiscInfo,
 		PartitionSize:       f.properties.Partition_size,
@@ -1508,9 +1513,19 @@ func (f *filesystem) gatherOwners(specs map[string]android.PackagingSpec) []Inst
 		owners = append(owners, InstalledModuleInfo{
 			Name:      spec.Owner(),
 			Variation: spec.Variation(),
+			Prebuilt:  spec.Prebuilt(),
 		})
 	}
 	return owners
+}
+
+func (f *filesystem) gatherSubPartitionOwners(ctx android.ModuleContext) (ret []depset.DepSet[InstalledModuleInfo]) {
+	ctx.VisitDirectDepsWithTag(interPartitionInstallDependencyTag, func(m android.Module) {
+		if fsProvider, ok := android.OtherModuleProvider(ctx, m, FilesystemProvider); ok {
+			ret = append(ret, fsProvider.Owners)
+		}
+	})
+	return
 }
 
 // Dexpreopt files are installed to system_other. Collect the packaingSpecs for the dexpreopt files

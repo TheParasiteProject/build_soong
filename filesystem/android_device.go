@@ -323,21 +323,38 @@ func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.Depend
 	complianceMetadataInfo.SetPrebuiltFilesCopied(prebuiltFilesCopied)
 }
 
+type installedOwnerInfo struct {
+	Variation string
+	Prebuilt  bool
+}
+
 // Returns a list of modules that are installed, which are collected from the dependency
 // filesystem and super_image modules.
 func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.Module {
 	fsInfoMap := a.getFsInfos(ctx)
-	allOwners := make(map[string][]string)
+	allOwners := make(map[string][]installedOwnerInfo)
+
 	for _, partition := range android.SortedKeys(fsInfoMap) {
 		fsInfo := fsInfoMap[partition]
-		for _, owner := range fsInfo.Owners {
-			allOwners[owner.Name] = append(allOwners[owner.Name], owner.Variation)
+		for _, owner := range fsInfo.Owners.ToList() {
+			allOwners[owner.Name] = append(allOwners[owner.Name], installedOwnerInfo{
+				Variation: owner.Variation,
+				Prebuilt:  owner.Prebuilt,
+			})
 		}
 	}
 
 	ret := []android.Module{}
 	ctx.WalkDepsProxy(func(mod, _ android.ModuleProxy) bool {
-		if variations, ok := allOwners[ctx.OtherModuleName(mod)]; ok && android.InList(ctx.OtherModuleSubDir(mod), variations) {
+		commonInfo, ok := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider)
+		if !(ok && commonInfo.ExportedToMake) {
+			return false
+		}
+		if variations, ok := allOwners[ctx.OtherModuleName(mod)]; ok &&
+			android.InList(installedOwnerInfo{
+				Variation: ctx.OtherModuleSubDir(mod),
+				Prebuilt:  commonInfo.IsPrebuilt,
+			}, variations) {
 			ret = append(ret, mod)
 		}
 		return true
