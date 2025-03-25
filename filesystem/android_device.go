@@ -304,11 +304,13 @@ func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.Depend
 	// Collect metadata from deps
 	filesContained := make([]string, 0)
 	prebuiltFilesCopied := make([]string, 0)
+	platformGeneratedFiles := make([]string, 0)
 	for _, tag := range tags {
 		ctx.VisitDirectDepsProxyWithTag(tag, func(m android.ModuleProxy) {
 			if complianceMetadataInfo, ok := android.OtherModuleProvider(ctx, m, android.ComplianceMetadataProvider); ok {
 				filesContained = append(filesContained, complianceMetadataInfo.GetFilesContained()...)
 				prebuiltFilesCopied = append(prebuiltFilesCopied, complianceMetadataInfo.GetPrebuiltFilesCopied()...)
+				platformGeneratedFiles = append(platformGeneratedFiles, complianceMetadataInfo.GetPlatformGeneratedFiles()...)
 			}
 		})
 	}
@@ -321,6 +323,10 @@ func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.Depend
 	prebuiltFilesCopied = append(prebuiltFilesCopied, complianceMetadataInfo.GetPrebuiltFilesCopied()...)
 	sort.Strings(prebuiltFilesCopied)
 	complianceMetadataInfo.SetPrebuiltFilesCopied(prebuiltFilesCopied)
+
+	platformGeneratedFiles = append(platformGeneratedFiles, complianceMetadataInfo.GetPlatformGeneratedFiles()...)
+	sort.Strings(platformGeneratedFiles)
+	complianceMetadataInfo.SetPlatformGeneratedFiles(platformGeneratedFiles)
 }
 
 type installedOwnerInfo struct {
