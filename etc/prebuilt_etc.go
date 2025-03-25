@@ -752,7 +752,7 @@ func PrebuiltUserShareFactory() android.Module {
 	return module
 }
 
-// prebuild_usr_share_host is for a host prebuilt artifact that is installed in
+// prebuilt_usr_share_host is for a host prebuilt artifact that is installed in
 // $(HOST_OUT)/usr/share/<sub_dir> directory.
 func PrebuiltUserShareHostFactory() android.Module {
 	module := &PrebuiltEtc{}
@@ -780,7 +780,7 @@ func PrebuiltUserKeyLayoutFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/keylayout")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -791,7 +791,7 @@ func PrebuiltUserKeyCharsFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/keychars")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
@@ -802,7 +802,7 @@ func PrebuiltUserIdcFactory() android.Module {
 	module := &PrebuiltEtc{}
 	InitPrebuiltEtcModule(module, "usr/idc")
 	// This module is device-only
-	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidArchModule(module, android.HostAndDeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
 	return module
 }
