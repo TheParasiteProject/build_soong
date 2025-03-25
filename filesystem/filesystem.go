@@ -720,7 +720,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FullInstallPaths:       fullInstallPaths,
 		InstalledFilesDepSet: depset.New(
 			depset.POSTORDER,
-			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rootDir, f.output)},
+			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rebasedDir, f.output)},
 			includeFilesInstalledFiles(ctx),
 		),
 		ErofsCompressHints: erofsCompressHints,
