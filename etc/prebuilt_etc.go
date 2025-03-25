@@ -92,6 +92,7 @@ func RegisterPrebuiltEtcBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("prebuilt_system", PrebuiltSystemFactory)
 	ctx.RegisterModuleType("prebuilt_first_stage_ramdisk", PrebuiltFirstStageRamdiskFactory)
 	ctx.RegisterModuleType("prebuilt_any", PrebuiltAnyFactory)
+	ctx.RegisterModuleType("prebuilt_lib", PrebuiltLibFactory)
 
 	ctx.RegisterModuleType("prebuilt_defaults", defaultsFactory)
 
@@ -856,6 +857,20 @@ func PrebuiltFirmwareFactory() android.Module {
 	module := &PrebuiltEtc{}
 	module.socInstallDirBase = "firmware"
 	InitPrebuiltEtcModule(module, "etc/firmware")
+	// This module is device-only
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	android.InitDefaultableModule(module)
+	return module
+}
+
+// prebuilt_lib installs a prebuilt file to <partition>/lib directory for system
+// image.
+// If soc_specific property is set to true, the prebuilt file is installed to the
+// vendor <partition>/lib directory for vendor image.
+func PrebuiltLibFactory() android.Module {
+	module := &PrebuiltEtc{}
+	module.socInstallDirBase = "lib"
+	InitPrebuiltEtcModule(module, "lib")
 	// This module is device-only
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	android.InitDefaultableModule(module)
