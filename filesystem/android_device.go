@@ -367,9 +367,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	})
 
 	// Remove duplicates
-	ret = android.FirstUniqueFunc(ret, func(a, b android.Module) bool {
-		return a.String() == b.String()
-	})
+	ret = android.FirstUniqueInPlace(ret)
 
 	// Sort the modules by their names and variants
 	slices.SortFunc(ret, func(a, b android.Module) int {
