@@ -1172,8 +1172,6 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 			}
 		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, java.RuntimeResourceOverlayInfoProvider); ok {
 			apkCerts = append(apkCerts, formatLine(info.Certificate, info.OutputFile.Base(), partition))
-		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, ApkCertsInfoProvider); ok {
-			apkCertsFiles = append(apkCertsFiles, info.ApkCertsFile)
 		}
 	}
 	slices.Sort(apkCerts) // sort by name
@@ -1197,9 +1195,3 @@ func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalle
 	})
 	return apkCertsInfo
 }
-
-type ApkCertsInfo struct {
-	ApkCertsFile android.Path
-}
-
-var ApkCertsInfoProvider = blueprint.NewProvider[ApkCertsInfo]()
