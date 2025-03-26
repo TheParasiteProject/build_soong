@@ -704,6 +704,29 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		erofsCompressHints = android.PathForModuleSrc(ctx, *f.properties.Erofs.Compress_hints)
 	}
 
+	installedFilesStructList := []InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rebasedDir, f.output)}
+	if f.partitionName() == "system" {
+		rootDirForInstalledFiles := android.PathForModuleOut(ctx, "root_for_installed_files", "root")
+		copyToRootTimestamp := android.PathForModuleOut(ctx, "root_copy_timestamp")
+
+		builder := android.NewRuleBuilder(pctx, ctx)
+		builder.Command().Text("touch").Text(copyToRootTimestamp.String())
+		builder.Command().Text("rm -rf").Text(rootDirForInstalledFiles.String())
+		builder.Command().Text("mkdir -p").Text(rootDirForInstalledFiles.String())
+		builder.Command().
+			Text("rsync").
+			Flag("-a").
+			Flag("--checksum").
+			Flag("--exclude='system/'").
+			Text(rootDir.String() + "/").
+			Text(rootDirForInstalledFiles.String()).
+			Implicit(f.output).
+			ImplicitOutput(copyToRootTimestamp)
+		builder.Build("system_root_dir", "Construct system partition root dir")
+
+		installedFilesStructList = append(installedFilesStructList, buildInstalledFiles(ctx, "root", rootDirForInstalledFiles, copyToRootTimestamp))
+	}
+
 	fsInfo := FilesystemInfo{
 		Output:                 f.OutputPath(),
 		SignedOutputPath:       f.SignedOutputPath(),
@@ -720,7 +743,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		FullInstallPaths:       fullInstallPaths,
 		InstalledFilesDepSet: depset.New(
 			depset.POSTORDER,
-			[]InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rebasedDir, f.output)},
+			installedFilesStructList,
 			includeFilesInstalledFiles(ctx),
 		),
 		ErofsCompressHints: erofsCompressHints,
