@@ -508,9 +508,8 @@ type Module struct {
 	jacocoReportClassesFile android.Path
 
 	// output file of the module, which may be a classes jar or a dex jar
-	outputFile          android.Path
-	installedOutputFile android.Path
-	extraOutputFiles    android.Paths
+	outputFile       android.Path
+	extraOutputFiles android.Paths
 
 	exportAidlIncludeDirs     android.Paths
 	ignoredAidlPermissionList android.Paths
