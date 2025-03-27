@@ -25,6 +25,8 @@ var archVariants = map[ArchType][]string{
 		"armv8-a-branchprot",
 		"armv8-2a",
 		"armv8-2a-dotprod",
+		"armv8-5a",
+		"armv8-7a",
 		"armv9-a",
 		"armv9-2a",
 		"armv9-3a",
@@ -149,6 +151,14 @@ var androidArchFeatureMap = map[ArchType]map[string][]string{
 			"branchprot",
 		},
 		"armv8-2a-dotprod": {
+			"dotprod",
+		},
+		"armv8-5a": {
+			"branchprot",
+			"dotprod",
+		},
+		"armv8-7a": {
+			"branchprot",
 			"dotprod",
 		},
 		"armv9-a": {

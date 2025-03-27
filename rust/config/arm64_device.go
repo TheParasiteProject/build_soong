@@ -38,6 +38,8 @@ var (
 		"armv8-a-branchprot": {},
 		"armv8-2a":           {},
 		"armv8-2a-dotprod":   {},
+		"armv8-5a":           {},
+		"armv8-7a":           {},
 		"armv9-a":            {},
 		"armv9-2a":           {},
 		"armv9-3a":           {},
