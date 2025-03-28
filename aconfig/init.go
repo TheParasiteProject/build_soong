@@ -79,7 +79,10 @@ var (
 		}, "api_signature_files", "finalized_flags_file", "parsed_flags_file")
 	ExportedFlagCheckRule = pctx.AndroidStaticRule("ExportedFlagCheckRule",
 		blueprint.RuleParams{
-			Command: `${exported-flag-check} ${parsed_flags_file} ${finalized_flags_file} ${api_signature_files} > ${out}`,
+			Command: `${exported-flag-check} validate-exported-flags ` +
+				`  ${parsed_flags_file} ` +
+				`  ${finalized_flags_file} ` +
+				`  ${api_signature_files} > ${out}`,
 			CommandDeps: []string{
 				"${exported-flag-check}",
 			},
