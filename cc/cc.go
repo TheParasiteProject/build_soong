@@ -2180,33 +2180,6 @@ func (c *Module) baseSymbolInfo(ctx android.ModuleContext) *SymbolInfo {
 	}
 }
 
-type SymbolicOutputInfo struct {
-	UnstrippedOutputFile android.Path
-	SymbolicOutputPath   android.InstallPath
-	ElfMappingProtoPath  android.InstallPath
-}
-
-type SymbolicOutputInfos []*SymbolicOutputInfo
-
-// SymbolInfosProvider provides necessary information to generate the symbols.zip
-var SymbolInfosProvider = blueprint.NewProvider[SymbolicOutputInfos]()
-
-func (s *SymbolicOutputInfos) SortedUniqueSymbolicOutputPaths() android.Paths {
-	ret := make(android.Paths, len(*s))
-	for i, info := range *s {
-		ret[i] = info.SymbolicOutputPath
-	}
-	return android.SortedUniquePaths(ret)
-}
-
-func (s *SymbolicOutputInfos) SortedUniqueElfMappingProtoPaths() android.Paths {
-	ret := make(android.Paths, len(*s))
-	for i, info := range *s {
-		ret[i] = info.ElfMappingProtoPath
-	}
-	return android.SortedUniquePaths(ret)
-}
-
 func targetOutUnstripped(ctx android.ModuleContext) android.InstallPath {
 	return android.PathForModuleInPartitionInstall(ctx, "symbols")
 }
@@ -2217,7 +2190,7 @@ func elfSymbolMappingDir(ctx android.ModuleContext) android.InstallPath {
 
 // Generates the information to copy the symbols file to $PRODUCT_OUT/symbols directory based on
 // the symbols info. The actual copying is done in [CopySymbolsAndSetSymbolsInfoProvider].
-func getSymbolicOutputInfos(ctx android.ModuleContext, info *SymbolInfo) *SymbolicOutputInfo {
+func getSymbolicOutputInfos(ctx android.ModuleContext, info *SymbolInfo) *android.SymbolicOutputInfo {
 
 	if info.Uninstallable || info.UnstrippedBinaryPath == nil {
 		return nil
@@ -2238,7 +2211,7 @@ func getSymbolicOutputInfos(ctx android.ModuleContext, info *SymbolInfo) *Symbol
 
 	symbolicOutput := myUnstrippedPath.Join(ctx, myInstalledModuleStem)
 
-	return &SymbolicOutputInfo{
+	return &android.SymbolicOutputInfo{
 		UnstrippedOutputFile: info.UnstrippedBinaryPath,
 		SymbolicOutputPath:   symbolicOutput,
 	}
@@ -2248,7 +2221,7 @@ func CopySymbolsAndSetSymbolsInfoProvider(ctx android.ModuleContext, symbolInfos
 	if android.ShouldSkipAndroidMkProcessing(ctx, ctx.Module()) {
 		return
 	}
-	var symbolicOutputInfos SymbolicOutputInfos
+	var symbolicOutputInfos android.SymbolicOutputInfos
 	for _, info := range symbolInfos.Symbols {
 		if so := getSymbolicOutputInfos(ctx, info); so != nil {
 			symbolicOutputInfos = append(symbolicOutputInfos, so)
@@ -2256,7 +2229,7 @@ func CopySymbolsAndSetSymbolsInfoProvider(ctx android.ModuleContext, symbolInfos
 	}
 
 	// Remove duplicates
-	symbolicOutputInfos = android.FirstUniqueFunc(symbolicOutputInfos, func(a, b *SymbolicOutputInfo) bool {
+	symbolicOutputInfos = android.FirstUniqueFunc(symbolicOutputInfos, func(a, b *android.SymbolicOutputInfo) bool {
 		return a.UnstrippedOutputFile.String() == b.UnstrippedOutputFile.String() &&
 			a.SymbolicOutputPath.String() == b.SymbolicOutputPath.String()
 	})
@@ -2284,7 +2257,7 @@ func CopySymbolsAndSetSymbolsInfoProvider(ctx android.ModuleContext, symbolInfos
 		})
 	}
 
-	android.SetProvider(ctx, SymbolInfosProvider, symbolicOutputInfos)
+	android.SetProvider(ctx, android.SymbolInfosProvider, symbolicOutputInfos)
 
 	ctx.CheckbuildFile(symbolicOutputInfos.SortedUniqueSymbolicOutputPaths()...)
 	ctx.CheckbuildFile(symbolicOutputInfos.SortedUniqueElfMappingProtoPaths()...)

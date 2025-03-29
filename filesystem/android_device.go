@@ -24,7 +24,6 @@ import (
 	"sync/atomic"
 
 	"android/soong/android"
-	"android/soong/cc"
 	"android/soong/java"
 
 	"github.com/google/blueprint"
@@ -387,35 +386,9 @@ type symbolicOutputInfo struct {
 }
 
 func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.Module) {
-	var allSymbolicOutputPaths, allElfMappingProtoPaths android.Paths
-	for _, mod := range allInstalledModules {
-		if commonInfo, _ := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider); commonInfo.SkipAndroidMkProcessing {
-			continue
-		}
-		if symbolInfos, ok := android.OtherModuleProvider(ctx, mod, cc.SymbolInfosProvider); ok {
-			allSymbolicOutputPaths = append(allSymbolicOutputPaths, symbolInfos.SortedUniqueSymbolicOutputPaths()...)
-			allElfMappingProtoPaths = append(allElfMappingProtoPaths, symbolInfos.SortedUniqueElfMappingProtoPaths()...)
-		}
-	}
-	allSymbolicOutputPaths = android.SortedUniquePaths(allSymbolicOutputPaths)
-	allElfMappingProtoPaths = android.SortedUniquePaths(allElfMappingProtoPaths)
-
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   zipFiles,
-		Inputs: allSymbolicOutputPaths,
-		Output: a.symbolsZipFile,
-	})
-
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
-	dictMappingBuilder := android.NewRuleBuilder(pctx, ctx)
-	dictMappingBuilder.Command().
-		BuiltTool("symbols_map").
-		Flag("-merge").
-		Output(a.symbolsMappingFile).
-		Inputs(allElfMappingProtoPaths)
-
-	dictMappingBuilder.Build("symbols_elf_dict_mapping_proto", "Building symbols mapping proto")
+	android.BuildSymbolsZip(ctx, allInstalledModules, a.symbolsZipFile, a.symbolsMappingFile)
 }
 
 func insertBeforeExtension(file, insertion string) string {
