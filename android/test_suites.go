@@ -72,12 +72,6 @@ type TestSuiteInfo struct {
 
 var TestSuiteInfoProvider = blueprint.NewProvider[TestSuiteInfo]()
 
-type SupportFilesInfo struct {
-	SupportFiles InstallPaths
-}
-
-var SupportFilesInfoProvider = blueprint.NewProvider[SupportFilesInfo]()
-
 type filePair struct {
 	src Path
 	dst WritablePath
