@@ -302,6 +302,13 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		buildComplianceMetadata(ctx, filesystemDepTag)
 	}
+
+	// Add the host tools as deps
+	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
+		for _, hostTool := range ctx.Config().ProductVariables().ProductHostPackages {
+			ctx.Phony("droid", android.PathForPhony(ctx, hostTool+"-host"))
+		}
+	}
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
