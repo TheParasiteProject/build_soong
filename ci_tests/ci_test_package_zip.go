@@ -58,6 +58,8 @@ type CITestPackageProperties struct {
 	Tests_if_exist_device_both proptools.Configurable[[]string] `android:"arch_variant"`
 	// git-main only test modules. Will only be added as dependencies based on the first supported arch variant and the device os variant if exists.
 	Tests_if_exist_device_first proptools.Configurable[[]string] `android:"arch_variant"`
+	// git-main only test modules. Will only be added as dependencies based on host if exists.
+	Tests_if_exist_host proptools.Configurable[[]string] `android:"arch_variant"`
 }
 
 type testPackageZipDepTagType struct {
@@ -90,6 +92,12 @@ func (p *testPackageZip) DepsMutator(ctx android.BottomUpMutatorContext) {
 	// adding host_tests property deps
 	for _, t := range p.properties.Host_tests.GetOrDefault(ctx, nil) {
 		ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), testPackageZipDepTag, t)
+	}
+	// adding Tests_if_exist_host property deps
+	for _, t := range p.properties.Tests_if_exist_host.GetOrDefault(ctx, nil) {
+		if ctx.OtherModuleExists(t) {
+			ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), testPackageZipDepTag, t)
+		}
 	}
 
 	// adding Tests_if_exist_* property deps
