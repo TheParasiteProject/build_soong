@@ -15,8 +15,10 @@
 package ci_tests
 
 import (
+	"cmp"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"android/soong/android"
@@ -159,6 +161,31 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	ctx.SetOutputFiles(android.Paths{p.output}, "")
 }
 
+func getAllTestModules(ctx android.ModuleContext) []android.Module {
+	var ret []android.Module
+	ctx.WalkDeps(func(child, parent android.Module) bool {
+		if !child.Enabled(ctx) {
+			return false
+		}
+		if android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == testPackageZipDepTag {
+			// handle direct deps
+			ret = append(ret, child)
+			return true
+		} else if !android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == android.RequiredDepTag {
+			// handle the "required" from deps
+			ret = append(ret, child)
+			return true
+		} else {
+			return false
+		}
+	})
+	ret = android.FirstUniqueInPlace(ret)
+	slices.SortFunc(ret, func(a, b android.Module) int {
+		return cmp.Compare(a.String(), b.String())
+	})
+	return ret
+}
+
 func createOutput(ctx android.ModuleContext, pctx android.PackageContext) android.ModuleOutPath {
 	productOut := filepath.Join(ctx.Config().OutDir(), "target", "product", ctx.Config().DeviceName())
 	stagingDir := android.PathForModuleOut(ctx, "STAGING")
@@ -170,22 +197,13 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	builder.Command().Text("rm").Flag("-rf").Text(stagingDir.String())
 	builder.Command().Text("mkdir").Flag("-p").Output(stagingDir)
 	builder.Temporary(stagingDir)
-	ctx.WalkDeps(func(child, parent android.Module) bool {
-		if !child.Enabled(ctx) {
-			return false
-		}
-		if android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == testPackageZipDepTag {
-			// handle direct deps
-			extendBuilderCommand(ctx, child, builder, stagingDir, productOut, arch, secondArch)
-			return true
-		} else if !android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == android.RequiredDepTag {
-			// handle the "required" from deps
-			extendBuilderCommand(ctx, child, builder, stagingDir, productOut, arch, secondArch)
-			return true
-		} else {
-			return false
-		}
-	})
+
+	allTestModules := getAllTestModules(ctx)
+	for _, dep := range allTestModules {
+		extendBuilderCommand(ctx, dep, builder, stagingDir, productOut, arch, secondArch)
+	}
+
+	createSymbolsZip(ctx, allTestModules)
 
 	output := android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
 	builder.Command().
@@ -196,6 +214,15 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	builder.Command().Text("rm").Flag("-rf").Text(stagingDir.String())
 	builder.Build("test_package", fmt.Sprintf("build test_package for %s", ctx.ModuleName()))
 	return output
+}
+
+func createSymbolsZip(ctx android.ModuleContext, allModules []android.Module) {
+	symbolsZipFile := android.PathForModuleOut(ctx, "symbols.zip")
+	symbolsMappingFile := android.PathForModuleOut(ctx, "symbols-mapping.textproto")
+	android.BuildSymbolsZip(ctx, allModules, symbolsZipFile, symbolsMappingFile)
+
+	ctx.SetOutputFiles(android.Paths{symbolsZipFile}, ".symbols")
+	ctx.SetOutputFiles(android.Paths{symbolsMappingFile}, ".elf_mapping")
 }
 
 func extendBuilderCommand(ctx android.ModuleContext, m android.Module, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
