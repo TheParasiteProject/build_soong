@@ -66,6 +66,10 @@ func NewRustObject(hod android.HostOrDeviceSupported) (*Module, *objectDecorator
 	return module, object
 }
 
+func (object *objectDecorator) begin(ctx BaseModuleContext) {
+	object.baseCompiler.begin(ctx)
+}
+
 func (object *objectDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {
 	flags = object.baseCompiler.compilerFlags(ctx, flags)
 	return flags
