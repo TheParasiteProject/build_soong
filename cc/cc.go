@@ -21,7 +21,6 @@ package cc
 import (
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -109,6 +108,7 @@ type LibraryDecoratorInfo struct {
 	SharedLibs          []string
 	SystemSharedLibs    []string
 	StubsSymbolFilePath android.Path
+	SAbiDiff            android.Paths
 }
 
 type SnapshotInfo struct {
@@ -2632,6 +2632,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 				VndkFileName:        decorator.getLibNameHelper(c.BaseModuleName(), true, false) + ".so",
 				UniqueHostSoname:    decorator.Properties.Unique_host_soname,
 				StubsSymbolFilePath: decorator.stubsSymbolFilePath,
+				SAbiDiff:            decorator.sAbiDiff,
 			}
 			var properties StaticOrSharedProperties
 			if decorator.static() {
@@ -4428,14 +4429,6 @@ func installable(c LinkableInterface, apexInfo android.ApexInfo) bool {
 	}
 
 	return false
-}
-
-func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			library.androidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
-		}
-	}
 }
 
 var _ android.ApexModule = (*Module)(nil)

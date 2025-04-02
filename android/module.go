@@ -1979,7 +1979,10 @@ type CommonModuleInfo struct {
 	PrebuiltSourceExists                         bool
 	UsePrebuilt                                  bool
 	ApexAvailable                                []string
-	ImageVariation                               blueprint.Variation
+	// This field is different from the above one as it can have different values
+	// for cc, java library and sdkLibraryXml.
+	ApexAvailableFor []string
+	ImageVariation   blueprint.Variation
 }
 
 type ApiLevelOrPlatform struct {
@@ -2387,6 +2390,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		commonData.IsInstallableToApex = am.IsInstallableToApex()
 		commonData.IsApexModule = true
 		commonData.ApexAvailable = am.apexModuleBase().ApexAvailable()
+		commonData.ApexAvailableFor = am.ApexAvailableFor()
 	}
 
 	if _, ok := m.module.(ModuleWithMinSdkVersionCheck); ok {
