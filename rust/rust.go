@@ -664,6 +664,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&BenchmarkProperties{},
 		&BindgenProperties{},
 		&BaseCompilerProperties{},
+		&ObjectProperties{},
 		&BinaryCompilerProperties{},
 		&LibraryCompilerProperties{},
 		&ProcMacroCompilerProperties{},
@@ -861,7 +862,9 @@ func (mod *Module) Multilib() string {
 }
 
 func (mod *Module) IsCrt() bool {
-	// Rust does not currently provide any crt modules.
+	if obj, ok := mod.compiler.(objectInterface); ok {
+		return obj.crt()
+	}
 	return false
 }
 
