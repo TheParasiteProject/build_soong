@@ -2568,7 +2568,6 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	apiContributions := al.properties.Api_contributions
 	addValidations := !ctx.Config().IsEnvTrue("DISABLE_STUB_VALIDATION") &&
 		!ctx.Config().IsEnvTrue("WITHOUT_CHECK_API") &&
-		!ctx.Config().PartialCompileFlags().Disable_stub_validation &&
 		proptools.BoolDefault(al.properties.Enable_validation, true)
 	for _, apiContributionName := range apiContributions {
 		ctx.AddDependency(ctx.Module(), javaApiContributionTag, apiContributionName)
@@ -2744,7 +2743,15 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.FlagForEachInput("--migrate-nullness ", previousApiFiles)
 	}
 
-	al.addValidation(ctx, cmd, al.validationPaths)
+	// While we could use SOONG_USE_PARTIAL_COMPILE in the validation's rule, that would unduly
+	// complicate the code for minimal benefit.  Instead, add a phony
+	// target to let the developer manually run the validation if they so
+	// desire.
+	ctx.Phony("stub-validation", al.validationPaths...)
+	ctx.Phony(ctx.ModuleName()+"-stub-validation", al.validationPaths...)
+	if !ctx.Config().PartialCompileFlags().Disable_stub_validation {
+		al.addValidation(ctx, cmd, al.validationPaths)
+	}
 
 	generateRevertAnnotationArgs(ctx, cmd, al.stubsType, al.aconfigProtoFiles)
 
