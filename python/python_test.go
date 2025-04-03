@@ -377,20 +377,24 @@ func TestSharedLib(t *testing.T) {
 	android.AssertStringMatches(
 		t,
 		"data path included shared lib",
-		"clib-host.so",
 		dataPathMappings[0].dest,
+		"clib-host(.so|.dylib)",
 	)
 	// ensure any dependencies of the shared lib are included in the bundle shared
 	// libs
-	android.AssertPathsEndWith(
+	android.AssertStringMatches(
 		t,
 		"shared libs",
-		[]string{
-			"clib-host-2.so",
-			"libc++.so",
-		},
-		mod.getBundleSharedLibs(),
+		mod.getBundleSharedLibs()[0].String(),
+		"clib-host-2(.so|.dylib)$",
 	)
+	android.AssertStringMatches(
+		t,
+		"shared libs",
+		mod.getBundleSharedLibs()[1].String(),
+		"libc\\+\\+(.so|.dylib)$",
+	)
+
 }
 
 func expectModule(t *testing.T, ctx *android.TestContext, name, variant, expectedSrcsZip string, expectedPyRunfiles []string) {
