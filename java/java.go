@@ -281,6 +281,14 @@ type ModuleWithSdkDepInfo struct {
 	Stubs       bool
 }
 
+type ApexDependencyInfo struct {
+	// These fields can be different from the ones in JavaInfo, for example, for sdk_library
+	// the following fields are set since sdk_library inherits the implementations of
+	// ApexDependency from base, but the same-named fields are not set in JavaInfo.
+	HeaderJars                     android.Paths
+	ImplementationAndResourcesJars android.Paths
+}
+
 // JavaInfo contains information about a java module for use by modules that depend on it.
 type JavaInfo struct {
 	// HeaderJars is a list of jars that can be passed as the javac classpath in order to link
@@ -438,6 +446,8 @@ type JavaInfo struct {
 	OverrideMinSdkVersion *string
 	CompileDex            *bool
 	SystemModules         string
+	Installable           bool
+	ApexDependencyInfo    *ApexDependencyInfo
 }
 
 var JavaInfoProvider = blueprint.NewProvider[*JavaInfo]()
@@ -3903,5 +3913,12 @@ func setExtraJavaInfo(ctx android.ModuleContext, module android.Module, javaInfo
 	if sdk, ok := module.(android.SdkContext); ok {
 		javaInfo.SystemModules = sdk.SystemModules()
 		javaInfo.SdkVersion = sdk.SdkVersion(ctx)
+	}
+
+	if ap, ok := module.(ApexDependency); ok {
+		javaInfo.ApexDependencyInfo = &ApexDependencyInfo{
+			HeaderJars:                     ap.HeaderJars(),
+			ImplementationAndResourcesJars: ap.ImplementationAndResourcesJars(),
+		}
 	}
 }
