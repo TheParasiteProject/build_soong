@@ -609,7 +609,7 @@ func DirectoryPathsForModuleSrc(ctx ModuleMissingDepsPathContext, paths []string
 	for _, path := range paths {
 		if m, t := SrcIsModuleWithTag(path); m != "" {
 			module := GetModuleProxyFromPathDep(ctx, m, t)
-			if module == nil {
+			if module.IsNil() {
 				ctx.ModuleErrorf(`missing dependency on %q, is the property annotated with android:"path"?`, m)
 				continue
 			}
@@ -621,7 +621,7 @@ func DirectoryPathsForModuleSrc(ctx ModuleMissingDepsPathContext, paths []string
 			if !ok {
 				panic(fmt.Errorf("%s is not an OtherModuleProviderContext", ctx))
 			}
-			if dirProvider, ok := OtherModuleProvider(mctx, *module, DirProvider); ok {
+			if dirProvider, ok := OtherModuleProvider(mctx, module, DirProvider); ok {
 				ret = append(ret, dirProvider.Dirs...)
 			} else {
 				ReportPathErrorf(ctx, "module %q does not implement DirProvider", module)
@@ -680,14 +680,14 @@ func (p OutputPaths) Strings() []string {
 // If the module dependency is not a SourceFileProducer or OutputFileProducer, appropriate errors will be returned.
 func getPathsFromModuleDep(ctx ModuleWithDepsPathContext, path, moduleName, tag string) (Paths, error) {
 	module := GetModuleProxyFromPathDep(ctx, moduleName, tag)
-	if module == nil {
+	if module.IsNil() {
 		return nil, missingDependencyError{[]string{moduleName}}
 	}
-	if !OtherModulePointerProviderOrDefault(ctx, *module, CommonModuleInfoProvider).Enabled {
+	if !OtherModulePointerProviderOrDefault(ctx, module, CommonModuleInfoProvider).Enabled {
 		return nil, missingDependencyError{[]string{moduleName}}
 	}
 
-	outputFiles, err := outputFilesForModule(ctx, *module, tag)
+	outputFiles, err := outputFilesForModule(ctx, module, tag)
 	if outputFiles != nil && err == nil {
 		return outputFiles, nil
 	} else {
@@ -705,8 +705,8 @@ func getPathsFromModuleDep(ctx ModuleWithDepsPathContext, path, moduleName, tag 
 //
 // If tag is "" then the returned module will be the dependency that was added for ":moduleName".
 // Otherwise, it is the dependency that was added for ":moduleName{tag}".
-func GetModuleProxyFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag string) *ModuleProxy {
-	var found *ModuleProxy
+func GetModuleProxyFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag string) ModuleProxy {
+	var found ModuleProxy
 	// The sourceOrOutputDepTag uniquely identifies the module dependency as it contains both the
 	// module name and the tag. Dependencies added automatically for properties tagged with
 	// `android:"path"` are deduped so are guaranteed to be unique. It is possible for duplicate
@@ -720,7 +720,7 @@ func GetModuleProxyFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag st
 	// this finds the matching dependency module.
 	expectedTag := sourceOrOutputDepTag(moduleName, tag)
 	ctx.VisitDirectDepsProxyWithTag(expectedTag, func(module ModuleProxy) {
-		found = &module
+		found = module
 	})
 	return found
 }

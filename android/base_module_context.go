@@ -123,7 +123,7 @@ type BaseModuleContext interface {
 	// dependencies that are not an android.Module.
 	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) Module
 
-	GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) *ModuleProxy
+	GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) ModuleProxy
 
 	// VisitDirectDeps calls visit for each direct dependency.  If there are multiple
 	// direct dependencies on the same module visit will be called multiple times on that module
@@ -329,11 +329,11 @@ func (b *baseModuleContext) GetDirectDepWithTag(name string, tag blueprint.Depen
 	return nil
 }
 
-func (b *baseModuleContext) GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) *ModuleProxy {
-	if module := b.bp.GetDirectDepProxyWithTag(name, tag); module != nil {
-		return &ModuleProxy{*module}
+func (b *baseModuleContext) GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) ModuleProxy {
+	if module := b.bp.GetDirectDepProxyWithTag(name, tag); !module.IsNil() {
+		return ModuleProxy{module}
 	}
-	return nil
+	return ModuleProxy{}
 }
 
 func (b *baseModuleContext) blueprintBaseModuleContext() blueprint.BaseModuleContext {
@@ -403,11 +403,11 @@ func (b *baseModuleContext) validateAndroidModule(module blueprint.Module, tag b
 }
 
 func (b *baseModuleContext) validateAndroidModuleProxy(
-	module blueprint.ModuleProxy, tag blueprint.DependencyTag, strict bool) *ModuleProxy {
-	aModule := ModuleProxy{module: module}
+	module blueprint.ModuleProxy, tag blueprint.DependencyTag, strict bool) ModuleProxy {
+	aModule := ModuleProxy{module}
 
 	if !strict {
-		return &aModule
+		return aModule
 	}
 
 	if !OtherModulePointerProviderOrDefault(b, module, CommonModuleInfoProvider).Enabled {
@@ -418,10 +418,10 @@ func (b *baseModuleContext) validateAndroidModuleProxy(
 				b.ModuleErrorf("depends on disabled module %q", b.OtherModuleName(aModule))
 			}
 		}
-		return nil
+		return ModuleProxy{}
 	}
 
-	return &aModule
+	return aModule
 }
 
 func (b *baseModuleContext) getDirectDepsInternal(name string, tag blueprint.DependencyTag) []Module {
@@ -480,8 +480,8 @@ func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
 
 func (b *baseModuleContext) VisitDirectDepsProxy(visit func(ModuleProxy)) {
 	b.bp.VisitDirectDepsProxy(func(module blueprint.ModuleProxy) {
-		if aModule := b.validateAndroidModuleProxy(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
-			visit(*aModule)
+		if aModule := b.validateAndroidModuleProxy(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); !aModule.IsNil() {
+			visit(aModule)
 		}
 	})
 }
@@ -503,8 +503,8 @@ func (b *baseModuleContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, 
 func (b *baseModuleContext) VisitDirectDepsProxyWithTag(tag blueprint.DependencyTag, visit func(proxy ModuleProxy)) {
 	b.bp.VisitDirectDepsProxy(func(module blueprint.ModuleProxy) {
 		if b.bp.OtherModuleDependencyTag(module) == tag {
-			if aModule := b.validateAndroidModuleProxy(module, tag, b.strictVisitDeps); aModule != nil {
-				visit(*aModule)
+			if aModule := b.validateAndroidModuleProxy(module, tag, b.strictVisitDeps); !aModule.IsNil() {
+				visit(aModule)
 			}
 		}
 	})
