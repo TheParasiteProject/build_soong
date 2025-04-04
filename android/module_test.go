@@ -990,7 +990,7 @@ type pathContextAddMissingDependenciesWrapper struct {
 func (p *pathContextAddMissingDependenciesWrapper) AddMissingDependencies(deps []string) {
 	p.missingDeps = append(p.missingDeps, deps...)
 }
-func (p *pathContextAddMissingDependenciesWrapper) OtherModuleName(module blueprint.Module) string {
+func (p *pathContextAddMissingDependenciesWrapper) OtherModuleName(module blueprint.ModuleOrProxy) string {
 	return module.Name()
 }
 

@@ -2903,7 +2903,7 @@ func (a *apexBundle) verifyNativeImplementationLibs(ctx android.ModuleContext) {
 
 		if !inApex && !inApkInApex {
 			ctx.ModuleErrorf("library in apex transitively linked against implementation library %q not in apex", lib)
-			var depPath []android.Module
+			var depPath []android.ModuleProxy
 			ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 				if depPath != nil {
 					return false
@@ -2919,7 +2919,7 @@ func (a *apexBundle) verifyNativeImplementationLibs(ctx android.ModuleContext) {
 
 				if checkTransitiveTag(tag) {
 					if android.OutputFileForModule(ctx, child, "") == lib {
-						depPath = ctx.GetWalkPath()
+						depPath = ctx.GetProxyWalkPath()
 					}
 					return true
 				}

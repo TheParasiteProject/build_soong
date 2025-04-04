@@ -60,7 +60,7 @@ type EarlyModulePathContext interface {
 
 	ModuleDir() string
 	ModuleErrorf(fmt string, args ...interface{})
-	OtherModulePropertyErrorf(module Module, property, fmt string, args ...interface{})
+	OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property, fmt string, args ...interface{})
 }
 
 var _ EarlyModulePathContext = ModuleContext(nil)
@@ -93,7 +93,7 @@ type ModuleWithDepsPathContext interface {
 	VisitDirectDeps(visit func(Module))
 	VisitDirectDepsProxy(visit func(ModuleProxy))
 	VisitDirectDepsProxyWithTag(tag blueprint.DependencyTag, visit func(ModuleProxy))
-	OtherModuleDependencyTag(m blueprint.Module) blueprint.DependencyTag
+	OtherModuleDependencyTag(m blueprint.ModuleOrProxy) blueprint.DependencyTag
 	HasMutatorFinished(mutatorName string) bool
 }
 
@@ -235,12 +235,14 @@ func ReportPathErrorf(ctx PathContext, format string, args ...interface{}) {
 	}
 }
 
-// TODO(b/397766191): Change the signature to take ModuleProxy
-// Please only access the module's internal data through providers.
-func pathContextName(ctx PathContext, module blueprint.Module) string {
-	if x, ok := ctx.(interface{ ModuleName(blueprint.Module) string }); ok {
+func pathContextName(ctx PathContext, module blueprint.ModuleOrProxy) string {
+	if x, ok := ctx.(interface {
+		ModuleName(blueprint.ModuleOrProxy) string
+	}); ok {
 		return x.ModuleName(module)
-	} else if x, ok := ctx.(interface{ OtherModuleName(blueprint.Module) string }); ok {
+	} else if x, ok := ctx.(interface {
+		OtherModuleName(blueprint.ModuleOrProxy) string
+	}); ok {
 		return x.OtherModuleName(module)
 	}
 	return "unknown"
