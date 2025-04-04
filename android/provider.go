@@ -28,7 +28,7 @@ type ConfigAndOtherModuleProviderContext interface {
 //
 // OtherModuleProviderContext is a helper interface that accepts ModuleContext or BottomUpMutatorContext.
 func OtherModuleProvider[K any](ctx OtherModuleProviderContext, module blueprint.Module, provider blueprint.ProviderKey[K]) (K, bool) {
-	value, ok := ctx.otherModuleProvider(getWrappedModule(module), provider)
+	value, ok := ctx.otherModuleProvider(module, provider)
 	if !ok {
 		var k K
 		return k, false

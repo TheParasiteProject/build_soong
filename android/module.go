@@ -851,6 +851,7 @@ func InitCommonOSAndroidMultiTargetsArchModule(m Module, hod HostOrDeviceSupport
 //	    // ...
 //	}
 type ModuleBase struct {
+	blueprint.ModuleBase
 	// Putting the curiously recurring thing pointing to the thing that contains
 	// the thing pattern to good use.
 	// TODO: remove this

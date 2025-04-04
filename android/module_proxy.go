@@ -6,22 +6,10 @@ import (
 )
 
 type ModuleProxy struct {
-	module blueprint.ModuleProxy
+	blueprint.ModuleProxy
 }
 
 var _ Module = ModuleProxy{}
-
-func (m ModuleProxy) IsNil() bool {
-	return m.module.IsNil()
-}
-
-func (m ModuleProxy) Name() string {
-	return m.module.Name()
-}
-
-func (m ModuleProxy) GenerateBuildActions(context blueprint.ModuleContext) {
-	m.module.GenerateBuildActions(context)
-}
 
 func (m ModuleProxy) GenerateAndroidBuildActions(context ModuleContext) {
 	panic("method is not implemented on ModuleProxy")
@@ -190,10 +178,6 @@ func (m ModuleProxy) RuleParamsForTests() map[blueprint.Rule]blueprint.RuleParam
 
 func (m ModuleProxy) VariablesForTests() map[string]string {
 	panic("method is not implemented on ModuleProxy")
-}
-
-func (m ModuleProxy) String() string {
-	return m.module.String()
 }
 
 func (m ModuleProxy) qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleName {
