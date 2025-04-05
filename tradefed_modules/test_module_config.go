@@ -179,10 +179,6 @@ func (m *testModuleConfigModule) GenerateAndroidBuildActions(ctx android.ModuleC
 	moduleInfoJSON.TestConfig = []string{m.testConfig.String()}
 	moduleInfoJSON.AutoTestConfig = []string{"true"}
 	moduleInfoJSON.TestModuleConfigBase = proptools.String(m.Base)
-
-	android.SetProvider(ctx, android.SupportFilesInfoProvider, android.SupportFilesInfo{
-		SupportFiles: m.supportFiles,
-	})
 }
 
 // Ensure at least one test_suite is listed.  Ideally it should be general-tests
@@ -332,9 +328,6 @@ func (m *testModuleConfigHostModule) DepsMutator(ctx android.BottomUpMutatorCont
 func (m *testModuleConfigHostModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	m.validateBase(ctx, &testModuleConfigHostTag, "java_test_host", true)
 	m.generateManifestAndConfig(ctx)
-	android.SetProvider(ctx, android.SupportFilesInfoProvider, android.SupportFilesInfo{
-		SupportFiles: m.supportFiles,
-	})
 }
 
 // Ensure the base listed is the right type by checking that we get the expected provider data.
@@ -435,8 +428,19 @@ func (m *testModuleConfigModule) generateManifestAndConfig(ctx android.ModuleCon
 		IsUnitTest:              m.provider.IsUnitTest,
 	})
 
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: m.tradefedProperties.Test_suites,
+	mainFileExt := ".apk"
+	if m.provider.MkAppClass == "JAVA_LIBRARIES" {
+		mainFileExt = ".jar"
+	}
+
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:                m.tradefedProperties.Test_suites,
+		MainFile:                  m.manifest,
+		MainFileStem:              fmt.Sprintf("UNUSED-%s", *m.Base),
+		MainFileExt:               mainFileExt,
+		ConfigFile:                m.testConfig,
+		CompatibilitySupportFiles: m.supportFiles.Paths(),
+		NeedsArchFolder:           ctx.Device(),
 	})
 }
 

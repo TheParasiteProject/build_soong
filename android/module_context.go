@@ -267,6 +267,11 @@ type ModuleContext interface {
 	// goal is built.
 	DistForGoalWithFilename(goal string, path Path, filename string)
 
+	// DistForGoalWithFilenameTag creates a rule to copy a Path to the artifacts
+	// directory on the build server with the given filename appended with the
+	// `-FILE_NAME_TAG_PLACEHOLDER` suffix when the specified goal is built.
+	DistForGoalWithFilenameTag(goal string, path Path, filename string)
+
 	// DistForGoals creates a rule to copy one or more Paths to the artifacts
 	// directory on the build server when any of the specified goals are built.
 	DistForGoals(goals []string, paths ...Path)
@@ -275,6 +280,10 @@ type ModuleContext interface {
 	// directory on the build server with the given filename when any of the
 	// specified goals are built.
 	DistForGoalsWithFilename(goals []string, path Path, filename string)
+
+	// Defines this module as a compatibility suite test and gives all the information needed
+	// to build the suite.
+	SetTestSuiteInfo(info TestSuiteInfo)
 }
 
 type moduleContext struct {
@@ -334,6 +343,9 @@ type moduleContext struct {
 	complianceMetadataInfo *ComplianceMetadataInfo
 
 	dists []dist
+
+	testSuiteInfo    TestSuiteInfo
+	testSuiteInfoSet bool
 }
 
 var _ ModuleContext = &moduleContext{}
@@ -1021,6 +1033,15 @@ func (c *moduleContext) DistForGoalWithFilename(goal string, path Path, filename
 	c.DistForGoalsWithFilename([]string{goal}, path, filename)
 }
 
+func (c *moduleContext) DistForGoalWithFilenameTag(goal string, path Path, filename string) {
+	insertBeforeExtension := func(file, insertion string) string {
+		ext := filepath.Ext(file)
+		return strings.TrimSuffix(file, ext) + insertion + ext
+	}
+
+	c.DistForGoalWithFilename(goal, path, insertBeforeExtension(filename, "-FILE_NAME_TAG_PLACEHOLDER"))
+}
+
 func (c *moduleContext) DistForGoals(goals []string, paths ...Path) {
 	var copies distCopies
 	for _, path := range paths {
@@ -1040,4 +1061,12 @@ func (c *moduleContext) DistForGoalsWithFilename(goals []string, path Path, file
 		goals: slices.Clone(goals),
 		paths: distCopies{{from: path, dest: filename}},
 	})
+}
+
+func (c *moduleContext) SetTestSuiteInfo(info TestSuiteInfo) {
+	if c.testSuiteInfoSet {
+		panic("Cannot call SetTestSuiteInfo twice")
+	}
+	c.testSuiteInfo = info
+	c.testSuiteInfoSet = true
 }

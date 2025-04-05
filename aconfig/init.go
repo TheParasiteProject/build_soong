@@ -70,6 +70,36 @@ var (
 				"${aconfig}",
 			},
 		}, "cache_files")
+
+	allDeclarationsRuleStoragePackageMap = pctx.AndroidStaticRule("all_aconfig_declarations_storage_package_map",
+		blueprint.RuleParams{
+			Command: `${aconfig} create-storage --container ${container} --file package_map --out ${out} ${cache_files} --version ${version}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "cache_files", "version")
+	allDeclarationsRuleStorageFlagMap = pctx.AndroidStaticRule("all_aconfig_declarations_storage_flag_map",
+		blueprint.RuleParams{
+			Command: `${aconfig} create-storage --container ${container} --file flag_map --out ${out} ${cache_files} --version ${version}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "cache_files", "version")
+	allDeclarationsRuleStorageFlagInfo = pctx.AndroidStaticRule("all_aconfig_declarations_storage_flag_info",
+		blueprint.RuleParams{
+			Command: `${aconfig} create-storage --container ${container} --file flag_info --out ${out} ${cache_files} --version ${version}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "cache_files", "version")
+	allDeclarationsRuleStorageFlagVal = pctx.AndroidStaticRule("all_aconfig_declarations_storage_flag_val",
+		blueprint.RuleParams{
+			Command: `${aconfig} create-storage --container ${container} --file flag_val --out ${out} ${cache_files} --version ${version}`,
+			CommandDeps: []string{
+				"${aconfig}",
+			},
+		}, "container", "cache_files", "version")
+
 	RecordFinalizedFlagsRule = pctx.AndroidStaticRule("RecordFinalizedFlagsRule",
 		blueprint.RuleParams{
 			Command: `${record-finalized-flags} ${parsed_flags_file} ${finalized_flags_file} ${api_signature_files} > ${out}`,
@@ -79,7 +109,10 @@ var (
 		}, "api_signature_files", "finalized_flags_file", "parsed_flags_file")
 	ExportedFlagCheckRule = pctx.AndroidStaticRule("ExportedFlagCheckRule",
 		blueprint.RuleParams{
-			Command: `${exported-flag-check} ${parsed_flags_file} ${finalized_flags_file} ${api_signature_files} > ${out}`,
+			Command: `${exported-flag-check} validate-exported-flags ` +
+				`  ${parsed_flags_file} ` +
+				`  ${finalized_flags_file} ` +
+				`  ${api_signature_files} > ${out}`,
 			CommandDeps: []string{
 				"${exported-flag-check}",
 			},
@@ -102,26 +135,29 @@ var (
 		// exported flags (only). Finally collect all generated code
 		// into the ${out} JAR file.
 		blueprint.RuleParams{
-			// LINT.IfChange
-			Command: `rm -rf ${out}.tmp` +
+			Command: `rm -rf ${out}.tmp && rm -rf ${out}.pb.tmp ` +
 				`&& for cache in ${cache_files}; do ` +
-				`  if [ -n "$$(${aconfig} dump-cache --dedup --cache $$cache --filter=is_exported:true --format='{fully_qualified_name}')" ]; then ` +
+				`  ${exported-flag-check} filter-api-flags --cache $$cache --out ${out}.pb.tmp/$$cache &&` +
+				`  if [ -n "$$(${aconfig} dump-cache --dedup --cache ${out}.pb.tmp/$$cache  --filter=is_exported:true --format='{fully_qualified_name}')" ]; then ` +
+				// LINT.IfChange
 				`    ${aconfig} create-java-lib` +
-				`        --cache $$cache` +
+				`        --cache ${out}.pb.tmp/$$cache` +
 				`        --mode=exported` +
 				`        --allow-instrumentation ${use_new_storage}` +
 				`        --new-exported ${use_new_exported}` +
 				`        --single-exported-file true` +
 				`        --check-api-level ${check_api_level}` +
 				`        --out ${out}.tmp; ` +
+				// LINT.ThenChange(/aconfig/codegen/init.go)
 				`  fi ` +
 				`done` +
 				`&& $soong_zip -write_if_changed -jar -o ${out} -C ${out}.tmp -D ${out}.tmp` +
-				`&& rm -rf ${out}.tmp`,
-			// LINT.ThenChange(/aconfig/codegen/init.go)
+				`&& rm -rf ${out}.tmp && rm -rf ${out}.pb.tmp `,
+
 			CommandDeps: []string{
 				"$aconfig",
 				"$soong_zip",
+				"$exported-flag-check",
 			},
 		}, "cache_files", "use_new_storage", "use_new_exported", "check_api_level")
 )

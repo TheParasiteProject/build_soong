@@ -21,7 +21,6 @@ package cc
 import (
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -80,6 +79,7 @@ type LinkerInfo struct {
 	SharedLibs []string
 	// list of modules that should only provide headers for this module.
 	HeaderLibs               []string
+	SystemSharedLibs         []string
 	ImplementationModuleName *string
 
 	BinaryDecoratorInfo       *BinaryDecoratorInfo
@@ -91,7 +91,11 @@ type LinkerInfo struct {
 	PrebuiltLibraryLinkerInfo *PrebuiltLibraryLinkerInfo
 }
 
-type BinaryDecoratorInfo struct{}
+type BinaryDecoratorInfo struct {
+	StaticExecutable bool
+	Nocrt            bool
+}
+
 type LibraryDecoratorInfo struct {
 	ExportIncludeDirs []string
 	InjectBsslHash    bool
@@ -99,6 +103,12 @@ type LibraryDecoratorInfo struct {
 	// not included in the NDK.
 	NdkSysrootPath android.Path
 	VndkFileName   string
+	// rename host libraries to prevent overlap with system installed libraries
+	UniqueHostSoname    *bool
+	SharedLibs          []string
+	SystemSharedLibs    []string
+	StubsSymbolFilePath android.Path
+	SAbiDiff            android.Paths
 }
 
 type SnapshotInfo struct {
@@ -120,7 +130,9 @@ type StubDecoratorInfo struct {
 type ObjectLinkerInfo struct {
 	// Location of the object in the sysroot. Empty if the object is not
 	// included in the NDK.
-	NdkSysrootPath android.Path
+	NdkSysrootPath   android.Path
+	SharedLibs       []string
+	SystemSharedLibs []string
 }
 
 type PrebuiltLibraryLinkerInfo struct {
@@ -128,7 +140,8 @@ type PrebuiltLibraryLinkerInfo struct {
 }
 
 type LibraryInfo struct {
-	BuildStubs bool
+	BuildStubs       bool
+	AllStubsVersions []string
 }
 
 type InstallerInfo struct {
@@ -142,17 +155,36 @@ type LocalOrGlobalFlagsInfo struct {
 	CppFlags    []string // Flags that apply to C++ source files
 }
 
+type SanitizeInfo struct {
+	IsUnsanitizedVariant bool
+	Sanitize             SanitizeUserProps
+}
+
+type StlInfo struct {
+	Stl *string
+}
+
 // Common info about the cc module.
 type CcInfo struct {
 	IsPrebuilt             bool
 	CmakeSnapshotSupported bool
 	HasLlndkStubs          bool
 	DataPaths              []android.DataPath
-	CompilerInfo           *CompilerInfo
-	LinkerInfo             *LinkerInfo
-	SnapshotInfo           *SnapshotInfo
-	LibraryInfo            *LibraryInfo
-	InstallerInfo          *InstallerInfo
+	VendorAvailable        bool
+	OdmAvailable           bool
+	ProductAvailable       bool
+	// Allowable SdkMemberTypes of this module type.
+	SdkMemberTypes     []android.SdkMemberType
+	LocalFlags         LocalOrGlobalFlagsInfo
+	GlobalFlags        LocalOrGlobalFlagsInfo
+	SystemIncludeFlags []string
+	CompilerInfo       *CompilerInfo
+	LinkerInfo         *LinkerInfo
+	SnapshotInfo       *SnapshotInfo
+	LibraryInfo        *LibraryInfo
+	InstallerInfo      *InstallerInfo
+	StlInfo            *StlInfo
+	SanitizeInfo       *SanitizeInfo
 }
 
 var CcInfoProvider = blueprint.NewProvider[*CcInfo]()
@@ -798,8 +830,6 @@ type linker interface {
 	defaultDistFiles() []android.Path
 
 	moduleInfoJSON(ctx ModuleContext, moduleInfoJSON *android.ModuleInfoJSON)
-
-	testSuiteInfo(ctx ModuleContext)
 }
 
 // specifiedDeps is a tuple struct representing dependencies of a linked binary owned by the linker.
@@ -2182,6 +2212,89 @@ func (c *Module) baseSymbolInfo(ctx android.ModuleContext) *SymbolInfo {
 	}
 }
 
+func targetOutUnstripped(ctx android.ModuleContext) android.InstallPath {
+	return android.PathForModuleInPartitionInstall(ctx, "symbols")
+}
+
+func elfSymbolMappingDir(ctx android.ModuleContext) android.InstallPath {
+	return android.PathForModuleInPartitionInstall(ctx, "obj", "PACKAGING", "elf_symbol_mapping_intermediates")
+}
+
+// Generates the information to copy the symbols file to $PRODUCT_OUT/symbols directory based on
+// the symbols info. The actual copying is done in [CopySymbolsAndSetSymbolsInfoProvider].
+func getSymbolicOutputInfos(ctx android.ModuleContext, info *SymbolInfo) *android.SymbolicOutputInfo {
+
+	if info.Uninstallable || info.UnstrippedBinaryPath == nil {
+		return nil
+	}
+
+	mySymbolPath := info.ModuleDir
+
+	myUnstrippedPath := targetOutUnstripped(ctx).Join(ctx, strings.TrimPrefix(mySymbolPath, android.PathForModuleInPartitionInstall(ctx, "").String()+"/"))
+
+	myInstalledModuleStem := info.InstalledStem
+	if len(myInstalledModuleStem) == 0 {
+		myModuleStem := info.Stem
+		if len(myModuleStem) == 0 {
+			myModuleStem = info.Name
+		}
+		myInstalledModuleStem = myModuleStem + info.Suffix
+	}
+
+	symbolicOutput := myUnstrippedPath.Join(ctx, myInstalledModuleStem)
+
+	return &android.SymbolicOutputInfo{
+		UnstrippedOutputFile: info.UnstrippedBinaryPath,
+		SymbolicOutputPath:   symbolicOutput,
+	}
+}
+
+func CopySymbolsAndSetSymbolsInfoProvider(ctx android.ModuleContext, symbolInfos *SymbolInfos) {
+	if android.ShouldSkipAndroidMkProcessing(ctx, ctx.Module()) {
+		return
+	}
+	var symbolicOutputInfos android.SymbolicOutputInfos
+	for _, info := range symbolInfos.Symbols {
+		if so := getSymbolicOutputInfos(ctx, info); so != nil {
+			symbolicOutputInfos = append(symbolicOutputInfos, so)
+		}
+	}
+
+	// Remove duplicates
+	symbolicOutputInfos = android.FirstUniqueFunc(symbolicOutputInfos, func(a, b *android.SymbolicOutputInfo) bool {
+		return a.UnstrippedOutputFile.String() == b.UnstrippedOutputFile.String() &&
+			a.SymbolicOutputPath.String() == b.SymbolicOutputPath.String()
+	})
+
+	// Copy the symbols files to $PRODUCT_OUT/symbols directory
+	for _, info := range symbolicOutputInfos {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.CpNoPreserveSymlink,
+			Input:  info.UnstrippedOutputFile,
+			Output: info.SymbolicOutputPath,
+		})
+	}
+
+	// Generate the elf mapping textproto file from the copied symbols file
+	for _, info := range symbolicOutputInfos {
+		symbolPath := info.SymbolicOutputPath
+		symbolSubDir := strings.TrimPrefix(filepath.Dir(symbolPath.String()), targetOutUnstripped(ctx).String()+"/")
+		protoBase := filepath.Base(symbolPath.String()) + ".textproto"
+		info.ElfMappingProtoPath = elfSymbolMappingDir(ctx).Join(ctx, symbolSubDir, protoBase)
+
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   elfSymbolsToProto,
+			Input:  symbolPath,
+			Output: info.ElfMappingProtoPath,
+		})
+	}
+
+	android.SetProvider(ctx, android.SymbolInfosProvider, symbolicOutputInfos)
+
+	ctx.CheckbuildFile(symbolicOutputInfos.SortedUniqueSymbolicOutputPaths()...)
+	ctx.CheckbuildFile(symbolicOutputInfos.SortedUniqueElfMappingProtoPaths()...)
+}
+
 func (c *Module) collectSymbolsInfo(ctx android.ModuleContext) {
 	if !c.hideApexVariantFromMake && !c.Properties.HideFromMake {
 		infos := &SymbolInfos{}
@@ -2194,6 +2307,8 @@ func (c *Module) collectSymbolsInfo(ctx android.ModuleContext) {
 			infos.AppendSymbols(c.getSymbolInfo(ctx, c.sanitize, c.baseSymbolInfo(ctx)))
 		}
 		infos.AppendSymbols(c.getSymbolInfo(ctx, c.installer, c.baseSymbolInfo(ctx)))
+
+		CopySymbolsAndSetSymbolsInfoProvider(ctx, infos)
 	}
 }
 
@@ -2458,6 +2573,23 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		CmakeSnapshotSupported: proptools.Bool(c.Properties.Cmake_snapshot_supported),
 		HasLlndkStubs:          c.HasLlndkStubs(),
 		DataPaths:              c.DataPaths(),
+		VendorAvailable:        c.VendorAvailable(),
+		OdmAvailable:           c.OdmAvailable(),
+		ProductAvailable:       c.ProductAvailable(),
+		SdkMemberTypes:         c.sdkMemberTypes,
+		LocalFlags: LocalOrGlobalFlagsInfo{
+			CommonFlags: c.flags.Local.CommonFlags,
+			CFlags:      c.flags.Local.CFlags,
+			ConlyFlags:  c.flags.Local.ConlyFlags,
+			CppFlags:    c.flags.Local.CppFlags,
+		},
+		GlobalFlags: LocalOrGlobalFlagsInfo{
+			CommonFlags: c.flags.Global.CommonFlags,
+			CFlags:      c.flags.Global.CFlags,
+			ConlyFlags:  c.flags.Global.ConlyFlags,
+			CppFlags:    c.flags.Global.CppFlags,
+		},
+		SystemIncludeFlags: c.flags.SystemIncludeFlags,
 	}
 	if c.compiler != nil {
 		cflags := c.compiler.baseCompilerProps().Cflags
@@ -2481,21 +2613,35 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if c.linker != nil {
 		baseLinkerProps := c.linker.baseLinkerProps()
 		ccInfo.LinkerInfo = &LinkerInfo{
-			WholeStaticLibs: baseLinkerProps.Whole_static_libs.GetOrDefault(ctx, nil),
-			StaticLibs:      baseLinkerProps.Static_libs.GetOrDefault(ctx, nil),
-			SharedLibs:      baseLinkerProps.Shared_libs.GetOrDefault(ctx, nil),
-			HeaderLibs:      baseLinkerProps.Header_libs.GetOrDefault(ctx, nil),
+			WholeStaticLibs:  baseLinkerProps.Whole_static_libs.GetOrDefault(ctx, nil),
+			StaticLibs:       baseLinkerProps.Static_libs.GetOrDefault(ctx, nil),
+			SharedLibs:       baseLinkerProps.Shared_libs.GetOrDefault(ctx, nil),
+			HeaderLibs:       baseLinkerProps.Header_libs.GetOrDefault(ctx, nil),
+			SystemSharedLibs: baseLinkerProps.System_shared_libs,
 		}
 		switch decorator := c.linker.(type) {
 		case *binaryDecorator:
-			ccInfo.LinkerInfo.BinaryDecoratorInfo = &BinaryDecoratorInfo{}
-		case *libraryDecorator:
-			lk := c.linker.(*libraryDecorator)
-			ccInfo.LinkerInfo.LibraryDecoratorInfo = &LibraryDecoratorInfo{
-				InjectBsslHash: Bool(lk.Properties.Inject_bssl_hash),
-				NdkSysrootPath: lk.ndkSysrootPath,
-				VndkFileName:   lk.getLibNameHelper(c.BaseModuleName(), true, false) + ".so",
+			ccInfo.LinkerInfo.BinaryDecoratorInfo = &BinaryDecoratorInfo{
+				StaticExecutable: decorator.static(),
+				Nocrt:            Bool(decorator.baseLinker.Properties.Nocrt),
 			}
+		case *libraryDecorator:
+			ccInfo.LinkerInfo.LibraryDecoratorInfo = &LibraryDecoratorInfo{
+				InjectBsslHash:      Bool(decorator.Properties.Inject_bssl_hash),
+				NdkSysrootPath:      decorator.ndkSysrootPath,
+				VndkFileName:        decorator.getLibNameHelper(c.BaseModuleName(), true, false) + ".so",
+				UniqueHostSoname:    decorator.Properties.Unique_host_soname,
+				StubsSymbolFilePath: decorator.stubsSymbolFilePath,
+				SAbiDiff:            decorator.sAbiDiff,
+			}
+			var properties StaticOrSharedProperties
+			if decorator.static() {
+				properties = decorator.StaticProperties.Static
+			} else if decorator.shared() {
+				properties = decorator.SharedProperties.Shared
+			}
+			ccInfo.LinkerInfo.LibraryDecoratorInfo.SharedLibs = properties.Shared_libs.GetOrDefault(ctx, nil)
+			ccInfo.LinkerInfo.LibraryDecoratorInfo.SystemSharedLibs = properties.System_shared_libs
 		case *testBinary:
 			ccInfo.LinkerInfo.TestBinaryInfo = &TestBinaryInfo{
 				Gtest: decorator.testDecorator.gtest(),
@@ -2504,7 +2650,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			ccInfo.LinkerInfo.BenchmarkDecoratorInfo = &BenchmarkDecoratorInfo{}
 		case *objectLinker:
 			ccInfo.LinkerInfo.ObjectLinkerInfo = &ObjectLinkerInfo{
-				NdkSysrootPath: c.linker.(*objectLinker).ndkSysrootPath,
+				NdkSysrootPath:   c.linker.(*objectLinker).ndkSysrootPath,
+				SharedLibs:       decorator.Properties.Shared_libs.GetOrDefault(ctx, nil),
+				SystemSharedLibs: decorator.Properties.System_shared_libs,
 			}
 		case *stubDecorator:
 			ccInfo.LinkerInfo.StubDecoratorInfo = &StubDecoratorInfo{}
@@ -2524,12 +2672,11 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			name := v.ImplementationModuleName(ctx.OtherModuleName(c))
 			ccInfo.LinkerInfo.ImplementationModuleName = &name
 		}
-
-		c.linker.testSuiteInfo(ctx)
 	}
 	if c.library != nil {
 		ccInfo.LibraryInfo = &LibraryInfo{
-			BuildStubs: c.library.BuildStubs(),
+			BuildStubs:       c.library.BuildStubs(),
+			AllStubsVersions: c.library.AllStubsVersions(),
 		}
 	}
 	if c.installer != nil {
@@ -2543,6 +2690,17 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 			}
 		}
 	}
+	if c.stl != nil {
+		ccInfo.StlInfo = &StlInfo{
+			Stl: c.stl.Properties.Stl,
+		}
+	}
+	if c.sanitize != nil {
+		ccInfo.SanitizeInfo = &SanitizeInfo{
+			IsUnsanitizedVariant: c.sanitize.isUnsanitizedVariant(),
+			Sanitize:             c.sanitize.Properties.Sanitize,
+		}
+	}
 	android.SetProvider(ctx, CcInfoProvider, &ccInfo)
 
 	c.setOutputFiles(ctx)
@@ -2554,6 +2712,29 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if !c.hideApexVariantFromMake && !c.Properties.HideFromMake {
 		c.collectSymbolsInfo(ctx)
 	}
+}
+
+func (c *Module) CleanupAfterBuildActions() {
+	// Clear as much of Module as possible to reduce memory usage.
+	c.generators = nil
+	c.installer = nil
+	c.features = nil
+	c.coverage = nil
+	c.fuzzer = nil
+	c.sabi = nil
+	c.lto = nil
+	c.afdo = nil
+	c.orderfile = nil
+
+	// TODO: these can be cleared after nativeBinaryInfoProperties and nativeLibInfoProperties are switched to
+	//  using providers.
+	// c.linker = nil
+	// c.stl = nil
+	// c.sanitize = nil
+	// c.library = nil
+
+	// TODO: this can be cleared after ccdeps.go is switched to using providers.
+	// c.compiler = nil
 }
 
 func CreateCommonLinkableInfo(ctx android.ModuleContext, mod VersionedLinkableInterface) *LinkableInfo {
@@ -2599,6 +2780,7 @@ func CreateCommonLinkableInfo(ctx android.ModuleContext, mod VersionedLinkableIn
 		info.HasLLNDKStubs = vi.HasLLNDKStubs()
 		info.IsLLNDKMovedToApex = vi.IsLLNDKMovedToApex()
 		info.ImplementationModuleName = vi.ImplementationModuleName(mod.BaseModuleName())
+		vi.AllStubsVersions()
 	}
 
 	if !mod.PreventInstall() && fuzz.IsValid(ctx, mod.FuzzModuleStruct()) && mod.IsFuzzModule() {
@@ -4247,14 +4429,6 @@ func installable(c LinkableInterface, apexInfo android.ApexInfo) bool {
 	}
 
 	return false
-}
-
-func (c *Module) AndroidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer) {
-	if c.linker != nil {
-		if library, ok := c.linker.(*libraryDecorator); ok {
-			library.androidMkWriteAdditionalDependenciesForSourceAbiDiff(w)
-		}
-	}
 }
 
 var _ android.ApexModule = (*Module)(nil)

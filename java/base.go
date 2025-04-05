@@ -513,8 +513,9 @@ type Module struct {
 	jacocoReportClassesFile android.Path
 
 	// output file of the module, which may be a classes jar or a dex jar
-	outputFile       android.Path
-	extraOutputFiles android.Paths
+	outputFile          android.Path
+	installedOutputFile android.Path
+	extraOutputFiles    android.Paths
 
 	exportAidlIncludeDirs     android.Paths
 	ignoredAidlPermissionList android.Paths
@@ -1331,6 +1332,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			StubsLinkType:                       j.stubsLinkType,
 			AconfigIntermediateCacheOutputPaths: deps.aconfigProtoFiles,
 			SdkVersion:                          j.SdkVersion(ctx),
+			OverrideMinSdkVersion:               j.overridableProperties.Min_sdk_version,
+			Installable:                         BoolDefault(j.properties.Installable, true),
 		}
 	}
 
@@ -1962,6 +1965,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		AconfigIntermediateCacheOutputPaths: j.aconfigCacheFiles,
 		SdkVersion:                          j.SdkVersion(ctx),
 		OutputFile:                          j.outputFile,
+		OverrideMinSdkVersion:               j.overridableProperties.Min_sdk_version,
+		Installable:                         BoolDefault(j.properties.Installable, true),
 	}
 }
 

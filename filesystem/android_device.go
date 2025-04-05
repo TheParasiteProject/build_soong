@@ -122,6 +122,9 @@ type androidDevice struct {
 	apkCertsInfo                android.Path
 	targetFilesZip              android.Path
 	updatePackage               android.Path
+
+	symbolsZipFile     android.ModuleOutPath
+	symbolsMappingFile android.ModuleOutPath
 }
 
 func AndroidDeviceFactory() android.Module {
@@ -201,6 +204,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.miscInfo = a.addMiscInfo(ctx)
 	a.buildTargetFilesZip(ctx, allInstalledModules)
 	a.buildProguardZips(ctx, allInstalledModules)
+	a.buildSymbolsZip(ctx, allInstalledModules)
 	a.buildUpdatePackage(ctx)
 
 	var deps []android.Path
@@ -298,6 +302,13 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	} else {
 		buildComplianceMetadata(ctx, filesystemDepTag)
 	}
+
+	// Add the host tools as deps
+	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
+		for _, hostTool := range ctx.Config().ProductVariables().ProductHostPackages {
+			ctx.Phony("droid", android.PathForPhony(ctx, hostTool+"-host"))
+		}
+	}
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
@@ -376,9 +387,15 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	return ret
 }
 
-func insertBeforeExtension(file, insertion string) string {
-	ext := filepath.Ext(file)
-	return strings.TrimSuffix(file, ext) + insertion + ext
+type symbolicOutputInfo struct {
+	unstrippedOutputFile android.Path
+	symbolicOutputPath   android.InstallPath
+}
+
+func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.Module) {
+	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
+	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
+	android.BuildSymbolsZip(ctx, allInstalledModules, ctx.ModuleName(), a.symbolsZipFile, a.symbolsMappingFile)
 }
 
 func (a *androidDevice) distInstalledFiles(ctx android.ModuleContext) {
@@ -412,9 +429,12 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		if ctx.Config().HasDeviceProduct() {
 			namePrefix = ctx.Config().DeviceProduct() + "-"
 		}
-		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardDictZip, namePrefix+insertBeforeExtension(a.proguardDictZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
-		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardDictMapping, namePrefix+insertBeforeExtension(a.proguardDictMapping.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
-		ctx.DistForGoalWithFilename("droidcore-unbundled", a.proguardUsageZip, namePrefix+insertBeforeExtension(a.proguardUsageZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardDictZip, namePrefix+a.proguardDictZip.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardDictMapping, namePrefix+a.proguardDictMapping.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardUsageZip, namePrefix+a.proguardUsageZip.Base())
+
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.symbolsZipFile, namePrefix+a.symbolsZipFile.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.symbolsMappingFile, namePrefix+a.symbolsMappingFile.Base())
 
 		if a.deviceProps.Android_info != nil {
 			ctx.DistForGoal("droidcore-unbundled", android.PathForModuleSrc(ctx, *a.deviceProps.Android_info))
@@ -426,10 +446,10 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 			}
 		}
 		if a.targetFilesZip != nil {
-			ctx.DistForGoalWithFilename("target-files-package", a.targetFilesZip, namePrefix+insertBeforeExtension(a.targetFilesZip.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+			ctx.DistForGoalWithFilenameTag("target-files-package", a.targetFilesZip, namePrefix+a.targetFilesZip.Base())
 		}
 		if a.updatePackage != nil {
-			ctx.DistForGoalWithFilename("updatepackage", a.updatePackage, namePrefix+insertBeforeExtension(a.updatePackage.Base(), "-FILE_NAME_TAG_PLACEHOLDER"))
+			ctx.DistForGoalWithFilenameTag("updatepackage", a.updatePackage, namePrefix+a.updatePackage.Base())
 		}
 
 	}

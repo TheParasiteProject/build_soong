@@ -103,8 +103,8 @@ var (
 			PropertyName: "java_header_libs",
 			SupportsSdk:  true,
 		},
-		func(_ android.SdkMemberContext, j *Library) android.Path {
-			headerJars := j.HeaderJars()
+		func(_ android.SdkMemberContext, j android.Module, javaInfo *JavaInfo) android.Path {
+			headerJars := javaInfo.HeaderJars
 			if len(headerJars) != 1 {
 				panic(fmt.Errorf("there must be only one header jar from %q", j.Name()))
 			}
@@ -116,8 +116,8 @@ var (
 	}
 
 	// Export implementation classes jar as part of the sdk.
-	exportImplementationClassesJar = func(_ android.SdkMemberContext, j *Library) android.Path {
-		implementationJars := j.ImplementationAndResourcesJars()
+	exportImplementationClassesJar = func(_ android.SdkMemberContext, j android.Module, javaInfo *JavaInfo) android.Path {
+		implementationJars := javaInfo.ImplementationAndResourcesJars
 		if len(implementationJars) != 1 {
 			panic(fmt.Errorf("there must be only one implementation jar from %q", j.Name()))
 		}
@@ -160,9 +160,9 @@ var (
 			PropertyName: "java_boot_libs",
 			SupportsSdk:  true,
 		},
-		func(ctx android.SdkMemberContext, j *Library) android.Path {
+		func(ctx android.SdkMemberContext, j android.Module, javaInfo *JavaInfo) android.Path {
 			if snapshotRequiresImplementationJar(ctx) {
-				return exportImplementationClassesJar(ctx, j)
+				return exportImplementationClassesJar(ctx, j, javaInfo)
 			}
 
 			// Java boot libs are only provided in the SDK to provide access to their dex implementation
@@ -202,7 +202,7 @@ var (
 			// This was only added in Tiramisu.
 			SupportedBuildReleaseSpecification: "Tiramisu+",
 		},
-		func(ctx android.SdkMemberContext, j *Library) android.Path {
+		func(ctx android.SdkMemberContext, _ android.Module, _ *JavaInfo) android.Path {
 			// Java systemserver libs are only provided in the SDK to provide access to their dex
 			// implementation jar for use by dexpreopting. They do not need to provide an actual
 			// implementation jar but the java_import will need a file that exists so just copy an empty
@@ -279,6 +279,14 @@ type ModuleWithUsesLibraryInfo struct {
 type ModuleWithSdkDepInfo struct {
 	SdkLinkType sdkLinkType
 	Stubs       bool
+}
+
+type ApexDependencyInfo struct {
+	// These fields can be different from the ones in JavaInfo, for example, for sdk_library
+	// the following fields are set since sdk_library inherits the implementations of
+	// ApexDependency from base, but the same-named fields are not set in JavaInfo.
+	HeaderJars                     android.Paths
+	ImplementationAndResourcesJars android.Paths
 }
 
 // JavaInfo contains information about a java module for use by modules that depend on it.
@@ -433,8 +441,13 @@ type JavaInfo struct {
 
 	DexpreopterInfo *DexpreopterInfo
 
-	XrefJavaFiles   android.Paths
-	XrefKotlinFiles android.Paths
+	XrefJavaFiles         android.Paths
+	XrefKotlinFiles       android.Paths
+	OverrideMinSdkVersion *string
+	CompileDex            *bool
+	SystemModules         string
+	Installable           bool
+	ApexDependencyInfo    *ApexDependencyInfo
 }
 
 var JavaInfoProvider = blueprint.NewProvider[*JavaInfo]()
@@ -453,7 +466,8 @@ type DexpreopterInfo struct {
 }
 
 type JavaLibraryInfo struct {
-	Prebuilt bool
+	Prebuilt          bool
+	PermittedPackages []string
 }
 
 var JavaLibraryInfoProvider = blueprint.NewProvider[JavaLibraryInfo]()
@@ -1148,7 +1162,8 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	android.SetProvider(ctx, JavaLibraryInfoProvider, JavaLibraryInfo{
-		Prebuilt: false,
+		Prebuilt:          false,
+		PermittedPackages: j.properties.Permitted_packages,
 	})
 
 	if javaInfo != nil {
@@ -1339,7 +1354,7 @@ type librarySdkMemberType struct {
 
 	// Function to retrieve the appropriate output jar (implementation or header) from
 	// the library.
-	jarToExportGetter func(ctx android.SdkMemberContext, j *Library) android.Path
+	jarToExportGetter func(ctx android.SdkMemberContext, j android.Module, javaInfo *JavaInfo) android.Path
 
 	// Function to compute the snapshot relative path to which the named library's
 	// jar should be copied.
@@ -1359,9 +1374,9 @@ func (mt *librarySdkMemberType) AddDependencies(ctx android.SdkDependencyContext
 	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
-func (mt *librarySdkMemberType) IsInstance(module android.Module) bool {
-	_, ok := module.(*Library)
-	return ok
+func (mt *librarySdkMemberType) IsInstance(ctx android.ModuleContext, module android.ModuleProxy) bool {
+	info, ok := android.OtherModuleProvider(ctx, module, JavaLibraryInfoProvider)
+	return ok && !info.Prebuilt
 }
 
 func (mt *librarySdkMemberType) AddPrebuiltModule(ctx android.SdkMemberContext, member android.SdkMember) android.BpModule {
@@ -1388,26 +1403,30 @@ type librarySdkMemberProperties struct {
 	DexPreoptProfileGuided *bool `supported_build_releases:"UpsideDownCake+"`
 }
 
-func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
-	j := variant.(*Library)
+func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.ModuleProxy) {
+	//j := variant.(*Library)
+	mctx := ctx.SdkModuleContext()
+	commonInfo := android.OtherModulePointerProviderOrDefault(mctx, variant, android.CommonModuleInfoProvider)
+	javaInfo := android.OtherModulePointerProviderOrDefault(mctx, variant, JavaInfoProvider)
+	libraryInfo := android.OtherModuleProviderOrDefault(mctx, variant, JavaLibraryInfoProvider)
 
-	p.JarToExport = ctx.MemberType().(*librarySdkMemberType).jarToExportGetter(ctx, j)
+	p.JarToExport = ctx.MemberType().(*librarySdkMemberType).jarToExportGetter(ctx, variant, javaInfo)
 
-	p.AidlIncludeDirs = j.AidlIncludeDirs()
+	p.AidlIncludeDirs = javaInfo.AidlIncludeDirs
 
-	p.PermittedPackages = j.PermittedPackagesForUpdatableBootJars()
+	p.PermittedPackages = libraryInfo.PermittedPackages
 
 	// If the min_sdk_version was set then add the canonical representation of the API level to the
 	// snapshot.
-	if j.overridableProperties.Min_sdk_version != nil {
-		canonical, err := android.ReplaceFinalizedCodenames(ctx.SdkModuleContext().Config(), j.minSdkVersion.String())
+	if javaInfo.OverrideMinSdkVersion != nil {
+		canonical, err := android.ReplaceFinalizedCodenames(mctx.Config(), commonInfo.MinSdkVersion.ApiLevel.String())
 		if err != nil {
 			ctx.ModuleErrorf("%s", err)
 		}
 		p.MinSdkVersion = proptools.StringPtr(canonical)
 	}
 
-	if j.dexpreopter.dexpreoptProperties.Dex_preopt_result.Profile_guided {
+	if javaInfo.ProfileGuided {
 		p.DexPreoptProfileGuided = proptools.BoolPtr(true)
 	}
 }
@@ -1659,6 +1678,12 @@ type JavaTestImport struct {
 	dexJarFile android.Path
 }
 
+type JavaTestInfo struct {
+	TestConfig android.Path
+}
+
+var JavaTestInfoProvider = blueprint.NewProvider[JavaTestInfo]()
+
 func (j *Test) InstallInTestcases() bool {
 	// Host java tests install into $(HOST_OUT_JAVA_LIBRARIES), and then are copied into
 	// testcases by base_rules.mk.
@@ -1814,6 +1839,7 @@ func (j *TestHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	j.Test.generateAndroidBuildActionsWithConfig(ctx, configs)
+	j.Test.javaTestSetTestsuiteInfo(ctx)
 	android.SetProvider(ctx, tradefed.BaseTestProviderKey, tradefed.BaseTestProviderData{
 		TestcaseRelDataFiles: testcaseRel(j.data),
 		OutputFile:           j.outputFile,
@@ -1836,6 +1862,7 @@ func (j *TestHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 func (j *Test) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	checkMinSdkVersionMts(ctx, j.MinSdkVersion(ctx))
 	j.generateAndroidBuildActionsWithConfig(ctx, nil)
+	j.javaTestSetTestsuiteInfo(ctx)
 }
 
 func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, configs []tradefed.Config) {
@@ -1941,29 +1968,29 @@ func (j *Test) generateAndroidBuildActionsWithConfig(ctx android.ModuleContext, 
 		}
 	}
 	moduleInfoJSON.TestMainlineModules = append(moduleInfoJSON.TestMainlineModules, j.testProperties.Test_mainline_modules...)
+}
 
+func (j *Test) javaTestSetTestsuiteInfo(ctx android.ModuleContext) {
 	// Install test deps
-	if !ctx.Config().KatiEnabled() {
-		pathInTestCases := android.PathForModuleInstall(ctx, "testcases", ctx.ModuleName())
-		if j.testConfig != nil {
-			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".config", j.testConfig)
-		}
-		dynamicConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
-		if dynamicConfig.Valid() {
-			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".dynamic", dynamicConfig.Path())
-		}
-		testDeps := append(j.data, j.extraTestConfigs...)
-		for _, data := range android.SortedUniquePaths(testDeps) {
-			dataPath := android.DataPath{SrcPath: data}
-			ctx.InstallTestData(pathInTestCases, []android.DataPath{dataPath})
-		}
-		if j.outputFile != nil {
-			ctx.InstallFile(pathInTestCases, ctx.ModuleName()+".jar", j.outputFile)
-		}
+	var testData []android.DataPath
+	for _, data := range j.data {
+		dataPath := android.DataPath{SrcPath: data}
+		testData = append(testData, dataPath)
 	}
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:           j.testProperties.Test_suites,
+		MainFile:             j.outputFile,
+		MainFileStem:         j.Stem(),
+		MainFileExt:          ".jar",
+		ConfigFile:           j.testConfig,
+		ExtraConfigs:         j.extraTestConfigs,
+		NeedsArchFolder:      ctx.Device(),
+		NonArchData:          testData,
+		PerTestcaseDirectory: proptools.Bool(j.testProperties.Per_testcase_directory),
+	})
 
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: j.testProperties.Test_suites,
+	android.SetProvider(ctx, JavaTestInfoProvider, JavaTestInfo{
+		TestConfig: j.testConfig,
 	})
 }
 
@@ -1978,12 +2005,20 @@ func (j *TestHelperLibrary) GenerateAndroidBuildActions(ctx android.ModuleContex
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
 	optionalConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "AndroidTest.xml")
+	var config android.Path
 	if optionalConfig.Valid() {
+		config = optionalConfig.Path()
 		moduleInfoJSON.TestConfig = append(moduleInfoJSON.TestConfig, optionalConfig.String())
 	}
 
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: j.testHelperLibraryProperties.Test_suites,
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:           j.testHelperLibraryProperties.Test_suites,
+		MainFile:             j.outputFile,
+		MainFileStem:         j.Stem(),
+		MainFileExt:          ".jar",
+		ConfigFile:           config,
+		NeedsArchFolder:      ctx.Device(),
+		PerTestcaseDirectory: proptools.Bool(j.testHelperLibraryProperties.Per_testcase_directory),
 	})
 }
 
@@ -2007,8 +2042,8 @@ func (mt *testSdkMemberType) AddDependencies(ctx android.SdkDependencyContext, d
 	ctx.AddVariationDependencies(nil, dependencyTag, names...)
 }
 
-func (mt *testSdkMemberType) IsInstance(module android.Module) bool {
-	_, ok := module.(*Test)
+func (mt *testSdkMemberType) IsInstance(ctx android.ModuleContext, module android.ModuleProxy) bool {
+	_, ok := android.OtherModuleProvider(ctx, module, JavaTestInfoProvider)
 	return ok
 }
 
@@ -2027,16 +2062,14 @@ type testSdkMemberProperties struct {
 	TestConfig  android.Path
 }
 
-func (p *testSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.Module) {
-	test := variant.(*Test)
-
-	implementationJars := test.ImplementationJars()
+func (p *testSdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberContext, variant android.ModuleProxy) {
+	implementationJars := android.OtherModulePointerProviderOrDefault(ctx.SdkModuleContext(), variant, JavaInfoProvider).ImplementationJars
 	if len(implementationJars) != 1 {
-		panic(fmt.Errorf("there must be only one implementation jar from %q", test.Name()))
+		panic(fmt.Errorf("there must be only one implementation jar from %q", variant.Name()))
 	}
 
 	p.JarToExport = implementationJars[0]
-	p.TestConfig = test.testConfig
+	p.TestConfig = android.OtherModuleProviderOrDefault(ctx.SdkModuleContext(), variant, JavaTestInfoProvider).TestConfig
 }
 
 func (p *testSdkMemberProperties) AddToPropertySet(ctx android.SdkMemberContext, propertySet android.BpPropertySet) {
@@ -2545,7 +2578,6 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	apiContributions := al.properties.Api_contributions
 	addValidations := !ctx.Config().IsEnvTrue("DISABLE_STUB_VALIDATION") &&
 		!ctx.Config().IsEnvTrue("WITHOUT_CHECK_API") &&
-		!ctx.Config().PartialCompileFlags().Disable_stub_validation &&
 		proptools.BoolDefault(al.properties.Enable_validation, true)
 	for _, apiContributionName := range apiContributions {
 		ctx.AddDependency(ctx.Module(), javaApiContributionTag, apiContributionName)
@@ -2721,7 +2753,15 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		cmd.FlagForEachInput("--migrate-nullness ", previousApiFiles)
 	}
 
-	al.addValidation(ctx, cmd, al.validationPaths)
+	// While we could use SOONG_USE_PARTIAL_COMPILE in the validation's rule, that would unduly
+	// complicate the code for minimal benefit.  Instead, add a phony
+	// target to let the developer manually run the validation if they so
+	// desire.
+	ctx.Phony("stub-validation", al.validationPaths...)
+	ctx.Phony(ctx.ModuleName()+"-stub-validation", al.validationPaths...)
+	if !ctx.Config().PartialCompileFlags().Disable_stub_validation {
+		al.addValidation(ctx, cmd, al.validationPaths)
+	}
 
 	generateRevertAnnotationArgs(ctx, cmd, al.stubsType, al.aconfigProtoFiles)
 
@@ -3267,7 +3307,8 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
 
 	android.SetProvider(ctx, JavaLibraryInfoProvider, JavaLibraryInfo{
-		Prebuilt: true,
+		Prebuilt:          true,
+		PermittedPackages: j.properties.Permitted_packages,
 	})
 
 	ctx.SetOutputFiles(android.Paths{j.combinedImplementationFile}, "")
@@ -3867,5 +3908,17 @@ func setExtraJavaInfo(ctx android.ModuleContext, module android.Module, javaInfo
 	if xr, ok := module.(xref); ok {
 		javaInfo.XrefJavaFiles = xr.XrefJavaFiles()
 		javaInfo.XrefKotlinFiles = xr.XrefKotlinFiles()
+	}
+
+	if sdk, ok := module.(android.SdkContext); ok {
+		javaInfo.SystemModules = sdk.SystemModules()
+		javaInfo.SdkVersion = sdk.SdkVersion(ctx)
+	}
+
+	if ap, ok := module.(ApexDependency); ok {
+		javaInfo.ApexDependencyInfo = &ApexDependencyInfo{
+			HeaderJars:                     ap.HeaderJars(),
+			ImplementationAndResourcesJars: ap.ImplementationAndResourcesJars(),
+		}
 	}
 }

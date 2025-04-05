@@ -42,6 +42,7 @@ func init() {
 	pctx.HostBinToolVariable("fileslist", "fileslist")
 	pctx.HostBinToolVariable("fs_config", "fs_config")
 	pctx.HostBinToolVariable("symbols_map", "symbols_map")
+	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 }
 
 func registerBuildComponents(ctx android.RegistrationContext) {
@@ -81,6 +82,12 @@ var (
 		Command:     `(cd ${rootDir}; find . -type d | sed 's,$$,/,'; find . \! -type d) | cut -c 3- | sort | sed 's,^,${prefix},' | ${fs_config} -C -D ${rootDir} -R "${prefix}" > ${out}`,
 		CommandDeps: []string{"${fs_config}"},
 	}, "rootDir", "prefix")
+	zipFiles = pctx.AndroidStaticRule("SnapshotZipFiles", blueprint.RuleParams{
+		Command:        `${SoongZipCmd}  -r $out.rsp -o $out`,
+		CommandDeps:    []string{"${SoongZipCmd}"},
+		Rspfile:        "$out.rsp",
+		RspfileContent: "$in",
+	})
 )
 
 type filesystem struct {
@@ -641,7 +648,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	platformGeneratedFiles := []string{}
 	f.entries = f.copyPackagingSpecs(ctx, builder, specs, rootDir, rebasedDir)
 	f.buildNonDepsFiles(ctx, builder, rootDir, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
-	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir, &fullInstallPaths)
+	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildEventLogtagsFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildAconfigFlagsFiles(ctx, builder, specs, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.filesystemBuilder.BuildLinkerConfigFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)

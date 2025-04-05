@@ -16,7 +16,6 @@ package cc
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -798,9 +797,6 @@ type libraryInterface interface {
 	// Gets the ABI properties for vendor, product, or platform variant
 	getHeaderAbiCheckerProperties(m *Module) headerAbiCheckerProperties
 
-	// Write LOCAL_ADDITIONAL_DEPENDENCIES for ABI diff
-	androidMkWriteAdditionalDependenciesForSourceAbiDiff(w io.Writer)
-
 	apexAvailable() []string
 
 	setAPIListCoverageXMLPath(out android.ModuleOutPath)
@@ -1076,10 +1072,6 @@ func (library *libraryDecorator) moduleInfoJSON(ctx ModuleContext, moduleInfoJSO
 	}
 
 	library.baseLinker.moduleInfoJSON(ctx, moduleInfoJSON)
-}
-
-func (library *libraryDecorator) testSuiteInfo(ctx ModuleContext) {
-	// not a test
 }
 
 func (library *libraryDecorator) linkStatic(ctx ModuleContext,

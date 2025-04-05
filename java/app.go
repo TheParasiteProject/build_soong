@@ -83,6 +83,9 @@ type AppInfo struct {
 	PrivAppAllowlist              android.OptionalPath
 	OverriddenManifestPackageName *string
 	ApkCertsFile                  android.Path
+	JniLibs                       []jniLib
+	JniCoverageOutputs            android.Paths
+	PackedAdditionalOutputs       android.Path
 }
 
 var AppInfoProvider = blueprint.NewProvider[*AppInfo]()
@@ -413,8 +416,10 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 		TestOnly: true,
 	})
 	appInfo := &AppInfo{
-		Updatable:     Bool(a.appProperties.Updatable),
-		TestHelperApp: true,
+		Updatable:          Bool(a.appProperties.Updatable),
+		TestHelperApp:      true,
+		JniLibs:            a.jniLibs,
+		JniCoverageOutputs: a.jniCoverageOutputs,
 	}
 	setCommonAppInfo(appInfo, a)
 	android.SetProvider(ctx, AppInfoProvider, appInfo)
@@ -427,8 +432,19 @@ func (a *AndroidTestHelperApp) GenerateAndroidBuildActions(ctx android.ModuleCon
 		moduleInfoJSON.CompatibilitySuites = append(moduleInfoJSON.CompatibilitySuites, "null-suite")
 	}
 
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: a.appTestHelperAppProperties.Test_suites,
+	var data []android.DataPath
+	for _, d := range a.extraOutputFiles {
+		data = append(data, android.DataPath{SrcPath: d})
+	}
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:           a.appTestHelperAppProperties.Test_suites,
+		MainFile:             a.outputFile,
+		MainFileStem:         a.installApkName,
+		MainFileExt:          ".apk",
+		NeedsArchFolder:      true,
+		NonArchData:          data,
+		PerTestcaseDirectory: proptools.Bool(a.appTestHelperAppProperties.Per_testcase_directory),
+		DisableTestConfig:    true,
 	})
 }
 
@@ -442,7 +458,7 @@ func (a *AndroidApp) baseSymbolInfo(ctx android.ModuleContext) *cc.SymbolInfo {
 
 func (a *AndroidApp) GetJniSymbolInfos(ctx android.ModuleContext, JniSymbolInstallPath android.Path) []*cc.SymbolInfo {
 	infos := []*cc.SymbolInfo{}
-	for _, install := range a.JNISymbolsInstalls(JniSymbolInstallPath.String()) {
+	for _, install := range JNISymbolsInstalls(a.jniLibs, JniSymbolInstallPath.String()) {
 		info := a.baseSymbolInfo(ctx)
 		info.UnstrippedBinaryPath = install.From
 		info.ModuleDir = filepath.Dir(install.To)
@@ -473,6 +489,8 @@ func (a *AndroidApp) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		EmbeddedJNILibs:               embeddedJniLibs,
 		MergedManifestFile:            a.mergedManifest,
 		OverriddenManifestPackageName: &overriddenName,
+		JniLibs:                       a.jniLibs,
+		JniCoverageOutputs:            a.jniCoverageOutputs,
 	}
 	setCommonAppInfo(appInfo, a)
 	android.SetProvider(ctx, AppInfoProvider, appInfo)
@@ -854,9 +872,9 @@ func (a *AndroidApp) jniBuildActions(jniLibs []jniLib, prebuiltJniPackages andro
 	return jniJarFile
 }
 
-func (a *AndroidApp) JNISymbolsInstalls(installPath string) android.RuleBuilderInstalls {
+func JNISymbolsInstalls(jniLibs []jniLib, installPath string) android.RuleBuilderInstalls {
 	var jniSymbols android.RuleBuilderInstalls
-	for _, jniLib := range a.jniLibs {
+	for _, jniLib := range jniLibs {
 		if jniLib.unstrippedFile != nil {
 			jniSymbols = append(jniSymbols, android.RuleBuilderInstall{
 				From: jniLib.unstrippedFile,
@@ -1130,7 +1148,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 				}
 			}
 		}
-		ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile, extraInstalledPaths...)
+		a.installedOutputFile = ctx.InstallFile(a.installDir, a.outputFile.Base(), a.outputFile, extraInstalledPaths...)
 	}
 
 	ctx.CheckbuildFile(a.outputFile)
@@ -1166,6 +1184,14 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.setOutputFiles(ctx)
 
 	buildComplianceMetadata(ctx)
+
+	if !a.hideApexVariantFromMake && !a.IsHideFromMake() {
+		if a.embeddedJniLibs {
+			cc.CopySymbolsAndSetSymbolsInfoProvider(ctx, &cc.SymbolInfos{
+				Symbols: a.GetJniSymbolInfos(ctx, a.installPathForJNISymbols),
+			})
+		}
+	}
 }
 
 func (a *AndroidApp) setOutputFiles(ctx android.ModuleContext) {
@@ -1679,22 +1705,29 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.data = append(a.data, android.PathsForModuleSrc(ctx, a.testProperties.Device_first_prefer32_data)...)
 	a.data = append(a.data, android.PathsForModuleSrc(ctx, a.testProperties.Host_common_data)...)
 
-	// Install test deps
-	if !ctx.Config().KatiEnabled() {
-		pathInTestCases := android.PathForModuleInstall(ctx, ctx.Module().Name())
-		if a.testConfig != nil {
-			ctx.InstallFile(pathInTestCases, ctx.Module().Name()+".config", a.testConfig)
-		}
-		dynamicConfig := android.ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
-		if dynamicConfig.Valid() {
-			ctx.InstallFile(pathInTestCases, ctx.Module().Name()+".dynamic", dynamicConfig.Path())
-		}
-		testDeps := append(a.data, a.extraTestConfigs...)
-		for _, data := range android.SortedUniquePaths(testDeps) {
-			dataPath := android.DataPath{SrcPath: data}
-			ctx.InstallTestData(pathInTestCases, []android.DataPath{dataPath})
-		}
+	a.data = android.SortedUniquePaths(a.data)
+	a.extraTestConfigs = android.SortedUniquePaths(a.extraTestConfigs)
+
+	var testData []android.DataPath
+	for _, data := range a.data {
+		dataPath := android.DataPath{SrcPath: data}
+		testData = append(testData, dataPath)
 	}
+	for _, d := range a.extraOutputFiles {
+		testData = append(testData, android.DataPath{SrcPath: d})
+	}
+	ctx.SetTestSuiteInfo(android.TestSuiteInfo{
+		TestSuites:                a.testProperties.Test_suites,
+		MainFile:                  a.outputFile,
+		MainFileStem:              a.installApkName,
+		MainFileExt:               ".apk",
+		ConfigFile:                a.testConfig,
+		ExtraConfigs:              a.extraTestConfigs,
+		NonArchData:               testData,
+		CompatibilitySupportFiles: a.data,
+		NeedsArchFolder:           true,
+		PerTestcaseDirectory:      proptools.Bool(a.testProperties.Per_testcase_directory),
+	})
 
 	android.SetProvider(ctx, tradefed.BaseTestProviderKey, tradefed.BaseTestProviderData{
 		TestcaseRelDataFiles:    testcaseRel(a.data),
@@ -1729,10 +1762,6 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		moduleInfoJSON.AutoTestConfig = []string{"true"}
 	}
 	moduleInfoJSON.TestMainlineModules = append(moduleInfoJSON.TestMainlineModules, a.testProperties.Test_mainline_modules...)
-
-	android.SetProvider(ctx, android.TestSuiteInfoProvider, android.TestSuiteInfo{
-		TestSuites: a.testProperties.Test_suites,
-	})
 }
 
 func testcaseRel(paths android.Paths) []string {
