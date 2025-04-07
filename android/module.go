@@ -511,6 +511,7 @@ type commonProperties struct {
 
 	// Name and variant strings stored by mutators to enable Module.String()
 	DebugName       string   `blueprint:"mutated"`
+	DebugNamespace  string   `blueprint:"mutated"`
 	DebugMutators   []string `blueprint:"mutated"`
 	DebugVariations []string `blueprint:"mutated"`
 
@@ -2025,6 +2026,10 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		baseModuleContext: m.baseModuleContextFactory(blueprintCtx),
 		variables:         make(map[string]string),
 		phonies:           make(map[string]Paths),
+	}
+
+	if ctx.config.captureBuild {
+		ctx.config.modulesForTests.Insert(ctx.ModuleName(), ctx.Module())
 	}
 
 	setContainerInfo(ctx)
