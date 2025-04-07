@@ -1415,3 +1415,32 @@ func PanickingConfigAndErrorContext(ctx *TestContext) ConfigurableEvaluatorConte
 		ctx: ctx,
 	}
 }
+
+type visitDirectDepsInterface interface {
+	VisitDirectDeps(blueprint.Module, func(dep blueprint.Module))
+}
+
+// HasDirectDep returns true if wantDep is a direct dependency of m.
+func HasDirectDep(ctx visitDirectDepsInterface, m Module, wantDep ModuleOrProxy) bool {
+	var found bool
+	ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+		if EqualModules(dep, wantDep) {
+			found = true
+		}
+	})
+	return found
+}
+
+// AssertHasDirectDep asserts that wantDep is a direct dependency of m.
+func AssertHasDirectDep(t *testing.T, ctx visitDirectDepsInterface, m Module, wantDep ModuleOrProxy) {
+	t.Helper()
+	found := false
+	ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+		if EqualModules(dep, wantDep) {
+			found = true
+		}
+	})
+	if !found {
+		t.Errorf("Could not find a dependency from %v to %v\n", m, wantDep)
+	}
+}
