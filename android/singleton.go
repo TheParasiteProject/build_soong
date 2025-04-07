@@ -262,9 +262,7 @@ func visitAdaptor(visit func(Module)) func(blueprint.Module) {
 // a function that takes a blueprint.ModuleProxy parameter.
 func visitProxyAdaptor(visit func(proxy ModuleProxy)) func(proxy blueprint.ModuleProxy) {
 	return func(module blueprint.ModuleProxy) {
-		visit(ModuleProxy{
-			module: module,
-		})
+		visit(ModuleProxy{module})
 	}
 }
 
@@ -282,23 +280,23 @@ func predAdaptor(pred func(Module) bool) func(blueprint.Module) bool {
 }
 
 func (s *singletonContextAdaptor) ModuleName(module blueprint.Module) string {
-	return s.SingletonContext.ModuleName(getWrappedModule(module))
+	return s.SingletonContext.ModuleName(module)
 }
 
 func (s *singletonContextAdaptor) ModuleDir(module blueprint.Module) string {
-	return s.SingletonContext.ModuleDir(getWrappedModule(module))
+	return s.SingletonContext.ModuleDir(module)
 }
 
 func (s *singletonContextAdaptor) ModuleSubDir(module blueprint.Module) string {
-	return s.SingletonContext.ModuleSubDir(getWrappedModule(module))
+	return s.SingletonContext.ModuleSubDir(module)
 }
 
 func (s *singletonContextAdaptor) ModuleType(module blueprint.Module) string {
-	return s.SingletonContext.ModuleType(getWrappedModule(module))
+	return s.SingletonContext.ModuleType(module)
 }
 
 func (s *singletonContextAdaptor) BlueprintFile(module blueprint.Module) string {
-	return s.SingletonContext.BlueprintFile(getWrappedModule(module))
+	return s.SingletonContext.BlueprintFile(module)
 }
 
 func (s *singletonContextAdaptor) VisitAllModulesBlueprint(visit func(blueprint.Module)) {
@@ -338,7 +336,7 @@ func (s *singletonContextAdaptor) VisitAllModuleVariants(module Module, visit fu
 }
 
 func (s *singletonContextAdaptor) VisitAllModuleVariantProxies(module Module, visit func(proxy ModuleProxy)) {
-	s.SingletonContext.VisitAllModuleVariantProxies(getWrappedModule(module), visitProxyAdaptor(visit))
+	s.SingletonContext.VisitAllModuleVariantProxies(module, visitProxyAdaptor(visit))
 }
 
 func (s *singletonContextAdaptor) PrimaryModule(module Module) Module {
@@ -346,18 +344,18 @@ func (s *singletonContextAdaptor) PrimaryModule(module Module) Module {
 }
 
 func (s *singletonContextAdaptor) PrimaryModuleProxy(module ModuleProxy) ModuleProxy {
-	return ModuleProxy{s.SingletonContext.PrimaryModuleProxy(module.module)}
+	return ModuleProxy{s.SingletonContext.PrimaryModuleProxy(module.ModuleProxy)}
 }
 
 func (s *singletonContextAdaptor) IsFinalModule(module Module) bool {
-	return s.SingletonContext.IsFinalModule(getWrappedModule(module))
+	return s.SingletonContext.IsFinalModule(module)
 }
 
 func (s *singletonContextAdaptor) ModuleVariantsFromName(referer ModuleProxy, name string) []ModuleProxy {
 	// get module reference for visibility enforcement
 	qualified := createVisibilityModuleProxyReference(s, s.ModuleName(referer), s.ModuleDir(referer), referer)
 
-	modules := s.SingletonContext.ModuleVariantsFromName(referer.module, name)
+	modules := s.SingletonContext.ModuleVariantsFromName(referer.ModuleProxy, name)
 	result := make([]ModuleProxy, 0, len(modules))
 	for _, module := range modules {
 		// enforce visibility
