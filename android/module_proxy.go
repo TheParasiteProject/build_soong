@@ -9,7 +9,7 @@ type ModuleProxy struct {
 	module blueprint.ModuleProxy
 }
 
-var _ Module = (*ModuleProxy)(nil)
+var _ Module = ModuleProxy{}
 
 func (m ModuleProxy) IsNil() bool {
 	return m.module.IsNil()
