@@ -238,7 +238,7 @@ func (ctx *TestContext) HardCodedPreArchMutators(f RegisterMutatorFunc) {
 	ctx.PreArchMutators(f)
 }
 
-func (ctx *TestContext) otherModuleProvider(m blueprint.ModuleOrProxy, p blueprint.AnyProviderKey) (any, bool) {
+func (ctx *TestContext) otherModuleProvider(m ModuleOrProxy, p blueprint.AnyProviderKey) (any, bool) {
 	return ctx.Context.ModuleProvider(m, p)
 }
 
@@ -259,12 +259,28 @@ func (ctx *TestContext) FinalDepsMutators(f RegisterMutatorFunc) {
 }
 
 func (ctx *TestContext) OtherModuleProviderAdaptor() OtherModuleProviderContext {
-	return NewOtherModuleProviderAdaptor(func(module blueprint.ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool) {
+	return NewOtherModuleProviderAdaptor(func(module ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool) {
 		return ctx.otherModuleProvider(module, provider)
 	})
 }
 
-func (ctx *TestContext) OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property string, fmt_ string, args ...interface{}) {
+func (ctx *TestContext) ModuleDir(module ModuleOrProxy) string {
+	return ctx.Context.ModuleDir(module)
+}
+
+func (ctx *TestContext) ModuleSubDir(module ModuleOrProxy) string {
+	return ctx.Context.ModuleSubDir(module)
+}
+
+func (ctx *TestContext) ModuleType(module ModuleOrProxy) string {
+	return ctx.Context.ModuleType(module)
+}
+
+func (ctx *TestContext) ModuleErrorf(module ModuleOrProxy, fmt string, args ...any) error {
+	return ctx.Context.ModuleErrorf(module, fmt, args...)
+}
+
+func (ctx *TestContext) OtherModulePropertyErrorf(module ModuleOrProxy, property string, fmt_ string, args ...interface{}) {
 	panic(fmt.Sprintf(fmt_, args...))
 }
 
@@ -1378,7 +1394,7 @@ type panickingConfigAndErrorContext struct {
 	ctx *TestContext
 }
 
-func (ctx *panickingConfigAndErrorContext) OtherModulePropertyErrorf(module blueprint.ModuleOrProxy, property, fmt string, args ...interface{}) {
+func (ctx *panickingConfigAndErrorContext) OtherModulePropertyErrorf(module ModuleOrProxy, property, fmt string, args ...interface{}) {
 	panic(ctx.ctx.PropertyErrorf(module, property, fmt, args...).Error())
 }
 
@@ -1390,7 +1406,7 @@ func (ctx *panickingConfigAndErrorContext) HasMutatorFinished(mutatorName string
 	return ctx.ctx.HasMutatorFinished(mutatorName)
 }
 
-func (ctx *panickingConfigAndErrorContext) otherModuleProvider(m blueprint.ModuleOrProxy, p blueprint.AnyProviderKey) (any, bool) {
+func (ctx *panickingConfigAndErrorContext) otherModuleProvider(m ModuleOrProxy, p blueprint.AnyProviderKey) (any, bool) {
 	return ctx.ctx.otherModuleProvider(m, p)
 }
 
