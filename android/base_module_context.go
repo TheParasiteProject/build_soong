@@ -163,10 +163,6 @@ type BaseModuleContext interface {
 	// The Module passed to the visit function should not be retained outside of the visit function, it may be
 	// invalidated by future mutators.
 	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
-	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
-	VisitDepsDepthFirst(visit func(Module))
-	// Deprecated: use WalkDeps instead to support multiple dependency tags on the same module
-	VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module))
 
 	// WalkDeps calls visit for each transitive dependency, traversing the dependency tree in top down order.  visit may
 	// be called multiple times for the same (child, parent) pair if there are multiple direct dependencies between the
@@ -201,29 +197,11 @@ type BaseModuleContext interface {
 	// only done once for all variants of a module.
 	PrimaryModule() Module
 
-	// FinalModule returns the last variant of the current module.  Variants of a module are always visited in
-	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
-	// variants using VisitAllModuleVariants if the current module == FinalModule().  This can be used to perform
-	// singleton actions that are only done once for all variants of a module.
-	FinalModule() Module
-
 	// IsFinalModule returns if the current module is the last variant.  Variants of a module are always visited in
 	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
 	// variants using VisitAllModuleVariants if the current module is the last one. This can be used to perform
 	// singleton actions that are only done once for all variants of a module.
 	IsFinalModule(module ModuleOrProxy) bool
-
-	// VisitAllModuleVariants calls visit for each variant of the current module.  Variants of a module are always
-	// visited in order by mutators and GenerateBuildActions, so the data created by the current mutator can be read
-	// from all variants if the current module is the last one. Otherwise, care must be taken to not access any
-	// data modified by the current mutator.
-	VisitAllModuleVariants(visit func(Module))
-
-	// VisitAllModuleVariantProxies calls visit for each variant of the current module.  Variants of a module are always
-	// visited in order by mutators and GenerateBuildActions, so the data created by the current mutator can be read
-	// from all variants if the current module is the last one. Otherwise, care must be taken to not access any
-	// data modified by the current mutator.
-	VisitAllModuleVariantProxies(visit func(proxy ModuleProxy))
 
 	// GetTagPath is supposed to be called in visit function passed in WalkDeps()
 	// and returns a top-down dependency tags path from a start module to current child module.
@@ -520,30 +498,6 @@ func (b *baseModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func
 		})
 }
 
-func (b *baseModuleContext) VisitDepsDepthFirst(visit func(Module)) {
-	b.bp.VisitDepsDepthFirst(func(module blueprint.Module) {
-		if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
-			visit(aModule)
-		}
-	})
-}
-
-func (b *baseModuleContext) VisitDepsDepthFirstIf(pred func(Module) bool, visit func(Module)) {
-	b.bp.VisitDepsDepthFirstIf(
-		// pred
-		func(module blueprint.Module) bool {
-			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
-				return pred(aModule)
-			} else {
-				return false
-			}
-		},
-		// visit
-		func(module blueprint.Module) {
-			visit(module.(Module))
-		})
-}
-
 func (b *baseModuleContext) WalkDeps(visit func(Module, Module) bool) {
 	b.walkPath = []Module{b.Module()}
 	b.proxyWalkPath = nil
@@ -605,22 +559,8 @@ func (b *baseModuleContext) GetTagPath() []blueprint.DependencyTag {
 	return b.tagPath
 }
 
-func (b *baseModuleContext) VisitAllModuleVariants(visit func(Module)) {
-	b.bp.VisitAllModuleVariants(func(module blueprint.Module) {
-		visit(module.(Module))
-	})
-}
-
-func (b *baseModuleContext) VisitAllModuleVariantProxies(visit func(ModuleProxy)) {
-	b.bp.VisitAllModuleVariantProxies(visitProxyAdaptor(visit))
-}
-
 func (b *baseModuleContext) PrimaryModule() Module {
 	return b.bp.PrimaryModule().(Module)
-}
-
-func (b *baseModuleContext) FinalModule() Module {
-	return b.bp.FinalModule().(Module)
 }
 
 func (b *baseModuleContext) IsFinalModule(module ModuleOrProxy) bool {
