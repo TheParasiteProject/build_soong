@@ -284,6 +284,36 @@ func (ctx *TestContext) OtherModulePropertyErrorf(module ModuleOrProxy, property
 	panic(fmt.Sprintf(fmt_, args...))
 }
 
+// VisitAllModules wraps blueprint.Context.VisitAllModules, converting blueprint.Module to android.Module.
+func (ctx *TestContext) VisitAllModules(visit func(Module)) {
+	ctx.Context.VisitAllModules(func(module blueprint.Module) {
+		visit(module.(Module))
+	})
+}
+
+// VisitAllModulesProxies wraps blueprint.Context.VisitAllModulesProxies, converting blueprint.ModuleProxy to
+// android.ModuleProxy.
+func (ctx *TestContext) VisitAllModulesProxies(visit func(ModuleProxy)) {
+	ctx.Context.VisitAllModulesProxies(func(module blueprint.ModuleProxy) {
+		visit(ModuleProxy{module})
+	})
+}
+
+// VisitDirectDeps wraps blueprint.Context.VisitDirectDeps, converting blueprint.Module to android.Module.
+func (ctx *TestContext) VisitDirectDeps(module Module, visit func(Module)) {
+	ctx.Context.VisitDirectDeps(module, func(module blueprint.Module) {
+		visit(module.(Module))
+	})
+}
+
+// VisitDirectDepsProxies wraps blueprint.Context.VisitDirectDepsProxies, converting blueprint.ModuleProxy to
+// android.ModuleProxy.
+func (ctx *TestContext) VisitDirectDepsProxies(module ModuleOrProxy, visit func(ModuleProxy)) {
+	ctx.Context.VisitDirectDepsProxies(module, func(dep blueprint.ModuleProxy) {
+		visit(ModuleProxy{dep})
+	})
+}
+
 // registeredComponentOrder defines the order in which a sortableComponent type is registered at
 // runtime and provides support for reordering the components registered for a test in the same
 // way.
@@ -549,7 +579,7 @@ func (ctx *TestContext) RegisterParallelSingletonType(name string, factory Singl
 func (ctx *TestContext) ModuleVariantForTests(t *testing.T, name string, matchVariations map[string]string) TestingModule {
 	t.Helper()
 	modules := []Module{}
-	ctx.VisitAllModules(func(m blueprint.Module) {
+	ctx.VisitAllModules(func(m Module) {
 		if ctx.ModuleName(m) == name {
 			am := m.(Module)
 			amMut := am.base().commonProperties.DebugMutators
@@ -571,7 +601,7 @@ func (ctx *TestContext) ModuleVariantForTests(t *testing.T, name string, matchVa
 		// Show all the modules or module variants that do exist.
 		var allModuleNames []string
 		var allVariants []string
-		ctx.VisitAllModules(func(m blueprint.Module) {
+		ctx.VisitAllModules(func(m Module) {
 			allModuleNames = append(allModuleNames, ctx.ModuleName(m))
 			if ctx.ModuleName(m) == name {
 				allVariants = append(allVariants, m.(Module).String())
@@ -604,9 +634,9 @@ func (ctx *TestContext) ModuleVariantForTests(t *testing.T, name string, matchVa
 func (ctx *TestContext) ModuleForTests(t *testing.T, name, variant string) TestingModule {
 	t.Helper()
 	var module Module
-	ctx.VisitAllModules(func(m blueprint.Module) {
+	ctx.VisitAllModules(func(m Module) {
 		if ctx.ModuleName(m) == name && ctx.ModuleSubDir(m) == variant {
-			module = m.(Module)
+			module = m
 		}
 	})
 
@@ -614,7 +644,7 @@ func (ctx *TestContext) ModuleForTests(t *testing.T, name, variant string) Testi
 		// find all the modules that do exist
 		var allModuleNames []string
 		var allVariants []string
-		ctx.VisitAllModules(func(m blueprint.Module) {
+		ctx.VisitAllModules(func(m Module) {
 			allModuleNames = append(allModuleNames, ctx.ModuleName(m))
 			if ctx.ModuleName(m) == name {
 				allVariants = append(allVariants, ctx.ModuleSubDir(m))
@@ -636,7 +666,7 @@ func (ctx *TestContext) ModuleForTests(t *testing.T, name, variant string) Testi
 
 func (ctx *TestContext) ModuleVariantsForTests(name string) []string {
 	var variants []string
-	ctx.VisitAllModules(func(m blueprint.Module) {
+	ctx.VisitAllModules(func(m Module) {
 		if ctx.ModuleName(m) == name {
 			variants = append(variants, ctx.ModuleSubDir(m))
 		}
@@ -1417,13 +1447,13 @@ func PanickingConfigAndErrorContext(ctx *TestContext) ConfigurableEvaluatorConte
 }
 
 type visitDirectDepsInterface interface {
-	VisitDirectDeps(blueprint.Module, func(dep blueprint.Module))
+	VisitDirectDepsProxies(ModuleOrProxy, func(dep ModuleProxy))
 }
 
 // HasDirectDep returns true if wantDep is a direct dependency of m.
 func HasDirectDep(ctx visitDirectDepsInterface, m Module, wantDep ModuleOrProxy) bool {
 	var found bool
-	ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+	ctx.VisitDirectDepsProxies(m, func(dep ModuleProxy) {
 		if EqualModules(dep, wantDep) {
 			found = true
 		}
@@ -1435,7 +1465,7 @@ func HasDirectDep(ctx visitDirectDepsInterface, m Module, wantDep ModuleOrProxy)
 func AssertHasDirectDep(t *testing.T, ctx visitDirectDepsInterface, m Module, wantDep ModuleOrProxy) {
 	t.Helper()
 	found := false
-	ctx.VisitDirectDeps(m, func(dep blueprint.Module) {
+	ctx.VisitDirectDepsProxies(m, func(dep ModuleProxy) {
 		if EqualModules(dep, wantDep) {
 			found = true
 		}
