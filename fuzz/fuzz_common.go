@@ -571,7 +571,7 @@ func IsValid(ctx android.ConfigurableEvaluatorContext, fuzzModule FuzzModule) bo
 func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module android.ModuleOrProxy, fuzzModule *FuzzPackagedModuleInfo, archDir android.OutputPath, builder *android.RuleBuilder) []FileToZip {
 	// Package the corpora into a zipfile.
 	var files []FileToZip
-	if fuzzModule.Corpus != nil {
+	if len(fuzzModule.Corpus) > 0 {
 		corpusZip := archDir.Join(ctx, module.Name()+"_seed_corpus.zip")
 		command := builder.Command().BuiltTool("soong_zip").
 			Flag("-j").
@@ -582,7 +582,7 @@ func (s *FuzzPackager) PackageArtifacts(ctx android.SingletonContext, module and
 	}
 
 	// Package the data into a zipfile.
-	if fuzzModule.Data != nil {
+	if len(fuzzModule.Data) > 0 {
 		dataZip := archDir.Join(ctx, module.Name()+"_data.zip")
 		command := builder.Command().BuiltTool("soong_zip").
 			FlagWithOutput("-o ", dataZip)
