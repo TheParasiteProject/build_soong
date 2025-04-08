@@ -1459,6 +1459,9 @@ func (mod *Module) begin(ctx BaseModuleContext) {
 	if mod.sanitize != nil {
 		mod.sanitize.begin(ctx)
 	}
+	if mod.compiler != nil {
+		mod.compiler.begin(ctx)
+	}
 
 	if mod.UseSdk() && mod.IsSdkVariant() {
 		sdkVersion := ""
