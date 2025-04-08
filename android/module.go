@@ -1710,7 +1710,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	var deps Paths
 	var info ModuleBuildTargetsInfo
 
-	if len(ctx.installFiles) > 0 {
+	if len(ctx.installFiles) > 0 && !shouldSkipAndroidMkProcessing(ctx, m) {
 		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-install"
 		installFiles := ctx.installFiles.Paths()
 		ctx.Phony(name, installFiles...)
@@ -1728,7 +1728,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		deps = append(deps, ctx.checkbuildTarget)
 	}
 
-	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 {
+	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 && !shouldSkipAndroidMkProcessing(ctx, m) {
 		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-outputs"
 		ctx.Phony(name, outputFiles...)
 		deps = append(deps, outputFiles...)
