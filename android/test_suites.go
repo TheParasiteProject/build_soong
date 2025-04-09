@@ -267,10 +267,9 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	ctx.Phony("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 	ctx.DistForGoal("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 
-	packageTestSuite(ctx, allTestSuiteInstalls["performance-tests"], testInstalledSharedLibs["performance-tests"], performanceTests)
-	packageTestSuite(ctx, allTestSuiteInstalls["device-platinum-tests"], testInstalledSharedLibs["device-platinum-tests"], devicePlatinumTests)
-	// TODO: Enable in followup
-	// packageTestSuite(ctx, allTestSuiteInstalls["device-tests"], testInstalledSharedLibs["device-tests"], deviceTests)
+	packageTestSuite(ctx, allTestSuiteInstalls["performance-tests"], nil, performanceTests)
+	packageTestSuite(ctx, allTestSuiteInstalls["device-platinum-tests"], nil, devicePlatinumTests)
+	packageTestSuite(ctx, allTestSuiteInstalls["device-tests"], testInstalledSharedLibs["device-tests"], deviceTests)
 }
 
 // Get a mapping from testSuite -> list of host shared libraries, given:
