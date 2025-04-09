@@ -1934,7 +1934,6 @@ type CommonModuleInfo struct {
 	CanHaveApexVariants     bool
 	MinSdkVersion           ApiLevelOrPlatform
 	SdkVersion              string
-	NotAvailableForPlatform bool
 	// There some subtle differences between this one and the one above.
 	NotInPlatform bool
 	// UninstallableApexPlatformVariant is set by MakeUninstallable called by the apex
@@ -2385,7 +2384,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	if am, ok := m.module.(ApexModule); ok {
 		commonData.CanHaveApexVariants = am.CanHaveApexVariants()
-		commonData.NotAvailableForPlatform = am.NotAvailableForPlatform()
 		commonData.NotInPlatform = am.NotInPlatform()
 		commonData.MinSdkVersionSupported = am.MinSdkVersionSupported(ctx)
 		commonData.IsInstallableToApex = am.IsInstallableToApex()
