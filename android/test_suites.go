@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/gobtools"
 )
 
 func init() {
@@ -80,6 +81,31 @@ var SupportFilesInfoProvider = blueprint.NewProvider[SupportFilesInfo]()
 type filePair struct {
 	src Path
 	dst WritablePath
+}
+
+type filePairGob struct {
+	Src Path
+	Dst WritablePath
+}
+
+func (f *filePair) ToGob() *filePairGob {
+	return &filePairGob{
+		Src: f.src,
+		Dst: f.dst,
+	}
+}
+
+func (f *filePair) FromGob(data *filePairGob) {
+	f.src = data.Src
+	f.dst = data.Dst
+}
+
+func (p filePair) GobEncode() ([]byte, error) {
+	return gobtools.CustomGobEncode[filePairGob](&p)
+}
+
+func (p *filePair) GobDecode(data []byte) error {
+	return gobtools.CustomGobDecode[filePairGob](data, p)
 }
 
 type testSuiteInstallsInfo struct {
