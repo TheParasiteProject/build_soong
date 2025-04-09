@@ -556,6 +556,8 @@ type ProductVariables struct {
 	// Will be used to install host tools in soong only builds
 	ProductHostPackages []string `json:",omitempty"`
 
+	ProductEnableLogcatPersistence bool `json:",omitempty"`
+
 	EnforceSELinuxTrebleLabeling *bool `json:",omitempty"`
 }
 
