@@ -447,11 +447,12 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		}
 		if a.targetFilesZip != nil {
 			ctx.DistForGoalWithFilenameTag("target-files-package", a.targetFilesZip, namePrefix+a.targetFilesZip.Base())
+			ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.targetFilesZip, namePrefix+a.targetFilesZip.Base())
 		}
 		if a.updatePackage != nil {
 			ctx.DistForGoalWithFilenameTag("updatepackage", a.updatePackage, namePrefix+a.updatePackage.Base())
+			ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.updatePackage, namePrefix+a.updatePackage.Base())
 		}
-
 	}
 }
 
