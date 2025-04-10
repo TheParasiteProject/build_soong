@@ -17,9 +17,12 @@ package android
 import (
 	"bytes"
 	"fmt"
+	"iter"
+	"maps"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -284,11 +287,11 @@ func (ctx *TestContext) OtherModulePropertyErrorf(module ModuleOrProxy, property
 	panic(fmt.Sprintf(fmt_, args...))
 }
 
-// VisitAllModules wraps blueprint.Context.VisitAllModules, converting blueprint.Module to android.Module.
+// VisitAllModules iterates over all modules tracked through the test config.
 func (ctx *TestContext) VisitAllModules(visit func(Module)) {
-	ctx.Context.VisitAllModules(func(module blueprint.Module) {
-		visit(module.(Module))
-	})
+	for module := range ctx.config.modulesForTests.Iter() {
+		visit(module)
+	}
 }
 
 // VisitAllModulesProxies wraps blueprint.Context.VisitAllModulesProxies, converting blueprint.ModuleProxy to
@@ -299,10 +302,17 @@ func (ctx *TestContext) VisitAllModulesProxies(visit func(ModuleProxy)) {
 	})
 }
 
-// VisitDirectDeps wraps blueprint.Context.VisitDirectDeps, converting blueprint.Module to android.Module.
+// VisitDirectDeps wraps blueprint.Context.VisitDirectDepsProxies, converting blueprint.ModuleProxy to android.Module
+// using the list of modules in the test config.
 func (ctx *TestContext) VisitDirectDeps(module Module, visit func(Module)) {
-	ctx.Context.VisitDirectDeps(module, func(module blueprint.Module) {
-		visit(module.(Module))
+	allModules := slices.Collect(ctx.config.modulesForTests.Iter())
+	ctx.VisitDirectDepsProxies(module, func(dep ModuleProxy) {
+		i := slices.IndexFunc(allModules, func(m Module) bool { return EqualModules(m, dep) })
+		if i < 0 {
+			panic(fmt.Errorf("failed to find Module for ModuleProxy %s", dep))
+		} else {
+			visit(allModules[i])
+		}
 	})
 }
 
@@ -1443,6 +1453,86 @@ func (ctx *panickingConfigAndErrorContext) otherModuleProvider(m ModuleOrProxy, 
 func PanickingConfigAndErrorContext(ctx *TestContext) ConfigurableEvaluatorContext {
 	return &panickingConfigAndErrorContext{
 		ctx: ctx,
+	}
+}
+
+// modulesForTests stores the list of modules that exist for use during tests.
+type modulesForTests struct {
+	moduleGroups map[string]*moduleGroupForTests
+	lock         sync.Mutex
+}
+
+// moduleGroupForTests stores the list of variants that exist for a single module name.
+type moduleGroupForTests struct {
+	modules []Module
+	// nextInsertIndex is the position in modules where the last module is inserted.
+	// It is used when inserting new variants to place them after the variant they
+	// were created from.
+	nextInsertIndex int
+}
+
+// Insert inserts a module into modulesForTests.  If the Module matches and existing
+// Module in the list (either by being the same pointer or by being a clone with
+// identical name, namespace and variations) then it replaces the entry currently
+// in the list.  Otherwise, it is inserted after the most recently updated entry in
+// the list.
+func (m *modulesForTests) Insert(name string, module Module) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if existing, ok := m.moduleGroups[name]; ok {
+		// A name that is already present
+		if i := slices.IndexFunc(existing.modules, func(old Module) bool {
+			return old == module ||
+				(old.base().commonProperties.DebugName == module.base().commonProperties.DebugName &&
+					old.base().commonProperties.DebugNamespace == module.base().commonProperties.DebugNamespace &&
+					slices.Equal(old.base().commonProperties.DebugVariations, module.base().commonProperties.DebugVariations) &&
+					slices.Equal(old.base().commonProperties.DebugMutators, module.base().commonProperties.DebugMutators))
+		}); i >= 0 {
+			// The module matches an existing module, either by being the same Module or by being a clone.
+			// Replace the current entry, and set the insertion point to after the current entry.
+			// This path is reached when TransitionMutator is creating new variants, and relies on the
+			// Blueprint optimization that the existing variant is reused as the first new variant so that
+			// the list doesn't collect old obsolete variants.
+			existing.modules[i] = module
+			existing.nextInsertIndex = i + 1
+		} else {
+			// The module doesn't match an existing module, insert it at the insertion point and update the
+			// insertion point to point after it.
+			existing.modules = slices.Concat(existing.modules[:existing.nextInsertIndex],
+				[]Module{module},
+				existing.modules[existing.nextInsertIndex:])
+			existing.nextInsertIndex += 1
+		}
+	} else {
+		// The name is not present, add a new entry for it.
+		m.moduleGroups[name] = &moduleGroupForTests{
+			modules:         []Module{module},
+			nextInsertIndex: 0,
+		}
+	}
+}
+
+// Rename updates the name of a module group.
+func (m *modulesForTests) Rename(from, to string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.moduleGroups[to] = m.moduleGroups[from]
+	delete(m.moduleGroups, from)
+}
+
+// Iter returns a Seq of all the modules in a deterministic order (alphabetically by module name,
+// and then in variant order).
+func (m *modulesForTests) Iter() iter.Seq[Module] {
+	return func(yield func(Module) bool) {
+		groups := slices.Collect(maps.Keys(m.moduleGroups))
+		slices.Sort(groups)
+		for _, group := range groups {
+			for _, module := range m.moduleGroups[group].modules {
+				if !yield(module) {
+					return
+				}
+			}
+		}
 	}
 }
 
