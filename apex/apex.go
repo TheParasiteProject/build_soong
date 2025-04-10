@@ -2296,11 +2296,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
 // with information about whether source or prebuilt of an apex was used during the build.
 func (a *apexBundle) providePrebuiltInfo(ctx android.ModuleContext) {
-	info := android.PrebuiltInfo{
+	info := android.PrebuiltJsonInfo{
 		Name:        a.Name(),
 		Is_prebuilt: false,
 	}
-	android.SetProvider(ctx, android.PrebuiltInfoProvider, info)
+	android.SetProvider(ctx, android.PrebuiltJsonInfoProvider, info)
 }
 
 // Set a provider containing information about the jars and .prof provided by the apex
