@@ -288,14 +288,22 @@ func makeLibFlags(deps PathDeps) []string {
 	return libFlags
 }
 
-func rustEnvVars(ctx android.ModuleContext, deps PathDeps, crateName string, cargoOutDir android.OptionalPath) []string {
-	var envVars []string
+func rustStringifyEnvVars(envVars map[string]string) string {
+	envVarStrings := []string{}
+	for key, value := range envVars {
+		envVarStrings = append(envVarStrings, key+"="+value)
+	}
+	return strings.Join(envVarStrings, " ")
+}
+
+func rustEnvVars(ctx android.ModuleContext, deps PathDeps, crateName string, cargoOutDir android.OptionalPath) map[string]string {
+	envVars := make(map[string]string)
 
 	// libstd requires a specific environment variable to be set. This is
 	// not officially documented and may be removed in the future. See
 	// https://github.com/rust-lang/rust/blob/master/library/std/src/env.rs#L866.
 	if crateName == "std" {
-		envVars = append(envVars, "STD_ENV_ARCH="+config.StdEnvArch[ctx.Arch().ArchType])
+		envVars["STD_ENV_ARCH"] = config.StdEnvArch[ctx.Arch().ArchType]
 	}
 
 	if len(deps.SrcDeps) > 0 && cargoOutDir.Valid() {
@@ -310,41 +318,39 @@ func rustEnvVars(ctx android.ModuleContext, deps PathDeps, crateName string, car
 			// If OUT_DIR is absolute, then moduleGenDir will be an absolute path, so we don't need to set this to anything.
 			outDirPrefix = ""
 		}
-		envVars = append(envVars, "OUT_DIR="+filepath.Join(outDirPrefix, moduleGenDir.String()))
+		envVars["OUT_DIR"] = filepath.Join(outDirPrefix, moduleGenDir.String())
 	} else {
 		// TODO(pcc): Change this to "OUT_DIR=" after fixing crates to not rely on this value.
-		envVars = append(envVars, "OUT_DIR=out")
+		envVars["OUT_DIR"] = "out"
 	}
-
-	envVars = append(envVars, "ANDROID_RUST_VERSION="+config.GetRustVersion(ctx))
+	envVars["ANDROID_RUST_VERSION"] = config.GetRustVersion(ctx)
 
 	if rustMod, ok := ctx.Module().(*Module); ok && rustMod.compiler.cargoEnvCompat() {
 		// We only emulate cargo environment variables for 3p code, which is only ever built
 		// by defining a Rust module, so we only need to set these for true Rust modules.
 		if bin, ok := rustMod.compiler.(*binaryDecorator); ok {
-			envVars = append(envVars, "CARGO_BIN_NAME="+bin.getStem(ctx))
+			envVars["CARGO_BIN_NAME"] = bin.getStem(ctx)
 		}
-		envVars = append(envVars, "CARGO_CRATE_NAME="+crateName)
-		envVars = append(envVars, "CARGO_PKG_NAME="+crateName)
+		envVars["CARGO_CRATE_NAME"] = crateName
+		envVars["CARGO_PKG_NAME"] = crateName
 		pkgVersion := rustMod.compiler.cargoPkgVersion()
 		if pkgVersion != "" {
-			envVars = append(envVars, "CARGO_PKG_VERSION="+pkgVersion)
-
+			envVars["CARGO_PKG_VERSION"] = pkgVersion
 			// Ensure the version is in the form of "x.y.z" (approximately semver compliant).
 			//
 			// For our purposes, we don't care to enforce that these are integers since they may
 			// include other characters at times (e.g. sometimes the patch version is more than an integer).
 			if strings.Count(pkgVersion, ".") == 2 {
 				var semver_parts = strings.Split(pkgVersion, ".")
-				envVars = append(envVars, "CARGO_PKG_VERSION_MAJOR="+semver_parts[0])
-				envVars = append(envVars, "CARGO_PKG_VERSION_MINOR="+semver_parts[1])
-				envVars = append(envVars, "CARGO_PKG_VERSION_PATCH="+semver_parts[2])
+				envVars["CARGO_PKG_VERSION_MAJOR"] = semver_parts[0]
+				envVars["CARGO_PKG_VERSION_MINOR"] = semver_parts[1]
+				envVars["CARGO_PKG_VERSION_PATCH"] = semver_parts[2]
 			}
 		}
 	}
 
 	if ctx.Darwin() {
-		envVars = append(envVars, "ANDROID_RUST_DARWIN=true")
+		envVars["ANDROID_RUST_DARWIN"] = "true"
 	}
 
 	return envVars
@@ -498,7 +504,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 					"rustcFlags":  strings.Join(rustcFlags, " "),
 					"libFlags":    strings.Join(libFlags, " "),
 					"clippyFlags": strings.Join(flags.ClippyFlags, " "),
-					"envVars":     strings.Join(envVars, " "),
+					"envVars":     rustStringifyEnvVars(envVars),
 				},
 			})
 			// Declare the clippy build as an implicit dependency of the original crate.
@@ -521,7 +527,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 			"libFlags":       strings.Join(libFlags, " "),
 			"crtBegin":       strings.Join(deps.CrtBegin.Strings(), " "),
 			"crtEnd":         strings.Join(deps.CrtEnd.Strings(), " "),
-			"envVars":        strings.Join(envVars, " "),
+			"envVars":        rustStringifyEnvVars(envVars),
 			"emitType":       t.emitType,
 		},
 	})
@@ -543,7 +549,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 					"libFlags":   strings.Join(libFlags, " "),
 					"crtBegin":   strings.Join(deps.CrtBegin.Strings(), " "),
 					"crtEnd":     strings.Join(deps.CrtEnd.Strings(), " "),
-					"envVars":    strings.Join(envVars, " "),
+					"envVars":    rustStringifyEnvVars(envVars),
 				},
 			})
 			output.kytheFile = kytheFile
@@ -595,7 +601,7 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	implicits = append(implicits, rustLibsToPaths(deps.RLibs)...)
 	implicits = append(implicits, rustLibsToPaths(deps.DyLibs)...)
 	implicits = append(implicits, rustLibsToPaths(deps.ProcMacros)...)
-
+	envVars := rustEnvVars(ctx, deps, crateName, ctx.RustModule().compiler.cargoOutDir(ctx))
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        rustdoc,
 		Description: "rustdoc " + main.Rel(),
@@ -606,7 +612,7 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 		Args: map[string]string{
 			"rustdocFlags": strings.Join(rustdocFlags, " "),
 			"outDir":       docDir.String(),
-			"envVars":      strings.Join(rustEnvVars(ctx, deps, crateName, ctx.RustModule().compiler.cargoOutDir(ctx)), " "),
+			"envVars":      rustStringifyEnvVars(envVars),
 		},
 	})
 
