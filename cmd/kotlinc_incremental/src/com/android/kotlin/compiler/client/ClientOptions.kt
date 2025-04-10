@@ -16,14 +16,15 @@
 
 package com.android.kotlin.compiler.client
 
+import com.android.kotlin.compiler.cli.Options
 import java.io.File
 
-class Options {
+class ClientOptions : Options {
     var verbose = false
     var debug = false
 
     val classPath = mutableListOf<String>()
-    val passThroughArgs = mutableListOf<String>()
+    override val passThroughArgs = mutableListOf<String>()
     val jvmArgs = mutableListOf<String>()
     val _sources = mutableListOf<String>()
     val sources
