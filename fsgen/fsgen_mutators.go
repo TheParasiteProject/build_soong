@@ -57,7 +57,6 @@ type multilibDeps map[string]*depCandidateProps
 // dependencies
 type FsGenState struct {
 	// List of modules in `PRODUCT_PACKAGES` and `PRODUCT_PACKAGES_DEBUG`
-	depCandidates    []string
 	depCandidatesMap map[string]bool
 	// Map of names of partition to the information of modules to be added as deps
 	fsDeps map[string]*multilibDeps
@@ -89,14 +88,17 @@ func defaultDepCandidateProps(config android.Config) *depCandidateProps {
 func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string, avbpubkeyGenerated bool) *FsGenState {
 	return ctx.Config().Once(fsGenStateOnceKey, func() interface{} {
 		partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
-		candidates := android.FirstUniqueStrings(android.Concat(partitionVars.ProductPackages, partitionVars.ProductPackagesDebug))
-		candidates = android.Concat(candidates, generatedPrebuiltEtcModuleNames)
 		candidatesMap := map[string]bool{}
-		for _, candidate := range candidates {
+		for _, candidate := range partitionVars.ProductPackages {
+			candidatesMap[candidate] = true
+		}
+		for _, candidate := range partitionVars.ProductPackagesDebug {
+			candidatesMap[candidate] = true
+		}
+		for _, candidate := range generatedPrebuiltEtcModuleNames {
 			candidatesMap[candidate] = true
 		}
 		fsGenState := FsGenState{
-			depCandidates:    candidates,
 			depCandidatesMap: candidatesMap,
 			fsDeps: map[string]*multilibDeps{
 				// These additional deps are added according to the cuttlefish system image bp.
