@@ -248,7 +248,7 @@ var (
 func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
 	var aconfigFiles android.Paths
 	for _, file := range a.filesInfo {
-		if file.module == nil {
+		if file.module.IsNil() {
 			continue
 		}
 		if dep, ok := android.OtherModuleProvider(ctx, file.module, android.AconfigPropagatingProviderKey); ok {
@@ -276,7 +276,7 @@ func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
 				"cache_files": android.JoinPathsWithPrefix(aconfigFiles, "--cache "),
 			},
 		})
-		files = append(files, newApexFile(ctx, apexAconfigFile, "aconfig_flags", "etc", etc, nil))
+		files = append(files, newApexFile(ctx, apexAconfigFile, "aconfig_flags", "etc", etc, android.ModuleProxy{}))
 
 		// To enable fingerprint, we need to have v2 storage files. The default version is 1.
 		storageFilesVersion := 1
@@ -298,7 +298,7 @@ func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
 					"version":     strconv.Itoa(storageFilesVersion),
 				},
 			})
-			files = append(files, newApexFile(ctx, outputFile, info.File_type, "etc", etc, nil))
+			files = append(files, newApexFile(ctx, outputFile, info.File_type, "etc", etc, android.ModuleProxy{}))
 		}
 	}
 	return files
@@ -408,8 +408,8 @@ func (a *apexBundle) buildFileContexts(ctx android.ModuleContext) android.Path {
 		if m, t := android.SrcIsModuleWithTag(*a.properties.File_contexts); m != "" {
 			isFileContextsModule = true
 			otherModule := android.GetModuleProxyFromPathDep(ctx, m, t)
-			if otherModule != nil {
-				fileContextsDir = ctx.OtherModuleDir(*otherModule)
+			if !otherModule.IsNil() {
+				fileContextsDir = ctx.OtherModuleDir(otherModule)
 			}
 		}
 		fileContexts = android.PathForModuleSrc(ctx, *a.properties.File_contexts)
@@ -566,7 +566,7 @@ func (a *apexBundle) installApexSystemServerFiles(ctx android.ModuleContext) {
 	}
 
 	psi := android.PrebuiltSelectionInfoMap{}
-	ctx.VisitDirectDeps(func(am android.Module) {
+	ctx.VisitDirectDepsProxy(func(am android.ModuleProxy) {
 		if info, exists := android.OtherModuleProvider(ctx, am, android.PrebuiltSelectionInfoProvider); exists {
 			psi = info
 		}
@@ -1111,7 +1111,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 
 		// Skip dependencies that are only available to APEXes; they are developed with updatability
 		// in mind and don't need manual approval.
-		if android.OtherModulePointerProviderOrDefault(ctx, to, android.CommonModuleInfoProvider).NotAvailableForPlatform {
+		if android.OtherModuleProviderOrDefault(ctx, to, android.PlatformAvailabilityInfoProvider).NotAvailableToPlatform {
 			return !externalDep
 		}
 

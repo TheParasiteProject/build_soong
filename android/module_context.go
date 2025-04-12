@@ -284,6 +284,11 @@ type ModuleContext interface {
 	// Defines this module as a compatibility suite test and gives all the information needed
 	// to build the suite.
 	SetTestSuiteInfo(info TestSuiteInfo)
+
+	// FreeModuleAfterGenerateBuildActions marks this module as no longer necessary after the completion of
+	// GenerateBuildActions, i.e. all later accesses to the module will be via ModuleProxy and not direct access
+	// to the Module.
+	FreeModuleAfterGenerateBuildActions()
 }
 
 type moduleContext struct {
@@ -496,15 +501,15 @@ func (m *moduleContext) GetDirectDepWithTag(name string, tag blueprint.Dependenc
 	}
 }
 
-func (m *moduleContext) GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) *ModuleProxy {
+func (m *moduleContext) GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) ModuleProxy {
 	deps := m.getDirectDepsProxyInternal(name, tag)
 	if len(deps) == 1 {
-		return &deps[0]
+		return deps[0]
 	} else if len(deps) >= 2 {
 		panic(fmt.Errorf("Multiple dependencies having same BaseModuleName() %q found from %q",
 			name, m.ModuleName()))
 	} else {
-		return nil
+		return ModuleProxy{}
 	}
 }
 
@@ -1069,4 +1074,8 @@ func (c *moduleContext) SetTestSuiteInfo(info TestSuiteInfo) {
 	}
 	c.testSuiteInfo = info
 	c.testSuiteInfoSet = true
+}
+
+func (c *moduleContext) FreeModuleAfterGenerateBuildActions() {
+	c.bp.FreeModuleAfterGenerateBuildActions()
 }

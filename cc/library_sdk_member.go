@@ -191,7 +191,7 @@ func (mt *librarySdkMemberType) IsInstance(ctx android.ModuleContext, module and
 	// Check the module to see if it can be used with this module type.
 	if m, ok := android.OtherModuleProvider(ctx, module, CcInfoProvider); ok {
 		for _, allowableMemberType := range m.SdkMemberTypes {
-			if allowableMemberType == mt {
+			if allowableMemberType.SdkPropertyName() == mt.SdkPropertyName() {
 				return true
 			}
 		}
@@ -577,7 +577,7 @@ func (p *nativeLibInfoProperties) PopulateFromVariant(ctx android.SdkMemberConte
 	}
 }
 
-func getRequiredMemberOutputFile(ctx android.SdkMemberContext, module android.Module) android.Path {
+func getRequiredMemberOutputFile(ctx android.SdkMemberContext, module android.ModuleOrProxy) android.Path {
 	var path android.Path
 	if info, ok := android.OtherModuleProvider(ctx.SdkModuleContext(), module, LinkableInfoProvider); ok && info.OutputFile.Valid() {
 		path = info.OutputFile.Path()

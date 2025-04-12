@@ -664,6 +664,7 @@ func DefaultsFactory(props ...interface{}) android.Module {
 		&BenchmarkProperties{},
 		&BindgenProperties{},
 		&BaseCompilerProperties{},
+		&ObjectProperties{},
 		&BinaryCompilerProperties{},
 		&LibraryCompilerProperties{},
 		&ProcMacroCompilerProperties{},
@@ -813,6 +814,10 @@ func (mod *Module) CoverageOutputFile() android.OptionalPath {
 	return android.OptionalPath{}
 }
 
+func (c *Module) LinkCoverage() bool {
+	return false
+}
+
 func (mod *Module) IsNdk(config android.Config) bool {
 	return false
 }
@@ -861,7 +866,9 @@ func (mod *Module) Multilib() string {
 }
 
 func (mod *Module) IsCrt() bool {
-	// Rust does not currently provide any crt modules.
+	if obj, ok := mod.compiler.(objectInterface); ok {
+		return obj.crt()
+	}
 	return false
 }
 
@@ -1122,7 +1129,13 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		if buildOutput.kytheFile != nil {
 			mod.kytheFiles = append(mod.kytheFiles, buildOutput.kytheFile)
 		}
-		bloaty.MeasureSizeForPaths(ctx, mod.compiler.strippedOutputFilePath(), android.OptionalPathForPath(mod.compiler.unstrippedOutputFilePath()))
+		if _, ok := mod.compiler.(*objectDecorator); !ok && !ctx.Windows() {
+			// Bloaty doesn't recognize Windows object files.
+			// Since objects are inputs to other binaries, if there's bloat
+			// in one it should be reflected in the outputs which take them
+			// as inputs, so skipping this check for them should be fine.
+			bloaty.MeasureSizeForPaths(ctx, mod.compiler.strippedOutputFilePath(), android.OptionalPathForPath(mod.compiler.unstrippedOutputFilePath()))
+		}
 
 		mod.docTimestampFile = mod.compiler.rustdoc(ctx, flags, deps)
 
@@ -1220,6 +1233,13 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	}
 
 	android.SetProvider(ctx, cc.CcInfoProvider, ccInfo)
+
+	// TODO: Refactor rustMakeLibName so we don't have to fake CommonModuleInfo like this
+	myCommonInfo := android.CommonModuleInfo{
+		BaseModuleName: mod.BaseModuleName(),
+		Target:         ctx.Target(),
+	}
+	android.SetProvider(ctx, android.MakeNameInfoProvider, rustMakeLibName(rustInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()))
 
 	mod.setOutputFiles(ctx)
 
@@ -1455,6 +1475,9 @@ func (mod *Module) begin(ctx BaseModuleContext) {
 	}
 	if mod.sanitize != nil {
 		mod.sanitize.begin(ctx)
+	}
+	if mod.compiler != nil {
+		mod.compiler.begin(ctx)
 	}
 
 	if mod.UseSdk() && mod.IsSdkVariant() {
@@ -1851,7 +1874,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 	})
 
-	mod.transitiveAndroidMkSharedLibs = depset.New[string](depset.PREORDER, directAndroidMkSharedLibs, transitiveAndroidMkSharedLibs)
+	mod.transitiveAndroidMkSharedLibs = depset.New(depset.PREORDER, directAndroidMkSharedLibs, transitiveAndroidMkSharedLibs)
+
+	android.SetProvider(ctx, android.TestSuiteSharedLibsInfoProvider, android.TestSuiteSharedLibsInfo{
+		MakeNames: append(mod.transitiveAndroidMkSharedLibs.ToList(), mod.Properties.AndroidMkDylibs...),
+	})
 
 	var rlibDepFiles RustLibraries
 	aliases := mod.compiler.Aliases()

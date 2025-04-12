@@ -29,8 +29,6 @@ import (
 	"sync"
 	"unicode"
 
-	"android/soong/shared"
-
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/bootstrap"
 	"github.com/google/blueprint/pathtools"
@@ -38,6 +36,7 @@ import (
 
 	"android/soong/android/soongconfig"
 	"android/soong/remoteexec"
+	"android/soong/shared"
 )
 
 // Bool re-exports proptools.Bool for the android package.
@@ -283,10 +282,6 @@ func (c Config) ReleaseHiddenApiExportableStubs() bool {
 }
 
 // Enable read flag from new storage
-func (c Config) ReleaseReadFromNewStorage() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_READ_FROM_NEW_STORAGE")
-}
-
 func (c Config) ReleaseCreateAconfigStorageFile() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_CREATE_ACONFIG_STORAGE_FILE")
 }
@@ -297,10 +292,6 @@ func (c Config) ReleaseUseSystemFeatureBuildFlags() bool {
 
 func (c Config) ReleaseFingerprintAconfigPackages() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_FINGERPRINT_ACONFIG_PACKAGES")
-}
-
-func (c Config) ReleaseAconfigCheckApiLevel() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_ACONFIG_CHECK_API_LEVEL")
 }
 
 func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
@@ -406,6 +397,10 @@ type config struct {
 	// Copy of this config struct but some product-specific variables are
 	// replaced with the generic configuration values.
 	genericConfig *config
+
+	// modulesForTests stores the list of modules that exist during Soong tests.  It is nil
+	// when not running Soong tests.
+	modulesForTests *modulesForTests
 }
 
 type partialCompileFlags struct {
@@ -418,6 +413,9 @@ type partialCompileFlags struct {
 	// To run the validation checks, use `m {MODULE_NAME}-stub-validation`.
 	Disable_stub_validation bool
 
+	// Whether to enable incremental java compilation.
+	Enable_inc_javac bool
+
 	// Add others as needed.
 }
 
@@ -428,12 +426,14 @@ var defaultPartialCompileFlags = partialCompileFlags{}
 var enabledPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
+	Enable_inc_javac:        false,
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=all`.
 var allPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
+	Enable_inc_javac:        true,
 }
 
 type deviceConfig struct {
@@ -517,6 +517,11 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 			ret = allPartialCompileFlags
 
 		// Individual flags.
+		case "inc_javac", "enable_inc_javac":
+			ret.Enable_inc_javac = makeVal(state, !defaultPartialCompileFlags.Enable_inc_javac)
+		case "disable_inc_javac":
+			ret.Enable_inc_javac = !makeVal(state, defaultPartialCompileFlags.Enable_inc_javac)
+
 		case "stub_validation", "enable_stub_validation":
 			ret.Disable_stub_validation = !makeVal(state, !defaultPartialCompileFlags.Disable_stub_validation)
 		case "disable_stub_validation":
@@ -2105,16 +2110,16 @@ func (c *deviceConfig) BoardSepolicyVers() string {
 	return c.PlatformSepolicyVersion()
 }
 
-func (c *deviceConfig) SystemExtSepolicyPrebuiltApiDir() string {
-	return String(c.config.productVariables.SystemExtSepolicyPrebuiltApiDir)
+func (c *deviceConfig) SystemExtSepolicyPrebuiltApiDirs() []string {
+	return c.config.productVariables.SystemExtSepolicyPrebuiltApiDirs
 }
 
-func (c *deviceConfig) ProductSepolicyPrebuiltApiDir() string {
-	return String(c.config.productVariables.ProductSepolicyPrebuiltApiDir)
+func (c *deviceConfig) ProductSepolicyPrebuiltApiDirs() []string {
+	return c.config.productVariables.ProductSepolicyPrebuiltApiDirs
 }
 
 func (c *deviceConfig) IsPartnerTrebleSepolicyTestEnabled() bool {
-	return c.SystemExtSepolicyPrebuiltApiDir() != "" || c.ProductSepolicyPrebuiltApiDir() != ""
+	return len(c.SystemExtSepolicyPrebuiltApiDirs()) > 0 || len(c.ProductSepolicyPrebuiltApiDirs()) > 0
 }
 
 func createDirsMap(previous map[string]bool, dirs []string) (map[string]bool, error) {

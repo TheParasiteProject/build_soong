@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/depset"
+	"github.com/google/blueprint/pathtools"
 
 	"android/soong/android"
 	"android/soong/cc"
@@ -310,6 +311,8 @@ func (library *libraryDecorator) stdLinkage(device bool) RustLinkage {
 	if library.static() || library.MutatedProperties.VariantIsStaticStd {
 		return RlibLinkage
 	} else if library.baseCompiler.preferRlib() {
+		return RlibLinkage
+	} else if !device {
 		return RlibLinkage
 	}
 	return DylibLinkage
@@ -624,7 +627,9 @@ func (library *libraryDecorator) compilerFlags(ctx ModuleContext, flags Flags) F
 				"-install_name @rpath/"+library.sharedLibFilename(ctx),
 			)
 		} else {
-			flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+			if !ctx.Windows() {
+				flags.LinkFlags = append(flags.LinkFlags, "-Wl,-soname="+library.sharedLibFilename(ctx))
+			}
 		}
 	}
 
@@ -675,9 +680,19 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.rustLibObjects...)
-	flags.LinkFlags = append(flags.LinkFlags, deps.sharedLibObjects...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.staticLibObjects...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.wholeStaticLibObjects...)
+
+	if ctx.Windows() {
+		for _, lib := range deps.sharedLibObjects {
+			// Windows uses the .lib import library at link-time and at runtime
+			// uses the .dll library, so we need to make sure we're passing the
+			// import library to the linker.
+			flags.LinkFlags = append(flags.LinkFlags, pathtools.ReplaceExtension(lib, "lib"))
+		}
+	} else {
+		flags.LinkFlags = append(flags.LinkFlags, deps.sharedLibObjects...)
+	}
 
 	if String(library.Properties.Version_script) != "" {
 		if String(library.Properties.Extra_exported_symbols) != "" {
@@ -942,7 +957,8 @@ func (libraryTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 	if library.buildRlib() {
 		variants = append(variants, rlibVariation)
 	}
-	if library.buildDylib() {
+	if library.buildDylib() && !ctx.Host() {
+		// Hosts do not produce dylib variants.
 		variants = append(variants, dylibVariation)
 	}
 
@@ -1039,6 +1055,10 @@ func (libstdTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 		// Only create a variant if a library is actually being built.
 		if library, ok := m.compiler.(libraryInterface); ok {
 			if library.rlib() && !library.sysroot() {
+				if ctx.Host() {
+					// Hosts do not produce dylib variants, so there's only one std option.
+					return []string{"rlib-std"}
+				}
 				return []string{"rlib-std", "dylib-std"}
 			}
 		}

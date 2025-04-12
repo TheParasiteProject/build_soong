@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"android/soong/android"
+	"android/soong/cc"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -73,8 +74,13 @@ var testPackageZipDepTag testPackageZipDepTagType
 var (
 	pctx = android.NewPackageContext("android/soong/ci_tests")
 	// test_package module type should only be used for the following modules.
-	// TODO: remove "_soong" from the module names inside when eliminating the corresponding make modules
-	moduleNamesAllowed = []string{"continuous_instrumentation_tests_soong", "continuous_instrumentation_metric_tests_soong", "continuous_native_tests_soong", "continuous_native_metric_tests_soong", "platform_tests"}
+	moduleNamesAllowed = []string{
+		"continuous_instrumentation_tests",
+		"continuous_instrumentation_metric_tests",
+		"continuous_native_tests",
+		"continuous_native_metric_tests",
+		"platform_tests",
+	}
 )
 
 func (p *testPackageZip) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -156,12 +162,21 @@ func TestPackageZipFactory() android.Module {
 	return module
 }
 
+// We need to implement IsNativeCoverageNeeded so that in coverage builds we depend on the coverage
+// variants of the tests. The non-coverage variants will have PreventInstall called on them,
+// so they won't be able to be packaged into this test zip.
+func (p *testPackageZip) IsNativeCoverageNeeded(ctx cc.IsNativeCoverageNeededContext) bool {
+	return ctx.DeviceConfig().NativeCoverageEnabled()
+}
+
+var _ cc.UseCoverage = (*testPackageZip)(nil)
+
 func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Never install this test package, it's for disting only
 	p.SkipInstall()
 
 	if !android.InList(ctx.ModuleName(), moduleNamesAllowed) {
-		ctx.ModuleErrorf("%s is not allowed to use module type test_package")
+		ctx.ModuleErrorf("%s is not allowed to use module type test_package", ctx.ModuleName())
 	}
 
 	p.output = createOutput(ctx, pctx)
@@ -169,10 +184,10 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	ctx.SetOutputFiles(android.Paths{p.output}, "")
 }
 
-func getAllTestModules(ctx android.ModuleContext) []android.Module {
-	var ret []android.Module
-	ctx.WalkDeps(func(child, parent android.Module) bool {
-		if !child.Enabled(ctx) {
+func getAllTestModules(ctx android.ModuleContext) []android.ModuleProxy {
+	var ret []android.ModuleProxy
+	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
+		if info, ok := android.OtherModuleProvider(ctx, child, android.CommonModuleInfoProvider); !ok || !info.Enabled {
 			return false
 		}
 		if android.EqualModules(parent, ctx.Module()) && ctx.OtherModuleDependencyTag(child) == testPackageZipDepTag {
@@ -188,7 +203,7 @@ func getAllTestModules(ctx android.ModuleContext) []android.Module {
 		}
 	})
 	ret = android.FirstUniqueInPlace(ret)
-	slices.SortFunc(ret, func(a, b android.Module) int {
+	slices.SortFunc(ret, func(a, b android.ModuleProxy) int {
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
@@ -224,7 +239,7 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	return output
 }
 
-func createSymbolsZip(ctx android.ModuleContext, allModules []android.Module) {
+func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProxy) {
 	symbolsZipFile := android.PathForModuleOut(ctx, "symbols.zip")
 	symbolsMappingFile := android.PathForModuleOut(ctx, "symbols-mapping.textproto")
 	android.BuildSymbolsZip(ctx, allModules, ctx.ModuleName(), symbolsZipFile, symbolsMappingFile)
@@ -233,7 +248,7 @@ func createSymbolsZip(ctx android.ModuleContext, allModules []android.Module) {
 	ctx.SetOutputFiles(android.Paths{symbolsMappingFile}, ".elf_mapping")
 }
 
-func extendBuilderCommand(ctx android.ModuleContext, m android.Module, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
+func extendBuilderCommand(ctx android.ModuleContext, m android.ModuleOrProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
 	info, ok := android.OtherModuleProvider(ctx, m, android.ModuleInfoJSONProvider)
 	if !ok {
 		ctx.OtherModuleErrorf(m, "doesn't set ModuleInfoJSON provider")
