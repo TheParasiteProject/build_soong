@@ -119,7 +119,7 @@ SHA_DIFF_ALLOWLIST = {
     "META/kernel_version.txt",
     "META/misc_info.txt",
     "META/vbmeta_digest.txt",
-    "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: Make this hermetic
+    "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: b/406045340 - Remove from the allowlist once it's fixed
 }
 
 def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict[str, bytes]) -> bool:
