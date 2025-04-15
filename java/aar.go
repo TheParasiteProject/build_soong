@@ -1070,6 +1070,11 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	a.setOutputFiles(ctx)
 
 	buildComplianceMetadata(ctx)
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	moduleInfoJSON.ClassesJar = []string{a.Library.implementationAndResourcesJar.String()}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func (a *AndroidLibrary) setOutputFiles(ctx android.ModuleContext) {
@@ -1582,6 +1587,11 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.SetOutputFiles([]android.Path{a.aarPath}, ".aar")
 
 	buildComplianceMetadata(ctx)
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	moduleInfoJSON.ClassesJar = []string{a.implementationAndResourcesJarFile.String()}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func (a *AARImport) HeaderJars() android.Paths {
