@@ -26,7 +26,7 @@ import (
 
 func RegisterCollectFileSystemDepsMutators(ctx android.RegisterMutatorsContext) {
 	ctx.BottomUp("fs_collect_deps", collectDepsMutator).MutatesGlobalState()
-	ctx.BottomUp("fs_set_deps", setDepsMutator).MutatesDependencies()
+	ctx.BottomUp("fs_set_deps", setDepsMutator)
 }
 
 var fsGenStateOnceKey = android.NewOnceKey("FsGenState")
@@ -218,7 +218,8 @@ func checkDepModuleInMultipleNamespaces(mctx android.BottomUpMutatorContext, fou
 	}
 }
 
-func appendDepIfAppropriate(mctx android.BottomUpMutatorContext, deps *multilibDeps, installPartition string, nbs android.NativeBridgeSupport, moduleName string) {
+func appendDepIfAppropriate(mctx android.BottomUpMutatorContext, deps *multilibDeps, installPartition string, nbs android.NativeBridgeSupport) {
+	moduleName := mctx.ModuleName()
 	checkDepModuleInMultipleNamespaces(mctx, *deps, moduleName, installPartition)
 	if _, ok := (*deps)[moduleName]; ok {
 		// Prefer the namespace-specific module over the platform module
@@ -254,19 +255,19 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 		// - its enabled
 		// - its namespace is included in PRODUCT_SOONG_NAMESPACES
 		if m.Enabled(mctx) && m.ExportedToMake() {
-			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeDisabled, mctx.ModuleName())
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeDisabled)
 		}
 	}
 
 	if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()+".native_bridge"]; ok {
 		installPartition := m.PartitionTag(mctx.DeviceConfig())
 		if m.Enabled(mctx) && m.ExportedToMake() {
-			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeEnabled, mctx.ModuleName())
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeEnabled)
 		}
 	} else if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()+".bootstrap.native_bridge"]; ok {
 		installPartition := m.PartitionTag(mctx.DeviceConfig())
 		if m.Enabled(mctx) && m.ExportedToMake() {
-			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeEnabled, mctx.ModuleName())
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeEnabled)
 		}
 	}
 
@@ -323,7 +324,6 @@ func getBitness(archTypes []android.ArchType) (ret []string) {
 
 func setDepsMutator(mctx android.BottomUpMutatorContext) {
 	removeOverriddenDeps(mctx)
-	updatePartitionsOfOverrideModules(mctx)
 	fsGenState := mctx.Config().Get(fsGenStateOnceKey).(*FsGenState)
 	fsDeps := fsGenState.fsDeps
 	m := mctx.Module()
@@ -335,28 +335,6 @@ func setDepsMutator(mctx android.BottomUpMutatorContext) {
 		depsStruct := generateDepStruct(*fsDeps[partition], fsGenState.generatedPrebuiltEtcModuleNames)
 		if err := proptools.AppendMatchingProperties(m.GetProperties(), depsStruct, nil); err != nil {
 			mctx.ModuleErrorf(err.Error())
-		}
-	}
-}
-
-// Adds override apps (override_android_app, override_apex, ...) to the partition of their `base` apps.
-func updatePartitionsOfOverrideModules(mctx android.BottomUpMutatorContext) {
-	fsGenState := mctx.Config().Get(fsGenStateOnceKey).(*FsGenState)
-	fsGenState.fsDepsMutex.Lock()
-	defer fsGenState.fsDepsMutex.Unlock()
-	if override, ok := mctx.Module().(android.OverrideModule); ok {
-		fsDeps := mctx.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps
-		overridePartition := mctx.Module().PartitionTag(mctx.DeviceConfig())
-		if _, ok := (*fsDeps[overridePartition])[mctx.Module().Name()]; !ok {
-			// The override module is not in PRODUCT_PACKAGES
-			return
-		}
-		base := override.GetOverriddenModuleName()
-		for partition, _ := range fsDeps {
-			if _, ok := (*fsDeps[partition])[base]; ok {
-				appendDepIfAppropriate(mctx, fsDeps[partition], partition, android.NativeBridgeDisabled, mctx.Module().Name())
-				break
-			}
 		}
 	}
 }
