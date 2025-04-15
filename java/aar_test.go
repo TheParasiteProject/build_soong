@@ -131,7 +131,7 @@ func TestLibraryFlagsPackages(t *testing.T) {
 	android.AssertStringDoesContain(t,
 		"aapt2 link command expected to pass feature flags arguments",
 		linkInFlags,
-		"--feature-flags @out/soong/.intermediates/bar/intermediate.txt --feature-flags @out/soong/.intermediates/baz/intermediate.txt",
+		"--feature-flags @out/soong/.intermediates/bar/aconfig-flags.txt --feature-flags @out/soong/.intermediates/baz/aconfig-flags.txt",
 	)
 }
 
