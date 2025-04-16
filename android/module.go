@@ -2435,6 +2435,14 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			})
 		}
 	}
+
+	if mm, ok := m.module.(RequiredFilesFromPrebuiltApex); ok {
+		SetProvider(ctx, RequiredFilesFromPrebuiltApexInfoProvider, RequiredFilesFromPrebuiltApexInfo{
+			RequiredFilesFromPrebuiltApex: mm.RequiredFilesFromPrebuiltApex(ctx),
+			UseProfileGuidedDexpreopt:     mm.UseProfileGuidedDexpreopt(),
+		})
+	}
+
 	m.module.CleanupAfterBuildActions()
 }
 

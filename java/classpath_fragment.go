@@ -109,7 +109,7 @@ func gatherPossibleApexModuleNamesAndStems(ctx android.ModuleContext, contents [
 			// Ignore apex boot jars from dexpreopt if it does not exist, and missing deps are allowed.
 			continue
 		}
-		set[ModuleStemForDeapexing(dep)] = struct{}{}
+		set[ModuleStemForDeapexing(ctx, dep)] = struct{}{}
 		if m, ok := dep.(ModuleWithStem); ok {
 			set[m.Stem()] = struct{}{}
 		} else {
