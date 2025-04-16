@@ -562,9 +562,9 @@ func addDependenciesOntoSelectedBootImageApexes(ctx android.BottomUpMutatorConte
 	}
 }
 
-func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.Module {
+func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.ModuleProxy {
 	return ctx.Config().Once(dexBootJarsFragmentsKey, func() interface{} {
-		fragments := make(map[string]android.Module)
+		fragments := make(map[string]android.ModuleProxy)
 
 		type moduleInApexPair struct {
 			module string
@@ -574,7 +574,7 @@ func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.
 		var modulesInApexes []moduleInApexPair
 
 		// Find the list of modules in apexes.
-		ctx.WalkDeps(func(child, parent android.Module) bool {
+		ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 			if !isActiveModule(ctx, child) {
 				return false
 			}
@@ -596,7 +596,7 @@ func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.
 
 		for _, moduleInApex := range modulesInApexes {
 			// Find a desired module in an apex.
-			ctx.WalkDeps(func(child, parent android.Module) bool {
+			ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 				t := ctx.OtherModuleDependencyTag(child)
 				if bcpTag, ok := t.(bootclasspathDependencyTag); ok {
 					if bcpTag.typ == platform {
@@ -615,10 +615,10 @@ func gatherBootclasspathFragments(ctx android.ModuleContext) map[string]android.
 		}
 
 		return fragments
-	}).(map[string]android.Module)
+	}).(map[string]android.ModuleProxy)
 }
 
-func getBootclasspathFragmentByApex(ctx android.ModuleContext, apexName string) android.Module {
+func getBootclasspathFragmentByApex(ctx android.ModuleContext, apexName string) android.ModuleProxy {
 	return gatherBootclasspathFragments(ctx)[apexName]
 }
 
@@ -863,7 +863,7 @@ func generateBootImage(ctx android.ModuleContext, imageConfig *bootImageConfig) 
 
 type apexJarModulePair struct {
 	apex      string
-	jarModule android.Module
+	jarModule android.ModuleProxy
 }
 
 func getModulesForImage(ctx android.ModuleContext, imageConfig *bootImageConfig) []apexJarModulePair {
@@ -949,7 +949,7 @@ func getDexJarForApex(ctx android.ModuleContext, pair apexJarModulePair, apexNam
 	} else {
 		// Use exactly the same jar that is packed into the APEX.
 		fragment := getBootclasspathFragmentByApex(ctx, pair.apex)
-		if fragment == nil {
+		if fragment.IsNil() {
 			ctx.ModuleErrorf("Boot jar '%[1]s' is from APEX '%[2]s', but a bootclasspath_fragment for "+
 				"APEX '%[2]s' doesn't exist or is not added as a dependency of dex_bootjars",
 				pair.jarModule.Name(),
@@ -1110,20 +1110,25 @@ func getProfilePathForApex(ctx android.ModuleContext, apexName string, apexNameT
 	}
 	// TODO: b/308174306 - Remove the legacy mechanism
 	fragment := getBootclasspathFragmentByApex(ctx, apexName)
-	if fragment == nil {
+	if fragment.IsNil() {
 		ctx.ModuleErrorf("Boot image config imports profile from '%[2]s', but a "+
 			"bootclasspath_fragment for APEX '%[2]s' doesn't exist or is not added as a "+
 			"dependency of dex_bootjars",
 			apexName)
 		return nil
 	}
-	return fragment.(commonBootclasspathFragment).getProfilePath()
+
+	if info, ok := android.OtherModuleProvider(ctx, fragment, BootclasspathFragmentInfoProvider); ok {
+		return info.ProfilePathOnHost
+	} else {
+		panic(fmt.Errorf("missing BootclasspathFragmentInfoProvider in %s", fragment))
+	}
 }
 
 func getApexNameToApexExportsInfoMap(ctx android.ModuleContext) apexNameToApexExportsInfoMap {
 	apexNameToApexExportsInfoMap := apexNameToApexExportsInfoMap{}
 
-	ctx.VisitDirectDeps(func(am android.Module) {
+	ctx.VisitDirectDepsProxy(func(am android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(am)
 		if bcpTag, ok := tag.(bootclasspathDependencyTag); ok && bcpTag.typ == dexpreoptBootJar {
 			if bcpTag.moduleInApex == "" {
@@ -1623,7 +1628,7 @@ func (dbj *artBootImages) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (d *artBootImages) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	ctx.VisitDirectDeps(func(m android.Module) {
+	ctx.VisitDirectDepsProxy(func(m android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(m)
 		if bcpTag, ok := tag.(bootclasspathDependencyTag); ok && bcpTag.typ == dexpreoptBootJar {
 			if bcpTag.moduleInApex != "" {
