@@ -687,7 +687,7 @@ func TestPartitionOfOverrideModules(t *testing.T) {
 			`),
 		}),
 		android.FixtureModifyConfig(func(config android.Config) {
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"system_ext_app", "system_ext_override_app"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"system_ext_override_app"}
 		}),
 	).RunTestWithBp(t, `
 android_app {
