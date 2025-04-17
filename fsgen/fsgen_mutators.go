@@ -359,7 +359,10 @@ func updatePartitionsOfOverrideModules(mctx android.BottomUpMutatorContext) {
 			return
 		}
 		base := override.GetOverriddenModuleName()
-		if baseModuleProps, ok := fsGenState.moduleToInstallationProps[base]; ok {
+		if strings.HasPrefix(base, "//") { // Inside a soong namespace
+			base = strings.Split(base, ":")[1]
+		}
+		if baseModuleProps, ok := fsGenState.moduleToInstallationProps[base]; ok && mctx.Module().Enabled(mctx) && mctx.Module().ExportedToMake() {
 			partition := baseModuleProps.Partition
 			appendDepIfAppropriate(mctx, fsDeps[partition], partition, android.NativeBridgeDisabled, mctx.Module().Name())
 		}
