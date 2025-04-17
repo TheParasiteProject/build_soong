@@ -100,6 +100,9 @@ type CommonProperties struct {
 	// list of java libraries that will be compiled into the resulting jar
 	Static_libs proptools.Configurable[[]string] `android:"arch_variant"`
 
+	// List of Kotlin libraries whose `internal` members are accessible to this library
+	Associates []string `android:"arch_variant"`
+
 	// manifest file to be included in resulting jar
 	Manifest *string `android:"path"`
 
@@ -1962,6 +1965,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		RepackagedHeaderJars: android.PathsIfNonNil(repackagedHeaderJarFile),
 
 		LocalHeaderJars:                        localHeaderJars,
+		KotlinHeaderJars:                       kotlinHeaderJars,
 		TransitiveStaticLibsHeaderJars:         depset.New(depset.PREORDER, localHeaderJars, transitiveStaticLibsHeaderJars),
 		TransitiveStaticLibsImplementationJars: completeStaticLibsImplementationJars,
 		TransitiveStaticLibsResourceJars:       completeStaticLibsResourceJars,
