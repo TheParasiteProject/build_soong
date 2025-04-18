@@ -570,10 +570,12 @@ func (a *AndroidMkEntries) fillInEntries(ctx fillInEntriesContext, mod Module) {
 		a.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", proptools.Bool(base.commonProperties.No_full_install))
 	}
 
+	moduleBuildTargetsInfo := OtherModuleProviderOrDefault(ctx, mod, ModuleBuildTargetsProvider)
+
 	if info.UncheckedModule {
 		a.SetBool("LOCAL_DONT_CHECK_MODULE", true)
-	} else if info.CheckbuildTarget != nil {
-		a.SetPath("LOCAL_CHECKED_MODULE", info.CheckbuildTarget)
+	} else if moduleBuildTargetsInfo.CheckbuildTarget != nil {
+		a.SetPath("LOCAL_CHECKED_MODULE", moduleBuildTargetsInfo.CheckbuildTarget)
 	} else {
 		a.SetOptionalPath("LOCAL_CHECKED_MODULE", a.OutputFile)
 	}
@@ -1528,10 +1530,12 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod Module, comm
 		helperInfo.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", commonInfo.NoFullInstall)
 	}
 
+	moduleBuildTargetsInfo := OtherModuleProviderOrDefault(ctx, mod, ModuleBuildTargetsProvider)
+
 	if info.UncheckedModule {
 		helperInfo.SetBool("LOCAL_DONT_CHECK_MODULE", true)
-	} else if info.CheckbuildTarget != nil {
-		helperInfo.SetPath("LOCAL_CHECKED_MODULE", info.CheckbuildTarget)
+	} else if moduleBuildTargetsInfo.CheckbuildTarget != nil {
+		helperInfo.SetPath("LOCAL_CHECKED_MODULE", moduleBuildTargetsInfo.CheckbuildTarget)
 	} else {
 		helperInfo.SetOptionalPath("LOCAL_CHECKED_MODULE", a.OutputFile)
 	}
