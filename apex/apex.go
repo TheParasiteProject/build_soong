@@ -1733,13 +1733,7 @@ func (a *apexBundle) setPayloadFsType(ctx android.ModuleContext) {
 }
 
 func (a *apexBundle) isCompressable() bool {
-	if a.testApex {
-		return false
-	}
-	if a.payloadFsType == erofs {
-		return false
-	}
-	return proptools.Bool(a.overridableProperties.Compressible)
+	return proptools.BoolDefault(a.overridableProperties.Compressible, false) && !a.testApex
 }
 
 func (a *apexBundle) commonBuildActions(ctx android.ModuleContext) bool {
