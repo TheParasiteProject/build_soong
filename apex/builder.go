@@ -579,7 +579,10 @@ func (a *apexBundle) installApexSystemServerFiles(ctx android.ModuleContext) {
 	for _, fi := range a.filesInfo {
 		for _, install := range fi.systemServerDexpreoptInstalls {
 			var installedFile android.InstallPath
-			if performInstalls {
+			if performInstalls && ctx.Config().KatiEnabled() {
+				// android_device will create the install rule in soong-only builds.
+				// Skip creating the installation rule from the base variant
+				// in soong-only builds to prevent duplicate installation rules.
 				installedFile = ctx.InstallFile(install.InstallDirOnDevice, install.InstallFileOnDevice, install.OutputPathOnHost)
 			} else {
 				// Another module created the install rules, but this module should still depend on
