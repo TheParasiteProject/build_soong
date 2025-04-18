@@ -149,10 +149,14 @@ type superPartitionDepTagType struct {
 type targetFilesMetadataDepTagType struct {
 	blueprint.BaseDependencyTag
 }
+type fileContextsDepTagType struct {
+	blueprint.BaseDependencyTag
+}
 
 var superPartitionDepTag superPartitionDepTagType
 var filesystemDepTag partitionDepTagType
 var targetFilesMetadataDepTag targetFilesMetadataDepTagType
+var fileContextsDepTag fileContextsDepTagType
 
 func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined := func(dep *string) {
@@ -185,6 +189,7 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (a *androidDevice) addDepsForTargetFilesMetadata(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), targetFilesMetadataDepTag, "liblz4") // host variant
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), fileContextsDepTag, "file_contexts_bin_gen")
 }
 
 func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -721,8 +726,9 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		})
 		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "external/zucchini/version_info.h")).Textf(" %s/META/zucchini_config.txt", targetFilesDir.String())
 		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "system/update_engine/update_engine.conf")).Textf(" %s/META/update_engine_config.txt", targetFilesDir.String())
-		if a.getFsInfos(ctx)["system"].ErofsCompressHints != nil {
-			builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+		systemFsInfo := a.getFsInfos(ctx)["system"]
+		if systemFsInfo.ErofsCompressHints != nil {
+			builder.Command().Textf("cp").Input(systemFsInfo.ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
 		}
 		// ab_partitions.txt
 		abPartitionsSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_partitions)
@@ -739,8 +745,15 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		writeFileWithNewLines(ctx, abOtaPostInstallConfigFilePath, a.deviceProps.Ab_ota_postinstall_config)
 		builder.Command().Textf("cp").Input(abOtaPostInstallConfigFilePath).Textf(" %s/META/", targetFilesDir)
 		// selinuxfc
-		if a.getFsInfos(ctx)["system"].SelinuxFc != nil {
-			builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].SelinuxFc).Textf(" %s/META/file_contexts.bin", targetFilesDir.String())
+		fileContextsModule := ctx.GetDirectDepWithTag("file_contexts_bin_gen", fileContextsDepTag)
+		outputFiles, ok := android.OtherModuleProvider(ctx, fileContextsModule, android.OutputFilesProvider)
+		if !ok || len(outputFiles.DefaultOutputFiles) != 1 {
+			ctx.ModuleErrorf("Expected exactly 1 output file from file_contexts_bin_gen")
+		} else {
+			selinuxFc := outputFiles.DefaultOutputFiles[0]
+			if selinuxFc != nil {
+				builder.Command().Textf("cp").Input(selinuxFc).Textf(" %s/META/file_contexts.bin", targetFilesDir.String())
+			}
 		}
 	}
 	// Copy $partition_filesystem_config.txt
