@@ -17,9 +17,11 @@ package java
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -1559,9 +1561,9 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			module.hostdexInstallFile = module.implLibraryInfo.HostdexInstallFile
 		}
 
-		if installFilesInfo, ok := android.OtherModuleProvider(ctx, implLib, android.InstallFilesProvider); ok {
-			if installFilesInfo.CheckbuildTarget != nil {
-				ctx.CheckbuildFile(installFilesInfo.CheckbuildTarget)
+		if buildTargetsInfo, ok := android.OtherModuleProvider(ctx, implLib, android.ModuleBuildTargetsProvider); ok {
+			if buildTargetsInfo.CheckbuildTarget != nil {
+				ctx.CheckbuildFile(buildTargetsInfo.CheckbuildTarget)
 			}
 		}
 	}
@@ -1642,6 +1644,13 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	android.SetProvider(ctx, JavaLibraryInfoProvider, JavaLibraryInfo{
 		PermittedPackages: module.PermittedPackagesForUpdatableBootJars(),
 	})
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	if module.implementationAndResourcesJar != nil {
+		moduleInfoJSON.ClassesJar = []string{module.implementationAndResourcesJar.String()}
+	}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func setOutputFilesFromJavaInfo(ctx android.ModuleContext, info *JavaInfo) {
@@ -2134,6 +2143,12 @@ func (module *SdkLibraryImport) BaseModuleName() string {
 	return proptools.StringDefault(module.properties.Source_module_name, module.ModuleBase.Name())
 }
 
+func (module *SdkLibraryImport) sortedApiScopes() []*apiScope {
+	return slices.SortedFunc(maps.Keys(module.scopeProperties), func(a, b *apiScope) int {
+		return strings.Compare(a.name, b.name)
+	})
+}
+
 func (module *SdkLibraryImport) createInternalModules(mctx android.DefaultableHookContext) {
 
 	// If the build is configured to use prebuilts then force this to be preferred.
@@ -2141,7 +2156,8 @@ func (module *SdkLibraryImport) createInternalModules(mctx android.DefaultableHo
 		module.prebuilt.ForcePrefer()
 	}
 
-	for apiScope, scopeProperties := range module.scopeProperties {
+	for _, apiScope := range module.sortedApiScopes() {
+		scopeProperties := module.scopeProperties[apiScope]
 		if len(scopeProperties.Jars) == 0 {
 			continue
 		}
@@ -2166,7 +2182,8 @@ func (module *SdkLibraryImport) createInternalModules(mctx android.DefaultableHo
 // Add the dependencies on the child module in the component deps mutator so that it
 // creates references to the prebuilt and not the source modules.
 func (module *SdkLibraryImport) ComponentDepsMutator(ctx android.BottomUpMutatorContext) {
-	for apiScope, scopeProperties := range module.scopeProperties {
+	for _, apiScope := range module.sortedApiScopes() {
+		scopeProperties := module.scopeProperties[apiScope]
 		if len(scopeProperties.Jars) == 0 {
 			continue
 		}
@@ -2260,7 +2277,8 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 	sdkLibInfo := module.generateCommonBuildActions(ctx)
 
 	// Populate the scope paths with information from the properties.
-	for apiScope, scopeProperties := range module.scopeProperties {
+	for _, apiScope := range module.sortedApiScopes() {
+		scopeProperties := module.scopeProperties[apiScope]
 		if len(scopeProperties.Jars) == 0 {
 			continue
 		}

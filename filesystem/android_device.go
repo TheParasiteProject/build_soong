@@ -18,6 +18,7 @@ import (
 	"cmp"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -100,6 +101,9 @@ type DeviceProperties struct {
 	// when dexpreopting apps. So setting this doesn't really do anything except enforce that the
 	// actual kernel version is as specified here.
 	Kernel_version *string
+
+	// Precompiled sepolicy only with system + system_ext + product. Used for SELinux tests.
+	Precompiled_sepolicy_without_vendor *string `android:"path"`
 }
 
 type androidDevice struct {
@@ -149,10 +153,14 @@ type superPartitionDepTagType struct {
 type targetFilesMetadataDepTagType struct {
 	blueprint.BaseDependencyTag
 }
+type fileContextsDepTagType struct {
+	blueprint.BaseDependencyTag
+}
 
 var superPartitionDepTag superPartitionDepTagType
 var filesystemDepTag partitionDepTagType
 var targetFilesMetadataDepTag targetFilesMetadataDepTagType
+var fileContextsDepTag fileContextsDepTagType
 
 func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined := func(dep *string) {
@@ -185,6 +193,7 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 func (a *androidDevice) addDepsForTargetFilesMetadata(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSTarget.Variations(), targetFilesMetadataDepTag, "liblz4") // host variant
+	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), fileContextsDepTag, "file_contexts_bin_gen")
 }
 
 func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -281,6 +290,10 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
+	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
+	if ctx.Config().EnforceSELinuxTrebleLabeling() {
+		validations = append(validations, trebleLabelingTestTimestamp)
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
@@ -350,7 +363,7 @@ type installedOwnerInfo struct {
 
 // Returns a list of modules that are installed, which are collected from the dependency
 // filesystem and super_image modules.
-func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.ModuleProxy {
+func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.ModuleOrProxy {
 	fsInfoMap := a.getFsInfos(ctx)
 	allOwners := make(map[string][]installedOwnerInfo)
 
@@ -364,13 +377,17 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 		}
 	}
 
-	ret := []android.ModuleProxy{}
-	ctx.WalkDepsProxy(func(mod, _ android.ModuleProxy) bool {
+	ret := []android.ModuleOrProxy{}
+	ctx.WalkDeps(func(mod, _ android.Module) bool {
 		commonInfo, ok := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider)
 		if !(ok && commonInfo.ExportedToMake) {
 			return false
 		}
-		if variations, ok := allOwners[ctx.OtherModuleName(mod)]; ok &&
+		name := ctx.OtherModuleName(mod)
+		if o, ok := mod.(android.OverridableModule); ok && o.GetOverriddenBy() != "" {
+			name = o.GetOverriddenBy()
+		}
+		if variations, ok := allOwners[name]; ok &&
 			android.InList(installedOwnerInfo{
 				Variation: ctx.OtherModuleSubDir(mod),
 				Prebuilt:  commonInfo.IsPrebuilt,
@@ -384,7 +401,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	ret = android.FirstUniqueInPlace(ret)
 
 	// Sort the modules by their names and variants
-	slices.SortFunc(ret, func(a, b android.ModuleProxy) int {
+	slices.SortFunc(ret, func(a, b android.ModuleOrProxy) int {
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
@@ -395,7 +412,7 @@ type symbolicOutputInfo struct {
 	symbolicOutputPath   android.InstallPath
 }
 
-func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
+func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
 	android.BuildSymbolsZip(ctx, allInstalledModules, ctx.ModuleName(), a.symbolsZipFile, a.symbolsMappingFile)
@@ -475,7 +492,7 @@ func (a *androidDevice) MakeVars(_ android.MakeVarsModuleContext) []android.Modu
 	return nil
 }
 
-func (a *androidDevice) buildProguardZips(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
+func (a *androidDevice) buildProguardZips(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	dictZip := android.PathForModuleOut(ctx, "proguard-dict.zip")
 	dictZipBuilder := android.NewRuleBuilder(pctx, ctx)
 	dictZipCmd := dictZipBuilder.Command().BuiltTool("soong_zip").Flag("-d").FlagWithOutput("-o ", dictZip)
@@ -536,7 +553,7 @@ type targetFilesystemZipCopy struct {
 	destSubdir string
 }
 
-func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
+func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	targetFilesDir := android.PathForModuleOut(ctx, "target_files_dir")
 	targetFilesZip := android.PathForModuleOut(ctx, "target_files.zip")
 	otaFilesZip := android.PathForModuleOut(ctx, "ota.zip")
@@ -633,7 +650,10 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	}
 	if a.partitionProps.Boot_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_partition_name), filesystemDepTag)
-		bootImgInfo, _ := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		bootImgInfo, ok := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		if !ok {
+			ctx.PropertyErrorf("boot_partition_name", "Expected a BootimgInfoProvider")
+		}
 		builder.Command().Textf("echo %s > %s/BOOT/cmdline", proptools.ShellEscape(strings.Join(bootImgInfo.Cmdline, " ")), targetFilesDir)
 		if bootImgInfo.Dtb != nil {
 			builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/BOOT/dtb", targetFilesDir)
@@ -653,7 +673,11 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, *a.deviceProps.Android_info)).Textf(" %s/OTA/android-info.txt", targetFilesDir)
 	}
 
-	a.copyImagesToTargetZip(ctx, builder, targetFilesDir)
+	builder.Command().Textf("mkdir -p %s/IMAGES", targetFilesDir.String())
+	if a.deviceProps.Bootloader != nil {
+		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Bootloader))).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
+	}
+
 	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir, allInstalledModules)
 
 	a.targetFilesZip = targetFilesZip
@@ -692,50 +716,6 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	builder.Build("target_files_"+ctx.ModuleName(), "Build target_files.zip")
 }
 
-func (a *androidDevice) copyImagesToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.WritablePath) {
-	// Create an IMAGES/ subdirectory
-	builder.Command().Textf("mkdir -p %s/IMAGES", targetFilesDir.String())
-	if a.deviceProps.Bootloader != nil {
-		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Bootloader))).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
-	}
-	// Copy the filesystem ,boot and vbmeta img files to IMAGES/
-	ctx.VisitDirectDepsProxyWithTag(filesystemDepTag, func(child android.ModuleProxy) {
-		if strings.Contains(child.Name(), "recovery") {
-			return // skip recovery.img to match the make packaging behavior
-		}
-		if info, ok := android.OtherModuleProvider(ctx, child, BootimgInfoProvider); ok {
-			// Check Boot img first so that the boot.img is copied and not its dep ramdisk.img
-			builder.Command().Textf("cp ").Input(info.Output).Textf(" %s/IMAGES/", targetFilesDir.String())
-		} else if info, ok := android.OtherModuleProvider(ctx, child, FilesystemProvider); ok {
-			builder.Command().Textf("cp ").Input(info.Output).Textf(" %s/IMAGES/", targetFilesDir.String())
-		} else if info, ok := android.OtherModuleProvider(ctx, child, vbmetaPartitionProvider); ok {
-			builder.Command().Textf("cp ").Input(info.Output).Textf(" %s/IMAGES/", targetFilesDir.String())
-		} else {
-			ctx.ModuleErrorf("Module %s does not provide an .img file output for target_files.zip", child.Name())
-		}
-	})
-
-	if a.partitionProps.Super_partition_name != nil {
-		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
-		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
-			for _, partition := range android.SortedKeys(info.SubImageInfo) {
-				if info.SubImageInfo[partition].OutputHermetic != nil {
-					builder.Command().Textf("cp ").Input(info.SubImageInfo[partition].OutputHermetic).Textf(" %s/IMAGES/", targetFilesDir.String())
-				}
-				if info.SubImageInfo[partition].MapFile != nil {
-					builder.Command().Textf("cp ").Input(info.SubImageInfo[partition].MapFile).Textf(" %s/IMAGES/", targetFilesDir.String())
-				}
-			}
-			// super_empty.img
-			if info.SuperEmptyImage != nil {
-				builder.Command().Textf("cp ").Input(info.SuperEmptyImage).Textf(" %s/IMAGES/", targetFilesDir.String())
-			}
-		} else {
-			ctx.ModuleErrorf("Super partition %s does set SuperImageProvider\n", superPartition.Name())
-		}
-	}
-}
-
 func writeFileWithNewLines(ctx android.ModuleContext, path android.WritablePath, contents []string) {
 	builder := &strings.Builder{}
 	for i, content := range contents {
@@ -748,7 +728,7 @@ func writeFileWithNewLines(ctx android.ModuleContext, path android.WritablePath,
 	android.WriteFileRule(ctx, path, builder.String())
 }
 
-func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.ModuleOutPath, allInstalledModules []android.ModuleProxy) {
+func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.ModuleOutPath, allInstalledModules []android.ModuleOrProxy) {
 	// Create a META/ subdirectory
 	builder.Command().Textf("mkdir -p %s/META", targetFilesDir.String())
 	if proptools.Bool(a.deviceProps.Ab_ota_updater) {
@@ -758,8 +738,9 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		})
 		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "external/zucchini/version_info.h")).Textf(" %s/META/zucchini_config.txt", targetFilesDir.String())
 		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "system/update_engine/update_engine.conf")).Textf(" %s/META/update_engine_config.txt", targetFilesDir.String())
-		if a.getFsInfos(ctx)["system"].ErofsCompressHints != nil {
-			builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+		systemFsInfo := a.getFsInfos(ctx)["system"]
+		if systemFsInfo.ErofsCompressHints != nil {
+			builder.Command().Textf("cp").Input(systemFsInfo.ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
 		}
 		// ab_partitions.txt
 		abPartitionsSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_partitions)
@@ -776,8 +757,15 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		writeFileWithNewLines(ctx, abOtaPostInstallConfigFilePath, a.deviceProps.Ab_ota_postinstall_config)
 		builder.Command().Textf("cp").Input(abOtaPostInstallConfigFilePath).Textf(" %s/META/", targetFilesDir)
 		// selinuxfc
-		if a.getFsInfos(ctx)["system"].SelinuxFc != nil {
-			builder.Command().Textf("cp").Input(a.getFsInfos(ctx)["system"].SelinuxFc).Textf(" %s/META/file_contexts.bin", targetFilesDir.String())
+		fileContextsModule := ctx.GetDirectDepWithTag("file_contexts_bin_gen", fileContextsDepTag)
+		outputFiles, ok := android.OtherModuleProvider(ctx, fileContextsModule, android.OutputFilesProvider)
+		if !ok || len(outputFiles.DefaultOutputFiles) != 1 {
+			ctx.ModuleErrorf("Expected exactly 1 output file from file_contexts_bin_gen")
+		} else {
+			selinuxFc := outputFiles.DefaultOutputFiles[0]
+			if selinuxFc != nil {
+				builder.Command().Textf("cp").Input(selinuxFc).Textf(" %s/META/file_contexts.bin", targetFilesDir.String())
+			}
 		}
 	}
 	// Copy $partition_filesystem_config.txt
@@ -1209,7 +1197,7 @@ func (a *androidDevice) extractKernelVersionAndConfigs(ctx android.ModuleContext
 	return extractedVersionFile, extractedConfigsFile
 }
 
-func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) android.Path {
+func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) android.Path {
 	// TODO (spandandas): Add compressed
 	formatLine := func(cert java.Certificate, name, partition string) string {
 		pem := cert.AndroidMkString()
@@ -1276,3 +1264,136 @@ type ApkCertsInfo struct {
 }
 
 var ApkCertsInfoProvider = blueprint.NewProvider[ApkCertsInfo]()
+
+func findAllPreinstalledApps(partitions []string, fsInfos map[string]FilesystemInfo) android.Paths {
+	var ret android.Paths
+	for _, partition := range partitions {
+		info, ok := fsInfos[partition]
+		if !ok {
+			continue
+		}
+		// use MustCompile, because if `partition` is invalid, then we already did something wrong
+		apkPattern := regexp.MustCompile(partition + `/(app|priv-app)/[^/]+/[^/]+\.apk$`)
+		for _, path := range info.FullInstallPaths {
+			if !path.IsDir && path.SymlinkTarget == "" &&
+				apkPattern.FindString(path.FullInstallPath.String()) != "" {
+				ret = append(ret, path.SourcePath)
+			}
+		}
+	}
+	return android.SortedUniquePaths(ret)
+}
+
+func findInstalledFile(rel string, info FilesystemInfo) android.Path {
+	for _, path := range info.FullInstallPaths {
+		if !path.IsDir && path.SymlinkTarget == "" &&
+			strings.HasSuffix(path.FullInstallPath.String(), rel) {
+			return path.SourcePath
+		}
+	}
+	return nil
+}
+
+func findFilesInPartitions(paths map[string]string, fsInfos map[string]FilesystemInfo) android.Paths {
+	var ret android.Paths
+	for partition, rel := range paths {
+		info, ok := fsInfos[partition]
+		if !ok {
+			continue
+		}
+
+		if path := findInstalledFile(rel, info); path != nil {
+			ret = append(ret, path)
+		}
+	}
+	return android.SortedUniquePaths(ret)
+}
+
+func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) android.Path {
+	platformPartitions := []string{
+		"system",
+		"system_ext",
+		"product",
+	}
+
+	vendorPartitions := []string{
+		"vendor",
+		"odm",
+	}
+
+	fsInfos := a.getFsInfos(ctx)
+
+	platformApps := findAllPreinstalledApps(platformPartitions, fsInfos)
+	vendorApps := findAllPreinstalledApps(vendorPartitions, fsInfos)
+
+	platformSeappContextsPaths := map[string]string{
+		"system":     "system/etc/selinux/plat_seapp_contexts",
+		"system_ext": "system_ext/etc/selinux/plat_seapp_contexts",
+		"product":    "product/etc/selinux/plat_seapp_contexts",
+	}
+	platformSeappContexts := findFilesInPartitions(platformSeappContextsPaths, fsInfos)
+
+	vendorSeappContextsPaths := map[string]string{
+		"vendor": "vendor/etc/selinux/vendor_seapp_contexts",
+		"odm":    "odm/etc/selinux/odm_seapp_contexts",
+	}
+	vendorSeappContexts := findFilesInPartitions(vendorSeappContextsPaths, fsInfos)
+
+	vendorFileContextsPaths := map[string]string{
+		"vendor": "vendor/etc/selinux/vendor_file_contexts",
+		"odm":    "odm/etc/selinux/odm_file_contexts",
+	}
+	vendorFileContexts := findFilesInPartitions(vendorFileContextsPaths, fsInfos)
+
+	precompiledSepolicyPaths := map[string]string{
+		"odm":    "odm/etc/selinux/precompiled_sepolicy",
+		"vendor": "vendor/etc/selinux/precompiled_sepolicy",
+	}
+	precompiledSepolicies := findFilesInPartitions(precompiledSepolicyPaths, fsInfos)
+
+	testTimestamp := android.PathForModuleOut(ctx, "treble_labeling_test.timestamp")
+
+	platformAppsList := android.PathForModuleOut(ctx, "platform_apps.txt")
+	android.WriteFileRule(ctx, platformAppsList, strings.Join(platformApps.Strings(), "\n"))
+	vendorAppsList := android.PathForModuleOut(ctx, "vendor_apps.txt")
+	android.WriteFileRule(ctx, vendorAppsList, strings.Join(vendorApps.Strings(), "\n"))
+
+	rule := android.NewRuleBuilder(pctx, ctx)
+
+	if len(precompiledSepolicies) != 1 {
+		errorMessage := fmt.Sprintf("number of precompiled_sepolicy must be one but was %q", precompiledSepolicies.Strings())
+		rule.Command().
+			Text("echo").
+			Text(proptools.ShellEscape(errorMessage)).
+			Text(" && exit 1").
+			ImplicitOutput(testTimestamp)
+	} else if proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor) == "" {
+		rule.Command().
+			Text("echo").
+			Text("cannot find precompiled_sepolicy_without_vendor").
+			Text(" && exit 1").
+			ImplicitOutput(testTimestamp)
+	} else {
+		precompiledSepolicyWithoutVendor := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
+		rule.Command().BuiltTool("treble_labeling_tests").
+			FlagWithInput("--platform_apks ", platformAppsList).
+			FlagWithInput("--vendor_apks ", vendorAppsList).
+			FlagWithInput("--precompiled_sepolicy_without_vendor ", precompiledSepolicyWithoutVendor).
+			FlagWithInput("--precompiled_sepolicy ", precompiledSepolicies[0]). // len(precompiledSepolicies) == 1
+			FlagWithInputList("--platform_seapp_contexts ", platformSeappContexts, " ").
+			FlagWithInputList("--vendor_seapp_contexts ", vendorSeappContexts, " ").
+			FlagWithInputList("--vendor_file_contexts ", vendorFileContexts, " ").
+			FlagWithInput("--aapt2_path ", ctx.Config().HostToolPath(ctx, "aapt2")).
+			Implicits(platformApps).
+			Implicits(vendorApps).
+			FlagWithOutput("> ", testTimestamp)
+	}
+
+	rule.Build("treble_labeling_test", "SELinux Treble Labeling Test")
+
+	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
+		ctx.Phony("check-selinux-treble-labeling", testTimestamp)
+	}
+
+	return testTimestamp
+}

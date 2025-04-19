@@ -98,6 +98,7 @@ type EarlyModuleContext interface {
 	// Namespace returns the Namespace object provided by the NameInterface set by Context.SetNameInterface, or the
 	// default SimpleNameInterface if Context.SetNameInterface was not called.
 	Namespace() *Namespace
+	OtherModuleNamespace(ModuleOrProxy) *Namespace
 
 	// HasMutatorFinished returns true if the given mutator has finished running.
 	// It will panic if given an invalid mutator name.
@@ -150,7 +151,7 @@ func (e *earlyModuleContext) Config() Config {
 	// If a module builds multiple image variations, provide the generic config only for the core
 	// variant which is installed in the system partition. Other image variant may still read the
 	// original configurations.
-	if e.Module().base().UseGenericConfig() && e.Module().base().commonProperties.ImageVariation == "" {
+	if e.Module().UseGenericConfig() && e.Module().base().commonProperties.ImageVariation == "" {
 		return e.EarlyModuleContext.Config().(Config).genericConfig()
 	}
 	return e.EarlyModuleContext.Config().(Config)
@@ -186,6 +187,10 @@ func (e *earlyModuleContext) SystemExtSpecific() bool {
 
 func (e *earlyModuleContext) Namespace() *Namespace {
 	return e.EarlyModuleContext.Namespace().(*Namespace)
+}
+
+func (e *earlyModuleContext) OtherModuleNamespace(m ModuleOrProxy) *Namespace {
+	return e.EarlyModuleContext.OtherModuleNamespace(m).(*Namespace)
 }
 
 func (e *earlyModuleContext) OtherModulePropertyErrorf(module ModuleOrProxy, property string, fmt string, args ...interface{}) {

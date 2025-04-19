@@ -16,7 +16,9 @@
 #
 
 import argparse
+import glob
 import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -37,6 +39,7 @@ def run_build_target_files_zip(product: Product, soong_only: bool) -> bool:
             'USE_RBE=true',
             'BUILD_DATETIME=1',
             'USE_FIXED_TIMESTAMP_IMG_FILES=true',
+            'DISABLE_NOTICE_XML_GENERATION=true',
             f'TARGET_PRODUCT={product.product}',
             f'TARGET_RELEASE={product.release}',
             f'TARGET_BUILD_VARIANT={product.variant}',
@@ -104,40 +107,48 @@ def find_build_id() -> str | None:
 
     return build_id
 
+def zip_ninja_files(subdistdir: str):
+    out_dir = os.getenv('OUT_DIR', 'out')
+    root_dir = os.path.dirname(out_dir)
+    files_to_zip = [
+        *glob.glob(os.path.join(out_dir, "*.ninja"), recursive=False),          # ninja files in out/
+        *glob.glob(os.path.join(out_dir, "soong", "*.ninja"), recursive=False), # ninja files in out/soong/
+    ]
+
+    zip_filename = os.path.join(subdistdir, "ninja_files.zip")
+    with zipfile.ZipFile(zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zipf:
+        for file in files_to_zip:
+            zipf.write(filename=file, arcname=os.path.relpath(file, root_dir))
+
+def move_artifacts_to_subfolder(product: Product, soong_only: bool):
+    subdir = "soong_only" if soong_only else "soong_plus_make"
+
+    out_dir = os.getenv('OUT_DIR', 'out')
+    dist_dir = os.getenv('DIST_DIR', os.path.join(out_dir, 'dist'))
+    subdistdir = os.path.join(dist_dir, subdir)
+    if os.path.exists(subdistdir):
+        shutil.rmtree(subdistdir)
+    os.makedirs(subdistdir)
+    zip_ninja_files(subdistdir)
+
+    build_id = find_build_id()
+
+    files_to_move = [
+        os.path.join(dist_dir, f'{product.product}-target_files-{build_id}.zip'), # target_files.zip
+    ]
+
+    for file in files_to_move:
+        shutil.move(file, subdistdir)
+
 SHA_DIFF_ALLOWLIST = {
-    "IMAGES/init_boot.img",
-    "IMAGES/odm_dlkm.img",
-    "IMAGES/odm.img",
-    "IMAGES/product.img",
-    "IMAGES/product.map",
-    "IMAGES/system_dlkm.img",
-    "IMAGES/system_ext.img",
     "IMAGES/system.img",
-    "IMAGES/system.map",
-    "IMAGES/system_other.img",
     "IMAGES/userdata.img",
-    "IMAGES/vbmeta.img",
-    "IMAGES/vbmeta_system_dlkm.img",
     "IMAGES/vbmeta_system.img",
-    "IMAGES/vbmeta_vendor_dlkm.img",
-    "IMAGES/vendor_boot.img",
-    "IMAGES/vendor_dlkm.img",
-    "IMAGES/vendor.img",
-    "IMAGES/vendor.map",
-    "META/care_map.pb",
-    "META/file_contexts.bin",
     "META/kernel_version.txt",
     "META/misc_info.txt",
     "META/vbmeta_digest.txt",
-    "ODM_DLKM/etc/NOTICE.xml.gz",
-    "ODM/etc/NOTICE.xml.gz",
-    "PRODUCT/etc/NOTICE.xml.gz",
-    "SYSTEM_DLKM/etc/NOTICE.xml.gz",
-    "SYSTEM/etc/NOTICE.xml.gz",
-    "SYSTEM_EXT/etc/NOTICE.xml.gz",
-    "VENDOR_DLKM/etc/NOTICE.xml.gz",
-    "VENDOR/etc/NOTICE.xml.gz",
-    "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: Make this hermetic
+    "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: b/406045340 - Remove from the allowlist once it's fixed
+    "SYSTEM/apex/com.android.resolv.capex", # TODO: b/411514418 - Remove once nondeterminism is fixed
 }
 
 def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict[str, bytes]) -> bool:
@@ -151,10 +162,10 @@ def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict
         if key not in soong_only_map:
             print(f'{key} not found in soong only build target_files.zip', file=sys.stderr)
             all_identical = False
-        if key not in soong_plus_make_map:
+        elif key not in soong_plus_make_map:
             print(f'{key} not found in soong plus make build target_files.zip', file=sys.stderr)
             all_identical = False
-        if soong_only_map[key] != soong_plus_make_map[key]:
+        elif soong_only_map[key] != soong_plus_make_map[key]:
             print(f'{key} sha value differ between soong only build and soong plus make build', file=sys.stderr)
             all_identical = False
 
@@ -198,8 +209,13 @@ def main():
       'userdebug',
     )
 
-    soong_only_zip_sha_map = get_zip_sha_map(product, True)
-    soong_plus_make_zip_sha_map = get_zip_sha_map(product, False)
+    soong_only = True
+    soong_only_zip_sha_map = get_zip_sha_map(product, soong_only)
+    move_artifacts_to_subfolder(product, soong_only)
+
+    soong_only = False
+    soong_plus_make_zip_sha_map = get_zip_sha_map(product, soong_only)
+    move_artifacts_to_subfolder(product, soong_only)
 
     if not compare_sha_maps(soong_only_zip_sha_map, soong_plus_make_zip_sha_map):
         sys.exit("target_files.zip differ between soong only build and soong plus make build")

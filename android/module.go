@@ -424,12 +424,6 @@ type commonProperties struct {
 	// Whether this module is built for non-native architectures (also known as native bridge binary)
 	Native_bridge_supported *bool `android:"arch_variant"`
 
-	// init.rc files to be installed if this module is installed
-	Init_rc proptools.Configurable[[]string] `android:"arch_variant,path"`
-
-	// VINTF manifest fragments to be installed if this module is installed
-	Vintf_fragments proptools.Configurable[[]string] `android:"path"`
-
 	// The OsType of artifacts that this module variant is responsible for creating.
 	//
 	// Set by osMutator
@@ -523,13 +517,6 @@ type commonProperties struct {
 	// The team (defined by the owner/vendor) who owns the property.
 	Team *string `android:"path"`
 
-	// vintf_fragment Modules required from this module.
-	Vintf_fragment_modules proptools.Configurable[[]string] `android:"path"`
-
-	// List of module names that are prevented from being installed when this module gets
-	// installed.
-	Overrides []string
-
 	// Set to true if this module must be generic and does not require product-specific information.
 	// To be included in the system image, this property must be set to true.
 	Use_generic_config *bool
@@ -551,6 +538,19 @@ type baseProperties struct {
 	// module type. This is used by neverallow to ensure you can't bypass a ModuleType() matcher
 	// just by creating a soong config module type.
 	Soong_config_base_module_type *string `blueprint:"mutated"`
+
+	// init.rc files to be installed if this module is installed
+	Init_rc proptools.Configurable[[]string] `android:"arch_variant,path"`
+
+	// VINTF manifest fragments to be installed if this module is installed
+	Vintf_fragments proptools.Configurable[[]string] `android:"path"`
+
+	// vintf_fragment Modules required from this module.
+	Vintf_fragment_modules proptools.Configurable[[]string] `android:"path"`
+
+	// List of module names that are prevented from being installed when this module gets
+	// installed.
+	Overrides []string
 }
 
 type distProperties struct {
@@ -1677,25 +1677,11 @@ func (m *ModuleBase) TargetRequiredModuleNames() []string {
 }
 
 func (m *ModuleBase) VintfFragmentModuleNames(ctx ConfigurableEvaluatorContext) []string {
-	return m.base().commonProperties.Vintf_fragment_modules.GetOrDefault(m.ConfigurableEvaluator(ctx), nil)
+	return m.base().baseProperties.Vintf_fragment_modules.GetOrDefault(m.ConfigurableEvaluator(ctx), nil)
 }
 
 func (m *ModuleBase) VintfFragments(ctx ConfigurableEvaluatorContext) []string {
-	return m.base().commonProperties.Vintf_fragments.GetOrDefault(m.ConfigurableEvaluator(ctx), nil)
-}
-
-func (m *ModuleBase) generateVariantTarget(ctx *moduleContext) {
-	namespacePrefix := ctx.Namespace().id
-	if namespacePrefix != "" {
-		namespacePrefix = namespacePrefix + "-"
-	}
-
-	if !ctx.uncheckedModule && !shouldSkipAndroidMkProcessing(ctx, m) {
-		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-" + ctx.ModuleSubDir() + "-checkbuild"
-		ctx.Phony(name, ctx.checkbuildFiles...)
-		ctx.checkbuildTarget = PathForPhony(ctx, name)
-	}
-
+	return m.base().baseProperties.Vintf_fragments.GetOrDefault(m.ConfigurableEvaluator(ctx), nil)
 }
 
 // generateModuleTarget generates phony targets so that you can do `m <module-name>`.
@@ -1707,15 +1693,38 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	if nameSpace != "." {
 		namespacePrefix = strings.ReplaceAll(nameSpace, "/", ".") + "-"
 	}
+	shouldSkipAndroidMk := shouldSkipAndroidMkProcessing(ctx, m)
+
+	phony := func(suffix string, deps Paths) string {
+		if ctx.Config().KatiEnabled() {
+			suffix += "-soong"
+		}
+		var ret string
+		// Create a target without the namespace prefix if it's exported to make. One of the
+		// conditions for being exported to make is that the namespace is in
+		// PRODUCT_SOONG_NAMESPACES, so historically that would mean that make would create the
+		// phonies for those modules as if they weren't in any namespace.
+		if !shouldSkipAndroidMk {
+			ret = ctx.module.base().BaseModuleName() + suffix
+			ctx.Phony(ret, deps...)
+		}
+		// Create another phony for building with the namespace specified. This can be used
+		// regardless of if the namespace is in PRODUCT_SOONG_NAMESPACES or not.
+		if nameSpace != "." {
+			ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+suffix, deps...)
+		}
+		return ret
+	}
 
 	var deps Paths
 	var info ModuleBuildTargetsInfo
 
-	if len(ctx.installFiles) > 0 && !shouldSkipAndroidMkProcessing(ctx, m) {
-		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-install"
+	if len(ctx.installFiles) > 0 && !shouldSkipAndroidMk {
 		installFiles := ctx.installFiles.Paths()
-		ctx.Phony(name, installFiles...)
-		info.InstallTarget = PathForPhony(ctx, name)
+		name := phony("-install", installFiles)
+		if name != "" {
+			info.InstallTarget = PathForPhony(ctx, name)
+		}
 		deps = append(deps, installFiles...)
 	}
 
@@ -1723,15 +1732,17 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	// not be created if the module is not exported to make.
 	// Those could depend on the build target and fail to compile
 	// for the current build target.
-	if (!ctx.Config().KatiEnabled() || !shouldSkipAndroidMkProcessing(ctx, m)) && !ctx.uncheckedModule && ctx.checkbuildTarget != nil {
-		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-checkbuild"
-		ctx.Phony(name, ctx.checkbuildTarget)
-		deps = append(deps, ctx.checkbuildTarget)
+	if !shouldSkipAndroidMk && !ctx.uncheckedModule {
+		phony("-checkbuild", ctx.checkbuildFiles)
+		checkbuildTarget := phony("-"+ctx.ModuleSubDir()+"-checkbuild", ctx.checkbuildFiles)
+		if checkbuildTarget != "" {
+			info.CheckbuildTarget = PathForPhony(ctx, checkbuildTarget)
+		}
+		deps = append(deps, ctx.checkbuildFiles...)
 	}
 
-	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 && !shouldSkipAndroidMkProcessing(ctx, m) {
-		name := namespacePrefix + ctx.module.base().BaseModuleName() + "-outputs"
-		ctx.Phony(name, outputFiles...)
+	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 && !shouldSkipAndroidMk {
+		phony("-outputs", outputFiles)
 		deps = append(deps, outputFiles...)
 	}
 
@@ -1740,21 +1751,16 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	}
 
 	if len(deps) > 0 {
-		suffix := ""
-		if ctx.Config().KatiEnabled() {
-			suffix = "-soong"
-		}
-
-		ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+suffix, deps...)
+		phony("", deps)
 		if ctx.Device() {
 			// Generate a target suffix for use in atest etc.
-			ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+"-target"+suffix, deps...)
+			phony("-target", deps)
 		} else {
 			// Generate a host suffix for use in atest etc.
-			ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+"-host"+suffix, deps...)
+			phony("-host", deps)
 			if ctx.Target().HostCross {
 				// Generate a host-cross suffix for use in atest etc.
-				ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+"-host-cross"+suffix, deps...)
+				phony("-host-cross", deps)
 			}
 		}
 
@@ -1877,11 +1883,10 @@ func (m *ModuleBase) archModuleContextFactory(ctx archModuleContextFactoryContex
 }
 
 type InstallFilesInfo struct {
-	InstallFiles     InstallPaths
-	CheckbuildFiles  Paths
-	CheckbuildTarget Path
-	UncheckedModule  bool
-	PackagingSpecs   []PackagingSpec
+	InstallFiles    InstallPaths
+	CheckbuildFiles Paths
+	UncheckedModule bool
+	PackagingSpecs  []PackagingSpec
 	// katiInstalls tracks the install rules that were created by Soong but are being exported
 	// to Make to convert to ninja rules so that Make can add additional dependencies.
 	KatiInstalls             katiInstalls
@@ -2102,7 +2107,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			// so only a single rule is created for each init.rc or vintf fragment file.
 
 			if !m.InVendorRamdisk() {
-				ctx.initRcPaths = PathsForModuleSrc(ctx, m.commonProperties.Init_rc.GetOrDefault(ctx, nil))
+				ctx.initRcPaths = PathsForModuleSrc(ctx, m.baseProperties.Init_rc.GetOrDefault(ctx, nil))
 				rcDir := PathForModuleInstall(ctx, "etc", "init")
 				for _, src := range ctx.initRcPaths {
 					installedInitRc := rcDir.Join(ctx, src.Base())
@@ -2118,7 +2123,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 				installFiles.InstalledInitRcPaths = ctx.installedInitRcPaths
 			}
 
-			ctx.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.commonProperties.Vintf_fragments.GetOrDefault(ctx, nil))
+			ctx.vintfFragmentsPaths = PathsForModuleSrc(ctx, m.baseProperties.Vintf_fragments.GetOrDefault(ctx, nil))
 			vintfDir := PathForModuleInstall(ctx, "etc", "vintf", "manifest")
 			for _, src := range ctx.vintfFragmentsPaths {
 				installedVintfFragment := vintfDir.Join(ctx, src.Base())
@@ -2176,8 +2181,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			return
 		}
 
-		m.generateVariantTarget(ctx)
-
 		testData := FirstUniqueFunc(ctx.testData, func(a, b DataPath) bool {
 			return a == b
 		})
@@ -2185,7 +2188,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		installFiles.LicenseMetadataFile = ctx.licenseMetadataFile
 		installFiles.InstallFiles = ctx.installFiles
 		installFiles.CheckbuildFiles = ctx.checkbuildFiles
-		installFiles.CheckbuildTarget = ctx.checkbuildTarget
 		installFiles.UncheckedModule = ctx.uncheckedModule
 		installFiles.PackagingSpecs = ctx.packagingSpecs
 		installFiles.KatiInstalls = ctx.katiInstalls
@@ -2821,7 +2823,7 @@ func (m *ModuleBase) DecodeMultilib(ctx ConfigContext) (string, string) {
 }
 
 func (m *ModuleBase) Overrides() []string {
-	return m.commonProperties.Overrides
+	return m.baseProperties.Overrides
 }
 
 func (m *ModuleBase) UseGenericConfig() bool {

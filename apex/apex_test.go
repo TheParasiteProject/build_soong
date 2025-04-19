@@ -9325,34 +9325,6 @@ func TestCompressedApex_NonUpdatable(t *testing.T) {
 	`)
 }
 
-func TestCompressedApexIsDisabledWhenUsingErofs(t *testing.T) {
-	t.Parallel()
-	ctx := testApex(t, `
-		apex {
-			name: "myapex",
-			key: "myapex.key",
-			compressible: true,
-			updatable: true,
-			min_sdk_version: "29",
-			payload_fs_type: "erofs",
-		}
-		apex_key {
-			name: "myapex.key",
-			public_key: "testkey.avbpubkey",
-			private_key: "testkey.pem",
-		}
-	`,
-		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
-			variables.CompressedApex = proptools.BoolPtr(true)
-		}),
-	)
-
-	compressRule := ctx.ModuleForTests(t, "myapex", "android_common_myapex").MaybeRule("compressRule")
-	if compressRule.Rule != nil {
-		t.Error("erofs apex should not be compressed")
-	}
-}
-
 func TestApexSet_ShouldRespectCompressedApexFlag(t *testing.T) {
 	t.Parallel()
 	for _, compressionEnabled := range []bool{true, false} {
@@ -10671,8 +10643,8 @@ func TestAconfigFilesJavaDeps(t *testing.T) {
 	ensureListContainsMatch(t, copyCmds, "^cp -f .*/flag.info.*/image.apex/etc/flag.info")
 
 	inputs := []string{
-		"my_aconfig_declarations_foo/intermediate.pb",
-		"my_aconfig_declarations_bar/intermediate.pb",
+		"my_aconfig_declarations_foo/aconfig-cache.pb",
+		"my_aconfig_declarations_bar/aconfig-cache.pb",
 	}
 	VerifyAconfigRule(t, &mod, "combine_aconfig_declarations", inputs, "android_common_myapex/aconfig_flags.pb", "", "")
 	VerifyAconfigRule(t, &mod, "create_aconfig_package_map_file", inputs, "android_common_myapex/package.map", "myapex", "package_map")
@@ -10810,9 +10782,9 @@ func TestAconfigFilesJavaAndCcDeps(t *testing.T) {
 	ensureListContainsMatch(t, copyCmds, "^cp -f .*/flag.info .*/image.apex/etc/flag.info")
 
 	inputs := []string{
-		"my_aconfig_declarations_foo/intermediate.pb",
-		"my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/myapex/aconfig_merged.pb",
-		"my_aconfig_declarations_baz/intermediate.pb",
+		"my_aconfig_declarations_foo/aconfig-cache.pb",
+		"my_cc_library_bar/android_arm64_armv8-a_shared_apex10000/merged_aconfig_files/myapex/aconfig_merged.pb",
+		"my_aconfig_declarations_baz/aconfig-cache.pb",
 	}
 	VerifyAconfigRule(t, &mod, "combine_aconfig_declarations", inputs, "android_common_myapex/aconfig_flags.pb", "", "")
 	VerifyAconfigRule(t, &mod, "create_aconfig_package_map_file", inputs, "android_common_myapex/package.map", "myapex", "package_map")
@@ -10972,10 +10944,10 @@ func TestAconfigFilesRustDeps(t *testing.T) {
 	ensureListContainsMatch(t, copyCmds, "^cp -f .*/flag.info .*/image.apex/etc/flag.info")
 
 	inputs := []string{
-		"my_aconfig_declarations_foo/intermediate.pb",
-		"my_aconfig_declarations_bar/intermediate.pb",
-		"my_aconfig_declarations_baz/intermediate.pb",
-		"my_rust_binary/android_arm64_armv8-a_apex10000/myapex/aconfig_merged.pb",
+		"my_aconfig_declarations_foo/aconfig-cache.pb",
+		"my_aconfig_declarations_bar/aconfig-cache.pb",
+		"my_aconfig_declarations_baz/aconfig-cache.pb",
+		"my_rust_binary/android_arm64_armv8-a_apex10000/merged_aconfig_files/myapex/aconfig_merged.pb",
 	}
 	VerifyAconfigRule(t, &mod, "combine_aconfig_declarations", inputs, "android_common_myapex/aconfig_flags.pb", "", "")
 	VerifyAconfigRule(t, &mod, "create_aconfig_package_map_file", inputs, "android_common_myapex/package.map", "myapex", "package_map")
@@ -11081,13 +11053,13 @@ func TestAconfigFilesOnlyMatchCurrentApex(t *testing.T) {
 	if len(aconfigArgs) != 1 {
 		t.Fatalf("Expected 1 commands, got %d in:\n%s", len(aconfigArgs), s)
 	}
-	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/aconfig-cache.pb")
 
 	buildParams := combineAconfigRule.BuildParams
 	if len(buildParams.Inputs) != 1 {
 		t.Fatalf("Expected 1 input, got %d", len(buildParams.Inputs))
 	}
-	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/aconfig-cache.pb")
 	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
 }
 
@@ -11161,13 +11133,13 @@ func TestAconfigFilesRemoveDuplicates(t *testing.T) {
 	if len(aconfigArgs) != 1 {
 		t.Fatalf("Expected 1 commands, got %d in:\n%s", len(aconfigArgs), s)
 	}
-	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, aconfigArgs, "my_aconfig_declarations_foo/aconfig-cache.pb")
 
 	buildParams := combineAconfigRule.BuildParams
 	if len(buildParams.Inputs) != 1 {
 		t.Fatalf("Expected 1 input, got %d", len(buildParams.Inputs))
 	}
-	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/intermediate.pb")
+	android.EnsureListContainsSuffix(t, buildParams.Inputs.Strings(), "my_aconfig_declarations_foo/aconfig-cache.pb")
 	ensureContains(t, buildParams.Output.String(), "android_common_myapex/aconfig_flags.pb")
 }
 
@@ -11720,27 +11692,27 @@ func TestAconfifDeclarationsValidation(t *testing.T) {
 	// to aconfig.
 	android.AssertStringDoesContain(t, "cache file of a java_aconfig_library static_lib "+
 		"passed as an input",
-		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "bar"))
+		aconfigFlagArgs, fmt.Sprintf("%s/%s/aconfig-cache.pb", outDir, "bar"))
 
 	// "baz-java-lib", which statically depends on "baz-lib", is a lib of "foo" and is passed
 	// to metalava as classpath. Thus the cache file provided by the associated
 	// aconfig_declarations module "baz" should be passed to aconfig.
 	android.AssertStringDoesContain(t, "cache file of a lib that statically depends on "+
 		"java_aconfig_library passed as an input",
-		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "baz"))
+		aconfigFlagArgs, fmt.Sprintf("%s/%s/aconfig-cache.pb", outDir, "baz"))
 
 	// "qux-lib" is passed to metalava as src via the filegroup, thus the cache file provided by
 	// the associated aconfig_declarations module "qux" should be passed to aconfig.
 	android.AssertStringDoesContain(t, "cache file of srcs java_aconfig_library passed as an "+
 		"input",
-		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "qux"))
+		aconfigFlagArgs, fmt.Sprintf("%s/%s/aconfig-cache.pb", outDir, "qux"))
 
 	// "quux-java-lib" is a lib of "foo" and is passed to metalava as classpath, but does not
 	// statically depend on "quux-lib". Therefore, the cache file provided by the associated
 	// aconfig_declarations module "quux" should not be passed to aconfig.
 	android.AssertStringDoesNotContain(t, "cache file of a lib that does not statically "+
 		"depend on java_aconfig_library not passed as an input",
-		aconfigFlagArgs, fmt.Sprintf("%s/%s/intermediate.pb", outDir, "quux"))
+		aconfigFlagArgs, fmt.Sprintf("%s/%s/aconfig-cache.pb", outDir, "quux"))
 }
 
 func TestMultiplePrebuiltsWithSameBase(t *testing.T) {

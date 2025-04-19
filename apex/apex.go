@@ -632,8 +632,8 @@ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, androidM
 		module:              module,
 	}
 	if !module.IsNil() {
-		if installFilesInfo, ok := android.OtherModuleProvider(ctx, module, android.InstallFilesProvider); ok {
-			ret.checkbuildTarget = installFilesInfo.CheckbuildTarget
+		if buildTargetsInfo, ok := android.OtherModuleProvider(ctx, module, android.ModuleBuildTargetsProvider); ok {
+			ret.checkbuildTarget = buildTargetsInfo.CheckbuildTarget
 		}
 		ret.moduleDir = ctx.OtherModuleDir(module)
 		commonInfo := android.OtherModulePointerProviderOrDefault(ctx, module, android.CommonModuleInfoProvider)
@@ -1733,13 +1733,7 @@ func (a *apexBundle) setPayloadFsType(ctx android.ModuleContext) {
 }
 
 func (a *apexBundle) isCompressable() bool {
-	if a.testApex {
-		return false
-	}
-	if a.payloadFsType == erofs {
-		return false
-	}
-	return proptools.Bool(a.overridableProperties.Compressible)
+	return proptools.BoolDefault(a.overridableProperties.Compressible, false) && !a.testApex
 }
 
 func (a *apexBundle) commonBuildActions(ctx android.ModuleContext) bool {
@@ -2296,11 +2290,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
 // with information about whether source or prebuilt of an apex was used during the build.
 func (a *apexBundle) providePrebuiltInfo(ctx android.ModuleContext) {
-	info := android.PrebuiltInfo{
+	info := android.PrebuiltJsonInfo{
 		Name:        a.Name(),
 		Is_prebuilt: false,
 	}
-	android.SetProvider(ctx, android.PrebuiltInfoProvider, info)
+	android.SetProvider(ctx, android.PrebuiltJsonInfoProvider, info)
 }
 
 // Set a provider containing information about the jars and .prof provided by the apex

@@ -1297,7 +1297,7 @@ func (j *Library) DepsMutator(ctx android.BottomUpMutatorContext) {
 	j.usesLibrary.deps(ctx, false)
 	j.deps(ctx)
 
-	if ctx.Config().GetBuildFlagBool("RELEASE_JAVA_HEADER_JAR_OVERRIDE") && j.properties.Header_jar_override != "" {
+	if j.properties.Header_jar_override != "" {
 		ctx.AddVariationDependencies(nil, headerJarOverrideTag, j.properties.Header_jar_override)
 	}
 	if j.SdkLibraryName() != nil && strings.HasSuffix(j.Name(), ".impl") {
@@ -2828,6 +2828,13 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 	setExtraJavaInfo(ctx, al, javaInfo)
 	android.SetProvider(ctx, JavaInfoProvider, javaInfo)
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	if al.stubsJar != nil {
+		moduleInfoJSON.ClassesJar = []string{al.stubsJar.String()}
+	}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func (al *ApiLibrary) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
@@ -3315,6 +3322,13 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.SetOutputFiles(android.Paths{j.combinedImplementationFile}, ".jar")
 
 	buildComplianceMetadata(ctx)
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+	if j.combinedImplementationFile != nil {
+		moduleInfoJSON.ClassesJar = []string{j.combinedImplementationFile.String()}
+	}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
 
 func (j *Import) maybeInstall(ctx android.ModuleContext, jarName string, outputFile android.Path) {
