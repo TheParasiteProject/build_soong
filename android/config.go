@@ -290,6 +290,7 @@ func (c Config) ReleaseUseSystemFeatureBuildFlags() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_USE_SYSTEM_FEATURE_BUILD_FLAGS")
 }
 
+// TODO: b/409598478 - Remove FINGERPRINT build flag.
 func (c Config) ReleaseFingerprintAconfigPackages() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_FINGERPRINT_ACONFIG_PACKAGES")
 }
@@ -300,6 +301,15 @@ func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
 
 func (c Config) ReleaseUseSparseEncoding() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_SOONG_SPARSE_ENCODING")
+}
+
+func (c Config) ReleaseAconfigStorageVersion() string {
+	if val, exists := c.GetBuildFlag("RELEASE_ACONFIG_STORAGE_VERSION"); exists {
+		return val
+	} else {
+		// Default value is 2.
+		return "2"
+	}
 }
 
 // A DeviceConfig object represents the configuration for a particular device

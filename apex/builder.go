@@ -278,12 +278,7 @@ func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
 		})
 		files = append(files, newApexFile(ctx, apexAconfigFile, "aconfig_flags", "etc", etc, android.ModuleProxy{}))
 
-		// To enable fingerprint, we need to have v2 storage files. The default version is 1.
-		storageFilesVersion := 1
-		if ctx.Config().ReleaseFingerprintAconfigPackages() {
-			storageFilesVersion = 2
-		}
-
+		storageFilesVersion := ctx.Config().ReleaseAconfigStorageVersion()
 		for _, info := range createStorageInfo {
 			outputFile := android.PathForModuleOut(ctx, info.Output_file)
 			ctx.Build(pctx, android.BuildParams{
@@ -295,7 +290,7 @@ func (a *apexBundle) buildAconfigFiles(ctx android.ModuleContext) []apexFile {
 					"container":   ctx.ModuleName(),
 					"file_type":   info.File_type,
 					"cache_files": android.JoinPathsWithPrefix(aconfigFiles, "--cache "),
-					"version":     strconv.Itoa(storageFilesVersion),
+					"version":     storageFilesVersion,
 				},
 			})
 			files = append(files, newApexFile(ctx, outputFile, info.File_type, "etc", etc, android.ModuleProxy{}))
