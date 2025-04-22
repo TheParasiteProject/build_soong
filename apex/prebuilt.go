@@ -491,7 +491,7 @@ func (p *prebuiltCommon) getDeapexerPropertiesIfNeeded(ctx android.ModuleContext
 	commonModules := []string{}
 	dexpreoptProfileGuidedModules := []string{}
 	exportedFiles := []string{}
-	ctx.WalkDeps(func(child, parent android.Module) bool {
+	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 
 		// If the child is not in the same apex as the parent then ignore it and all its children.
@@ -499,15 +499,14 @@ func (p *prebuiltCommon) getDeapexerPropertiesIfNeeded(ctx android.ModuleContext
 			return false
 		}
 
-		name := java.ModuleStemForDeapexing(child)
+		name := java.ModuleStemForDeapexing(ctx, child)
 		if _, ok := tag.(android.RequiresFilesFromPrebuiltApexTag); ok {
 			commonModules = append(commonModules, name)
 
-			extract := child.(android.RequiredFilesFromPrebuiltApex)
-			requiredFiles := extract.RequiredFilesFromPrebuiltApex(ctx)
-			exportedFiles = append(exportedFiles, requiredFiles...)
+			info := android.OtherModuleProviderOrDefault(ctx, child, android.RequiredFilesFromPrebuiltApexInfoProvider)
+			exportedFiles = append(exportedFiles, info.RequiredFilesFromPrebuiltApex...)
 
-			if extract.UseProfileGuidedDexpreopt() {
+			if info.UseProfileGuidedDexpreopt {
 				dexpreoptProfileGuidedModules = append(dexpreoptProfileGuidedModules, name)
 			}
 
