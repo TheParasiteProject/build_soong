@@ -1086,6 +1086,15 @@ func (c *config) BuildThumbprintFile(ctx PathContext) Path {
 	return PathForArbitraryOutput(ctx, "target", "product", *c.deviceNameToInstall, String(c.productVariables.BuildThumbprintFile))
 }
 
+func (c *config) BuildDateFile(ctx PathContext) Path {
+	buildDateFile := c.Getenv("BUILD_DATETIME_FILE")
+	relPath, err := filepath.Rel(ctx.Config().OutDir(), buildDateFile)
+	if err != nil {
+		panic("build_date.txt is outside of OUT_DIR")
+	}
+	return PathForArbitraryOutput(ctx, relPath)
+}
+
 // DeviceName returns the name of the current device target.
 // TODO: take an AndroidModuleContext to select the device name for multi-device builds
 func (c *config) DeviceName() string {
