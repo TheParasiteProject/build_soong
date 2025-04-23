@@ -307,6 +307,9 @@ func isModuleInBuildNumberAllowlist(ctx android.ModuleContext) bool {
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_arm64.bin",
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_x86_64.elf",
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_x86_64.elf",
+			"trusty/vendor/google/proprietary/scripts:trusty_tee_package_goog",
+			"trusty/vendor/google/proprietary/scripts:trusty_widevine_vm_arm64.bin",
+			"trusty/vendor/google/proprietary/scripts:trusty_widevine_vm_x86_64.elf",
 			"vendor/google/services/LyricCameraHAL/src/apex:com.google.pixel.camera.hal.manifest",
 			"vendor/google_tradefederation/core:gen_google_tradefed_zip",
 			// go/keep-sorted end
@@ -340,6 +343,9 @@ func isModuleInBuildDateAllowlist(ctx android.ModuleContext) bool {
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_arm64.bin",
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_x86_64.elf",
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_x86_64.elf",
+			"trusty/vendor/google/proprietary/scripts:trusty_tee_package_goog",
+			"trusty/vendor/google/proprietary/scripts:trusty_widevine_vm_arm64.bin",
+			"trusty/vendor/google/proprietary/scripts:trusty_widevine_vm_x86_64.elf",
 			// go/keep-sorted end
 		}
 		allowlistMap := make(map[string]bool, len(allowlist))
