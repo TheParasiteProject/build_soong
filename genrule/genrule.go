@@ -335,6 +335,7 @@ func isModuleInBuildDateAllowlist(ctx android.ModuleContext) bool {
 			"trusty/vendor/google/aosp/scripts:trusty_desktop_vm_x86_64.bin",
 			"trusty/vendor/google/aosp/scripts:trusty_security_vm_arm64.bin",
 			"trusty/vendor/google/aosp/scripts:trusty_security_vm_x86_64.elf",
+			"trusty/vendor/google/aosp/scripts:trusty_tee_package",
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_arm64.bin",
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_arm64.bin",
 			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_x86_64.elf",
