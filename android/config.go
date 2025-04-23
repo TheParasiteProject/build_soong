@@ -2223,10 +2223,6 @@ func (c *deviceConfig) BuildBrokenDupSysprop() bool {
 	return c.config.productVariables.BuildBrokenDupSysprop
 }
 
-func (c *config) BuildWarningBadOptionalUsesLibsAllowlist() []string {
-	return c.productVariables.BuildWarningBadOptionalUsesLibsAllowlist
-}
-
 func (c *deviceConfig) GenruleSandboxing() bool {
 	return Bool(c.config.productVariables.GenruleSandboxing)
 }
