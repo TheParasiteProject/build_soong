@@ -2732,8 +2732,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	if !c.hideApexVariantFromMake && !c.Properties.HideFromMake {
 		c.collectSymbolsInfo(ctx)
 	}
-
-	ctx.FreeModuleAfterGenerateBuildActions()
 }
 
 func (c *Module) CleanupAfterBuildActions() {
