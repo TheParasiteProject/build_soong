@@ -98,16 +98,17 @@ func registerPostDepsMutators(ctx android.RegisterMutatorsContext) {
 }
 
 type Flags struct {
-	GlobalRustFlags []string // Flags that apply globally to rust
-	GlobalLinkFlags []string // Flags that apply globally to linker
-	RustFlags       []string // Flags that apply to rust
-	LinkFlags       []string // Flags that apply to linker
-	ClippyFlags     []string // Flags that apply to clippy-driver, during the linting
-	RustdocFlags    []string // Flags that apply to rustdoc
-	Toolchain       config.Toolchain
-	Coverage        bool
-	Clippy          bool
-	EmitXrefs       bool // If true, emit rules to aid cross-referencing
+	GlobalRustFlags   []string // Flags that apply globally to rust
+	GlobalLinkFlags   []string // Flags that apply globally to linker
+	RustFlags         []string // Flags that apply to rust
+	LinkFlags         []string // Flags that apply to linker
+	LinkerScriptFlags []string // Flags that should be visible to the android linker script
+	ClippyFlags       []string // Flags that apply to clippy-driver, during the linting
+	RustdocFlags      []string // Flags that apply to rustdoc
+	Toolchain         config.Toolchain
+	Coverage          bool
+	Clippy            bool
+	EmitXrefs         bool // If true, emit rules to aid cross-referencing
 }
 
 type BaseProperties struct {

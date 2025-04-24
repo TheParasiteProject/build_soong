@@ -30,20 +30,22 @@ var (
 	rustc = pctx.AndroidStaticRule("rustc",
 		blueprint.RuleParams{
 			Command: "$envVars $rustcCmd " +
-				"-C linker=${RustcLinkerCmd} " +
-				"-C link-args=\"--android-clang-bin=${config.ClangCmd} ${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}\" " +
+				"-C linker=${RustcLinkerCmd} -C link-args=\"--android-clang-bin=${config.ClangCmd} ${linkerScriptFlags}\" " +
+				"-C link-args=@${out}.clang.rsp " +
 				"--emit ${emitType} -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
+				// Rustc deps-info writes out make compatible dep files: https://github.com/rust-lang/rust/issues/7633
+				// Rustc emits unneeded dependency lines for the .d and input .rs files.
+				// Those extra lines cause ninja warning:
+				//     "warning: depfile has multiple output paths"
+				// For ninja, we keep/grep only the dependency rule for the rust $out file.
 				" && grep ^$out: $out.d.raw > $out.d",
-			CommandDeps: []string{"$rustcCmd", "${RustcLinkerCmd}", "${config.ClangCmd}"},
-			// Rustc deps-info writes out make compatible dep files: https://github.com/rust-lang/rust/issues/7633
-			// Rustc emits unneeded dependency lines for the .d and input .rs files.
-			// Those extra lines cause ninja warning:
-			//     "warning: depfile has multiple output paths"
-			// For ninja, we keep/grep only the dependency rule for the rust $out file.
-			Deps:    blueprint.DepsGCC,
-			Depfile: "$out.d",
+			CommandDeps:    []string{"$rustcCmd", "${RustcLinkerCmd}", "${config.ClangCmd}"},
+			Rspfile:        "${out}.clang.rsp",
+			RspfileContent: "${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}",
+			Deps:           blueprint.DepsGCC,
+			Depfile:        "$out.d",
 		},
-		"rustcFlags", "earlyLinkFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "emitType", "envVars")
+		"rustcFlags", "linkerScriptFlags", "earlyLinkFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "emitType", "envVars")
 
 	_       = pctx.SourcePathVariable("rustdocCmd", "${config.RustBin}/rustdoc")
 	rustdoc = pctx.AndroidStaticRule("rustdoc",
@@ -363,7 +365,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 	var implicits android.Paths
 	var orderOnly android.Paths
 	var output buildOutput
-	var rustcFlags, linkFlags []string
+	var linkerScriptFlags, rustcFlags, linkFlags []string
 	var earlyLinkFlags string
 
 	output.outputFile = outputFile
@@ -413,6 +415,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 
 	linkFlags = append(linkFlags, flags.GlobalLinkFlags...)
 	linkFlags = append(linkFlags, flags.LinkFlags...)
+	linkerScriptFlags = append(linkerScriptFlags, flags.LinkerScriptFlags...)
 
 	// Check if this module needs to use the bootstrap linker
 	if t.bootstrap && !t.inRecovery && !t.inRamdisk && !t.inVendorRamdisk {
@@ -521,14 +524,15 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 		ImplicitOutputs: implicitOutputs,
 		OrderOnly:       orderOnly,
 		Args: map[string]string{
-			"rustcFlags":     strings.Join(rustcFlags, " "),
-			"earlyLinkFlags": earlyLinkFlags,
-			"linkFlags":      strings.Join(linkFlags, " "),
-			"libFlags":       strings.Join(libFlags, " "),
-			"crtBegin":       strings.Join(deps.CrtBegin.Strings(), " "),
-			"crtEnd":         strings.Join(deps.CrtEnd.Strings(), " "),
-			"envVars":        rustStringifyEnvVars(envVars),
-			"emitType":       t.emitType,
+			"rustcFlags":        strings.Join(rustcFlags, " "),
+			"earlyLinkFlags":    earlyLinkFlags,
+			"linkerScriptFlags": strings.Join(linkerScriptFlags, " "),
+			"linkFlags":         strings.Join(linkFlags, " "),
+			"libFlags":          strings.Join(libFlags, " "),
+			"crtBegin":          strings.Join(deps.CrtBegin.Strings(), " "),
+			"crtEnd":            strings.Join(deps.CrtEnd.Strings(), " "),
+			"envVars":           rustStringifyEnvVars(envVars),
+			"emitType":          t.emitType,
 		},
 	})
 
