@@ -19,17 +19,21 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/depset"
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/remoteexec"
 	"android/soong/rust/config"
 )
 
 var (
-	_     = pctx.SourcePathVariable("rustcCmd", "${config.RustBin}/rustc")
-	rustc = pctx.AndroidStaticRule("rustc",
+	_ = pctx.SourcePathVariable("rustcCmd", "${config.RustBin}/rustc")
+	_ = pctx.StaticVariableWithEnvOverride("RERustPool", "RBE_RUST_POOL", "rustc")
+
+	rustc, rustcRbe = pctx.RemoteStaticRules("rustc",
 		blueprint.RuleParams{
-			Command: "$envVars $rustcCmd " +
+			Command: "$relPwd $reTemplate/usr/bin/env $envVars ${rustcCmd} " +
 				"-C linker=${RustcLinkerCmd} -C link-args=\"--android-clang-bin=${config.ClangCmd} ${linkerScriptFlags}\" " +
 				"-C link-args=@${out}.clang.rsp " +
 				"--emit ${emitType} -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
@@ -44,8 +48,24 @@ var (
 			RspfileContent: "${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}",
 			Deps:           blueprint.DepsGCC,
 			Depfile:        "$out.d",
+		}, &remoteexec.REParams{
+			// Until there's a "rust" tool, use clang. This interprets "-L" flags
+			// to help identify potential build dependencies.
+			Labels:       map[string]string{"type": "link", "tool": "clang"},
+			Inputs:       []string{"${out}.clang.rsp"},
+			RSPFiles:     []string{"$rbeRspFile"},
+			OutputFiles:  []string{"${out}.d", "${out}.d.raw", "${out}"},
+			ExecStrategy: "${config.RERustExecStrategy}",
+			ToolchainInputs: []string{
+				"${rustcCmd}",
+				"${RustcLinkerCmd}",
+				"${config.ClangCmd}",
+				"${config.LlvmDlltool}",
+			},
+			Platform: map[string]string{remoteexec.PoolKey: "${config.RERustPool}"},
 		},
-		"rustcFlags", "linkerScriptFlags", "earlyLinkFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "emitType", "envVars")
+		[]string{"rustcFlags", "linkerScriptFlags", "earlyLinkFlags", "linkFlags", "libFlags", "crtBegin", "crtEnd", "emitType", "envVars"},
+		[]string{"rbeRspFile"})
 
 	_       = pctx.SourcePathVariable("rustdocCmd", "${config.RustBin}/rustdoc")
 	rustdoc = pctx.AndroidStaticRule("rustdoc",
@@ -122,6 +142,8 @@ type buildOutput struct {
 func init() {
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("RustcLinkerCmd", "rustc_linker")
+	pctx.StaticVariable("relPwd", cc.PwdPrefix())
+
 	cc.TransformRlibstoStaticlib = TransformRlibstoStaticlib
 }
 
@@ -515,25 +537,50 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 		}
 	}
 
+	rule := rustc
+	args := map[string]string{
+		"rustcFlags":        strings.Join(rustcFlags, " "),
+		"linkerScriptFlags": strings.Join(linkerScriptFlags, " "),
+		"earlyLinkFlags":    earlyLinkFlags,
+		"linkFlags":         strings.Join(linkFlags, " "),
+		"libFlags":          strings.Join(libFlags, " "),
+		"crtBegin":          strings.Join(deps.CrtBegin.Strings(), " "),
+		"crtEnd":            strings.Join(deps.CrtEnd.Strings(), " "),
+		"envVars":           rustStringifyEnvVars(envVars),
+		"emitType":          t.emitType,
+	}
+
+	// If SrcFiles populating is ever tied to some other property being set
+	// (e.g. crate_root), a check against whether its populated should be added here.
+	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_RUST") {
+		rule = rustcRbe
+		rbeInputs := android.Paths{}
+		rbeInputs = append(rbeInputs, implicits...)
+		rbeInputs = append(rbeInputs, deps.SrcDeps...)
+		rbeInputs = append(rbeInputs, deps.srcProviderFiles...)
+		rbeInputs = append(rbeInputs, main)
+		rbeInputs = append(rbeInputs, depset.New(depset.PREORDER, deps.directApexImplementationDeps, deps.transitiveApexImplementationDeps).ToList()...)
+		rbeInputs = append(rbeInputs, depset.New(depset.PREORDER, deps.directNonApexImplementationDeps, deps.transitiveNonApexImplementationDeps).ToList()...)
+		rbeInputs = append(rbeInputs, deps.SrcFiles...)
+		rbeInputs = android.FirstUniquePaths(rbeInputs)
+
+		// Produce an rsp file for RBE as the inputs list can easily grow too large.
+		rbeRustRspFile := android.PathForModuleOut(ctx, "", outputFile.Base()+".rbe.rsp")
+		android.WriteFileRule(ctx, rbeRustRspFile, strings.Join(rbeInputs.Strings(), "\n"))
+		implicits = append(implicits, rbeRustRspFile)
+
+		args["rbeRspFile"] = rbeRustRspFile.String()
+	}
+
 	ctx.Build(pctx, android.BuildParams{
-		Rule:            rustc,
+		Rule:            rule,
 		Description:     "rustc " + main.Rel(),
 		Output:          outputFile,
 		Inputs:          inputs,
 		Implicits:       implicits,
 		ImplicitOutputs: implicitOutputs,
 		OrderOnly:       orderOnly,
-		Args: map[string]string{
-			"rustcFlags":        strings.Join(rustcFlags, " "),
-			"earlyLinkFlags":    earlyLinkFlags,
-			"linkerScriptFlags": strings.Join(linkerScriptFlags, " "),
-			"linkFlags":         strings.Join(linkFlags, " "),
-			"libFlags":          strings.Join(libFlags, " "),
-			"crtBegin":          strings.Join(deps.CrtBegin.Strings(), " "),
-			"crtEnd":            strings.Join(deps.CrtEnd.Strings(), " "),
-			"envVars":           rustStringifyEnvVars(envVars),
-			"emitType":          t.emitType,
-		},
+		Args:            args,
 	})
 
 	if !t.synthetic {

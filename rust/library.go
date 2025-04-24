@@ -641,6 +641,9 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	var fileName string
 	crateRootPath := library.crateRootPath(ctx)
 
+	deps.SrcFiles = append(deps.SrcFiles, crateRootPath)
+	deps.SrcFiles = append(deps.SrcFiles, library.crateSources(ctx)...)
+
 	if library.sourceProvider != nil {
 		deps.srcProviderFiles = append(deps.srcProviderFiles, library.sourceProvider.Srcs()...)
 	}
