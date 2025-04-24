@@ -2920,6 +2920,15 @@ func (this Module) GetDebugString() string {
 // Merge the jarjar rules we inherit from our dependencies, any that have been added directly to
 // us, and if it's been set, apply the jarjar_prefix property to rename them.
 func (module *Module) collectJarJarRules(ctx android.ModuleContext) *JarJarProviderData {
+
+	// Stop collect jarjar_prefix jarjar rules if the module has test sdk scope.
+	// If a module uses test API scope, which means in its source code and static dependencies
+	// it could only use API exposed through the test surface. So it should not apply the jarjar
+	// rules set by any bootclass path jar
+	if module.SdkVersion(ctx).Kind == android.SdkTest {
+		return nil
+	}
+
 	// Gather repackage information from deps
 	result := collectDirectDepsProviders(ctx)
 
