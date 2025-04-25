@@ -376,6 +376,7 @@ var (
 		"-pedantic",
 		"-pedantic-errors",
 		"-Werror=pedantic",
+		"-Wno-everything",
 	}
 
 	CStdVersion               = "gnu23"
