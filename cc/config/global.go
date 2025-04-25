@@ -380,7 +380,7 @@ var (
 
 	CStdVersion               = "gnu23"
 	CppStdVersion             = "gnu++20"
-	ExperimentalCStdVersion   = "gnu2x"
+	ExperimentalCStdVersion   = "gnu2y"
 	ExperimentalCppStdVersion = "gnu++2b"
 
 	// prebuilts/clang default settings.
