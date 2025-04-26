@@ -111,8 +111,8 @@ func (t hostToolDependencyTag) AllowDisabledModuleDependency(target android.Modu
 
 func (t hostToolDependencyTag) AllowDisabledModuleDependencyProxy(
 	ctx android.OtherModuleProviderContext, target android.ModuleProxy) bool {
-	return android.OtherModulePointerProviderOrDefault(
-		ctx, target, android.CommonModuleInfoProvider).ReplacedByPrebuilt
+	return android.OtherModuleProviderOrDefault(
+		ctx, target, android.PrebuiltInfoProvider).ReplacedByPrebuilt
 }
 
 var _ android.AllowDisabledModuleDependency = (*hostToolDependencyTag)(nil)
@@ -157,7 +157,7 @@ type generatorProperties struct {
 	Common_os_srcs proptools.Configurable[[]string] `android:"path_common_os"`
 
 	// Same as srcs, but will add dependencies on modules via for host os variation.
-	Host_first_src proptools.Configurable[[]string] `android:"path_host_first"`
+	Host_first_srcs proptools.Configurable[[]string] `android:"path_host_first"`
 
 	// input files to exclude
 	Exclude_srcs []string `android:"path,arch_variant"`
@@ -179,6 +179,19 @@ type generatorProperties struct {
 	// number. Prefer using libbuildversion via the use_version_lib property on
 	// cc modules.
 	Uses_order_only_build_number_file *bool
+
+	// When set to true, an additional $(build_date_file) label will be available
+	// to use in the cmd. This will be the location of a text file containing the
+	// build date. The dependency on this file will be "order-only", meaning that
+	// the genrule will not rerun when only this file changes, to avoid rerunning
+	// the genrule every build, because the build date changes every build.
+	// This also means that you should not attempt to consume the build date from
+	// the result of this genrule in another build rule. If you do, the build date
+	// in the second build rule will be stale when the second build rule rebuilds
+	// but this genrule does not. Only certain allowlisted modules are allowed to
+	// use this property, usages of the build date should be kept to the absolute
+	// minimum.
+	Uses_order_only_build_date_file *bool
 }
 
 type Module struct {
@@ -266,6 +279,7 @@ func toolDepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 var buildNumberAllowlistKey = android.NewOnceKey("genruleBuildNumberAllowlistKey")
+var buildDateAllowlistKey = android.NewOnceKey("genruleBuildDateAllowlistKey")
 
 // This allowlist should be kept to the bare minimum, it's
 // intended for things that existed before the build number
@@ -282,8 +296,56 @@ func isModuleInBuildNumberAllowlist(ctx android.ModuleContext) bool {
 			"build/soong/tests:gen",
 			"hardware/google/camera/common/hal/aidl_service:aidl_camera_build_version",
 			"tools/tradefederation/core:tradefed_zip",
+			"trusty/vendor/google/aosp/scripts:trusty_desktop_test_vm_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_desktop_test_vm_x86_64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_desktop_vm_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_desktop_vm_x86_64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_security_vm_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_security_vm_x86_64.elf",
+			"trusty/vendor/google/aosp/scripts:trusty_tee_package",
+			"trusty/vendor/google/aosp/scripts:trusty_test_vm_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_x86_64.elf",
+			"trusty/vendor/google/aosp/scripts:trusty_test_vm_x86_64.elf",
+			"trusty/vendor/google/proprietary/scripts:trusty_tee_package_goog",
+			"trusty/vendor/google/proprietary/scripts:trusty_widevine_vm_arm64.bin",
+			"trusty/vendor/google/proprietary/scripts:trusty_widevine_vm_x86_64.elf",
 			"vendor/google/services/LyricCameraHAL/src/apex:com.google.pixel.camera.hal.manifest",
 			"vendor/google_tradefederation/core:gen_google_tradefed_zip",
+			// go/keep-sorted end
+		}
+		allowlistMap := make(map[string]bool, len(allowlist))
+		for _, a := range allowlist {
+			allowlistMap[a] = true
+		}
+		return allowlistMap
+	}).(map[string]bool)
+
+	_, ok := allowlist[ctx.ModuleDir()+":"+ctx.ModuleName()]
+	return ok
+}
+
+func isModuleInBuildDateAllowlist(ctx android.ModuleContext) bool {
+	allowlist := ctx.Config().Once(buildDateAllowlistKey, func() interface{} {
+		// Define the allowlist as a list and then copy it into a map so that
+		// gofmt doesn't change unnecessary lines trying to align the values of the map.
+		allowlist := []string{
+			// go/keep-sorted start
+			"build/soong/tests:gen",
+			"trusty/vendor/google/aosp/scripts:trusty_desktop_test_vm_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_desktop_test_vm_x86_64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_desktop_vm_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_desktop_vm_x86_64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_security_vm_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_security_vm_x86_64.elf",
+			"trusty/vendor/google/aosp/scripts:trusty_tee_package",
+			"trusty/vendor/google/aosp/scripts:trusty_test_vm_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_arm64.bin",
+			"trusty/vendor/google/aosp/scripts:trusty_test_vm_os_x86_64.elf",
+			"trusty/vendor/google/aosp/scripts:trusty_test_vm_x86_64.elf",
+			"trusty/vendor/google/proprietary/scripts:trusty_tee_package_goog",
+			"trusty/vendor/google/proprietary/scripts:trusty_widevine_vm_arm64.bin",
+			"trusty/vendor/google/proprietary/scripts:trusty_widevine_vm_x86_64.elf",
 			// go/keep-sorted end
 		}
 		allowlistMap := make(map[string]bool, len(allowlist))
@@ -456,7 +518,7 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 	srcFiles = append(srcFiles, addLabelsForInputs("device_first_srcs", g.properties.Device_first_srcs.GetOrDefault(ctx, nil), nil)...)
 	srcFiles = append(srcFiles, addLabelsForInputs("device_common_srcs", g.properties.Device_common_srcs.GetOrDefault(ctx, nil), nil)...)
 	srcFiles = append(srcFiles, addLabelsForInputs("common_os_srcs", g.properties.Common_os_srcs.GetOrDefault(ctx, nil), nil)...)
-	srcFiles = append(srcFiles, addLabelsForInputs("host_first_src", g.properties.Host_first_src.GetOrDefault(ctx, nil), nil)...)
+	srcFiles = append(srcFiles, addLabelsForInputs("host_first_src", g.properties.Host_first_srcs.GetOrDefault(ctx, nil), nil)...)
 
 	var copyFrom android.Paths
 	var outputFiles android.WritablePaths
@@ -556,6 +618,11 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 					return reportError("to use the $(build_number_file) label, you must set uses_order_only_build_number_file: true")
 				}
 				return proptools.ShellEscape(cmd.PathForInput(ctx.Config().BuildNumberFile(ctx))), nil
+			case "build_date_file":
+				if !proptools.Bool(g.properties.Uses_order_only_build_date_file) {
+					return reportError("to use the $(build_date_file) label, you must set uses_order_only_build_date_file: true")
+				}
+				return proptools.ShellEscape(cmd.PathForInput(ctx.Config().BuildDateFile(ctx))), nil
 			default:
 				if strings.HasPrefix(name, "location ") {
 					label := strings.TrimSpace(strings.TrimPrefix(name, "location "))
@@ -607,6 +674,12 @@ func (g *Module) generateCommonBuildActions(ctx android.ModuleContext) {
 				ctx.ModuleErrorf("Only allowlisted modules may use uses_order_only_build_number_file: true")
 			}
 			cmd.OrderOnly(ctx.Config().BuildNumberFile(ctx))
+		}
+		if proptools.Bool(g.properties.Uses_order_only_build_date_file) {
+			if !isModuleInBuildDateAllowlist(ctx) {
+				ctx.ModuleErrorf("Only allowlisted modules may use uses_order_only_build_date_file: true")
+			}
+			cmd.OrderOnly(ctx.Config().BuildDateFile(ctx))
 		}
 
 		if task.useNsjail {

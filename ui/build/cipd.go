@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	cipdProxyPolicyPath = "build/soong/ui/build/cipd_proxy_policy.pb"
+	cipdProxyPolicyPath = "build/soong/ui/build/cipd_proxy_policy.txtpb"
 	cipdProxyUrlKey     = "CIPD_PROXY_URL"
 )
 
@@ -51,9 +51,9 @@ func startCIPDProxyServer(ctx Context, config Config) cipdProxy {
 			log.Fatal(err)
 		}
 		if strings.HasPrefix(l, cipdProxyUrlKey) {
-			proxyUrl := l[len(cipdProxyUrlKey)+1:]
+			proxyUrl := strings.TrimSpace(l[len(cipdProxyUrlKey)+1:])
 			config.environ.Set(cipdProxyUrlKey, proxyUrl)
-			ctx.Printf("Started CIPD proxy listening on %s", proxyUrl)
+			ctx.Println("Started CIPD proxy listening on", proxyUrl)
 			break
 		}
 	}

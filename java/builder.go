@@ -62,12 +62,13 @@ var (
 	javacInc, javacIncRE = pctx.MultiCommandRemoteStaticRules("javac-inc",
 		blueprint.RuleParams{
 			Command: `rm -rf "$annoDir" "$annoSrcJar.tmp" "$out.tmp" && ` +
-				`mkdir -p "$outDir" "$annoDir" && ` +
+				`mkdir -p "$annoDir" && ` +
 				`if [ -s $out.rsp ] && [ -s $srcJarList ] ; then ` +
 				`echo >> $out.rsp; fi && ` +
 				`cat $srcJarList >> $out.rsp && ` +
 				`${config.IncrementalJavacInputCmd} ` +
-				`--srcs $out.rsp --deps $javacDeps --javacTarget $out --srcDepsProto $out.proto --localHeaderJars $localHeaderJars && ` +
+				`--srcs $out.rsp --classDir $outDir --deps $javacDeps --javacTarget $out --srcDepsProto $out.proto --localHeaderJars $localHeaderJars && ` +
+				`mkdir -p "$outDir" && ` +
 				`(if [ -s $out.inc.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} $javaTemplate${config.JavacCmd} ` +
 				`${config.JavacHeapFlags} ${config.JavacVmFlags} ${config.CommonJdkFlags} ` +
@@ -1093,14 +1094,14 @@ func TransformJetifier(ctx android.ModuleContext, outputFile android.WritablePat
 }
 
 func TransformRavenizer(ctx android.ModuleContext, outputFile android.WritablePath,
-	inputFile android.Path, ravenizerArgs string) {
+	inputFile android.Path, ravenizerArgs []string) {
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        ravenizer,
 		Description: "ravenizer",
 		Output:      outputFile,
 		Input:       inputFile,
 		Args: map[string]string{
-			"ravenizerArgs": ravenizerArgs,
+			"ravenizerArgs": strings.Join(ravenizerArgs, " "),
 		},
 	})
 }

@@ -80,7 +80,7 @@ type DexProperties struct {
 		Shrink *bool
 
 		// If true, optimize bytecode.  Defaults to false.
-		Optimize *bool
+		Optimize proptools.Configurable[bool] `android:"replace_instead_of_append"`
 
 		// If true, obfuscate bytecode.  Defaults to false.
 		Obfuscate *bool
@@ -182,8 +182,8 @@ func (d *DexProperties) optimizedResourceShrinkingEnabled(ctx android.ModuleCont
 	return d.resourceShrinkingEnabled(ctx) && BoolDefault(d.Optimize.Optimized_shrink_resources, ctx.Config().UseOptimizedResourceShrinkingByDefault())
 }
 
-func (d *dexer) optimizeOrObfuscateEnabled(ctx android.EarlyModuleContext) bool {
-	return d.effectiveOptimizeEnabled(ctx) && (proptools.Bool(d.dexProperties.Optimize.Optimize) || proptools.Bool(d.dexProperties.Optimize.Obfuscate))
+func (d *dexer) optimizeOrObfuscateEnabled(ctx android.ModuleContext) bool {
+	return d.effectiveOptimizeEnabled(ctx) && (d.dexProperties.Optimize.Optimize.GetOrDefault(ctx, false) || proptools.Bool(d.dexProperties.Optimize.Obfuscate))
 }
 
 var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
@@ -195,6 +195,7 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 			`rm -f "$outDir"/classes*.dex "$outDir/classes.dex.jar"`,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
+			"${config.D8Jar}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
@@ -250,7 +251,9 @@ var d8r8, d8r8RE = pctx.MultiCommandRemoteStaticRules("d8r8",
 			`rm -f "$outDir"/classes*.dex "$outDir/classes.dex.jar" `,
 		CommandDeps: []string{
 			"${config.D8Cmd}",
+			"${config.D8Jar}",
 			"${config.R8Cmd}",
+			"${config.R8Jar}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
@@ -301,6 +304,7 @@ var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 		Deps:    blueprint.DepsGCC,
 		CommandDeps: []string{
 			"${config.R8Cmd}",
+			"${config.R8Jar}",
 			"${config.SoongZipCmd}",
 			"${config.MergeZipsCmd}",
 		},
@@ -525,7 +529,8 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 
 	// Avoid unnecessary stack frame noise by only injecting source map ids for non-debug
 	// optimized or obfuscated targets.
-	if (Bool(opt.Optimize) || Bool(opt.Obfuscate)) && !debugMode {
+	optimize := opt.Optimize.GetOrDefault(ctx, false)
+	if (optimize || Bool(opt.Obfuscate)) && !debugMode {
 		// TODO(b/213833843): Allow configuration of the prefix via a build variable.
 		var sourceFilePrefix = "go/retraceme "
 		var sourceFileTemplate = "\"" + sourceFilePrefix + "%MAP_ID\""
@@ -538,7 +543,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 		r8Flags = append(r8Flags, "-dontshrink")
 	}
 
-	if !Bool(opt.Optimize) {
+	if !optimize {
 		r8Flags = append(r8Flags, "-dontoptimize")
 	}
 

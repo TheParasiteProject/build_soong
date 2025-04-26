@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 
 	"android/soong/android"
+	"android/soong/etc"
 	"android/soong/java"
 
 	"github.com/google/blueprint"
@@ -319,6 +320,15 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		buildComplianceMetadata(ctx, filesystemDepTag)
 	}
 
+	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
+	pcf := complianceMetadataInfo.GetProductCopyFiles()
+	for _, m := range allInstalledModules {
+		if info, ok := android.OtherModuleProvider(ctx, m, etc.ProductCopyFilesModuleProvider); ok {
+			pcf = append(pcf, info.ProductCopyFileEntries...)
+		}
+	}
+	complianceMetadataInfo.SetProductCopyFiles(pcf)
+
 	// Add the host tools as deps
 	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
 		for _, hostTool := range ctx.Config().ProductVariables().ProductHostPackages {
@@ -378,19 +388,20 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	}
 
 	ret := []android.ModuleOrProxy{}
-	ctx.WalkDeps(func(mod, _ android.Module) bool {
+	ctx.WalkDepsProxy(func(mod, _ android.ModuleProxy) bool {
 		commonInfo, ok := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider)
 		if !(ok && commonInfo.ExportedToMake) {
 			return false
 		}
+		prebuiltInfo := android.OtherModuleProviderOrDefault(ctx, mod, android.PrebuiltInfoProvider)
 		name := ctx.OtherModuleName(mod)
-		if o, ok := mod.(android.OverridableModule); ok && o.GetOverriddenBy() != "" {
-			name = o.GetOverriddenBy()
+		if info, ok := android.OtherModuleProvider(ctx, mod, android.OverrideInfoProvider); ok && info.OverriddenBy != "" {
+			name = info.OverriddenBy
 		}
 		if variations, ok := allOwners[name]; ok &&
 			android.InList(installedOwnerInfo{
 				Variation: ctx.OtherModuleSubDir(mod),
-				Prebuilt:  commonInfo.IsPrebuilt,
+				Prebuilt:  prebuiltInfo.IsPrebuilt,
 			}, variations) {
 			ret = append(ret, mod)
 		}
@@ -757,7 +768,7 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		writeFileWithNewLines(ctx, abOtaPostInstallConfigFilePath, a.deviceProps.Ab_ota_postinstall_config)
 		builder.Command().Textf("cp").Input(abOtaPostInstallConfigFilePath).Textf(" %s/META/", targetFilesDir)
 		// selinuxfc
-		fileContextsModule := ctx.GetDirectDepWithTag("file_contexts_bin_gen", fileContextsDepTag)
+		fileContextsModule := ctx.GetDirectDepProxyWithTag("file_contexts_bin_gen", fileContextsDepTag)
 		outputFiles, ok := android.OtherModuleProvider(ctx, fileContextsModule, android.OutputFilesProvider)
 		if !ok || len(outputFiles.DefaultOutputFiles) != 1 {
 			ctx.ModuleErrorf("Expected exactly 1 output file from file_contexts_bin_gen")
@@ -1167,12 +1178,11 @@ func (a *androidDevice) extractKernelVersionAndConfigs(ctx android.ModuleContext
 		Flag("--tools lz4:"+lz4tool.String()).Implicit(lz4tool).
 		FlagWithInput("--input ", kernel).
 		FlagWithOutput("--output-release ", extractedVersionFile).
-		FlagWithOutput("--output-configs ", extractedConfigsFile).
-		Textf(`&& printf "\n" >> %s`, extractedVersionFile)
+		FlagWithOutput("--output-configs ", extractedConfigsFile)
 
 	if specifiedVersion := proptools.String(a.deviceProps.Kernel_version); specifiedVersion != "" {
 		specifiedVersionFile := android.PathForModuleOut(ctx, "specified_kernel_version.txt")
-		android.WriteFileRule(ctx, specifiedVersionFile, specifiedVersion)
+		android.WriteFileRuleVerbatim(ctx, specifiedVersionFile, specifiedVersion)
 		builder.Command().Text("diff -q").
 			Input(specifiedVersionFile).
 			Input(extractedVersionFile).

@@ -345,14 +345,14 @@ func (m ApexPrebuiltDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.
 }
 
 func (p *prebuiltCommon) checkExportedDependenciesArePrebuilts(ctx android.ModuleContext) {
-	ctx.VisitDirectDeps(func(dep android.Module) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(dep)
 		depName := ctx.OtherModuleName(dep)
 		if exportedTag, ok := tag.(exportedDependencyTag); ok {
 			propertyName := exportedTag.name
 
 			// It is an error if the other module is not a prebuilt.
-			if !android.IsModulePrebuilt(dep) {
+			if !android.IsModulePrebuilt(ctx, dep) {
 				ctx.PropertyErrorf(propertyName, "%q is not a prebuilt module", depName)
 			}
 
@@ -380,8 +380,6 @@ type Prebuilt struct {
 	properties PrebuiltProperties
 
 	inputApex android.Path
-
-	provenanceMetaDataFile android.Path
 }
 
 type ApexFileProperties struct {
@@ -493,7 +491,7 @@ func (p *prebuiltCommon) getDeapexerPropertiesIfNeeded(ctx android.ModuleContext
 	commonModules := []string{}
 	dexpreoptProfileGuidedModules := []string{}
 	exportedFiles := []string{}
-	ctx.WalkDeps(func(child, parent android.Module) bool {
+	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		tag := ctx.OtherModuleDependencyTag(child)
 
 		// If the child is not in the same apex as the parent then ignore it and all its children.
@@ -501,15 +499,14 @@ func (p *prebuiltCommon) getDeapexerPropertiesIfNeeded(ctx android.ModuleContext
 			return false
 		}
 
-		name := java.ModuleStemForDeapexing(child)
+		name := java.ModuleStemForDeapexing(ctx, child)
 		if _, ok := tag.(android.RequiresFilesFromPrebuiltApexTag); ok {
 			commonModules = append(commonModules, name)
 
-			extract := child.(android.RequiredFilesFromPrebuiltApex)
-			requiredFiles := extract.RequiredFilesFromPrebuiltApex(ctx)
-			exportedFiles = append(exportedFiles, requiredFiles...)
+			info := android.OtherModuleProviderOrDefault(ctx, child, android.RequiredFilesFromPrebuiltApexInfoProvider)
+			exportedFiles = append(exportedFiles, info.RequiredFilesFromPrebuiltApex...)
 
-			if extract.UseProfileGuidedDexpreopt() {
+			if info.UseProfileGuidedDexpreopt {
 				dexpreoptProfileGuidedModules = append(dexpreoptProfileGuidedModules, name)
 			}
 
@@ -711,7 +708,7 @@ func (p *Prebuilt) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		p.installApexSystemServerFiles(ctx)
 		installDeps := slices.Concat(p.compatSymlinks, p.extraInstalledFiles)
 		p.installedFile = ctx.InstallFile(p.installDir, p.installFilename, p.inputApex, installDeps...)
-		p.provenanceMetaDataFile = provenance.GenerateArtifactProvenanceMetaData(ctx, p.inputApex, p.installedFile)
+		provenance.GenerateArtifactProvenanceMetaData(ctx, p.inputApex, p.installedFile)
 	}
 
 	p.addApkCertsInfo(ctx)
@@ -794,10 +791,6 @@ func (p *Prebuilt) addApkCertsInfo(ctx android.ModuleContext) {
 	}
 	android.WriteFileRule(ctx, p.apkCertsFile, strings.Join(lines, "\n"), validations...)
 	android.SetProvider(ctx, filesystem.ApkCertsInfoProvider, filesystem.ApkCertsInfo{p.apkCertsFile})
-}
-
-func (p *Prebuilt) ProvenanceMetaDataFile() android.Path {
-	return p.provenanceMetaDataFile
 }
 
 // extract registers the build actions to extract an apex from .apks file
