@@ -2292,17 +2292,6 @@ func (c *config) UseHostMusl() bool {
 	return Bool(c.productVariables.HostMusl)
 }
 
-// ApiSurfaces directory returns the source path inside the api_surfaces repo
-// (relative to workspace root).
-func (c *config) ApiSurfacesDir(s ApiSurface, version string) string {
-	return filepath.Join(
-		"build",
-		"bazel",
-		"api_surfaces",
-		s.String(),
-		version)
-}
-
 func (c *config) JavaCoverageEnabled() bool {
 	return c.IsEnvTrue("EMMA_INSTRUMENT") || c.IsEnvTrue("EMMA_INSTRUMENT_STATIC") || c.IsEnvTrue("EMMA_INSTRUMENT_FRAMEWORK")
 }
