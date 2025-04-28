@@ -37,15 +37,12 @@ var (
 
 	riscv64ArchVariantCflags = map[string][]string{}
 
-	riscv64Ldflags = []string{
+	riscv64Lldflags = []string{
 		// This is already the driver's Android default, but duplicated here (and
 		// above) for ease of experimentation with additional extensions.
 		"-march=rv64gcv_zba_zbb_zbs",
-	}
-
-	riscv64Lldflags = append(riscv64Ldflags,
 		"-Wl,-z,max-page-size=4096",
-	)
+	}
 
 	riscv64Cppflags = []string{}
 
@@ -56,7 +53,6 @@ const ()
 
 func init() {
 
-	pctx.StaticVariable("Riscv64Ldflags", strings.Join(riscv64Ldflags, " "))
 	pctx.StaticVariable("Riscv64Lldflags", strings.Join(riscv64Lldflags, " "))
 
 	pctx.StaticVariable("Riscv64Cflags", strings.Join(riscv64Cflags, " "))
@@ -75,7 +71,6 @@ type toolchainRiscv64 struct {
 	toolchainBionic
 	toolchain64Bit
 
-	ldflags         string
 	lldflags        string
 	toolchainCflags string
 }
@@ -98,10 +93,6 @@ func (t *toolchainRiscv64) Cflags() string {
 
 func (t *toolchainRiscv64) Cppflags() string {
 	return "${config.Riscv64Cppflags}"
-}
-
-func (t *toolchainRiscv64) Ldflags() string {
-	return t.ldflags
 }
 
 func (t *toolchainRiscv64) Lldflags() string {
@@ -129,10 +120,6 @@ func riscv64ToolchainFactory(arch android.Arch) Toolchain {
 
 	extraLdflags := variantOrDefault(riscv64CpuVariantLdflags, arch.CpuVariant)
 	return &toolchainRiscv64{
-		ldflags: strings.Join([]string{
-			"${config.Riscv64Ldflags}",
-			extraLdflags,
-		}, " "),
 		lldflags: strings.Join([]string{
 			"${config.Riscv64Lldflags}",
 			extraLdflags,

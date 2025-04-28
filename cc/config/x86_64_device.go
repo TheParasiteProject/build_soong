@@ -29,11 +29,9 @@ var (
 
 	x86_64Cppflags = []string{}
 
-	x86_64Ldflags = []string{
+	x86_64Lldflags = []string{
 		"-Wl,-z,separate-loadable-segments",
 	}
-
-	X86_64Lldflags = x86_64Ldflags
 
 	x86_64ArchVariantCflags = map[string][]string{
 		"": []string{
@@ -103,10 +101,9 @@ func init() {
 	pctx.StaticVariable("X86_64ToolchainCflags", "-m64")
 	pctx.StaticVariable("X86_64ToolchainLdflags", "-m64")
 
-	pctx.StaticVariable("X86_64Ldflags", strings.Join(x86_64Ldflags, " "))
 	pctx.VariableFunc("X86_64Lldflags", func(ctx android.PackageVarContext) string {
 		maxPageSizeFlag := "-Wl,-z,max-page-size=" + ctx.Config().MaxPageSizeSupported()
-		flags := append(X86_64Lldflags, maxPageSizeFlag)
+		flags := append(x86_64Lldflags, maxPageSizeFlag)
 		return strings.Join(flags, " ")
 	})
 
@@ -164,10 +161,6 @@ func (t *toolchainX86_64) Cflags() string {
 
 func (t *toolchainX86_64) Cppflags() string {
 	return "${config.X86_64Cppflags}"
-}
-
-func (t *toolchainX86_64) Ldflags() string {
-	return "${config.X86_64Ldflags}"
 }
 
 func (t *toolchainX86_64) Lldflags() string {

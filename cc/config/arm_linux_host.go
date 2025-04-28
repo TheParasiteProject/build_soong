@@ -15,8 +15,9 @@
 package config
 
 import (
-	"android/soong/android"
 	"strings"
+
+	"android/soong/android"
 )
 
 var (
@@ -26,27 +27,20 @@ var (
 
 	linuxArm64Cflags = []string{}
 
-	linuxArmLdflags = []string{
+	linuxArmLldflags = []string{
 		"-march=armv7a",
+		"-Wl,--compress-debug-sections=zstd",
 	}
 
-	linuxArmLldflags = append(linuxArmLdflags,
+	linuxArm64Lldflags = []string{
 		"-Wl,--compress-debug-sections=zstd",
-	)
-
-	linuxArm64Ldflags = []string{}
-
-	linuxArm64Lldflags = append(linuxArm64Ldflags,
-		"-Wl,--compress-debug-sections=zstd",
-	)
+	}
 )
 
 func init() {
 	pctx.StaticVariable("LinuxArmCflags", strings.Join(linuxArmCflags, " "))
 	pctx.StaticVariable("LinuxArm64Cflags", strings.Join(linuxArm64Cflags, " "))
-	pctx.StaticVariable("LinuxArmLdflags", strings.Join(linuxArmLdflags, " "))
 	pctx.StaticVariable("LinuxArmLldflags", strings.Join(linuxArmLldflags, " "))
-	pctx.StaticVariable("LinuxArm64Ldflags", strings.Join(linuxArm64Ldflags, " "))
 	pctx.StaticVariable("LinuxArm64Lldflags", strings.Join(linuxArm64Lldflags, " "))
 
 	pctx.StaticVariable("LinuxArmYasmFlags", "-f elf32 -m arm")
@@ -89,16 +83,8 @@ func (t *toolchainLinuxArm64) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainLinuxArm) Ldflags() string {
-	return "${config.LinuxLdflags} ${config.LinuxArmLdflags}"
-}
-
 func (t *toolchainLinuxArm) Lldflags() string {
 	return "${config.LinuxLldflags} ${config.LinuxArmLldflags}"
-}
-
-func (t *toolchainLinuxArm64) Ldflags() string {
-	return "${config.LinuxLdflags} ${config.LinuxArm64Ldflags}"
 }
 
 func (t *toolchainLinuxArm64) Lldflags() string {
@@ -144,10 +130,6 @@ func (t *toolchainLinuxMuslArm) Cflags() string {
 	return t.toolchainLinuxArm.Cflags() + " " + t.toolchainMusl.Cflags()
 }
 
-func (t *toolchainLinuxMuslArm) Ldflags() string {
-	return t.toolchainLinuxArm.Ldflags() + " " + t.toolchainMusl.Ldflags()
-}
-
 func (t *toolchainLinuxMuslArm) Lldflags() string {
 	return t.toolchainLinuxArm.Lldflags() + " " + t.toolchainMusl.Lldflags()
 }
@@ -158,10 +140,6 @@ func (t *toolchainLinuxMuslArm64) ClangTriple() string {
 
 func (t *toolchainLinuxMuslArm64) Cflags() string {
 	return t.toolchainLinuxArm64.Cflags() + " " + t.toolchainMusl.Cflags()
-}
-
-func (t *toolchainLinuxMuslArm64) Ldflags() string {
-	return t.toolchainLinuxArm64.Ldflags() + " " + t.toolchainMusl.Ldflags()
 }
 
 func (t *toolchainLinuxMuslArm64) Lldflags() string {

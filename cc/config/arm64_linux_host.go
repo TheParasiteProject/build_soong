@@ -36,18 +36,15 @@ var (
 		"-nostdlibinc",
 	)
 
-	linuxCrossLdflags = []string{
+	linuxCrossLldflags = []string{
 		"-Wl,-z,noexecstack",
 		"-Wl,-z,relro",
 		"-Wl,-z,now",
 		"-Wl,--build-id=md5",
 		"-Wl,--fatal-warnings",
 		"-Wl,--no-undefined-version",
-	}
-
-	linuxCrossLldflags = append(linuxCrossLdflags,
 		"-Wl,--compress-debug-sections=zstd",
-	)
+	}
 
 	// Embed the linker into host bionic binaries. This is needed to support host bionic,
 	// as the linux kernel requires that the ELF interpreter referenced by PT_INTERP be
@@ -62,7 +59,6 @@ var (
 
 func init() {
 	pctx.StaticVariable("LinuxBionicArm64Cflags", strings.Join(linuxCrossCflags, " "))
-	pctx.StaticVariable("LinuxBionicArm64Ldflags", strings.Join(linuxCrossLdflags, " "))
 	pctx.StaticVariable("LinuxBionicArm64Lldflags", strings.Join(linuxCrossLldflags, " "))
 }
 
@@ -97,11 +93,6 @@ func linuxBionicArm64ToolchainFactory(arch android.Arch) Toolchain {
 	ret := toolchainLinuxBionicArm64{}
 
 	// add the extra ld and lld flags
-	ret.toolchainArm64.ldflags = strings.Join([]string{
-		"${config.Arm64Ldflags}",
-		"${config.LinuxBionicArm64Ldflags}",
-		extraLdflags,
-	}, " ")
 	ret.toolchainArm64.lldflags = strings.Join([]string{
 		"${config.Arm64Lldflags}",
 		"${config.LinuxBionicArm64Ldflags}",
