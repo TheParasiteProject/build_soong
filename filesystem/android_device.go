@@ -189,6 +189,10 @@ func (a *androidDevice) addDepsForTargetFilesMetadata(ctx android.BottomUpMutato
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), fileContextsDepTag, "file_contexts_bin_gen")
 }
 
+func (a *androidDevice) UseGenericConfig() bool {
+	return false
+}
+
 func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if proptools.Bool(a.deviceProps.Main_device) {
 		numMainAndroidDevices := ctx.Config().Once(numMainAndroidDevicesOnceKey, func() interface{} {
