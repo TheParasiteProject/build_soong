@@ -271,11 +271,6 @@ func (c Config) ReleaseNdkAbiMonitored() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_NDK_ABI_MONITORED")
 }
 
-// Enable read flag from new storage, for C/C++
-func (c Config) ReleaseReadFromNewStorageCc() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_READ_FROM_NEW_STORAGE_CC")
-}
-
 func (c Config) ReleaseHiddenApiExportableStubs() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_HIDDEN_API_EXPORTABLE_STUBS") ||
 		Bool(c.config.productVariables.HiddenapiExportableStubs)
@@ -292,11 +287,6 @@ func (c Config) ReleaseUseSystemFeatureBuildFlags() bool {
 
 func (c Config) ReleaseUseSystemFeatureXmlForUnavailableFeatures() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_USE_SYSTEM_FEATURE_XML_FOR_UNAVAILABLE_FEATURES")
-}
-
-// TODO: b/409598478 - Remove FINGERPRINT build flag.
-func (c Config) ReleaseFingerprintAconfigPackages() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_FINGERPRINT_ACONFIG_PACKAGES")
 }
 
 func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
