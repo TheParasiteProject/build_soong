@@ -316,6 +316,11 @@ func (c Config) ReleaseAconfigStorageVersion() string {
 	}
 }
 
+// TODO: b/414412266 Remove this flag after feature released.
+func (c Config) ReleaseJarjarFlagsInFramework() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_JARJAR_FLAGS_IN_FRAMEWORK")
+}
+
 // A DeviceConfig object represents the configuration for a particular device
 // being built. For now there will only be one of these, but in the future there
 // may be multiple devices being built.
