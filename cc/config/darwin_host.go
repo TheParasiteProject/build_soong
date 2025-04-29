@@ -98,7 +98,7 @@ func init() {
 		})
 
 		pctx.StaticVariable("DarwinCflags", strings.Join(darwinCflags, " "))
-		pctx.StaticVariable("DarwinLldflags", strings.Join(darwinLdflags, " "))
+		pctx.StaticVariable("DarwinLdflags", strings.Join(darwinLdflags, " "))
 
 		pctx.StaticVariable("DarwinYasmFlags", "-f macho -m amd64")
 	}
@@ -207,8 +207,8 @@ func (t *toolchainDarwin) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainDarwin) Lldflags() string {
-	return "${config.DarwinLldflags}"
+func (t *toolchainDarwin) Ldflags() string {
+	return "${config.DarwinLdflags}"
 }
 
 func (t *toolchainDarwin) YasmFlags() string {

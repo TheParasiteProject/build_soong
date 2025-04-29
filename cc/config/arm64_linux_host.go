@@ -36,7 +36,7 @@ var (
 		"-nostdlibinc",
 	)
 
-	linuxCrossLldflags = []string{
+	linuxCrossLdflags = []string{
 		"-Wl,-z,noexecstack",
 		"-Wl,-z,relro",
 		"-Wl,-z,now",
@@ -59,7 +59,7 @@ var (
 
 func init() {
 	pctx.StaticVariable("LinuxBionicArm64Cflags", strings.Join(linuxCrossCflags, " "))
-	pctx.StaticVariable("LinuxBionicArm64Lldflags", strings.Join(linuxCrossLldflags, " "))
+	pctx.StaticVariable("LinuxBionicArm64Ldflags", strings.Join(linuxCrossLdflags, " "))
 }
 
 // toolchain config for ARM64 Linux CrossHost. Almost everything is the same as the ARM64 Android
@@ -93,8 +93,8 @@ func linuxBionicArm64ToolchainFactory(arch android.Arch) Toolchain {
 	ret := toolchainLinuxBionicArm64{}
 
 	// add the extra ld and lld flags
-	ret.toolchainArm64.lldflags = strings.Join([]string{
-		"${config.Arm64Lldflags}",
+	ret.toolchainArm64.ldflags = strings.Join([]string{
+		"${config.Arm64Ldflags}",
 		"${config.LinuxBionicArm64Ldflags}",
 		extraLdflags,
 	}, " ")

@@ -472,7 +472,7 @@ func CommonLinkerFlags(ctx android.ModuleContext, flags Flags, toolchain config.
 		ctx.ModuleErrorf("trying to add CommonLinkerFlags to non-LinkableInterface module.")
 		return flags
 	}
-	flags.Global.LdFlags = append(flags.Global.LdFlags, fmt.Sprintf("${config.%sGlobalLldflags}", hod))
+	flags.Global.LdFlags = append(flags.Global.LdFlags, fmt.Sprintf("${config.%sGlobalLdflags}", hod))
 
 	if allow_undefined_symbols {
 		if ctx.Darwin() {
@@ -483,7 +483,7 @@ func CommonLinkerFlags(ctx android.ModuleContext, flags Flags, toolchain config.
 		flags.Global.LdFlags = append(flags.Global.LdFlags, "-Wl,--no-undefined")
 	}
 
-	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Lldflags())
+	flags.Global.LdFlags = append(flags.Global.LdFlags, toolchain.Ldflags())
 
 	if !toolchain.Bionic() && ctx.Os() != android.LinuxMusl {
 		if !ctx.Windows() {
