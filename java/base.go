@@ -1389,6 +1389,11 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		}
 		flags.kotlincDeps = append(flags.kotlincDeps, deps.kotlinPlugins...)
 
+		// TODO(b/403236545): Remove this once the Kotlin compiler version is >= 2.2.0.
+		if j.useCompose(ctx) {
+			kotlincFlags = append(kotlincFlags, "-P", "plugin:androidx.compose.compiler.plugins.kotlin:featureFlag=+OptimizeNonSkippingGroups")
+		}
+
 		if len(kotlincFlags) > 0 {
 			// optimization.
 			ctx.Variable(pctx, "kotlincFlags", strings.Join(kotlincFlags, " "))
