@@ -48,12 +48,10 @@ var (
 		},
 	}
 
-	arm64Ldflags = []string{
+	arm64Lldflags = []string{
 		"-Wl,-z,separate-code",
 		"-Wl,-z,separate-loadable-segments",
 	}
-
-	arm64Lldflags = arm64Ldflags
 
 	arm64Cppflags = []string{}
 
@@ -91,8 +89,6 @@ var (
 )
 
 func init() {
-	pctx.StaticVariable("Arm64Ldflags", strings.Join(arm64Ldflags, " "))
-
 	pctx.VariableFunc("Arm64Lldflags", func(ctx android.PackageVarContext) string {
 		maxPageSizeFlag := "-Wl,-z,max-page-size=" + ctx.Config().MaxPageSizeSupported()
 		flags := append(arm64Lldflags, maxPageSizeFlag)
@@ -152,7 +148,6 @@ type toolchainArm64 struct {
 	toolchainBionic
 	toolchain64Bit
 
-	ldflags         string
 	lldflags        string
 	toolchainCflags string
 }
@@ -175,10 +170,6 @@ func (t *toolchainArm64) Cflags() string {
 
 func (t *toolchainArm64) Cppflags() string {
 	return "${config.Arm64Cppflags}"
-}
-
-func (t *toolchainArm64) Ldflags() string {
-	return t.ldflags
 }
 
 func (t *toolchainArm64) Lldflags() string {
@@ -208,10 +199,6 @@ func arm64ToolchainFactory(arch android.Arch) Toolchain {
 
 	extraLdflags := variantOrDefault(arm64CpuVariantLdflags, arch.CpuVariant)
 	return &toolchainArm64{
-		ldflags: strings.Join([]string{
-			"${config.Arm64Ldflags}",
-			extraLdflags,
-		}, " "),
 		lldflags: strings.Join([]string{
 			"${config.Arm64Lldflags}",
 			extraLdflags,

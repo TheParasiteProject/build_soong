@@ -78,7 +78,6 @@ type Toolchain interface {
 	Asflags() string
 	Cflags() string
 	Cppflags() string
-	Ldflags() string
 	Lldflags() string
 	InstructionSetFlags(string) (string, error)
 

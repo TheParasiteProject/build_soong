@@ -66,13 +66,12 @@ var (
 
 	windowsX8664Cppflags = []string{}
 
-	windowsLdflags = []string{
+	windowsLldflags = []string{
 		"-Wl,--dynamicbase",
 		"-Wl,--nxcompat",
-	}
-	windowsLldflags = append(windowsLdflags, []string{
+
 		"-Wl,--Xlink=-Brepro", // Enable deterministic build
-	}...)
+	}
 
 	windowsX86Cflags = []string{
 		"-m32",
@@ -141,15 +140,12 @@ func init() {
 	pctx.StaticVariable("WindowsGccTriple", "x86_64-w64-mingw32")
 
 	pctx.StaticVariable("WindowsCflags", strings.Join(windowsCflags, " "))
-	pctx.StaticVariable("WindowsLdflags", strings.Join(windowsLdflags, " "))
 	pctx.StaticVariable("WindowsLldflags", strings.Join(windowsLldflags, " "))
 	pctx.StaticVariable("WindowsCppflags", strings.Join(windowsCppflags, " "))
 
 	pctx.StaticVariable("WindowsX86Cflags", strings.Join(windowsX86Cflags, " "))
 	pctx.StaticVariable("WindowsX8664Cflags", strings.Join(windowsX8664Cflags, " "))
-	pctx.StaticVariable("WindowsX86Ldflags", strings.Join(windowsX86Ldflags, " "))
 	pctx.StaticVariable("WindowsX86Lldflags", strings.Join(windowsX86Ldflags, " "))
-	pctx.StaticVariable("WindowsX8664Ldflags", strings.Join(windowsX8664Ldflags, " "))
 	pctx.StaticVariable("WindowsX8664Lldflags", strings.Join(windowsX8664Ldflags, " "))
 	pctx.StaticVariable("WindowsX86Cppflags", strings.Join(windowsX86Cppflags, " "))
 	pctx.StaticVariable("WindowsX8664Cppflags", strings.Join(windowsX8664Cppflags, " "))
@@ -220,16 +216,8 @@ func (t *toolchainWindowsX8664) Cppflags() string {
 	return "${config.WindowsCppflags} ${config.WindowsX8664Cppflags}"
 }
 
-func (t *toolchainWindowsX86) Ldflags() string {
-	return "${config.WindowsLdflags} ${config.WindowsX86Ldflags}"
-}
-
 func (t *toolchainWindowsX86) Lldflags() string {
 	return "${config.WindowsLldflags} ${config.WindowsX86Lldflags}"
-}
-
-func (t *toolchainWindowsX8664) Ldflags() string {
-	return "${config.WindowsLdflags} ${config.WindowsX8664Ldflags}"
 }
 
 func (t *toolchainWindowsX8664) Lldflags() string {
