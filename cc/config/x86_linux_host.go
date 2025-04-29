@@ -46,7 +46,7 @@ var (
 		"--sysroot /dev/null",
 	}
 
-	linuxLldflags = []string{
+	linuxLdflags = []string{
 		"-Wl,-z,noexecstack",
 		"-Wl,-z,relro",
 		"-Wl,-z,now",
@@ -135,16 +135,16 @@ func init() {
 	pctx.StaticVariable("LinuxGccTriple", "x86_64-linux")
 
 	pctx.StaticVariable("LinuxCflags", strings.Join(linuxCflags, " "))
-	pctx.StaticVariable("LinuxLldflags", strings.Join(linuxLldflags, " "))
+	pctx.StaticVariable("LinuxLdflags", strings.Join(linuxLdflags, " "))
 	pctx.StaticVariable("LinuxGlibcCflags", strings.Join(linuxGlibcCflags, " "))
-	pctx.StaticVariable("LinuxGlibcLldflags", strings.Join(linuxGlibcLdflags, " "))
+	pctx.StaticVariable("LinuxGlibcLdflags", strings.Join(linuxGlibcLdflags, " "))
 	pctx.StaticVariable("LinuxMuslCflags", strings.Join(linuxMuslCflags, " "))
-	pctx.StaticVariable("LinuxMuslLldflags", strings.Join(linuxMuslLdflags, " "))
+	pctx.StaticVariable("LinuxMuslLdflags", strings.Join(linuxMuslLdflags, " "))
 
 	pctx.StaticVariable("LinuxX86Cflags", strings.Join(linuxX86Cflags, " "))
 	pctx.StaticVariable("LinuxX8664Cflags", strings.Join(linuxX8664Cflags, " "))
-	pctx.StaticVariable("LinuxX86Lldflags", strings.Join(linuxX86Ldflags, " "))
-	pctx.StaticVariable("LinuxX8664Lldflags", strings.Join(linuxX8664Ldflags, " "))
+	pctx.StaticVariable("LinuxX86Ldflags", strings.Join(linuxX86Ldflags, " "))
+	pctx.StaticVariable("LinuxX8664Ldflags", strings.Join(linuxX8664Ldflags, " "))
 	// Yasm flags
 	pctx.StaticVariable("LinuxX86YasmFlags", "-f elf32 -m x86")
 	pctx.StaticVariable("LinuxX8664YasmFlags", "-f elf64 -m amd64")
@@ -193,12 +193,12 @@ func (t *toolchainLinuxX8664) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainLinuxX86) Lldflags() string {
-	return "${config.LinuxLldflags} ${config.LinuxX86Lldflags}"
+func (t *toolchainLinuxX86) Ldflags() string {
+	return "${config.LinuxLdflags} ${config.LinuxX86Ldflags}"
 }
 
-func (t *toolchainLinuxX8664) Lldflags() string {
-	return "${config.LinuxLldflags} ${config.LinuxX8664Lldflags}"
+func (t *toolchainLinuxX8664) Ldflags() string {
+	return "${config.LinuxLdflags} ${config.LinuxX8664Ldflags}"
 }
 
 func (t *toolchainLinuxX86) YasmFlags() string {
@@ -241,8 +241,8 @@ func (toolchainGlibc) Cflags() string {
 	return "${config.LinuxGlibcCflags}"
 }
 
-func (toolchainGlibc) Lldflags() string {
-	return "${config.LinuxGlibcLldflags}"
+func (toolchainGlibc) Ldflags() string {
+	return "${config.LinuxGlibcLdflags}"
 }
 
 type toolchainLinuxGlibcX86 struct {
@@ -263,8 +263,8 @@ func (t *toolchainLinuxGlibcX86) Cflags() string {
 	return t.toolchainLinuxX86.Cflags() + " " + t.toolchainGlibc.Cflags()
 }
 
-func (t *toolchainLinuxGlibcX86) Lldflags() string {
-	return t.toolchainLinuxX86.Lldflags() + " " + t.toolchainGlibc.Lldflags()
+func (t *toolchainLinuxGlibcX86) Ldflags() string {
+	return t.toolchainLinuxX86.Ldflags() + " " + t.toolchainGlibc.Ldflags()
 }
 
 func (t *toolchainLinuxGlibcX8664) ClangTriple() string {
@@ -275,8 +275,8 @@ func (t *toolchainLinuxGlibcX8664) Cflags() string {
 	return t.toolchainLinuxX8664.Cflags() + " " + t.toolchainGlibc.Cflags()
 }
 
-func (t *toolchainLinuxGlibcX8664) Lldflags() string {
-	return t.toolchainLinuxX8664.Lldflags() + " " + t.toolchainGlibc.Lldflags()
+func (t *toolchainLinuxGlibcX8664) Ldflags() string {
+	return t.toolchainLinuxX8664.Ldflags() + " " + t.toolchainGlibc.Ldflags()
 }
 
 var toolchainLinuxGlibcX86Singleton Toolchain = &toolchainLinuxGlibcX86{}
@@ -311,8 +311,8 @@ func (toolchainMusl) Cflags() string {
 	return "${config.LinuxMuslCflags}"
 }
 
-func (toolchainMusl) Lldflags() string {
-	return "${config.LinuxMuslLldflags}"
+func (toolchainMusl) Ldflags() string {
+	return "${config.LinuxMuslLdflags}"
 }
 
 type toolchainLinuxMuslX86 struct {
@@ -333,8 +333,8 @@ func (t *toolchainLinuxMuslX86) Cflags() string {
 	return t.toolchainLinuxX86.Cflags() + " " + t.toolchainMusl.Cflags()
 }
 
-func (t *toolchainLinuxMuslX86) Lldflags() string {
-	return t.toolchainLinuxX86.Lldflags() + " " + t.toolchainMusl.Lldflags()
+func (t *toolchainLinuxMuslX86) Ldflags() string {
+	return t.toolchainLinuxX86.Ldflags() + " " + t.toolchainMusl.Ldflags()
 }
 
 func (t *toolchainLinuxMuslX8664) ClangTriple() string {
@@ -345,8 +345,8 @@ func (t *toolchainLinuxMuslX8664) Cflags() string {
 	return t.toolchainLinuxX8664.Cflags() + " " + t.toolchainMusl.Cflags()
 }
 
-func (t *toolchainLinuxMuslX8664) Lldflags() string {
-	return t.toolchainLinuxX8664.Lldflags() + " " + t.toolchainMusl.Lldflags()
+func (t *toolchainLinuxMuslX8664) Ldflags() string {
+	return t.toolchainLinuxX8664.Ldflags() + " " + t.toolchainMusl.Ldflags()
 }
 
 var toolchainLinuxMuslX86Singleton Toolchain = &toolchainLinuxMuslX86{}

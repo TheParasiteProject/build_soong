@@ -36,7 +36,7 @@ var (
 		"-mllvm", "-enable-shrink-wrap=false",
 	}
 
-	armLldflags = []string{
+	armLdflags = []string{
 		"-Wl,-m,armelf",
 		// Revert this after b/322359235 is fixed
 		"-Wl,-mllvm", "-Wl,-enable-shrink-wrap=false",
@@ -182,7 +182,7 @@ const (
 )
 
 func init() {
-	pctx.StaticVariable("ArmLldflags", strings.Join(armLldflags, " "))
+	pctx.StaticVariable("ArmLdflags", strings.Join(armLdflags, " "))
 
 	pctx.StaticVariable("ArmFixCortexA8LdFlags", strings.Join(armFixCortexA8LdFlags, " "))
 	pctx.StaticVariable("ArmNoFixCortexA8LdFlags", strings.Join(armNoFixCortexA8LdFlags, " "))
@@ -247,7 +247,7 @@ var (
 type toolchainArm struct {
 	toolchainBionic
 	toolchain32Bit
-	lldflags        string
+	ldflags         string
 	toolchainCflags string
 }
 
@@ -281,8 +281,8 @@ func (t *toolchainArm) Cppflags() string {
 	return "${config.ArmCppflags}"
 }
 
-func (t *toolchainArm) Lldflags() string {
-	return t.lldflags // TODO: handle V8 cases
+func (t *toolchainArm) Ldflags() string {
+	return t.ldflags // TODO: handle V8 cases
 }
 
 func (t *toolchainArm) InstructionSetFlags(isa string) (string, error) {
@@ -310,7 +310,7 @@ func armToolchainFactory(arch android.Arch) Toolchain {
 		variantOrDefault(armCpuVariantCflagsVar, arch.CpuVariant))
 
 	return &toolchainArm{
-		lldflags:        "${config.ArmLldflags}",
+		ldflags:         "${config.ArmLdflags}",
 		toolchainCflags: strings.Join(toolchainCflags, " "),
 	}
 }

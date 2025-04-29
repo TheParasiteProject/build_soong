@@ -27,12 +27,12 @@ var (
 
 	linuxArm64Cflags = []string{}
 
-	linuxArmLldflags = []string{
+	linuxArmLdflags = []string{
 		"-march=armv7a",
 		"-Wl,--compress-debug-sections=zstd",
 	}
 
-	linuxArm64Lldflags = []string{
+	linuxArm64Ldflags = []string{
 		"-Wl,--compress-debug-sections=zstd",
 	}
 )
@@ -40,8 +40,8 @@ var (
 func init() {
 	pctx.StaticVariable("LinuxArmCflags", strings.Join(linuxArmCflags, " "))
 	pctx.StaticVariable("LinuxArm64Cflags", strings.Join(linuxArm64Cflags, " "))
-	pctx.StaticVariable("LinuxArmLldflags", strings.Join(linuxArmLldflags, " "))
-	pctx.StaticVariable("LinuxArm64Lldflags", strings.Join(linuxArm64Lldflags, " "))
+	pctx.StaticVariable("LinuxArmLdflags", strings.Join(linuxArmLdflags, " "))
+	pctx.StaticVariable("LinuxArm64Ldflags", strings.Join(linuxArm64Ldflags, " "))
 
 	pctx.StaticVariable("LinuxArmYasmFlags", "-f elf32 -m arm")
 	pctx.StaticVariable("LinuxArm64YasmFlags", "-f elf64 -m aarch64")
@@ -83,12 +83,12 @@ func (t *toolchainLinuxArm64) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainLinuxArm) Lldflags() string {
-	return "${config.LinuxLldflags} ${config.LinuxArmLldflags}"
+func (t *toolchainLinuxArm) Ldflags() string {
+	return "${config.LinuxLdflags} ${config.LinuxArmLdflags}"
 }
 
-func (t *toolchainLinuxArm64) Lldflags() string {
-	return "${config.LinuxLldflags} ${config.LinuxArm64Lldflags}"
+func (t *toolchainLinuxArm64) Ldflags() string {
+	return "${config.LinuxLdflags} ${config.LinuxArm64Ldflags}"
 }
 
 func (t *toolchainLinuxArm) YasmFlags() string {
@@ -130,8 +130,8 @@ func (t *toolchainLinuxMuslArm) Cflags() string {
 	return t.toolchainLinuxArm.Cflags() + " " + t.toolchainMusl.Cflags()
 }
 
-func (t *toolchainLinuxMuslArm) Lldflags() string {
-	return t.toolchainLinuxArm.Lldflags() + " " + t.toolchainMusl.Lldflags()
+func (t *toolchainLinuxMuslArm) Ldflags() string {
+	return t.toolchainLinuxArm.Ldflags() + " " + t.toolchainMusl.Ldflags()
 }
 
 func (t *toolchainLinuxMuslArm64) ClangTriple() string {
@@ -142,8 +142,8 @@ func (t *toolchainLinuxMuslArm64) Cflags() string {
 	return t.toolchainLinuxArm64.Cflags() + " " + t.toolchainMusl.Cflags()
 }
 
-func (t *toolchainLinuxMuslArm64) Lldflags() string {
-	return t.toolchainLinuxArm64.Lldflags() + " " + t.toolchainMusl.Lldflags()
+func (t *toolchainLinuxMuslArm64) Ldflags() string {
+	return t.toolchainLinuxArm64.Ldflags() + " " + t.toolchainMusl.Ldflags()
 }
 
 var toolchainLinuxMuslArmSingleton Toolchain = &toolchainLinuxMuslArm{}

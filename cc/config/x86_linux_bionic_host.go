@@ -44,7 +44,7 @@ var (
 		"-nostdlibinc",
 	}
 
-	linuxBionicLldflags = []string{
+	linuxBionicLdflags = []string{
 		"-Wl,-z,noexecstack",
 		"-Wl,-z,relro",
 		"-Wl,-z,now",
@@ -75,7 +75,7 @@ const (
 
 func init() {
 	pctx.StaticVariable("LinuxBionicCflags", strings.Join(linuxBionicCflags, " "))
-	pctx.StaticVariable("LinuxBionicLldflags", strings.Join(linuxBionicLldflags, " "))
+	pctx.StaticVariable("LinuxBionicLdflags", strings.Join(linuxBionicLdflags, " "))
 
 	// Use the device gcc toolchain for now
 	pctx.StaticVariable("LinuxBionicGccVersion", x86_64GccVersion)
@@ -109,8 +109,8 @@ func (t *toolchainLinuxBionic) Cppflags() string {
 	return ""
 }
 
-func (t *toolchainLinuxBionic) Lldflags() string {
-	return "${config.LinuxBionicLldflags}"
+func (t *toolchainLinuxBionic) Ldflags() string {
+	return "${config.LinuxBionicLdflags}"
 }
 
 func (t *toolchainLinuxBionic) ToolchainCflags() string {
