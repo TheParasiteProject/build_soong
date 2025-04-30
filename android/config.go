@@ -2227,10 +2227,6 @@ func (c *deviceConfig) BuildBrokenDupSysprop() bool {
 	return c.config.productVariables.BuildBrokenDupSysprop
 }
 
-func (c *deviceConfig) GenruleSandboxing() bool {
-	return Bool(c.config.productVariables.GenruleSandboxing)
-}
-
 func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {
 	return c.config.productVariables.RequiresInsecureExecmemForSwiftshader
 }
