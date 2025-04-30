@@ -1867,11 +1867,17 @@ func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookCont
 			panic(fmt.Sprintf("script file %s doesn't exist", script))
 		}
 
+		env_msg := ""
+		if mctx.Config().GetBuildFlagBool("RELEASE_SRC_DIR_IS_READ_ONLY") {
+			env_msg = "BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true "
+		}
+
 		mctx.ModuleErrorf("One or more current api files are missing. "+
 			"You can update them by:\n"+
-			"%s %q %s && m update-api",
+			"%s %q %s && %sm update-api",
 			script, filepath.Join(mctx.ModuleDir(), apiDir),
-			strings.Join(generatedScopes.Strings(func(s *apiScope) string { return s.apiFilePrefix }), " "))
+			strings.Join(generatedScopes.Strings(func(s *apiScope) string { return s.apiFilePrefix }), " "),
+			env_msg)
 		return
 	}
 

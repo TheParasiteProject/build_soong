@@ -1405,6 +1405,9 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			Input(d.removedApiFile).Flag(removedApiFile.String())
 
 		msg = "failed to update public API"
+		if ctx.Config().GetBuildFlagBool("RELEASE_SRC_DIR_IS_READ_ONLY") {
+			msg += ". You may need `BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true`"
+		}
 
 		rule.Command().
 			Text("touch").Output(d.updateCurrentApiTimestamp).
