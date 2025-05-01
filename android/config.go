@@ -1380,7 +1380,7 @@ func (c *config) UnbundledBuild() bool {
 
 // Returns true if building apps that aren't bundled with the platform.
 // UnbundledBuild() is always true when this is true.
-func (c *config) UnbundledBuildApps() bool {
+func (c *config) HasUnbundledBuildApps() bool {
 	return len(c.productVariables.Unbundled_build_apps) > 0
 }
 
@@ -2032,7 +2032,7 @@ func (c *config) ForceApexSymlinkOptimization() bool {
 }
 
 func (c *config) ApexCompressionEnabled() bool {
-	return Bool(c.productVariables.CompressedApex) && !c.UnbundledBuildApps()
+	return Bool(c.productVariables.CompressedApex) && !c.HasUnbundledBuildApps()
 }
 
 func (c *config) DefaultApexPayloadType() string {
