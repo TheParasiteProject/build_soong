@@ -26,80 +26,25 @@ import (
 	"github.com/google/blueprint"
 )
 
-const NonIncKotlinCmd = `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
-	`mkdir -p "$classesDir" "$headerClassesDir" "$srcJarDir" "$emptyDir" && ` +
-	`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" -f "*.kt" $srcJars && ` +
-	`${config.GenKotlinBuildFileCmd} --classpath "$classpath" --name "$name"` +
-	` --out_dir "$classesDir" --srcs "$out.rsp" --srcs "$srcJarDir/list"` +
-	` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
-	`${config.KotlincCmd} ${config.KotlincGlobalFlags} ` +
-	` ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
-	` $kotlincFlags -jvm-target $kotlinJvmTarget $kotlincPluginFlags -Xbuild-file=$kotlinBuildFile ` +
-	` -kotlin-home $emptyDir ` +
-	` -Xplugin=${config.KotlinAbiGenPluginJar} ` +
-	` -P plugin:org.jetbrains.kotlin.jvm.abi:outputDir=$headerClassesDir && ` +
-	`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
-	`${config.SoongZipCmd} -jar -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
-	`rm -rf "$srcJarDir" "$classesDir" "$headerClassesDir" `
-
 var kotlinc = pctx.AndroidRemoteStaticRule("kotlinc", android.RemoteRuleSupports{Goma: true},
 	blueprint.RuleParams{
-		Command: NonIncKotlinCmd,
-		CommandDeps: []string{
-			"${config.KotlincCmd}",
-			"${config.KotlinCompilerJar}",
-			"${config.KotlinPreloaderJar}",
-			"${config.KotlinReflectJar}",
-			"${config.KotlinScriptRuntimeJar}",
-			"${config.KotlinStdlibJar}",
-			"${config.KotlinTrove4jJar}",
-			"${config.KotlinAnnotationJar}",
-			"${config.KotlinAbiGenPluginJar}",
-			"${config.GenKotlinBuildFileCmd}",
-			"${config.SoongZipCmd}",
-			"${config.ZipSyncCmd}",
-		},
-		Rspfile:        "$out.rsp",
-		RspfileContent: `$in`,
-		Restat:         true,
-	},
-	"kotlincFlags", "kotlincPluginFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir",
-	"classesDir", "headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir",
-	"name")
-
-// TODO: does incremental work with RBE?
-var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", android.RemoteRuleSupports{Goma: false},
-	blueprint.RuleParams{
-		Command: // Incremental
-		`if [ -n $$(SOONG_USE_PARTIAL_COMPILE" ]; then ` +
-			`rm -rf "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
-			`mkdir -p "$headerClassesDir" "$srcJarDir" "$emptyDir" && ` +
+		Command: `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
+			`mkdir -p "$classesDir" "$headerClassesDir" "$srcJarDir" "$emptyDir" && ` +
 			`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" -f "*.kt" $srcJars && ` +
 			`${config.GenKotlinBuildFileCmd} --classpath "$classpath" --name "$name"` +
 			` --out_dir "$classesDir" --srcs "$out.rsp" --srcs "$srcJarDir/list"` +
 			` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
-			`${config.KotlinIncrementalClientBinary} ${config.KotlincGlobalFlags} ` +
+			`${config.KotlincCmd} ${config.KotlincGlobalFlags} ` +
 			` ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
-			` $kotlincFlags $kotlincPluginFlags -jvm-target $kotlinJvmTarget -build-file=$kotlinBuildFile ` +
-			` -kotlin-home=$emptyDir ` +
-			` -root-dir=$incrementalRootDir` +
-			` -output-dir=$outputDir` +
-			` -build-dir=$buildDir ` +
-			` -work-dir=$workDir ` +
+			` $kotlincFlags -jvm-target $kotlinJvmTarget -Xbuild-file=$kotlinBuildFile ` +
+			` -kotlin-home $emptyDir ` +
 			` -Xplugin=${config.KotlinAbiGenPluginJar} ` +
 			` -P plugin:org.jetbrains.kotlin.jvm.abi:outputDir=$headerClassesDir && ` +
 			`${config.SoongZipCmd} -jar -o $out -C $classesDir -D $classesDir -write_if_changed && ` +
 			`${config.SoongZipCmd} -jar -o $headerJar -C $headerClassesDir -D $headerClassesDir -write_if_changed && ` +
-			`rm -rf "$srcJarDir" ` +
-
-			// Else non incremental
-			` else ` +
-			NonIncKotlinCmd +
-			` fi`,
-
+			`rm -rf "$srcJarDir" "$classesDir" "$headerClassesDir"`,
 		CommandDeps: []string{
 			"${config.KotlincCmd}",
-			"${config.KotlinIncrementalClientBinary}",
 			"${config.KotlinCompilerJar}",
 			"${config.KotlinPreloaderJar}",
 			"${config.KotlinReflectJar}",
@@ -116,9 +61,8 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 		RspfileContent: `$in`,
 		Restat:         true,
 	},
-	"kotlincFlags", "kotlincPluginFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "incrementalRootDir",
-	"classesDir", "headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir",
-	"name", "outputDir", "buildDir", "workDir")
+	"kotlincFlags", "classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "classesDir",
+	"headerClassesDir", "headerJar", "kotlinJvmTarget", "kotlinBuildFile", "emptyDir", "name")
 
 var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 	blueprint.RuleParams{
@@ -130,7 +74,7 @@ var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 			// Skip header jars, those should not have an effect on kythe results.
 			` --args '${config.KotlincGlobalFlags} ` +
 			` ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
-			` $kotlincFlags $kotlincPluginFlags -jvm-target $kotlinJvmTarget ` +
+			` $kotlincFlags -jvm-target $kotlinJvmTarget ` +
 			`${config.KotlincKytheGlobalFlags}'`,
 		CommandDeps: []string{
 			"${config.KotlinKytheExtractor}",
@@ -139,7 +83,7 @@ var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 		Rspfile:        "$out.rsp",
 		RspfileContent: "$in",
 	},
-	"classpath", "kotlincFlags", "kotlincPluginFlags", "commonSrcFilesList", "kotlinJvmTarget", "outJar", "srcJars", "srcJarDir",
+	"classpath", "kotlincFlags", "commonSrcFilesList", "kotlinJvmTarget", "outJar", "srcJars", "srcJarDir",
 )
 
 func kotlinCommonSrcsList(ctx android.ModuleContext, commonSrcFiles android.Paths) android.OptionalPath {
@@ -161,7 +105,7 @@ func kotlinCommonSrcsList(ctx android.ModuleContext, commonSrcFiles android.Path
 // kotlinCompile takes .java and .kt sources and srcJars, and compiles the .kt sources into a classes jar in outputFile.
 func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutputFile android.WritablePath,
 	srcFiles, commonSrcFiles, srcJars android.Paths,
-	flags javaBuilderFlags, incremental bool) {
+	flags javaBuilderFlags) {
 
 	var deps android.Paths
 	deps = append(deps, flags.kotlincClasspath...)
@@ -195,61 +139,39 @@ func (j *Module) kotlinCompile(ctx android.ModuleContext, outputFile, headerOutp
 	android.WriteFileRule(ctx, classpathRspFile, strings.Join(flags.kotlincClasspath.Strings(), " "))
 	deps = append(deps, classpathRspFile)
 
-	rule := kotlinc
-	description := "kotlinc"
-	incrementalRootDir := android.PathForModuleOut(ctx, "kotlinc")
-	outputDir := "classes"
-	buildDir := "build"
-	workDir := "work"
-	args := map[string]string{
-		"classpath":          classpathRspFile.String(),
-		"kotlincFlags":       flags.kotlincFlags,
-		"kotlincPluginFlags": flags.kotlincPluginFlags,
-		"commonSrcFilesArg":  commonSrcFilesArg,
-		"srcJars":            strings.Join(srcJars.Strings(), " "),
-		"classesDir":         android.PathForModuleOut(ctx, "kotlinc", outputDir).String(),
-		"headerClassesDir":   android.PathForModuleOut(ctx, "kotlinc", "header_classes").String(),
-		"headerJar":          headerOutputFile.String(),
-		"srcJarDir":          android.PathForModuleOut(ctx, "kotlinc", "srcJars").String(),
-		"kotlinBuildFile":    android.PathForModuleOut(ctx, "kotlinc-build.xml").String(),
-		"emptyDir":           android.PathForModuleOut(ctx, "kotlinc", "empty").String(),
-		"kotlinJvmTarget":    flags.javaVersion.StringForKotlinc(),
-		"name":               kotlinName,
-	}
-	if incremental {
-		rule = kotlinIncremental
-		description = "kotlin-incremental"
-		// TODO: add this cp snapshot as a param to the incremental compiler.
-		ctx.Phony("partialCompileClean", incrementalRootDir.Join(ctx, "shrunk-classpath-snapshot.bin"))
-		ctx.Phony("partialCompileClean", incrementalRootDir.Join(ctx, outputDir))
-		ctx.Phony("partialCompileClean", incrementalRootDir.Join(ctx, buildDir))
-		ctx.Phony("partialCompileClean", incrementalRootDir.Join(ctx, workDir))
-		args["incrementalRootDir"] = incrementalRootDir.String()
-		args["outputDir"] = outputDir
-		args["buildDir"] = buildDir
-		args["workDir"] = workDir
-	}
 	ctx.Build(pctx, android.BuildParams{
-		Rule:           rule,
-		Description:    description,
+		Rule:           kotlinc,
+		Description:    "kotlinc",
 		Output:         outputFile,
 		ImplicitOutput: headerOutputFile,
 		Inputs:         srcFiles,
 		Implicits:      deps,
-		Args:           args,
+		Args: map[string]string{
+			"classpath":         classpathRspFile.String(),
+			"kotlincFlags":      flags.kotlincFlags,
+			"commonSrcFilesArg": commonSrcFilesArg,
+			"srcJars":           strings.Join(srcJars.Strings(), " "),
+			"classesDir":        android.PathForModuleOut(ctx, "kotlinc", "classes").String(),
+			"headerClassesDir":  android.PathForModuleOut(ctx, "kotlinc", "header_classes").String(),
+			"headerJar":         headerOutputFile.String(),
+			"srcJarDir":         android.PathForModuleOut(ctx, "kotlinc", "srcJars").String(),
+			"kotlinBuildFile":   android.PathForModuleOut(ctx, "kotlinc-build.xml").String(),
+			"emptyDir":          android.PathForModuleOut(ctx, "kotlinc", "empty").String(),
+			"kotlinJvmTarget":   flags.javaVersion.StringForKotlinc(),
+			"name":              kotlinName,
+		},
 	})
 
 	// Emit kythe xref rule
 	if (ctx.Config().EmitXrefRules()) && ctx.Module() == ctx.PrimaryModule() {
 		extractionFile := outputFile.ReplaceExtension(ctx, "kzip")
 		args := map[string]string{
-			"classpath":          classpathRspFile.String(),
-			"kotlincFlags":       flags.kotlincFlags,
-			"kotlincPluginFlags": flags.kotlincPluginFlags,
-			"kotlinJvmTarget":    flags.javaVersion.StringForKotlinc(),
-			"outJar":             outputFile.String(),
-			"srcJars":            strings.Join(srcJars.Strings(), " "),
-			"srcJarDir":          android.PathForModuleOut(ctx, "kotlinc", "srcJars.xref").String(),
+			"classpath":       classpathRspFile.String(),
+			"kotlincFlags":    flags.kotlincFlags,
+			"kotlinJvmTarget": flags.javaVersion.StringForKotlinc(),
+			"outJar":          outputFile.String(),
+			"srcJars":         strings.Join(srcJars.Strings(), " "),
+			"srcJarDir":       android.PathForModuleOut(ctx, "kotlinc", "srcJars.xref").String(),
 		}
 		if commonSrcsList.Valid() {
 			args["commonSrcFilesList"] = "--common_srcs @" + commonSrcsList.String()
@@ -319,8 +241,7 @@ var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupp
 			` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
 			`${config.KotlincCmd} ${config.KotlincGlobalFlags} ` +
 			`${config.KaptSuppressJDK9Warnings} ${config.KotlincSuppressJDK9Warnings} ` +
-			`${config.JavacHeapFlags} $kotlincFlags ` +
-			`-Xplugin=${config.KotlinKaptJar} ` +
+			`${config.JavacHeapFlags} $kotlincFlags -Xplugin=${config.KotlinKaptJar} ` +
 			`-P plugin:org.jetbrains.kotlin.kapt3:sources=$kaptDir/sources ` +
 			`-P plugin:org.jetbrains.kotlin.kapt3:classes=$kaptDir/classes ` +
 			`-P plugin:org.jetbrains.kotlin.kapt3:stubs=$kaptDir/stubs ` +
@@ -347,7 +268,7 @@ var kaptStubs = pctx.AndroidRemoteStaticRule("kaptStubs", android.RemoteRuleSupp
 		Restat:         true,
 	},
 	"kotlincFlags", "encodedJavacFlags", "kaptProcessorPath", "kaptProcessor",
-	"classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "kaptDir",
+	"classpath", "srcJars", "commonSrcFilesArg", "srcJarDir", "kaptDir", "kotlinJvmTarget",
 	"kotlinBuildFile", "name", "classesJarOut")
 
 // kotlinKapt performs Kotlin-compatible annotation processing.  It takes .kt and .java sources and srcjars, and runs
