@@ -3582,6 +3582,12 @@ func TestClassLoaderContext_SdkLibrary(t *testing.T) {
 		FixtureWithLastReleaseApis("foo", "bar"),
 	).RunTestWithBp(t, bp)
 
+	{
+		fooXml := result.ModuleForTests(t, "foo.xml", "android_common").Output("foo.xml")
+		fooXmlContents := android.ContentFromFileRuleForTests(t, result.TestContext, fooXml)
+		android.AssertStringDoesContain(t, "", fooXmlContents, `dependency="bar"`)
+	}
+
 	for _, name := range []string{"app", "app2"} {
 		app := result.ModuleForTests(t, name, "android_common")
 		cmd := app.Rule("dexpreopt").RuleParams.Command
@@ -3634,6 +3640,12 @@ func TestClassLoaderContext_SdkLibrary2(t *testing.T) {
 		PrepareForTestWithJavaSdkLibraryFiles,
 		FixtureWithLastReleaseApis("foo", "bar"),
 	).RunTestWithBp(t, bp)
+
+	{
+		fooXml := result.ModuleForTests(t, "foo.xml", "android_common").Output("foo.xml")
+		fooXmlContents := android.ContentFromFileRuleForTests(t, result.TestContext, fooXml)
+		android.AssertStringDoesContain(t, "", fooXmlContents, `dependency="bar"`)
+	}
 
 	{
 		fooImpl := result.ModuleForTests(t, "foo.impl", "android_common")
