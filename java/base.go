@@ -918,24 +918,7 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	traceRefs := j.dexProperties.Optimize.Trace_references_from.GetOrDefault(ctx, []string{})
 	ctx.AddVariationDependencies(nil, traceReferencesTag, traceRefs...)
 
-	// For library dependencies that are component libraries (like stubs), add the implementation
-	// as a dependency (dexpreopt needs to be against the implementation library, not stubs).
-	for _, dep := range libDeps {
-		if dep != nil {
-			if component, ok := android.OtherModuleProvider(ctx, dep, SdkLibraryComponentDependencyInfoProvider); ok {
-				if lib := component.OptionalSdkLibraryImplementation; lib != nil {
-					// Add library as optional if it's one of the optional compatibility libs or it's
-					// explicitly listed in the optional_uses_libs property.
-					tag := usesLibReqTag
-					if android.InList(*lib, dexpreopt.OptionalCompatUsesLibs) ||
-						android.InList(*lib, j.usesLibrary.usesLibraryProperties.Optional_uses_libs.GetOrDefault(ctx, nil)) {
-						tag = usesLibOptTag
-					}
-					ctx.AddVariationDependencies(nil, tag, *lib)
-				}
-			}
-		}
-	}
+	j.usesLibrary.depsFromLibs(ctx, libDeps)
 
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), pluginTag, j.properties.Plugins...)
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag, j.properties.Kotlin_plugins...)

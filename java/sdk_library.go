@@ -1467,6 +1467,9 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	module.usesLibrary.deps(ctx, false)
 
 	module.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
+	libDeps := ctx.AddVariationDependencies(nil, usesLibStagingTag, module.properties.Libs...)
+	libDeps = append(libDeps, ctx.AddVariationDependencies(nil, usesLibStagingTag, module.sdkLibraryProperties.Impl_only_libs...)...)
+	module.usesLibrary.depsFromLibs(ctx, libDeps)
 }
 
 func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {

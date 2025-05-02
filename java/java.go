@@ -575,6 +575,17 @@ func IsJniDepTag(depTag blueprint.DependencyTag) bool {
 	return depTag == jniLibTag || depTag == jniInstallTag
 }
 
+// A tag that is used for staging the dependencies of a module, for populating uses libraries
+// dependencies.
+type usesLibStagingTagStruct struct {
+	blueprint.BaseDependencyTag
+}
+
+// Mark this tag so dependencies that use it are excluded from APEX contents.
+func (t usesLibStagingTagStruct) ExcludeFromApexContents() {}
+
+var _ android.ExcludeFromApexContentsTag = (*usesLibStagingTagStruct)(nil)
+
 var (
 	dataNativeBinsTag          = dependencyTag{name: "dataNativeBins"}
 	dataDeviceBinsTag          = dependencyTag{name: "dataDeviceBins"}
@@ -608,6 +619,7 @@ var (
 	usesLibCompat28OptTag      = makeUsesLibraryDependencyTag(28, true)
 	usesLibCompat29ReqTag      = makeUsesLibraryDependencyTag(29, false)
 	usesLibCompat30OptTag      = makeUsesLibraryDependencyTag(30, true)
+	usesLibStagingTag          = usesLibStagingTagStruct{}
 )
 
 // A list of tags for deps used for compiling a module.
