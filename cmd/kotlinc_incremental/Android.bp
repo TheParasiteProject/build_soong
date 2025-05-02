@@ -57,9 +57,6 @@ java_test_host {
     srcs: [
         "tests/src/com/**/*.kt",
     ],
-    data: [
-        "tests/resources/test_build.xml",
-    ],
     static_libs: [
         "kotlin-incremental-client-lib",
         "junit",

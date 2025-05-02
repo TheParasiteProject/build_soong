@@ -16,6 +16,12 @@
 
 package com.android.kotlin.compiler.client
 
-fun main(args: Array<String>) {
-  println("compiling")
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
+class MainTest {
+    @Test
+    fun testMain() {
+        assertThat(true).isTrue()
+    }
 }
