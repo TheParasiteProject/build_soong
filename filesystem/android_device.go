@@ -394,10 +394,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 			return false
 		}
 		prebuiltInfo := android.OtherModuleProviderOrDefault(ctx, mod, android.PrebuiltInfoProvider)
-		name := ctx.OtherModuleName(mod)
-		if info, ok := android.OtherModuleProvider(ctx, mod, android.OverrideInfoProvider); ok && info.OverriddenBy != "" {
-			name = info.OverriddenBy
-		}
+		name := android.OtherModuleNameWithPossibleOverride(ctx, mod)
 		if variations, ok := allOwners[name]; ok &&
 			android.InList(installedOwnerInfo{
 				Variation: ctx.OtherModuleSubDir(mod),
