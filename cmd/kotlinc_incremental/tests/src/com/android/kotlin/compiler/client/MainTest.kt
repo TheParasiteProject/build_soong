@@ -14,8 +14,14 @@
  * limitations under the License.
  */
 
-package com.android.kotlin.compiler.cli
+package com.android.kotlin.compiler.client
 
-interface Options {
-    val passThroughArgs: MutableList<String>
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
+class MainTest {
+    @Test
+    fun testMain() {
+        assertThat(true).isTrue()
+    }
 }
