@@ -3588,6 +3588,22 @@ func TestClassLoaderContext_SdkLibrary(t *testing.T) {
 		android.AssertStringDoesContain(t, "", fooXmlContents, `dependency="bar"`)
 	}
 
+	{
+		fooImpl := result.ModuleForTests(t, "foo.impl", "android_common")
+		cmd := fooImpl.Rule("dexpreopt").RuleParams.Command
+
+		clc, err := extractContextJson(cmd)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		deps := clc["any"].([]interface{})
+		android.AssertIntEquals(t, "", 1, len(deps))
+		bar := deps[0].(map[string]interface{})
+		android.AssertStringEquals(t, "", "bar", bar["Name"].(string))
+	}
+
 	for _, name := range []string{"app", "app2"} {
 		app := result.ModuleForTests(t, name, "android_common")
 		cmd := app.Rule("dexpreopt").RuleParams.Command
