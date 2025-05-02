@@ -61,18 +61,6 @@ java_binary_host {
     ],
 }
 
-java_binary_host {
-    name: "kotlin-jar-snapshotter",
-    manifest: "kotlin-jar-snapshotter.mf",
-    static_libs: ["kotlin-incremental-client-lib"],
-    libs: ["kotlin-build-tools-impl"],
-    required: [
-        "kotlin-build-tools-impl",
-        "kotlin-compose-compiler-embeddable",
-    ],
-    kotlin_incremental: false,
-}
-
 java_test_host {
     name: "kotlin-incremental-client-tests",
     srcs: [

@@ -16,15 +16,64 @@
 
 package com.android.kotlin.compiler.client
 
-import com.android.kotlin.compiler.cli.Argument
-import com.android.kotlin.compiler.cli.NoArgument
-import com.android.kotlin.compiler.cli.StringArgument
-import com.android.kotlin.compiler.cli.SubdirectoryArgument
-import com.android.kotlin.compiler.cli.WritableDirectoryArgument
 import java.io.File
 import javax.xml.parsers.SAXParserFactory
 
-class Verbose : NoArgument<ClientOptions>() {
+abstract class Argument<T> {
+    abstract val argumentName: String
+    abstract val helpText: String
+    abstract val default: T?
+
+    var error: String? = null
+        protected set
+
+    abstract fun matches(arg: String): Boolean
+
+    abstract fun parse(arg: String, position: Iterator<String>, opts: Options)
+
+    abstract fun setOption(option: T, opts: Options)
+
+    fun setupDefault(opts: Options) {
+        if (default != null) {
+            setOption(default!!, opts)
+        }
+    }
+}
+
+abstract class NoArgument : Argument<Boolean>() {
+    override val default = null
+
+    override fun matches(arg: String) = arg == "-$argumentName"
+
+    override fun parse(arg: String, position: Iterator<String>, opts: Options) {
+        setOption(true, opts)
+    }
+}
+
+abstract class SingleArgument<T> : Argument<T>() {
+
+    override fun matches(arg: String) = arg.startsWith("-$argumentName=")
+
+    override fun parse(arg: String, position: Iterator<String>, opts: Options) {
+        val splits = arg.split("=", limit = 2)
+        if (splits.size != 2 || splits[1].isEmpty()) {
+            error = "Required argument not supplied for $argumentName"
+            return
+        }
+        val value = stringToType(splits[1])
+        setOption(value, opts)
+    }
+
+    abstract fun stringToType(arg: String): T
+}
+
+abstract class StringArgument : SingleArgument<String>() {
+    override fun stringToType(arg: String): String {
+        return arg
+    }
+}
+
+class Verbose : NoArgument() {
     override val argumentName = "verbose"
     override val helpText =
         """
@@ -32,24 +81,24 @@ class Verbose : NoArgument<ClientOptions>() {
         """
             .trimIndent()
 
-    override fun setOption(option: Boolean, opts: ClientOptions) {
+    override fun setOption(option: Boolean, opts: Options) {
         opts.verbose = option
     }
 }
 
-class Debug : NoArgument<ClientOptions>() {
+class Debug : NoArgument() {
     override val argumentName = "debug"
     override val helpText =
         """
         Outputs additional information during compilation.
         """.trimIndent()
 
-    override fun setOption(option: Boolean, opts: ClientOptions) {
+    override fun setOption(option: Boolean, opts: Options) {
         opts.debug = option
     }
 }
 
-class SourcesArgument : Argument<String, ClientOptions>() {
+class SourcesArgument : Argument<String>() {
     override val default = null
     override val argumentName = "-"
     override val helpText =
@@ -59,16 +108,16 @@ class SourcesArgument : Argument<String, ClientOptions>() {
 
     override fun matches(arg: String) = arg == "--"
 
-    override fun parse(arg: String, position: Iterator<String>, opts: ClientOptions) {
+    override fun parse(arg: String, position: Iterator<String>, opts: Options) {
         position.forEachRemaining { setOption(it, opts) }
     }
 
-    override fun setOption(option: String, opts: ClientOptions) {
+    override fun setOption(option: String, opts: Options) {
         opts.addSource(option)
     }
 }
 
-class BuildFileArgument : StringArgument<ClientOptions>() {
+class BuildFileArgument : StringArgument() {
     override val default = null
 
     override val argumentName = "build-file"
@@ -79,12 +128,12 @@ class BuildFileArgument : StringArgument<ClientOptions>() {
         """
             .trimIndent()
 
-    override fun setOption(option: String, opts: ClientOptions) {
+    override fun setOption(option: String, opts: Options) {
         opts.buildFileLocation = option
         parseBuildFile(opts.buildFile!!, opts)
     }
 
-    private fun parseBuildFile(buildFile: File, opts: ClientOptions) {
+    private fun parseBuildFile(buildFile: File, opts: Options) {
         val parser = BuildFileParser()
         val spf = SAXParserFactory.newInstance()
         val saxParser = spf.newSAXParser()
@@ -102,7 +151,7 @@ class BuildFileArgument : StringArgument<ClientOptions>() {
     }
 }
 
-class XBuildFileArgument : StringArgument<ClientOptions>() {
+class XBuildFileArgument : StringArgument() {
     override val default = null
 
     override val argumentName = "Xbuild-file"
@@ -110,24 +159,61 @@ class XBuildFileArgument : StringArgument<ClientOptions>() {
         Deprecated: use -build-file
         """.trimIndent()
 
-    override fun setOption(option: String, opts: ClientOptions) {
+    override fun setOption(option: String, opts: Options) {
         error = "Can not parse -Xbuild-file. Please use -build-file."
     }
 }
 
-class LogDirArgument : WritableDirectoryArgument<ClientOptions>() {
+class HelpArgument : NoArgument() {
+    override val argumentName = "h"
+
+    override val helpText = """
+        Outputs this help text.
+        """.trimIndent()
+
+    override fun setOption(option: Boolean, opts: Options) {}
+}
+
+abstract class WritableDirectoryArgument : StringArgument() {
+    override fun setOption(option: String, opts: Options) {
+        val e = isValidDirectoryForWriting(option)
+        if (e != null) {
+            error = "Invalid $argumentName option specified: $e"
+        } else {
+            setDirectory(File(option), opts)
+        }
+    }
+
+    abstract fun setDirectory(dir: File, opts: Options)
+}
+
+abstract class SubdirectoryArgument : StringArgument() {
+    override fun setOption(option: String, opts: Options) {
+        if (option.isBlank()) {
+            error = "Invalid $argumentName option specified: Must be non-empty string."
+        } else if (option.contains("..")) {
+            error = "Invalid $argumentName option specified: No path traversal allowed."
+        } else {
+            setSubDirectory(option, opts)
+        }
+    }
+
+    abstract fun setSubDirectory(dir: String, opts: Options)
+}
+
+class LogDirArgument : WritableDirectoryArgument() {
     override val argumentName = "log-dir"
     override val helpText = """
         Directory to write log output to.
         """.trimIndent()
     override val default = null
 
-    override fun setDirectory(dir: File, opts: ClientOptions) {
+    override fun setDirectory(dir: File, opts: Options) {
         opts.logDir = dir
     }
 }
 
-class RunFilesArgument : WritableDirectoryArgument<ClientOptions>() {
+class RunFilesArgument : WritableDirectoryArgument() {
     override val argumentName = "run-files-path"
     override val helpText =
         """
@@ -137,12 +223,12 @@ class RunFilesArgument : WritableDirectoryArgument<ClientOptions>() {
             .trimIndent()
     override val default = "/tmp"
 
-    override fun setDirectory(dir: File, opts: ClientOptions) {
+    override fun setDirectory(dir: File, opts: Options) {
         opts.runFiles = dir
     }
 }
 
-class RootDirArgument : WritableDirectoryArgument<ClientOptions>() {
+class RootDirArgument : WritableDirectoryArgument() {
     override val argumentName = "root-dir"
     override val helpText =
         """
@@ -154,12 +240,12 @@ class RootDirArgument : WritableDirectoryArgument<ClientOptions>() {
             .trimIndent()
     override val default = null
 
-    override fun setDirectory(dir: File, opts: ClientOptions) {
+    override fun setDirectory(dir: File, opts: Options) {
         opts.rootDir = dir
     }
 }
 
-class WorkingDirArgument : SubdirectoryArgument<ClientOptions>() {
+class WorkingDirArgument : SubdirectoryArgument() {
     override val argumentName = "working-dir"
     override val helpText =
         """
@@ -171,12 +257,12 @@ class WorkingDirArgument : SubdirectoryArgument<ClientOptions>() {
             .trimIndent()
     override val default = "work"
 
-    override fun setSubDirectory(dir: String, opts: ClientOptions) {
+    override fun setSubDirectory(dir: String, opts: Options) {
         opts.workingDirName = dir
     }
 }
 
-class OutputDirArgument : SubdirectoryArgument<ClientOptions>() {
+class OutputDirArgument : SubdirectoryArgument() {
     override val argumentName = "output-dir"
     override val helpText =
         """
@@ -186,12 +272,12 @@ class OutputDirArgument : SubdirectoryArgument<ClientOptions>() {
             .trimIndent()
     override val default = "output"
 
-    override fun setSubDirectory(dir: String, opts: ClientOptions) {
+    override fun setSubDirectory(dir: String, opts: Options) {
         opts.outputDirName = dir
     }
 }
 
-class BuildDirArgument : SubdirectoryArgument<ClientOptions>() {
+class BuildDirArgument : SubdirectoryArgument() {
     override val argumentName = "build-dir"
     override val helpText =
         """
@@ -201,12 +287,12 @@ class BuildDirArgument : SubdirectoryArgument<ClientOptions>() {
             .trimIndent()
     override val default = "build"
 
-    override fun setSubDirectory(dir: String, opts: ClientOptions) {
+    override fun setSubDirectory(dir: String, opts: Options) {
         opts.buildDirName = dir
     }
 }
 
-class BuildHistoryFileArgument : StringArgument<ClientOptions>() {
+class BuildHistoryFileArgument : StringArgument() {
     override val argumentName = "build-history"
     override val helpText =
         """
@@ -215,12 +301,12 @@ class BuildHistoryFileArgument : StringArgument<ClientOptions>() {
             .trimIndent()
     override val default = "build-history"
 
-    override fun setOption(option: String, opts: ClientOptions) {
+    override fun setOption(option: String, opts: Options) {
         opts.buildHistoryFileName = option
     }
 }
 
-class ClassPathArgument : StringArgument<ClientOptions>() {
+class ClassPathArgument : StringArgument() {
     override val argumentName = "classpath"
     override val helpText =
         """
@@ -230,7 +316,7 @@ class ClassPathArgument : StringArgument<ClientOptions>() {
             .trimIndent()
     override val default = null
 
-    override fun setOption(option: String, opts: ClientOptions) {
+    override fun setOption(option: String, opts: Options) {
         val paths = option.split(":").filter { !it.isBlank() }
         // TODO: validate paths?
         opts.classPath.addAll(paths)
@@ -244,7 +330,7 @@ class ClassPathArgument : StringArgument<ClientOptions>() {
  * Without this, you can run into a bug where a passed in plugin can cause a plugin implementing the
  * same package+classname to be loaded from a different part of the classpath than is intended.
  */
-class PluginArgument : StringArgument<ClientOptions>() {
+class PluginArgument : StringArgument() {
     override val argumentName = "Xplugin"
     override val helpText =
         """
@@ -253,13 +339,13 @@ class PluginArgument : StringArgument<ClientOptions>() {
             .trimIndent()
     override val default = null
 
-    override fun setOption(option: String, opts: ClientOptions) {
+    override fun setOption(option: String, opts: Options) {
         opts.classPath.addFirst(option)
         opts.passThroughArgs.add("-Xplugin=$option")
     }
 }
 
-class JvmArgument : Argument<String, ClientOptions>() {
+class JvmArgument : Argument<String>() {
     override val argumentName = "-J<option>"
     override val helpText = """
         Options passed through to the JVM.
@@ -268,12 +354,67 @@ class JvmArgument : Argument<String, ClientOptions>() {
 
     override fun matches(arg: String) = arg.startsWith("-J")
 
-    override fun parse(arg: String, position: Iterator<String>, opts: ClientOptions) {
+    override fun parse(arg: String, position: Iterator<String>, opts: Options) {
         // Strip off "-J-" so that we're left with just "<option>"
         setOption(arg.substring(3), opts)
     }
 
-    override fun setOption(option: String, opts: ClientOptions) {
+    override fun setOption(option: String, opts: Options) {
         opts.jvmArgs.add(option)
+    }
+}
+
+fun isValidDirectoryForWriting(filePath: String): String? {
+    try {
+        val file = File(filePath)
+        if (file.exists()) {
+            if (!file.isDirectory) {
+                return "Path exists but is not a directory"
+            }
+            if (!file.canWrite()) {
+                return "Directory exists but is not writable"
+            }
+        } else if (!file.mkdirs()) {
+            return "Unable to create directory"
+        }
+
+        return null // All checks passed!
+    } catch (e: Exception) {
+        // Handle exceptions like invalid path characters, no permissions, etc.
+        return e.message
+    }
+}
+
+fun isValidFilePathForWriting(filePath: String): String? {
+    if (filePath.isBlank()) {
+        return "Empty log-file path"
+    }
+
+    try {
+        val file = File(filePath)
+        val parentDir = file.parentFile ?: return "Invalid parent directory"
+
+        if (!parentDir.exists()) {
+            if (!parentDir.mkdirs()) {
+                return "Unable to create parent directory"
+            }
+        } else if (!parentDir.isDirectory) {
+            return "Parent directory is not a directory"
+        } else if (!parentDir.canWrite()) {
+            return "Parent directory is not writable"
+        }
+
+        if (file.exists()) {
+            if (file.isDirectory) {
+                return "File is a directory"
+            } else if (!file.canWrite()) {
+                return "File exists but is not writable"
+            }
+        }
+
+        return null // All checks passed!
+    } catch (e: Exception) {
+        // Handle exceptions like invalid path characters, no permissions, etc.
+        return e.message
     }
 }
