@@ -92,10 +92,6 @@ class ClientOptions : Options {
             return File(rootDir, workingDirName)
         }
 
-    var sourceDeltaFileName: String? = null
-    val sourceDeltaFile: File?
-        get() = if (sourceDeltaFileName != null) File(sourceDeltaFileName!!) else null
-
     var buildHistoryFileName: String = "build-history"
     val buildHistory: File
         get() {

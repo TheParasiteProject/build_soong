@@ -585,38 +585,36 @@ func IsJniDepTag(depTag blueprint.DependencyTag) bool {
 }
 
 var (
-	dataNativeBinsTag          = dependencyTag{name: "dataNativeBins"}
-	dataDeviceBinsTag          = dependencyTag{name: "dataDeviceBins"}
-	staticLibTag               = dependencyTag{name: "staticlib", static: true}
-	libTag                     = dependencyTag{name: "javalib", runtimeLinked: true}
-	sdkLibTag                  = dependencyTag{name: "sdklib", runtimeLinked: true}
-	java9LibTag                = dependencyTag{name: "java9lib", runtimeLinked: true}
-	pluginTag                  = dependencyTag{name: "plugin", toolchain: true}
-	errorpronePluginTag        = dependencyTag{name: "errorprone-plugin", toolchain: true}
-	exportedPluginTag          = dependencyTag{name: "exported-plugin", toolchain: true}
-	bootClasspathTag           = dependencyTag{name: "bootclasspath", runtimeLinked: true}
-	systemModulesTag           = dependencyTag{name: "system modules", runtimeLinked: true}
-	frameworkResTag            = dependencyTag{name: "framework-res"}
-	kotlinPluginTag            = dependencyTag{name: "kotlin-plugin", toolchain: true}
-	composeEmbeddablePluginTag = dependencyTag{name: "compose-embeddable-plugin", toolchain: true}
-	composePluginTag           = dependencyTag{name: "compose-plugin", toolchain: true}
-	proguardRaiseTag           = dependencyTag{name: "proguard-raise"}
-	certificateTag             = dependencyTag{name: "certificate"}
-	headerJarOverrideTag       = dependencyTag{name: "header-jar-override"}
-	instrumentationForTag      = dependencyTag{name: "instrumentation_for"}
-	extraLintCheckTag          = dependencyTag{name: "extra-lint-check", toolchain: true}
-	jniLibTag                  = dependencyTag{name: "jnilib", runtimeLinked: true}
-	r8LibraryJarTag            = dependencyTag{name: "r8-libraryjar", runtimeLinked: true}
-	traceReferencesTag         = dependencyTag{name: "trace-references"}
-	syspropPublicStubDepTag    = dependencyTag{name: "sysprop public stub"}
-	javaApiContributionTag     = dependencyTag{name: "java-api-contribution"}
-	aconfigDeclarationTag      = dependencyTag{name: "aconfig-declaration"}
-	jniInstallTag              = dependencyTag{name: "jni install", runtimeLinked: true, installable: true}
-	usesLibReqTag              = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, false)
-	usesLibOptTag              = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, true)
-	usesLibCompat28OptTag      = makeUsesLibraryDependencyTag(28, true)
-	usesLibCompat29ReqTag      = makeUsesLibraryDependencyTag(29, false)
-	usesLibCompat30OptTag      = makeUsesLibraryDependencyTag(30, true)
+	dataNativeBinsTag       = dependencyTag{name: "dataNativeBins"}
+	dataDeviceBinsTag       = dependencyTag{name: "dataDeviceBins"}
+	staticLibTag            = dependencyTag{name: "staticlib", static: true}
+	libTag                  = dependencyTag{name: "javalib", runtimeLinked: true}
+	sdkLibTag               = dependencyTag{name: "sdklib", runtimeLinked: true}
+	java9LibTag             = dependencyTag{name: "java9lib", runtimeLinked: true}
+	pluginTag               = dependencyTag{name: "plugin", toolchain: true}
+	errorpronePluginTag     = dependencyTag{name: "errorprone-plugin", toolchain: true}
+	exportedPluginTag       = dependencyTag{name: "exported-plugin", toolchain: true}
+	bootClasspathTag        = dependencyTag{name: "bootclasspath", runtimeLinked: true}
+	systemModulesTag        = dependencyTag{name: "system modules", runtimeLinked: true}
+	frameworkResTag         = dependencyTag{name: "framework-res"}
+	kotlinPluginTag         = dependencyTag{name: "kotlin-plugin", toolchain: true}
+	proguardRaiseTag        = dependencyTag{name: "proguard-raise"}
+	certificateTag          = dependencyTag{name: "certificate"}
+	headerJarOverrideTag    = dependencyTag{name: "header-jar-override"}
+	instrumentationForTag   = dependencyTag{name: "instrumentation_for"}
+	extraLintCheckTag       = dependencyTag{name: "extra-lint-check", toolchain: true}
+	jniLibTag               = dependencyTag{name: "jnilib", runtimeLinked: true}
+	r8LibraryJarTag         = dependencyTag{name: "r8-libraryjar", runtimeLinked: true}
+	traceReferencesTag      = dependencyTag{name: "trace-references"}
+	syspropPublicStubDepTag = dependencyTag{name: "sysprop public stub"}
+	javaApiContributionTag  = dependencyTag{name: "java-api-contribution"}
+	aconfigDeclarationTag   = dependencyTag{name: "aconfig-declaration"}
+	jniInstallTag           = dependencyTag{name: "jni install", runtimeLinked: true, installable: true}
+	usesLibReqTag           = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, false)
+	usesLibOptTag           = makeUsesLibraryDependencyTag(dexpreopt.AnySdkVersion, true)
+	usesLibCompat28OptTag   = makeUsesLibraryDependencyTag(28, true)
+	usesLibCompat29ReqTag   = makeUsesLibraryDependencyTag(29, false)
+	usesLibCompat30OptTag   = makeUsesLibraryDependencyTag(30, true)
 )
 
 // A list of tags for deps used for compiling a module.
@@ -635,8 +633,6 @@ var (
 		bootClasspathTag,
 		systemModulesTag,
 		java9LibTag,
-		composePluginTag,
-		composeEmbeddablePluginTag,
 		kotlinPluginTag,
 		syspropPublicStubDepTag,
 		instrumentationForTag,
@@ -746,8 +742,6 @@ type deps struct {
 	srcJars                 android.Paths
 	systemModules           *systemModules
 	aidlPreprocess          android.OptionalPath
-	composeEmbeddablePlugin android.OptionalPath
-	composePlugin           android.OptionalPath
 	kotlinPlugins           android.Paths
 	aconfigProtoFiles       android.Paths
 	headerJarOverride       android.OptionalPath
