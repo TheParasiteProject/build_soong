@@ -20,7 +20,6 @@ import java.io.File
 import java.net.URLClassLoader
 import java.util.UUID
 import kotlin.system.exitProcess
-import org.jetbrains.kotlin.buildtools.api.CompilationResult
 import org.jetbrains.kotlin.buildtools.api.CompilationService
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
 import org.jetbrains.kotlin.buildtools.api.ProjectId
@@ -35,7 +34,6 @@ private val ARGUMENT_PARSERS =
         BuildFileArgument(),
         BuildHistoryFileArgument(),
         ClassPathArgument(),
-        Debug(),
         HelpArgument(),
         JvmArgument(),
         LogDirArgument(),
@@ -43,7 +41,6 @@ private val ARGUMENT_PARSERS =
         PluginArgument(),
         RunFilesArgument(),
         RootDirArgument(),
-        Verbose(),
         WorkingDirArgument(),
         XBuildFileArgument(),
         SourcesArgument(), // must come last
@@ -62,19 +59,7 @@ fun main(args: Array<String>) {
         exitProcess(0)
     }
 
-    val result = BTACompilation(opts)
-    when (result) {
-        CompilationResult.COMPILATION_SUCCESS -> {}
-        CompilationResult.COMPILATION_ERROR -> exitProcess(-1)
-        CompilationResult.COMPILATION_OOM_ERROR -> {
-            println("Out of Memory")
-            exitProcess(-2)
-        }
-        CompilationResult.COMPILER_INTERNAL_ERROR -> {
-            println("Internal compiler error. Please report to https://kotl.in/issue")
-            exitProcess(-3)
-        }
-    }
+    BTACompilation(opts)
 }
 
 fun parseArgs(args: Array<String>, opts: Options): Boolean {
@@ -150,7 +135,7 @@ fun showArgumentHelp() {
     }
 }
 
-fun BTACompilation(opts: Options): CompilationResult {
+fun BTACompilation(opts: Options) {
     val kotlincArgs = mutableListOf<String>()
     if (opts.buildFile != null) {
         if (opts.buildFileModuleName != null) {
@@ -162,14 +147,13 @@ fun BTACompilation(opts: Options): CompilationResult {
     kotlincArgs.addAll(opts.passThroughArgs)
     kotlincArgs.addAll(opts.sources)
     kotlincArgs.addAll(opts.buildFileJavaSources)
-    return doBtaCompilation(
+    doBtaCompilation(
         opts.sources + opts.buildFileSources,
         opts.classPath + opts.buildFileClassPaths,
         opts.workingDir,
-        opts.outputDir,
         kotlincArgs,
         opts.jvmArgs,
-        Logger(opts.verbose, opts.debug),
+        Logger(),
     )
 }
 
@@ -178,26 +162,21 @@ fun doBtaCompilation(
     sources: List<String>,
     classPath: List<String>,
     workingDirectory: File,
-    outputDirectory: File,
     args: List<String>,
     jvmArgs: List<String>,
     logger: Logger,
-): CompilationResult {
-    var anyMissing = false
-    sources.forEach {
-        if (!File(it).exists()) {
-            logger.error("Missing source: $it")
-            anyMissing = true
-        }
-    }
-
-    if (anyMissing) {
-        return CompilationResult.COMPILATION_ERROR
-    }
-
+) {
     val loader =
         URLClassLoader(
             classPath.map { File(it).toURI().toURL() }.toTypedArray() +
+                // TODO: don't hardcode this path.
+                arrayOf(
+                        "out/soong/.intermediates/external/kotlinc/kotlin-build-tools-impl/" +
+                            "linux_glibc_common/local-combined/kotlin-build-tools-impl.jar"
+                        // TODO: this root path also won't work on other's computers!
+                    )
+                    .map { File("/src/android/aosp/$it").toURI().toURL() } +
+
                 // Need to include this code's own jar in the classpath.
                 arrayOf(Options::class.java.protectionDomain?.codeSource?.location)
         )
@@ -217,7 +196,6 @@ fun doBtaCompilation(
             service::calculateClasspathSnapshot,
         )
 
-    // TODO: pipe actually source changes through to here.
     val sourcesChanges =
         SourcesChanges.Known(
             modifiedFiles = listOf(sources.first()).map { File(it) },
@@ -225,32 +203,20 @@ fun doBtaCompilation(
         )
     val incJvmCompilationConfig =
         compilationConfig.makeClasspathSnapshotBasedIncrementalCompilationConfiguration()
-    // TODO: remove the below line
     incJvmCompilationConfig.assureNoClasspathSnapshotsChanges(true)
-    // If we are missing .class files, we can't compile incrementally.
-    // There might still be a problem where _some_ of the .class files are missing. That should
-    // only happen if someone is messing with the contents of the outputDirectory themselves.
-    if (outputDirectory.exists()) {
-        compilationConfig.useIncrementalCompilation(
-            workingDirectory,
-            sourcesChanges,
-            cpsnapshotParameters,
-            incJvmCompilationConfig,
-        )
-    }
+    compilationConfig.useIncrementalCompilation(
+        workingDirectory,
+        sourcesChanges,
+        cpsnapshotParameters,
+        incJvmCompilationConfig,
+    )
     compilationConfig.useLogger(logger)
 
     val pid = ProjectId.ProjectUUID(UUID.randomUUID())
     val mArgs = args.toMutableList()
     mArgs.add("-cp")
     mArgs.add(classPath.joinToString(":"))
-    return service.compileJvm(
-        pid,
-        executionConfig,
-        compilationConfig,
-        sources.map { File(it) },
-        mArgs,
-    )
+    service.compileJvm(pid, executionConfig, compilationConfig, sources.map { File(it) }, mArgs)
 }
 
 @OptIn(ExperimentalBuildToolsApi::class)
@@ -263,17 +229,13 @@ fun getClasspathSnapshotParameters(
     val cpsFiles =
         classPath.map {
             val cpFile = File(it)
-            if (!cpFile.exists()) {
-                throw RuntimeException("classpath entry does not exist: $it")
-            }
+            // TODO: Consider CLASS_LEVEL snapshots of things that change infrequently.
+            // CLASS_MEMBER_LEVEL
+            // of everything else.
             val snName = cpFile.name.replace(".", "_") + "-snapshot.bin"
-            val snf = File(cpFile.parentFile, snName)
+            val snf = File(workingDirectory.parentFile, snName)
             // TODO: we need to delete/regenerate the snf if the jar has changed.
-
             if (!snf.exists()) {
-                // TODO: Consider CLASS_LEVEL snapshots of things that change infrequently.
-                // CLASS_MEMBER_LEVEL
-                // of everything else.
                 val sn =
                     calculateClasspathSnapshot(cpFile, ClassSnapshotGranularity.CLASS_MEMBER_LEVEL)
                 sn.saveSnapshot(snf)

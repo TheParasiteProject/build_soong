@@ -19,9 +19,6 @@ package com.android.kotlin.compiler.client
 import java.io.File
 
 class Options {
-    var verbose = false
-    var debug = false
-
     val classPath = mutableListOf<String>()
     val passThroughArgs = mutableListOf<String>()
     val jvmArgs = mutableListOf<String>()
