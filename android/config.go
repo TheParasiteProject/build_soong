@@ -271,11 +271,6 @@ func (c Config) ReleaseNdkAbiMonitored() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_NDK_ABI_MONITORED")
 }
 
-// Enable read flag from new storage, for C/C++
-func (c Config) ReleaseReadFromNewStorageCc() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_READ_FROM_NEW_STORAGE_CC")
-}
-
 func (c Config) ReleaseHiddenApiExportableStubs() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_HIDDEN_API_EXPORTABLE_STUBS") ||
 		Bool(c.config.productVariables.HiddenapiExportableStubs)
@@ -294,11 +289,6 @@ func (c Config) ReleaseUseSystemFeatureXmlForUnavailableFeatures() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_USE_SYSTEM_FEATURE_XML_FOR_UNAVAILABLE_FEATURES")
 }
 
-// TODO: b/409598478 - Remove FINGERPRINT build flag.
-func (c Config) ReleaseFingerprintAconfigPackages() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_FINGERPRINT_ACONFIG_PACKAGES")
-}
-
 func (c Config) ReleaseRustUseArmTargetArchVariant() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_RUST_USE_ARM_TARGET_ARCH_VARIANT")
 }
@@ -314,6 +304,11 @@ func (c Config) ReleaseAconfigStorageVersion() string {
 		// Default value is 2.
 		return "2"
 	}
+}
+
+// TODO: b/414412266 Remove this flag after feature released.
+func (c Config) ReleaseJarjarFlagsInFramework() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_JARJAR_FLAGS_IN_FRAMEWORK")
 }
 
 // A DeviceConfig object represents the configuration for a particular device
@@ -440,7 +435,6 @@ var defaultPartialCompileFlags = partialCompileFlags{}
 var enabledPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
-	Enable_inc_javac:        true,
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=all`.
@@ -1380,7 +1374,13 @@ func (c *config) UnbundledBuild() bool {
 
 // Returns true if building apps that aren't bundled with the platform.
 // UnbundledBuild() is always true when this is true.
-func (c *config) UnbundledBuildApps() bool {
+func (c *config) UnbundledBuildApps() []string {
+	return c.productVariables.Unbundled_build_apps
+}
+
+// Returns true if building apps that aren't bundled with the platform.
+// UnbundledBuild() is always true when this is true.
+func (c *config) HasUnbundledBuildApps() bool {
 	return len(c.productVariables.Unbundled_build_apps) > 0
 }
 
@@ -2032,7 +2032,7 @@ func (c *config) ForceApexSymlinkOptimization() bool {
 }
 
 func (c *config) ApexCompressionEnabled() bool {
-	return Bool(c.productVariables.CompressedApex) && !c.UnbundledBuildApps()
+	return Bool(c.productVariables.CompressedApex) && !c.HasUnbundledBuildApps()
 }
 
 func (c *config) DefaultApexPayloadType() string {
@@ -2227,10 +2227,6 @@ func (c *deviceConfig) BuildBrokenDupSysprop() bool {
 	return c.config.productVariables.BuildBrokenDupSysprop
 }
 
-func (c *deviceConfig) GenruleSandboxing() bool {
-	return Bool(c.config.productVariables.GenruleSandboxing)
-}
-
 func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {
 	return c.config.productVariables.RequiresInsecureExecmemForSwiftshader
 }
@@ -2259,6 +2255,10 @@ func (c *deviceConfig) AconfigContainerValidation() string {
 	return c.config.productVariables.AconfigContainerValidation
 }
 
+func (c *deviceConfig) ProductEnableLogcatPersistence() bool {
+	return c.config.productVariables.ProductEnableLogcatPersistence
+}
+
 func (c *config) IgnorePrefer32OnDevice() bool {
 	return c.productVariables.IgnorePrefer32OnDevice
 }
@@ -2285,17 +2285,6 @@ func (c *config) RBEWrapper() string {
 // UseHostMusl returns true if the host target has been configured to build against musl libc.
 func (c *config) UseHostMusl() bool {
 	return Bool(c.productVariables.HostMusl)
-}
-
-// ApiSurfaces directory returns the source path inside the api_surfaces repo
-// (relative to workspace root).
-func (c *config) ApiSurfacesDir(s ApiSurface, version string) string {
-	return filepath.Join(
-		"build",
-		"bazel",
-		"api_surfaces",
-		s.String(),
-		version)
 }
 
 func (c *config) JavaCoverageEnabled() bool {

@@ -1044,7 +1044,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.linter.mergedManifest = a.aapt.mergedManifestFile
 	a.linter.manifest = a.aapt.manifestPath
 	a.linter.resources = a.aapt.resourceFiles
-	a.linter.buildModuleReportZip = ctx.Config().UnbundledBuildApps()
+	a.linter.buildModuleReportZip = ctx.Config().HasUnbundledBuildApps()
 
 	dexJarFile, packageResources, javaInfo := a.dexBuildActions(ctx)
 
@@ -2218,6 +2218,10 @@ func (u *usesLibrary) verifyUsesLibraries(ctx android.ModuleContext, inputFile a
 	// and the module name != the library name is too rare for us to handle.
 	for _, lib := range u.usesLibraryProperties.Missing_optional_uses_libs {
 		cmd.FlagWithArg("--missing-optional-uses-library ", lib)
+	}
+
+	for _, lib := range ctx.Config().BootJars() {
+		cmd.FlagWithArg("--bootclasspath-libs ", lib)
 	}
 
 	rule.Build("verify_uses_libraries", "verify <uses-library>")

@@ -454,7 +454,6 @@ type ProductVariables struct {
 	BuildBrokenClangAsFlags             bool     `json:",omitempty"`
 	BuildBrokenClangCFlags              bool     `json:",omitempty"`
 	BuildBrokenClangProperty            bool     `json:",omitempty"`
-	GenruleSandboxing                   *bool    `json:",omitempty"`
 	BuildBrokenEnforceSyspropOwner      bool     `json:",omitempty"`
 	BuildBrokenTrebleSyspropNeverallow  bool     `json:",omitempty"`
 	BuildBrokenVendorPropertyNamespace  bool     `json:",omitempty"`
@@ -554,6 +553,8 @@ type ProductVariables struct {
 	// Will be used to install host tools in soong only builds
 	ProductHostPackages []string `json:",omitempty"`
 
+	ProductEnableLogcatPersistence bool `json:",omitempty"`
+
 	EnforceSELinuxTrebleLabeling *bool `json:",omitempty"`
 }
 
@@ -647,6 +648,7 @@ type PartitionVariables struct {
 	BoardVendorBootimagePartitionSize string   `json:",omitempty"`
 	BoardInitBootimagePartitionSize   string   `json:",omitempty"`
 	BoardBootHeaderVersion            string   `json:",omitempty"`
+	BoardInitBootHeaderVersion        string   `json:",omitempty"`
 	TargetKernelPath                  string   `json:",omitempty"`
 	BoardUsesGenericKernelImage       bool     `json:",omitempty"`
 	BootSecurityPatch                 string   `json:",omitempty"`

@@ -144,6 +144,9 @@ func filesystemCreatorFactory() android.Module {
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibCommon)
 	module.AddProperties(&module.properties)
 	android.AddLoadHook(module, func(ctx android.LoadHookContext) {
+		if !shouldEnableFilesystemCreator(ctx) {
+			return
+		}
 		generatedPrebuiltEtcModuleNames := createPrebuiltEtcModules(ctx)
 		avbpubkeyGenerated := createAvbpubkeyModule(ctx)
 		createFsGenState(ctx, generatedPrebuiltEtcModuleNames, avbpubkeyGenerated)
@@ -153,6 +156,17 @@ func filesystemCreatorFactory() android.Module {
 	})
 
 	return module
+}
+
+func shouldEnableFilesystemCreator(ctx android.ConfigContext) bool {
+	if ctx.Config().HasUnbundledBuildApps() || ctx.Config().UnbundledBuild() {
+		// unbundled builds don't build a device. The android_device's dist artifacts
+		// would conflict with the dist artifacts from the unbundled singleton.
+		return false
+	}
+	// We create the filsystem modules even if soong-only mode isn't enabled, so we at least
+	// get analysis time checks running everywhere for more real-world coverage.
+	return true
 }
 
 func generatedPartitions(ctx android.EarlyModuleContext) allGeneratedPartitionData {
@@ -1128,7 +1142,7 @@ func getAvbInfo(config android.Config, partitionType string) avbInfo {
 }
 
 func (f *filesystemCreator) createFileListDiffTest(ctx android.ModuleContext, partitionType string, partitionModuleName string) android.Path {
-	partitionImage := ctx.GetDirectDepWithTag(partitionModuleName, generatedFilesystemDepTag)
+	partitionImage := ctx.GetDirectDepProxyWithTag(partitionModuleName, generatedFilesystemDepTag)
 	filesystemInfo, ok := android.OtherModuleProvider(ctx, partitionImage, filesystem.FilesystemProvider)
 	if !ok {
 		ctx.ModuleErrorf("Expected module %s to provide FileysystemInfo", partitionModuleName)
@@ -1160,7 +1174,7 @@ func createFailingCommand(ctx android.ModuleContext, message string) android.Pat
 }
 
 func createVbmetaDiff(ctx android.ModuleContext, vbmetaModuleName string, vbmetaPartitionName string) android.Path {
-	vbmetaModule := ctx.GetDirectDepWithTag(vbmetaModuleName, generatedVbmetaPartitionDepTag)
+	vbmetaModule := ctx.GetDirectDepProxyWithTag(vbmetaModuleName, generatedVbmetaPartitionDepTag)
 	outputFilesProvider, ok := android.OtherModuleProvider(ctx, vbmetaModule, android.OutputFilesProvider)
 	if !ok {
 		ctx.ModuleErrorf("Expected module %s to provide OutputFiles", vbmetaModule)
@@ -1193,6 +1207,9 @@ var generatedFilesystemDepTag imageDepTagType
 var generatedVbmetaPartitionDepTag imageDepTagType
 
 func (f *filesystemCreator) DepsMutator(ctx android.BottomUpMutatorContext) {
+	if !shouldEnableFilesystemCreator(ctx) {
+		return
+	}
 	for _, name := range ctx.Config().Get(fsGenStateOnceKey).(*FsGenState).soongGeneratedPartitions.names() {
 		ctx.AddDependency(ctx.Module(), generatedFilesystemDepTag, name)
 	}
@@ -1202,6 +1219,9 @@ func (f *filesystemCreator) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (f *filesystemCreator) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if !shouldEnableFilesystemCreator(ctx) {
+		return
+	}
 	if ctx.ModuleDir() != "build/soong/fsgen" {
 		ctx.ModuleErrorf("There can only be one soong_filesystem_creator in build/soong/fsgen")
 	}
