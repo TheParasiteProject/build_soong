@@ -16,6 +16,9 @@
 
 package com.android.kotlin.compiler.client
 
+import com.android.kotlin.compiler.cli.HelpArgument
+import com.android.kotlin.compiler.cli.parseArgs
+import com.android.kotlin.compiler.snapshotter.fileToSnapshotFile
 import java.io.File
 import java.net.URLClassLoader
 import java.util.UUID
@@ -25,8 +28,6 @@ import org.jetbrains.kotlin.buildtools.api.CompilationService
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
 import org.jetbrains.kotlin.buildtools.api.ProjectId
 import org.jetbrains.kotlin.buildtools.api.SourcesChanges
-import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity
-import org.jetbrains.kotlin.buildtools.api.jvm.ClasspathEntrySnapshot
 import org.jetbrains.kotlin.buildtools.api.jvm.ClasspathSnapshotBasedIncrementalCompilationApproachParameters
 
 private val ARGUMENT_PARSERS =
@@ -49,11 +50,24 @@ private val ARGUMENT_PARSERS =
         SourcesArgument(), // must come last
     )
 
+val ADDITIONAL_HELP =
+    """
+    EXAMPLES
+    ========
+    
+    kotlin-incremental-client -root-dir=/tmp/helloworld -- HelloWorld.kt
+    
+    kotlin-incremental-client -root-dir=/tmp/helloworld -build-file=HelloWorldBuild.xml
+    
+    kotlin-incremental-client -root-dir=/tmp/helloworld -output-dir=out -- HelloWorld.kt
+"""
+        .trimIndent()
+
 fun main(args: Array<String>) {
-    val opts = Options()
+    val opts = ClientOptions()
     ARGUMENT_PARSERS.forEach { it.setupDefault(opts) }
 
-    if (!parseArgs(args, opts)) {
+    if (!parseArgs(args, opts, ARGUMENT_PARSERS, System.out, System.err, ADDITIONAL_HELP)) {
         exitProcess(-1)
     }
 
@@ -70,6 +84,7 @@ fun main(args: Array<String>) {
             println("Out of Memory")
             exitProcess(-2)
         }
+
         CompilationResult.COMPILER_INTERNAL_ERROR -> {
             println("Internal compiler error. Please report to https://kotl.in/issue")
             exitProcess(-3)
@@ -199,7 +214,7 @@ fun doBtaCompilation(
         URLClassLoader(
             classPath.map { File(it).toURI().toURL() }.toTypedArray() +
                 // Need to include this code's own jar in the classpath.
-                arrayOf(Options::class.java.protectionDomain?.codeSource?.location)
+                arrayOf(ClientOptions::class.java.protectionDomain?.codeSource?.location)
         )
 
     val service = CompilationService.loadImplementation(loader)
@@ -210,12 +225,7 @@ fun doBtaCompilation(
     executionConfig.useInProcessStrategy()
     val compilationConfig = service.makeJvmCompilationConfiguration()
 
-    val cpsnapshotParameters =
-        getClasspathSnapshotParameters(
-            workingDirectory,
-            classPath,
-            service::calculateClasspathSnapshot,
-        )
+    val cpsnapshotParameters = getClasspathSnapshotParameters(workingDirectory, classPath)
 
     // TODO: pipe actually source changes through to here.
     val sourcesChanges =
@@ -225,19 +235,12 @@ fun doBtaCompilation(
         )
     val incJvmCompilationConfig =
         compilationConfig.makeClasspathSnapshotBasedIncrementalCompilationConfiguration()
-    // TODO: remove the below line
-    incJvmCompilationConfig.assureNoClasspathSnapshotsChanges(true)
-    // If we are missing .class files, we can't compile incrementally.
-    // There might still be a problem where _some_ of the .class files are missing. That should
-    // only happen if someone is messing with the contents of the outputDirectory themselves.
-    if (outputDirectory.exists()) {
-        compilationConfig.useIncrementalCompilation(
-            workingDirectory,
-            sourcesChanges,
-            cpsnapshotParameters,
-            incJvmCompilationConfig,
-        )
-    }
+    compilationConfig.useIncrementalCompilation(
+        workingDirectory,
+        sourcesChanges,
+        cpsnapshotParameters,
+        incJvmCompilationConfig,
+    )
     compilationConfig.useLogger(logger)
 
     val pid = ProjectId.ProjectUUID(UUID.randomUUID())
@@ -257,28 +260,22 @@ fun doBtaCompilation(
 fun getClasspathSnapshotParameters(
     workingDirectory: File,
     classPath: List<String>,
-    calculateClasspathSnapshot: (File, ClassSnapshotGranularity) -> ClasspathEntrySnapshot,
 ): ClasspathSnapshotBasedIncrementalCompilationApproachParameters {
     val cps = File(workingDirectory.parentFile, "shrunk-classpath-snapshot.bin")
     val cpsFiles =
-        classPath.map {
+        classPath.mapNotNull {
             val cpFile = File(it)
             if (!cpFile.exists()) {
                 throw RuntimeException("classpath entry does not exist: $it")
             }
-            val snName = cpFile.name.replace(".", "_") + "-snapshot.bin"
-            val snf = File(cpFile.parentFile, snName)
-            // TODO: we need to delete/regenerate the snf if the jar has changed.
+
+            val snf = fileToSnapshotFile(cpFile)
 
             if (!snf.exists()) {
-                // TODO: Consider CLASS_LEVEL snapshots of things that change infrequently.
-                // CLASS_MEMBER_LEVEL
-                // of everything else.
-                val sn =
-                    calculateClasspathSnapshot(cpFile, ClassSnapshotGranularity.CLASS_MEMBER_LEVEL)
-                sn.saveSnapshot(snf)
+                null
+            } else {
+                snf
             }
-            snf
         }
 
     return ClasspathSnapshotBasedIncrementalCompilationApproachParameters(

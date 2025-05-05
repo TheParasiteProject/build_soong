@@ -28,7 +28,7 @@ import org.junit.rules.TemporaryFolder
 
 class ArgumentTest {
 
-    private val opts = Options()
+    private val opts = ClientOptions()
 
     @get:Rule val tFolder = TemporaryFolder()
 
@@ -91,15 +91,6 @@ class ArgumentTest {
         bfa.parse(arg, emptyList<String>().iterator(), opts)
         assertThrows(IllegalStateException::class.java, { opts.buildFileLocation })
         assertThat(bfa.error).isNotEmpty()
-    }
-
-    @Test
-    fun testHelpArgument() {
-        val ha = HelpArgument()
-        assertThat(ha.matches("-h")).isTrue()
-        val args = listOf("foo").iterator()
-        ha.parse("-h", args, opts)
-        assertThat(args.hasNext()).isTrue()
     }
 
     @Test
