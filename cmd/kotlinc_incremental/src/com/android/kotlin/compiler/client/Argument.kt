@@ -73,6 +73,31 @@ abstract class StringArgument : SingleArgument<String>() {
     }
 }
 
+class Verbose : NoArgument() {
+    override val argumentName = "verbose"
+    override val helpText =
+        """
+        Outputs additional information during compilation. Quite noisy.
+        """
+            .trimIndent()
+
+    override fun setOption(option: Boolean, opts: Options) {
+        opts.verbose = option
+    }
+}
+
+class Debug : NoArgument() {
+    override val argumentName = "debug"
+    override val helpText =
+        """
+        Outputs additional information during compilation.
+        """.trimIndent()
+
+    override fun setOption(option: Boolean, opts: Options) {
+        opts.debug = option
+    }
+}
+
 class SourcesArgument : Argument<String>() {
     override val default = null
     override val argumentName = "-"
@@ -135,7 +160,7 @@ class XBuildFileArgument : StringArgument() {
         """.trimIndent()
 
     override fun setOption(option: String, opts: Options) {
-        error = "Can not parser -Xbuild-file. Please use -build-file."
+        error = "Can not parse -Xbuild-file. Please use -build-file."
     }
 }
 

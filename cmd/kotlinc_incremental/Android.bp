@@ -34,22 +34,13 @@ java_library_host {
         "src/com/**/*.kt",
     ],
     static_libs: [
-        "kotlin-build-tools", // 2.1.10
-        "kotlin-compiler-embeddable", // 2.1.10
-        "kotlin-compiler-runner", // 2.1.10
+        "kotlin-build-tools-api",
+        "kotlin-build-tools-impl",
+        "kotlin-compiler-embeddable",
+        "kotlin-compiler-runner",
         "kotlin-daemon-client",
-        "kotlin-daemon-embeddable",
         "kotlinx_coroutines",
-    ],
-    libs: [
-        // Disabled until we use Kotlin's Build-Tools-API
-        //"kotlin-build-tools-impl",  // Must be dynamically linked in because of the way that
-        // build tools tries to cast the class loader to URLClassLoader.
-        // If we statically compile this, the cast fails.
-    ],
-    required: [
-        //        "kotlin-build-tools-impl",
-        //        "kotlin-compose-compiler-embeddable",
+        "kotlinc-trove4j",
     ],
 
     plugins: [],
