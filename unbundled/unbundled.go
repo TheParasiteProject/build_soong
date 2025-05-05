@@ -106,7 +106,7 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		if info, ok := android.OtherModuleProvider(ctx, app, java.ModuleLintReportZipsProvider); ok {
 			reports := info.AllReports()
 			for _, report := range reports {
-				ctx.DistForGoalWithFilename("apps_only", report, fmt.Sprintf("%s-%s", name, report.Base()))
+				ctx.DistForGoalWithFilename("lint-check", report, fmt.Sprintf("%s-%s", name, report.Base()))
 			}
 			reportFiles = append(reportFiles, reports...)
 		}
