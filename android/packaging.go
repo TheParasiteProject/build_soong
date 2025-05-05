@@ -526,7 +526,12 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 
 	// gather modules to install, skipping overridden modules
 	ctx.WalkDepsProxy(func(child, parent ModuleProxy) bool {
-		owner := OtherModuleNameWithPossibleOverride(ctx, child)
+		owner := ctx.OtherModuleName(child)
+		if info, ok := OtherModuleProvider(ctx, child, OverrideInfoProvider); ok {
+			if info.OverriddenBy != "" {
+				owner = info.OverriddenBy
+			}
+		}
 		if !isNativeBridgeVariant(child) {
 			if overridden[owner] {
 				return false

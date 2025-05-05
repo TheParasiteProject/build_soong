@@ -17,8 +17,6 @@ package unbundled
 import (
 	"android/soong/android"
 	"android/soong/cc"
-	"android/soong/java"
-	"fmt"
 	"slices"
 
 	"github.com/google/blueprint"
@@ -98,18 +96,4 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	android.BuildSymbolsZip(ctx, appModules, symbolsZip, symbolsMapping)
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsZip, symbolsZip.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsMapping, symbolsMapping.Base())
-
-	// Dist lint reports
-	var reportFiles android.Paths
-	for _, app := range appModules {
-		name := android.OtherModuleNameWithPossibleOverride(ctx, app)
-		if info, ok := android.OtherModuleProvider(ctx, app, java.ModuleLintReportZipsProvider); ok {
-			reports := info.AllReports()
-			for _, report := range reports {
-				ctx.DistForGoalWithFilename("apps_only", report, fmt.Sprintf("%s-%s", name, report.Base()))
-			}
-			reportFiles = append(reportFiles, reports...)
-		}
-	}
-	ctx.Phony("lint-check", reportFiles...)
 }
