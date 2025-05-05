@@ -44,6 +44,7 @@ private val ARGUMENT_PARSERS =
         PluginArgument(),
         RunFilesArgument(),
         RootDirArgument(),
+        SourceDeltaArgument(),
         Verbose(),
         WorkingDirArgument(),
         XBuildFileArgument(),
@@ -92,80 +93,7 @@ fun main(args: Array<String>) {
     }
 }
 
-fun parseArgs(args: Array<String>, opts: Options): Boolean {
-    var matched = false
-    var hasError = false
-    var showHelp = args.isEmpty()
-    val iter = args.iterator()
-    while (iter.hasNext()) {
-        val arg = iter.next()
-        matched = false
-        for (parser in ARGUMENT_PARSERS) {
-            if (parser.matches(arg)) {
-                matched = true
-                if (parser is HelpArgument) {
-                    showHelp = true
-                }
-                parser.parse(arg, iter, opts)
-                if (parser.error != null) {
-                    hasError = true
-                    System.err.println(parser.error)
-                    System.err.println()
-                }
-                break
-            }
-        }
-        if (!matched) {
-            opts.passThroughArgs.add(arg.substring(0))
-        }
-    }
-
-    if (showHelp) {
-        showArgumentHelp()
-    }
-
-    return !hasError
-}
-
-fun showArgumentHelp() {
-    var longest = -1
-    val padding = 5
-
-    println(
-        "Usage: kotlin-incremental-client <-root-dir>=<dir> [options] [kotlinc options] " +
-            "[-- <source files>]"
-    )
-    println()
-    for (parser in ARGUMENT_PARSERS) {
-        if (parser.argumentName.length > longest) {
-            longest = parser.argumentName.length
-        }
-    }
-
-    val indent = " ".repeat(longest + padding)
-    for (parser in ARGUMENT_PARSERS) {
-        print(("-" + parser.argumentName).padEnd(longest + padding))
-        var first = true
-        parser.helpText.lines().forEach {
-            if (first) {
-                println(it)
-                first = false
-            } else {
-                println(indent + it)
-            }
-        }
-        if (parser.default != null) {
-            print(indent + "[Default: ")
-            if (parser.default is String) {
-                println("\"${parser.default}\"]")
-            } else {
-                println("${parser.default}]")
-            }
-        }
-    }
-}
-
-fun BTACompilation(opts: Options): CompilationResult {
+fun BTACompilation(opts: ClientOptions): CompilationResult {
     val kotlincArgs = mutableListOf<String>()
     if (opts.buildFile != null) {
         if (opts.buildFileModuleName != null) {
@@ -182,6 +110,7 @@ fun BTACompilation(opts: Options): CompilationResult {
         opts.classPath + opts.buildFileClassPaths,
         opts.workingDir,
         opts.outputDir,
+        opts.sourceDeltaFile,
         kotlincArgs,
         opts.jvmArgs,
         Logger(opts.verbose, opts.debug),
@@ -194,6 +123,7 @@ fun doBtaCompilation(
     classPath: List<String>,
     workingDirectory: File,
     outputDirectory: File,
+    sourceDeltaFile: File?,
     args: List<String>,
     jvmArgs: List<String>,
     logger: Logger,
@@ -227,17 +157,15 @@ fun doBtaCompilation(
 
     val cpsnapshotParameters = getClasspathSnapshotParameters(workingDirectory, classPath)
 
-    // TODO: pipe actually source changes through to here.
-    val sourcesChanges =
-        SourcesChanges.Known(
-            modifiedFiles = listOf(sources.first()).map { File(it) },
-            removedFiles = emptyList(),
-        )
     val incJvmCompilationConfig =
         compilationConfig.makeClasspathSnapshotBasedIncrementalCompilationConfiguration()
+    var sourceChanges: SourcesChanges = SourcesChanges.Unknown
+    if (sourceDeltaFile != null) {
+        sourceChanges = parseSourceChanges(sourceDeltaFile)
+    }
     compilationConfig.useIncrementalCompilation(
         workingDirectory,
-        sourcesChanges,
+        sourceChanges,
         cpsnapshotParameters,
         incJvmCompilationConfig,
     )
@@ -282,4 +210,41 @@ fun getClasspathSnapshotParameters(
         newClasspathSnapshotFiles = cpsFiles,
         shrunkClasspathSnapshot = cps,
     )
+}
+
+fun parseSourceChanges(sourceDeltaFile: File): SourcesChanges.Known {
+    val modifiedList = mutableListOf<File>()
+    val removedList = mutableListOf<File>()
+    for (entry in sourceDeltaFile.readText().split(" ")) {
+        if (entry.length < 1) {
+            continue
+        }
+        val f = File(entry.substring(1))
+        when {
+            entry.startsWith("+") -> {
+                if (!f.exists()) {
+                    throw RuntimeException(
+                        "Supplied file diff contains modified file that does not exist: $entry"
+                    )
+                }
+                modifiedList.add(f.absoluteFile)
+            }
+
+            entry.startsWith("-") -> {
+                if (f.exists()) {
+                    throw RuntimeException(
+                        "Supplied file diff contains removed file that exist: $entry"
+                    )
+                }
+                removedList.add(f.absoluteFile)
+            }
+
+            else -> {
+                throw RuntimeException(
+                    "Supplied file diff contains entry that can not be parsed: $entry"
+                )
+            }
+        }
+    }
+    return SourcesChanges.Known(modifiedFiles = modifiedList, removedFiles = removedList)
 }
