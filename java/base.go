@@ -94,6 +94,9 @@ type CommonProperties struct {
 	// See kotlinc's `-language-version` flag.
 	Kotlin_lang_version *string
 
+	// Whether this target supports compilation with the kotlin-incremental-client.
+	Kotlin_incremental *bool
+
 	// list of java libraries that will be in the classpath
 	Libs []string `android:"arch_variant"`
 
@@ -879,6 +882,17 @@ func (j *Module) staticLibs(ctx android.BaseModuleContext) []string {
 	return j.properties.Static_libs.GetOrDefault(ctx, nil)
 }
 
+func (j *Module) incrementalKotlin(config android.Config) bool {
+	incremental := proptools.BoolDefault(
+		j.properties.Kotlin_incremental, config.PartialCompileFlags().Enable_inc_kotlin)
+	nonIncrementalFlags := []string{"-Xmulti-platform", "-Xexpect-actual-classes"}
+	for _, flag := range nonIncrementalFlags {
+		incremental = incremental && !slices.Contains(j.properties.Kotlincflags, flag)
+	}
+
+	return incremental
+}
+
 func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() {
 		j.linter.deps(ctx)
@@ -956,8 +970,13 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	}
 
 	if j.useCompose(ctx) {
-		ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag,
-			"kotlin-compose-compiler-plugin")
+		if j.incrementalKotlin(ctx.Config()) {
+			ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag,
+				"kotlin-compose-compiler-embeddable-plugin")
+		} else {
+			ctx.AddVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), kotlinPluginTag,
+				"kotlin-compose-compiler-plugin")
+		}
 	}
 }
 
@@ -1384,8 +1403,14 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			kotlincFlags = append(kotlincFlags, "-no-jdk")
 		}
 
+		var kotlincPluginFlags []string
 		for _, plugin := range deps.kotlinPlugins {
-			kotlincFlags = append(kotlincFlags, "-Xplugin="+plugin.String())
+			kotlincPluginFlags = append(kotlincPluginFlags, "-Xplugin="+plugin.String())
+		}
+		if len(kotlincPluginFlags) > 0 {
+			// optimization.
+			ctx.Variable(pctx, "kotlincPluginFlags", strings.Join(kotlincPluginFlags, " "))
+			flags.kotlincPluginFlags += "$kotlincPluginFlags"
 		}
 		flags.kotlincDeps = append(flags.kotlincDeps, deps.kotlinPlugins...)
 
@@ -1399,6 +1424,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			ctx.Variable(pctx, "kotlincFlags", strings.Join(kotlincFlags, " "))
 			flags.kotlincFlags += "$kotlincFlags"
 		}
+
+		incrementalKotlin := j.incrementalKotlin(ctx.Config())
 
 		// Collect common .kt files for AIDEGen
 		j.expandIDEInfoCompiledSrcs = append(j.expandIDEInfoCompiledSrcs, kotlinCommonSrcFiles.Strings()...)
@@ -1420,7 +1447,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 		kotlinJar := android.PathForModuleOut(ctx, "kotlin", jarName)
 		kotlinHeaderJar := android.PathForModuleOut(ctx, "kotlin_headers", jarName)
-		j.kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, uniqueSrcFiles, kotlinCommonSrcFiles, srcJars, flags)
+		j.kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, uniqueSrcFiles, kotlinCommonSrcFiles, srcJars, flags, incrementalKotlin)
 		if ctx.Failed() {
 			return nil
 		}
