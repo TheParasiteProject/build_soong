@@ -25,7 +25,11 @@ import (
 )
 
 func init() {
-	android.InitRegistrationContext.RegisterModuleType("unbundled_builder", unbundledBuilderFactory)
+	registerUnbundledBuilder(android.InitRegistrationContext)
+}
+
+func registerUnbundledBuilder(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("unbundled_builder", unbundledBuilderFactory)
 }
 
 func unbundledBuilderFactory() android.Module {
