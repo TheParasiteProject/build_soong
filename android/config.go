@@ -1476,10 +1476,6 @@ func (c *config) Android64() bool {
 	return false
 }
 
-func (c *config) UseGoma() bool {
-	return Bool(c.productVariables.UseGoma)
-}
-
 func (c *config) UseABFS() bool {
 	return Bool(c.productVariables.UseABFS)
 }
@@ -1501,7 +1497,7 @@ func (c *config) UseRBED8() bool {
 }
 
 func (c *config) UseRemoteBuild() bool {
-	return c.UseGoma() || c.UseRBE()
+	return c.UseRBE()
 }
 
 func (c *config) RunErrorProne() bool {
