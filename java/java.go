@@ -263,13 +263,6 @@ type UsesLibraryDependencyInfo struct {
 	ClassLoaderContexts dexpreopt.ClassLoaderContextMap
 }
 
-type SdkLibraryComponentDependencyInfo struct {
-	// The name of the implementation library for the optional SDK library or nil, if there isn't one.
-	OptionalSdkLibraryImplementation *string
-	// The name of the java_sdk_library/_import module if this module was created by one.
-	SdkLibraryName *string
-}
-
 type ProvidesUsesLibInfo struct {
 	ProvidesUsesLib *string
 }
@@ -381,8 +374,6 @@ type JavaInfo struct {
 	AndroidLibraryDependencyInfo *AndroidLibraryDependencyInfo
 
 	UsesLibraryDependencyInfo *UsesLibraryDependencyInfo
-
-	SdkLibraryComponentDependencyInfo *SdkLibraryComponentDependencyInfo
 
 	ProvidesUsesLibInfo *ProvidesUsesLibInfo
 
@@ -2400,6 +2391,10 @@ func (ap *JavaApiContribution) GenerateAndroidBuildActions(ctx android.ModuleCon
 	})
 }
 
+func (ap *JavaApiContribution) DepsMutator(ctx android.BottomUpMutatorContext) {
+	ap.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
+}
+
 type ApiLibrary struct {
 	android.ModuleBase
 	android.DefaultableModuleBase
@@ -2625,6 +2620,8 @@ func (al *ApiLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, aconfigDeclarationsName := range al.properties.Aconfig_declarations {
 		ctx.AddDependency(ctx.Module(), aconfigDeclarationTag, aconfigDeclarationsName)
 	}
+
+	al.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 // Map where key is the api scope name and value is the int value
@@ -3073,6 +3070,8 @@ func (j *Import) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if ctx.Device() && Bool(j.dexProperties.Compile_dex) {
 		sdkDeps(ctx, android.SdkContext(j), j.dexer)
 	}
+
+	j.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 func (j *Import) commonBuildActions(ctx android.ModuleContext) {
@@ -3761,7 +3760,7 @@ func addCLCFromDep(ctx android.ModuleContext, depModule android.ModuleProxy,
 	if lib, ok := android.OtherModuleProvider(ctx, depModule, SdkLibraryInfoProvider); ok && lib.SharedLibrary {
 		// A shared SDK library. This should be added as a top-level CLC element.
 		sdkLib = &depName
-	} else if lib := dep.SdkLibraryComponentDependencyInfo; lib != nil && lib.OptionalSdkLibraryImplementation != nil {
+	} else if lib, ok := android.OtherModuleProvider(ctx, depModule, SdkLibraryComponentDependencyInfoProvider); ok && lib.OptionalSdkLibraryImplementation != nil {
 		if depModule.Name() == proptools.String(lib.OptionalSdkLibraryImplementation)+".impl" {
 			sdkLib = lib.OptionalSdkLibraryImplementation
 		}
@@ -3886,13 +3885,6 @@ func setExtraJavaInfo(ctx android.ModuleContext, module android.Module, javaInfo
 		javaInfo.UsesLibraryDependencyInfo = &UsesLibraryDependencyInfo{
 			DexJarInstallPath:   ulDep.DexJarInstallPath(),
 			ClassLoaderContexts: ulDep.ClassLoaderContexts(),
-		}
-	}
-
-	if slcDep, ok := module.(SdkLibraryComponentDependency); ok {
-		javaInfo.SdkLibraryComponentDependencyInfo = &SdkLibraryComponentDependencyInfo{
-			OptionalSdkLibraryImplementation: slcDep.OptionalSdkLibraryImplementation(),
-			SdkLibraryName:                   slcDep.SdkLibraryName(),
 		}
 	}
 

@@ -2125,7 +2125,7 @@ func (u *usesLibrary) classLoaderContextForUsesLibDeps(ctx android.ModuleContext
 		// Skip stub libraries. A dependency on the implementation library has been added earlier,
 		// so it will be added to CLC, but the stub shouldn't be. Stub libraries can be distingushed
 		// from implementation libraries by their name, which is different as it has a suffix.
-		if comp := javaInfo.SdkLibraryComponentDependencyInfo; comp != nil {
+		if comp, ok := android.OtherModuleProvider(ctx, m, SdkLibraryComponentDependencyInfoProvider); ok {
 			if impl := comp.OptionalSdkLibraryImplementation; impl != nil && *impl != dep {
 				return
 			}
