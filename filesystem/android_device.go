@@ -906,7 +906,11 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 				Textf("echo mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Boot_partition_name), miscInfo).
 				// TODO: Use boot's header version for recovery for now since cuttlefish does not set `BOARD_RECOVERY_MKBOOTIMG_ARGS`
 				Textf(" && echo recovery_mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Boot_partition_name), miscInfo)
+		} else if a.partitionProps.Vendor_boot_partition_name != nil {
+			builder.Command().
+				Textf("echo mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Vendor_boot_partition_name), miscInfo)
 		}
+
 		if a.partitionProps.Init_boot_partition_name != nil {
 			builder.Command().
 				Textf("echo mkbootimg_init_args='--header_version' %s >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Init_boot_partition_name), miscInfo)
