@@ -335,7 +335,7 @@ func Build(ctx Context, config Config) {
 		close(rbeCh)
 	}
 
-	if config.RunCIPDProxyServer() {
+	if config.RunCIPDProxyServer() && shouldRunCIPDProxy(config) {
 		cipdProxy := startCIPDProxyServer(ctx, config)
 		defer cipdProxy.Stop()
 	}
