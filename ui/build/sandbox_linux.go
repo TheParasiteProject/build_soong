@@ -281,6 +281,10 @@ func (c *Cmd) wrapSandbox() {
 		"--rlimit_cpu", "soft",
 		"--rlimit_fsize", "soft",
 		"--rlimit_nofile", "soft",
+
+		// nsjail defaults to a niceness of 19, the minimum priority.  Raise it to 5 so that UI tasks are still
+		// a higher priority, but the build is a higher priority than the other background tasks that are set to 10.
+		"--nice_level", "5",
 	)
 
 	sandboxArgs = append(sandboxArgs,
