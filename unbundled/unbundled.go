@@ -69,7 +69,17 @@ func (*unbundledBuilder) DepsMutator(ctx android.BottomUpMutatorContext) {
 	slices.Sort(apps)
 
 	for _, app := range apps {
-		ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
+		// Add a dependency on the app so we can get its providers later.
+		// We prefer the device variant if it exists. If not, try the host variant.
+		if ctx.OtherModuleDependencyVariantExists(nil, app) {
+			ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
+		} else if ctx.OtherModuleDependencyVariantExists(ctx.Config().BuildOSTarget.Variations(), app) {
+			ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), unbundledDepTag, app)
+		} else {
+			// If neither host nor device variants existed, add a dep on the device variant
+			// for the missing dependencies error.
+			ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
+		}
 	}
 }
 
