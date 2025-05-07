@@ -1319,7 +1319,7 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 			ImplicitOutput(testTimestamp)
 	} else {
 		precompiledSepolicyWithoutVendor := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
-		rule.Command().BuiltTool("treble_labeling_tests").
+		cmd := rule.Command().BuiltTool("treble_labeling_tests").
 			FlagWithInput("--platform_apks ", platformAppsList).
 			FlagWithInput("--vendor_apks ", vendorAppsList).
 			FlagWithInput("--precompiled_sepolicy_without_vendor ", precompiledSepolicyWithoutVendor).
@@ -1329,8 +1329,14 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 			FlagWithInputList("--vendor_file_contexts ", vendorFileContexts, " ").
 			FlagWithInput("--aapt2_path ", ctx.Config().HostToolPath(ctx, "aapt2")).
 			Implicits(platformApps).
-			Implicits(vendorApps).
-			FlagWithOutput("> ", testTimestamp)
+			Implicits(vendorApps)
+
+		trackingListFile := ctx.Config().SELinuxTrebleLabelingTrackingListFile(ctx)
+		if trackingListFile != nil {
+			cmd.FlagWithInput("--tracking_list_file ", trackingListFile)
+		}
+
+		cmd.FlagWithOutput("> ", testTimestamp)
 	}
 
 	rule.Build("treble_labeling_test", "SELinux Treble Labeling Test")
