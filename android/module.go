@@ -1742,6 +1742,25 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		deps = append(deps, outputFiles...)
 	}
 
+	// only add the required deps if !shouldSkipAndroidMk so that we don't have to deal with
+	// figuring out the dep's namespace.
+	// TODO: improve on this so modules in a namespace also work.
+	if !shouldSkipAndroidMk {
+		requiredSuffix := ""
+		if ctx.Config().KatiEnabled() {
+			requiredSuffix += "-soong"
+		}
+		for _, dep := range m.RequiredModuleNames(ctx) {
+			deps = append(deps, PathForPhony(ctx, dep+requiredSuffix))
+		}
+		for _, dep := range m.HostRequiredModuleNames() {
+			deps = append(deps, PathForPhony(ctx, dep+"-host"+requiredSuffix))
+		}
+		for _, dep := range m.TargetRequiredModuleNames() {
+			deps = append(deps, PathForPhony(ctx, dep+"-target"+requiredSuffix))
+		}
+	}
+
 	for _, p := range testSuiteInstalls {
 		deps = append(deps, p.dst)
 	}
