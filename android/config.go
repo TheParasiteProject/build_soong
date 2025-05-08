@@ -297,6 +297,10 @@ func (c Config) ReleaseUseSparseEncoding() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_SOONG_SPARSE_ENCODING")
 }
 
+func (c Config) ReleaseUseUncompressedFonts() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_SOONG_UNCOMPRESSED_FONTS")
+}
+
 func (c Config) ReleaseAconfigStorageVersion() string {
 	if val, exists := c.GetBuildFlag("RELEASE_ACONFIG_STORAGE_VERSION"); exists {
 		return val
