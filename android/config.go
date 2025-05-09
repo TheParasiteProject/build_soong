@@ -2535,3 +2535,12 @@ func (c *config) OdmManifestFiles() []string {
 func (c *config) EnforceSELinuxTrebleLabeling() bool {
 	return Bool(c.productVariables.EnforceSELinuxTrebleLabeling)
 }
+
+func (c *config) SELinuxTrebleLabelingTrackingListFile(ctx PathContext) Path {
+	path := String(c.productVariables.SELinuxTrebleLabelingTrackingListFile)
+	if path == "" {
+		return nil
+	}
+
+	return PathForSource(ctx, path)
+}
