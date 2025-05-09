@@ -455,7 +455,7 @@ var allPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
 	Enable_inc_javac:        true,
-	Enable_inc_kotlin:       true,
+	Enable_inc_kotlin:       false,
 }
 
 type deviceConfig struct {
