@@ -147,6 +147,10 @@ type aapt struct {
 	manifestValues struct {
 		applicationId string
 	}
+
+	// Fields written to jdeps
+	assetDirs    android.Paths
+	resourceDirs android.Paths
 }
 
 type split struct {
@@ -270,6 +274,10 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 		linkFlags = append(linkFlags, "--enable-sparse-encoding")
 	}
 
+	if ctx.Config().ReleaseUseUncompressedFonts() {
+		linkFlags = append(linkFlags, "--no-compress-fonts")
+	}
+
 	// Find implicit or explicit asset and resource dirs
 	assets := android.PathsRelativeToModuleSourceDir(android.SourceInput{
 		Context:     ctx,
@@ -282,7 +290,10 @@ func (a *aapt) aapt2Flags(ctx android.ModuleContext, sdkContext android.SdkConte
 	} else {
 		assetDirs = android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Asset_dirs, "assets")
 	}
+	a.assetDirs = assetDirs
+
 	resourceDirs := android.PathsWithOptionalDefaultForModuleSrc(ctx, a.aaptProperties.Resource_dirs.GetOrDefault(ctx, nil), "res")
+	a.resourceDirs = resourceDirs
 	resourceZips := android.PathsForModuleSrc(ctx, a.aaptProperties.Resource_zips)
 
 	// Glob directories into lists of paths
@@ -1117,6 +1128,8 @@ func (a *aapt) IDEInfo(ctx android.BaseModuleContext, dpInfo *android.IdeInfo) {
 	if a.rJar != nil {
 		dpInfo.Jars = append(dpInfo.Jars, a.rJar.String())
 	}
+	dpInfo.Asset_dirs = append(dpInfo.Asset_dirs, a.assetDirs.Strings()...)
+	dpInfo.Resource_dirs = append(dpInfo.Resource_dirs, a.resourceDirs.Strings()...)
 }
 
 // android_library builds and links sources into a `.jar` file for the device along with Android resources.
@@ -1295,6 +1308,7 @@ func (a *AARImport) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ctx.AddVariationDependencies(nil, staticLibTag, a.properties.Static_libs.GetOrDefault(ctx, nil)...)
 
 	a.usesLibrary.deps(ctx, false)
+	a.EmbeddableSdkLibraryComponent.setComponentDependencyInfoProvider(ctx)
 }
 
 type JniPackageInfo struct {
@@ -1689,6 +1703,6 @@ func AARImportFactory() android.Module {
 }
 
 func (a *AARImport) IDEInfo(ctx android.BaseModuleContext, dpInfo *android.IdeInfo) {
-	dpInfo.Jars = append(dpInfo.Jars, a.implementationJarFile.String(), a.rJar.String())
+	dpInfo.Jars = append(dpInfo.Jars, a.implementationJarFile.String(), a.rJar.String(), a.aarPath.String())
 	dpInfo.Static_libs = append(dpInfo.Static_libs, a.properties.Static_libs.GetOrDefault(ctx, nil)...)
 }

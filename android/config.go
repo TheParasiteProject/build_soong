@@ -297,6 +297,10 @@ func (c Config) ReleaseUseSparseEncoding() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_SOONG_SPARSE_ENCODING")
 }
 
+func (c Config) ReleaseUseUncompressedFonts() bool {
+	return c.config.productVariables.GetBuildFlagBool("RELEASE_SOONG_UNCOMPRESSED_FONTS")
+}
+
 func (c Config) ReleaseAconfigStorageVersion() string {
 	if val, exists := c.GetBuildFlag("RELEASE_ACONFIG_STORAGE_VERSION"); exists {
 		return val
@@ -309,6 +313,14 @@ func (c Config) ReleaseAconfigStorageVersion() string {
 // TODO: b/414412266 Remove this flag after feature released.
 func (c Config) ReleaseJarjarFlagsInFramework() bool {
 	return c.config.productVariables.GetBuildFlagBool("RELEASE_JARJAR_FLAGS_IN_FRAMEWORK")
+}
+
+func (c Config) ReleaseMainlineBetaNamespaceConfig() string {
+	if val, exists := c.GetBuildFlag("RELEASE_MAINLINE_BETA_NAMESPACE_CONFIG"); exists {
+		return val
+	} else {
+		return ""
+	}
 }
 
 // A DeviceConfig object represents the configuration for a particular device
@@ -425,6 +437,12 @@ type partialCompileFlags struct {
 	// Whether to enable incremental java compilation.
 	Enable_inc_javac bool
 
+	// Whether to use the kotlin-incremental-client when compiling .kt files.
+	Enable_inc_kotlin bool
+
+	// Whether to enable incremental d8
+	Enable_inc_d8 bool
+
 	// Add others as needed.
 }
 
@@ -435,6 +453,9 @@ var defaultPartialCompileFlags = partialCompileFlags{}
 var enabledPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
+	Enable_inc_kotlin:       false,
+	Enable_inc_javac:        false,
+	Enable_inc_d8:           false,
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=all`.
@@ -442,6 +463,8 @@ var allPartialCompileFlags = partialCompileFlags{
 	Use_d8:                  true,
 	Disable_stub_validation: true,
 	Enable_inc_javac:        true,
+	Enable_inc_kotlin:       false,
+	Enable_inc_d8:           true,
 }
 
 type deviceConfig struct {
@@ -525,10 +548,20 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 			ret = allPartialCompileFlags
 
 		// Individual flags.
+		case "inc_d8", "enable_inc_d8":
+			ret.Enable_inc_d8 = makeVal(state, !defaultPartialCompileFlags.Enable_inc_d8)
+		case "disable_inc_d8":
+			ret.Enable_inc_d8 = !makeVal(state, defaultPartialCompileFlags.Enable_inc_d8)
+
 		case "inc_javac", "enable_inc_javac":
 			ret.Enable_inc_javac = makeVal(state, !defaultPartialCompileFlags.Enable_inc_javac)
 		case "disable_inc_javac":
 			ret.Enable_inc_javac = !makeVal(state, defaultPartialCompileFlags.Enable_inc_javac)
+
+		case "inc_kotlin", "enable_inc_kotlin":
+			ret.Enable_inc_kotlin = makeVal(state, defaultPartialCompileFlags.Enable_inc_kotlin)
+		case "disable_inc_kotlin":
+			ret.Enable_inc_kotlin = !makeVal(state, defaultPartialCompileFlags.Enable_inc_kotlin)
 
 		case "stub_validation", "enable_stub_validation":
 			ret.Disable_stub_validation = !makeVal(state, !defaultPartialCompileFlags.Disable_stub_validation)
@@ -537,6 +570,7 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 
 		case "use_d8":
 			ret.Use_d8 = makeVal(state, defaultPartialCompileFlags.Use_d8)
+
 		default:
 			return partialCompileFlags{}, fmt.Errorf("Unknown SOONG_PARTIAL_COMPILE value: %v", tok)
 		}
@@ -1457,10 +1491,6 @@ func (c *config) Android64() bool {
 	return false
 }
 
-func (c *config) UseGoma() bool {
-	return Bool(c.productVariables.UseGoma)
-}
-
 func (c *config) UseABFS() bool {
 	return Bool(c.productVariables.UseABFS)
 }
@@ -1482,7 +1512,7 @@ func (c *config) UseRBED8() bool {
 }
 
 func (c *config) UseRemoteBuild() bool {
-	return c.UseGoma() || c.UseRBE()
+	return c.UseRBE()
 }
 
 func (c *config) RunErrorProne() bool {
@@ -2514,4 +2544,13 @@ func (c *config) OdmManifestFiles() []string {
 
 func (c *config) EnforceSELinuxTrebleLabeling() bool {
 	return Bool(c.productVariables.EnforceSELinuxTrebleLabeling)
+}
+
+func (c *config) SELinuxTrebleLabelingTrackingListFile(ctx PathContext) Path {
+	path := String(c.productVariables.SELinuxTrebleLabelingTrackingListFile)
+	if path == "" {
+		return nil
+	}
+
+	return PathForSource(ctx, path)
 }

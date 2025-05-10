@@ -17,13 +17,19 @@ package unbundled
 import (
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/java"
+	"fmt"
 	"slices"
 
 	"github.com/google/blueprint"
 )
 
 func init() {
-	android.InitRegistrationContext.RegisterModuleType("unbundled_builder", unbundledBuilderFactory)
+	registerUnbundledBuilder(android.InitRegistrationContext)
+}
+
+func registerUnbundledBuilder(ctx android.RegistrationContext) {
+	ctx.RegisterModuleType("unbundled_builder", unbundledBuilderFactory)
 }
 
 func unbundledBuilderFactory() android.Module {
@@ -63,7 +69,17 @@ func (*unbundledBuilder) DepsMutator(ctx android.BottomUpMutatorContext) {
 	slices.Sort(apps)
 
 	for _, app := range apps {
-		ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
+		// Add a dependency on the app so we can get its providers later.
+		// We prefer the device variant if it exists. If not, try the host variant.
+		if ctx.OtherModuleDependencyVariantExists(nil, app) {
+			ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
+		} else if ctx.OtherModuleDependencyVariantExists(ctx.Config().BuildOSTarget.Variations(), app) {
+			ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), unbundledDepTag, app)
+		} else {
+			// If neither host nor device variants existed, add a dep on the device variant
+			// for the missing dependencies error.
+			ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
+		}
 	}
 }
 
@@ -96,4 +112,24 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	android.BuildSymbolsZip(ctx, appModules, symbolsZip, symbolsMapping)
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsZip, symbolsZip.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsMapping, symbolsMapping.Base())
+
+	// Dist lint reports
+	var reportFiles android.Paths
+	for _, app := range appModules {
+		name := android.OtherModuleNameWithPossibleOverride(ctx, app)
+		if info, ok := android.OtherModuleProvider(ctx, app, java.ModuleLintReportZipsProvider); ok {
+			reports := info.AllReports()
+			for _, report := range reports {
+				ctx.DistForGoalWithFilename("lint-check", report, fmt.Sprintf("%s-%s", name, report.Base()))
+			}
+			reportFiles = append(reportFiles, reports...)
+		}
+	}
+	ctx.Phony("lint-check", reportFiles...)
+
+	// Dist proguard zips
+	proguardZips := java.BuildProguardZips(ctx, appModules)
+	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictZip, targetProductPrefix+proguardZips.DictZip.Base())
+	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictMapping, targetProductPrefix+proguardZips.DictMapping.Base())
+	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.UsageZip, targetProductPrefix+proguardZips.UsageZip.Base())
 }

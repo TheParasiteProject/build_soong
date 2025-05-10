@@ -32,12 +32,6 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-var proguardDictToProto = pctx.AndroidStaticRule("proguard_dict_to_proto", blueprint.RuleParams{
-	Command:     `${symbols_map} -r8 $in -location $location -write_if_changed $out`,
-	Restat:      true,
-	CommandDeps: []string{"${symbols_map}"},
-}, "location")
-
 type PartitionNameProperties struct {
 	// Name of the super partition filesystem module
 	Super_partition_name *string
@@ -116,9 +110,7 @@ type androidDevice struct {
 
 	allImagesZip android.Path
 
-	proguardDictZip             android.Path
-	proguardDictMapping         android.Path
-	proguardUsageZip            android.Path
+	proguardZips                java.ProguardZips
 	kernelConfig                android.Path
 	kernelVersion               android.Path
 	miscInfo                    android.Path
@@ -216,7 +208,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.kernelVersion, a.kernelConfig = a.extractKernelVersionAndConfigs(ctx)
 	a.miscInfo = a.addMiscInfo(ctx)
 	a.buildTargetFilesZip(ctx, allInstalledModules)
-	a.buildProguardZips(ctx, allInstalledModules)
+	a.proguardZips = java.BuildProguardZips(ctx, allInstalledModules)
 	a.buildSymbolsZip(ctx, allInstalledModules)
 	a.buildUpdatePackage(ctx)
 
@@ -394,10 +386,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 			return false
 		}
 		prebuiltInfo := android.OtherModuleProviderOrDefault(ctx, mod, android.PrebuiltInfoProvider)
-		name := ctx.OtherModuleName(mod)
-		if info, ok := android.OtherModuleProvider(ctx, mod, android.OverrideInfoProvider); ok && info.OverriddenBy != "" {
-			name = info.OverriddenBy
-		}
+		name := android.OtherModuleNameWithPossibleOverride(ctx, mod)
 		if variations, ok := allOwners[name]; ok &&
 			android.InList(installedOwnerInfo{
 				Variation: ctx.OtherModuleSubDir(mod),
@@ -416,11 +405,6 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
-}
-
-type symbolicOutputInfo struct {
-	unstrippedOutputFile android.Path
-	symbolicOutputPath   android.InstallPath
 }
 
 func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
@@ -460,9 +444,9 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		if ctx.Config().HasDeviceProduct() {
 			namePrefix = ctx.Config().DeviceProduct() + "-"
 		}
-		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardDictZip, namePrefix+a.proguardDictZip.Base())
-		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardDictMapping, namePrefix+a.proguardDictMapping.Base())
-		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardUsageZip, namePrefix+a.proguardUsageZip.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardZips.DictZip, namePrefix+a.proguardZips.DictZip.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardZips.DictMapping, namePrefix+a.proguardZips.DictMapping.Base())
+		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.proguardZips.UsageZip, namePrefix+a.proguardZips.UsageZip.Base())
 
 		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.symbolsZipFile, namePrefix+a.symbolsZipFile.Base())
 		ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.symbolsMappingFile, namePrefix+a.symbolsMappingFile.Base())
@@ -501,56 +485,6 @@ func (a *androidDevice) MakeVars(_ android.MakeVarsModuleContext) []android.Modu
 		return []android.ModuleMakeVarsValue{{"SOONG_ONLY_ALL_IMAGES_ZIP", a.allImagesZip.String()}}
 	}
 	return nil
-}
-
-func (a *androidDevice) buildProguardZips(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
-	dictZip := android.PathForModuleOut(ctx, "proguard-dict.zip")
-	dictZipBuilder := android.NewRuleBuilder(pctx, ctx)
-	dictZipCmd := dictZipBuilder.Command().BuiltTool("soong_zip").Flag("-d").FlagWithOutput("-o ", dictZip)
-
-	dictMapping := android.PathForModuleOut(ctx, "proguard-dict-mapping.textproto")
-	dictMappingBuilder := android.NewRuleBuilder(pctx, ctx)
-	dictMappingCmd := dictMappingBuilder.Command().BuiltTool("symbols_map").Flag("-merge").Output(dictMapping)
-
-	protosDir := android.PathForModuleOut(ctx, "proguard_mapping_protos")
-
-	usageZip := android.PathForModuleOut(ctx, "proguard-usage.zip")
-	usageZipBuilder := android.NewRuleBuilder(pctx, ctx)
-	usageZipCmd := usageZipBuilder.Command().BuiltTool("merge_zips").Output(usageZip)
-
-	for _, mod := range allInstalledModules {
-		if proguardInfo, ok := android.OtherModuleProvider(ctx, mod, java.ProguardProvider); ok {
-			// Maintain these out/target/common paths for backwards compatibility. They may be able
-			// to be changed if tools look up file locations from the protobuf, but I'm not
-			// exactly sure how that works.
-			dictionaryFakePath := fmt.Sprintf("out/target/common/obj/%s/%s_intermediates/proguard_dictionary", proguardInfo.Class, proguardInfo.ModuleName)
-			dictZipCmd.FlagWithArg("-e ", dictionaryFakePath)
-			dictZipCmd.FlagWithInput("-f ", proguardInfo.ProguardDictionary)
-			dictZipCmd.Textf("-e out/target/common/obj/%s/%s_intermediates/classes.jar", proguardInfo.Class, proguardInfo.ModuleName)
-			dictZipCmd.FlagWithInput("-f ", proguardInfo.ClassesJar)
-
-			protoFile := protosDir.Join(ctx, filepath.Dir(dictionaryFakePath), "proguard_dictionary.textproto")
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   proguardDictToProto,
-				Input:  proguardInfo.ProguardDictionary,
-				Output: protoFile,
-				Args: map[string]string{
-					"location": dictionaryFakePath,
-				},
-			})
-			dictMappingCmd.Input(protoFile)
-
-			usageZipCmd.Input(proguardInfo.ProguardUsageZip)
-		}
-	}
-
-	dictZipBuilder.Build("proguard_dict_zip", "Building proguard dictionary zip")
-	dictMappingBuilder.Build("proguard_dict_mapping_proto", "Building proguard mapping proto")
-	usageZipBuilder.Build("proguard_usage_zip", "Building proguard usage zip")
-
-	a.proguardDictZip = dictZip
-	a.proguardDictMapping = dictMapping
-	a.proguardUsageZip = usageZip
 }
 
 // Helper structs for target_files.zip creation
@@ -812,11 +746,13 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		}
 	}
 	// Copy ramdisk_node_list
-	if ramdiskNodeList := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Ramdisk_node_list)); ramdiskNodeList != nil {
+	if proptools.String(a.deviceProps.Ramdisk_node_list) != "" {
+		ramdiskNodeList := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Ramdisk_node_list))
 		builder.Command().Textf("cp").Input(ramdiskNodeList).Textf(" %s/META/", targetFilesDir.String())
 	}
 	// Copy releasetools.py
-	if releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension)); releaseTools != nil {
+	if proptools.String(a.deviceProps.Releasetools_extension) != "" {
+		releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension))
 		builder.Command().Textf("cp").Input(releaseTools).Textf(" %s/META/", targetFilesDir.String())
 	}
 	// apexkeys.txt
@@ -832,7 +768,8 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	builder.Command().Textf("cp").Input(a.apkCertsInfo).Textf(" %s/META/", targetFilesDir.String())
 
 	// Copy fastboot-info.txt
-	if fastbootInfo := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.FastbootInfo)); fastbootInfo != nil {
+	if proptools.String(a.deviceProps.FastbootInfo) != "" {
+		fastbootInfo := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.FastbootInfo))
 		// TODO (b/399788523): Autogenerate fastboot-info.txt if there is no source fastboot-info.txt
 		// https://cs.android.com/android/_/android/platform/build/+/80b9546f8f69e78b8fe1870e0e745d70fc18dfcd:core/Makefile;l=5831-5893;drc=077490384423dff9eac954da5c001c6f0be3fa6e;bpv=0;bpt=0
 		builder.Command().Textf("cp").Input(fastbootInfo).Textf(" %s/META/fastboot-info.txt", targetFilesDir.String())
@@ -906,7 +843,11 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 				Textf("echo mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Boot_partition_name), miscInfo).
 				// TODO: Use boot's header version for recovery for now since cuttlefish does not set `BOARD_RECOVERY_MKBOOTIMG_ARGS`
 				Textf(" && echo recovery_mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Boot_partition_name), miscInfo)
+		} else if a.partitionProps.Vendor_boot_partition_name != nil {
+			builder.Command().
+				Textf("echo mkbootimg_args='--header_version %s' >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Vendor_boot_partition_name), miscInfo)
 		}
+
 		if a.partitionProps.Init_boot_partition_name != nil {
 			builder.Command().
 				Textf("echo mkbootimg_init_args='--header_version' %s >> %s", a.getBootimgHeaderVersion(ctx, a.partitionProps.Init_boot_partition_name), miscInfo)
@@ -923,7 +864,8 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	if fsInfos["system"].ErofsCompressHints != nil {
 		builder.Command().Textf("echo erofs_default_compress_hints=%s >> %s", fsInfos["system"].ErofsCompressHints, miscInfo)
 	}
-	if releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension)); releaseTools != nil {
+	if proptools.String(a.deviceProps.Releasetools_extension) != "" {
+		releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension))
 		builder.Command().Textf("echo tool_extensions=%s >> %s", filepath.Dir(releaseTools.String()), miscInfo)
 	}
 	// ramdisk uses `compressed_cpio` fs_type
@@ -1385,7 +1327,7 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 			ImplicitOutput(testTimestamp)
 	} else {
 		precompiledSepolicyWithoutVendor := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
-		rule.Command().BuiltTool("treble_labeling_tests").
+		cmd := rule.Command().BuiltTool("treble_labeling_tests").
 			FlagWithInput("--platform_apks ", platformAppsList).
 			FlagWithInput("--vendor_apks ", vendorAppsList).
 			FlagWithInput("--precompiled_sepolicy_without_vendor ", precompiledSepolicyWithoutVendor).
@@ -1395,8 +1337,14 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 			FlagWithInputList("--vendor_file_contexts ", vendorFileContexts, " ").
 			FlagWithInput("--aapt2_path ", ctx.Config().HostToolPath(ctx, "aapt2")).
 			Implicits(platformApps).
-			Implicits(vendorApps).
-			FlagWithOutput("> ", testTimestamp)
+			Implicits(vendorApps)
+
+		trackingListFile := ctx.Config().SELinuxTrebleLabelingTrackingListFile(ctx)
+		if trackingListFile != nil {
+			cmd.FlagWithInput("--tracking_list_file ", trackingListFile)
+		}
+
+		cmd.FlagWithOutput("> ", testTimestamp)
 	}
 
 	rule.Build("treble_labeling_test", "SELinux Treble Labeling Test")

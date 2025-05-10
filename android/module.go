@@ -1135,29 +1135,21 @@ func addVintfFragmentDeps(ctx BottomUpMutatorContext) {
 		return
 	}
 
-	deviceConfig := ctx.DeviceConfig()
-
 	mod := ctx.Module()
-	vintfModules := ctx.AddDependency(mod, vintfDepTag, mod.VintfFragmentModuleNames(ctx)...)
+	ctx.AddDependency(mod, vintfDepTag, mod.VintfFragmentModuleNames(ctx)...)
+}
 
-	modPartition := mod.PartitionTag(deviceConfig)
-	for _, vintf := range vintfModules {
-		if vintf == nil {
-			// TODO(b/372091092): Remove this. Having it gives us missing dependency errors instead
-			// of nil pointer dereference errors, but we should resolve the missing dependencies.
-			continue
+func checkVintfFragmentDeps(ctx ModuleContext) {
+	modPartition := ctx.Module().PartitionTag(ctx.DeviceConfig())
+	ctx.VisitDirectDepsProxyWithTag(vintfDepTag, func(vintf ModuleProxy) {
+		commonInfo := OtherModulePointerProviderOrDefault(ctx, vintf, CommonModuleInfoProvider)
+		vintfPartition := commonInfo.PartitionTag
+		if modPartition != vintfPartition {
+			ctx.ModuleErrorf("Module %q(%q) and Vintf_fragment %q(%q) are installed to different partitions.",
+				ctx.ModuleName(), modPartition,
+				vintf.Name(), vintfPartition)
 		}
-		if vintfModule, ok := vintf.(*VintfFragmentModule); ok {
-			vintfPartition := vintfModule.PartitionTag(deviceConfig)
-			if modPartition != vintfPartition {
-				ctx.ModuleErrorf("Module %q(%q) and Vintf_fragment %q(%q) are installed to different partitions.",
-					mod.Name(), modPartition,
-					vintfModule.Name(), vintfPartition)
-			}
-		} else {
-			ctx.ModuleErrorf("Only vintf_fragment type module should be listed in vintf_fragment_modules : %q", vintf.Name())
-		}
-	}
+	})
 }
 
 // AddProperties "registers" the provided props
@@ -1750,6 +1742,25 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		deps = append(deps, outputFiles...)
 	}
 
+	// only add the required deps if !shouldSkipAndroidMk so that we don't have to deal with
+	// figuring out the dep's namespace.
+	// TODO: improve on this so modules in a namespace also work.
+	if !shouldSkipAndroidMk {
+		requiredSuffix := ""
+		if ctx.Config().KatiEnabled() {
+			requiredSuffix += "-soong"
+		}
+		for _, dep := range m.RequiredModuleNames(ctx) {
+			deps = append(deps, PathForPhony(ctx, dep+requiredSuffix))
+		}
+		for _, dep := range m.HostRequiredModuleNames() {
+			deps = append(deps, PathForPhony(ctx, dep+"-host"+requiredSuffix))
+		}
+		for _, dep := range m.TargetRequiredModuleNames() {
+			deps = append(deps, PathForPhony(ctx, dep+"-target"+requiredSuffix))
+		}
+	}
+
 	for _, p := range testSuiteInstalls {
 		deps = append(deps, p.dst)
 	}
@@ -2053,6 +2064,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	// reporting missing dependency errors in Blueprint when AllowMissingDependencies == true.
 	// TODO: This will be removed once defaults modules handle missing dependency errors
 	blueprintCtx.GetMissingDependencies()
+
+	checkVintfFragmentDeps(ctx)
 
 	// For the final GenerateAndroidBuildActions pass, require that all visited dependencies Soong modules and
 	// are enabled. Unless the module is a CommonOS variant which may have dependencies on disabled variants
@@ -2945,6 +2958,16 @@ func ModuleNameWithPossibleOverride(ctx BaseModuleContext) string {
 	return ctx.ModuleName()
 }
 
+// OtherModuleNameWithPossibleOverride returns the name of the OverrideModule that overrides the
+// current variant of the given module, or ctx.ModuleName() if the given module is not an
+// OverridableModule or if this variant is not overridden.
+func OtherModuleNameWithPossibleOverride(ctx BaseModuleContext, m ModuleOrProxy) string {
+	if overrideInfo, ok := OtherModuleProvider(ctx, m, OverrideInfoProvider); ok && overrideInfo.OverriddenBy != "" {
+		return overrideInfo.OverriddenBy
+	}
+	return ctx.OtherModuleName(m)
+}
+
 // SrcIsModule decodes module references in the format ":unqualified-name" or "//namespace:name"
 // into the module name, or empty string if the input was not a module reference.
 func SrcIsModule(s string) (module string) {
@@ -3382,6 +3405,8 @@ type IdeInfo struct {
 	Paths             []string `json:"path,omitempty"`
 	Static_libs       []string `json:"static_libs,omitempty"`
 	Libs              []string `json:"libs,omitempty"`
+	Asset_dirs        []string `json:"asset_dirs,omitempty"`
+	Resource_dirs     []string `json:"resource_dirs,omitempty"`
 }
 
 // Merge merges two IdeInfos and produces a new one, leaving the origional unchanged
@@ -3398,6 +3423,8 @@ func (i IdeInfo) Merge(other IdeInfo) IdeInfo {
 		Paths:             mergeStringLists(i.Paths, other.Paths),
 		Static_libs:       mergeStringLists(i.Static_libs, other.Static_libs),
 		Libs:              mergeStringLists(i.Libs, other.Libs),
+		Asset_dirs:        mergeStringLists(i.Asset_dirs, other.Asset_dirs),
+		Resource_dirs:     mergeStringLists(i.Resource_dirs, other.Resource_dirs),
 	}
 }
 

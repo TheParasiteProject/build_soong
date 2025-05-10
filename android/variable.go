@@ -294,7 +294,6 @@ type ProductVariables struct {
 	Safestack                    *bool    `json:",omitempty"`
 	HostStaticBinaries           *bool    `json:",omitempty"`
 	Binder32bit                  *bool    `json:",omitempty"`
-	UseGoma                      *bool    `json:",omitempty"`
 	UseABFS                      *bool    `json:",omitempty"`
 	UseRBE                       *bool    `json:",omitempty"`
 	UseRBEJAVAC                  *bool    `json:",omitempty"`
@@ -556,6 +555,8 @@ type ProductVariables struct {
 	ProductEnableLogcatPersistence bool `json:",omitempty"`
 
 	EnforceSELinuxTrebleLabeling *bool `json:",omitempty"`
+
+	SELinuxTrebleLabelingTrackingListFile *string `json:",omitempty"`
 }
 
 type CompatibilityTestcaseJSON struct {

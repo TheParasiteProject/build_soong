@@ -41,7 +41,6 @@ func init() {
 	registerMutators(android.InitRegistrationContext)
 	pctx.HostBinToolVariable("fileslist", "fileslist")
 	pctx.HostBinToolVariable("fs_config", "fs_config")
-	pctx.HostBinToolVariable("symbols_map", "symbols_map")
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 }
 
@@ -108,6 +107,7 @@ type filesystem struct {
 	filesystemBuilder filesystemBuilder
 
 	selinuxFc android.Path
+	avbKey    android.Path
 }
 
 type filesystemBuilder interface {
@@ -757,6 +757,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		fsInfo.AvbHashAlgorithm = proptools.StringDefault(f.properties.Avb_hash_algorithm, "sha256")
 		if f.properties.Avb_private_key != nil {
 			fsInfo.AvbKey = android.PathForModuleSrc(ctx, *f.properties.Avb_private_key)
+			f.avbKey = fsInfo.AvbKey
 		}
 	}
 
@@ -1509,6 +1510,10 @@ func (f *filesystem) AndroidMkEntries() []android.AndroidMkEntries {
 				entries.SetString("LOCAL_MODULE_PATH", f.installDir.String())
 				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", f.installFileName())
 				entries.SetString("LOCAL_FILESYSTEM_FILELIST", f.fileListFile.String())
+				if f.avbKey != nil {
+					entries.SetString("LOCAL_FILESYSTEM_AVB_KEY_PATH", f.avbKey.String())
+				}
+				entries.SetString("LOCAL_FILESYSTEM_AVB_ALGORITHM", proptools.StringDefault(f.properties.Avb_algorithm, "SHA256_RSA4096"))
 			},
 		},
 	}}

@@ -185,6 +185,11 @@ type ModuleContext interface {
 	// dependency tags for which IsInstallDepNeeded returns true.
 	PackageFile(installPath InstallPath, name string, srcPath Path) PackagingSpec
 
+	// PackageFileWithFakeFullInstall creates a PackagingSpec, but does not require a full
+	// install by android_device.
+	// This is experimental, and is only meant to be used by Soong only builds.
+	PackageFileWithFakeFullInstall(installPath InstallPath, name string, srcPath Path) PackagingSpec
+
 	CheckbuildFile(srcPaths ...Path)
 	UncheckedModule()
 
@@ -434,7 +439,7 @@ func (m *moduleContext) Rule(pctx PackageContext, name string, params blueprint.
 
 	if m.config.UseRemoteBuild() {
 		if params.Pool == nil {
-			// When USE_GOMA=true or USE_RBE=true are set and the rule is not supported by goma/RBE, restrict
+			// When USE_RBE=true is set and the rule is not supported by RBE, restrict
 			// jobs to the local parallelism value
 			params.Pool = localPool
 		} else if params.Pool == remotePool {
@@ -640,6 +645,11 @@ func (m *moduleContext) InstallFileWithExtraFilesZip(installPath InstallPath, na
 func (m *moduleContext) PackageFile(installPath InstallPath, name string, srcPath Path) PackagingSpec {
 	fullInstallPath := installPath.Join(m, name)
 	return m.packageFile(fullInstallPath, srcPath, false, false)
+}
+
+func (m *moduleContext) PackageFileWithFakeFullInstall(installPath InstallPath, name string, srcPath Path) PackagingSpec {
+	fullInstallPath := installPath.Join(m, name)
+	return m.packageFile(fullInstallPath, srcPath, false, true)
 }
 
 func (m *moduleContext) getAconfigPaths() Paths {
