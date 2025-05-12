@@ -2288,6 +2288,11 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Pem: pem,
 		Key: key,
 	})
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"ETC"}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	moduleInfoJSON.Disabled = false
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
