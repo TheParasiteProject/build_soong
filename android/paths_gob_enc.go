@@ -7,6 +7,21 @@ import (
 	"github.com/google/blueprint/gobtools"
 )
 
+func init() {
+	basePathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(basePath) })
+	SourcePathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SourcePath) })
+	OutputPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(OutputPath) })
+	toolDepPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(toolDepPath) })
+	ModuleOutPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleOutPath) })
+	ModuleGenPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleGenPath) })
+	ModuleObjPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleObjPath) })
+	ModuleResPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleResPath) })
+	InstallPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(InstallPath) })
+	PhonyPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(PhonyPath) })
+	testPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(testPath) })
+	DataPathGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(DataPath) })
+}
+
 func (r basePath) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -51,6 +66,12 @@ func (r *basePath) Decode(buf *bytes.Reader) error {
 	return nil
 }
 
+var basePathGobRegId int16
+
+func (r basePath) GetTypeId() int16 {
+	return basePathGobRegId
+}
+
 func (r SourcePath) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -83,6 +104,12 @@ func (r *SourcePath) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var SourcePathGobRegId int16
+
+func (r SourcePath) GetTypeId() int16 {
+	return SourcePathGobRegId
 }
 
 func (r OutputPath) GobEncode() ([]byte, error) {
@@ -137,6 +164,12 @@ func (r *OutputPath) Decode(buf *bytes.Reader) error {
 	return nil
 }
 
+var OutputPathGobRegId int16
+
+func (r OutputPath) GetTypeId() int16 {
+	return OutputPathGobRegId
+}
+
 func (r toolDepPath) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -169,6 +202,12 @@ func (r *toolDepPath) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var toolDepPathGobRegId int16
+
+func (r toolDepPath) GetTypeId() int16 {
+	return toolDepPathGobRegId
 }
 
 func (r ModuleOutPath) GobEncode() ([]byte, error) {
@@ -205,6 +244,12 @@ func (r *ModuleOutPath) Decode(buf *bytes.Reader) error {
 	return nil
 }
 
+var ModuleOutPathGobRegId int16
+
+func (r ModuleOutPath) GetTypeId() int16 {
+	return ModuleOutPathGobRegId
+}
+
 func (r ModuleGenPath) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -237,6 +282,12 @@ func (r *ModuleGenPath) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var ModuleGenPathGobRegId int16
+
+func (r ModuleGenPath) GetTypeId() int16 {
+	return ModuleGenPathGobRegId
 }
 
 func (r ModuleObjPath) GobEncode() ([]byte, error) {
@@ -273,6 +324,12 @@ func (r *ModuleObjPath) Decode(buf *bytes.Reader) error {
 	return nil
 }
 
+var ModuleObjPathGobRegId int16
+
+func (r ModuleObjPath) GetTypeId() int16 {
+	return ModuleObjPathGobRegId
+}
+
 func (r ModuleResPath) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -305,6 +362,12 @@ func (r *ModuleResPath) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var ModuleResPathGobRegId int16
+
+func (r ModuleResPath) GetTypeId() int16 {
+	return ModuleResPathGobRegId
 }
 
 func (r InstallPath) GobEncode() ([]byte, error) {
@@ -386,6 +449,12 @@ func (r *InstallPath) Decode(buf *bytes.Reader) error {
 	return nil
 }
 
+var InstallPathGobRegId int16
+
+func (r InstallPath) GetTypeId() int16 {
+	return InstallPathGobRegId
+}
+
 func (r PhonyPath) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -418,6 +487,12 @@ func (r *PhonyPath) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var PhonyPathGobRegId int16
+
+func (r PhonyPath) GetTypeId() int16 {
+	return PhonyPathGobRegId
 }
 
 func (r testPath) GobEncode() ([]byte, error) {
@@ -454,6 +529,12 @@ func (r *testPath) Decode(buf *bytes.Reader) error {
 	return nil
 }
 
+var testPathGobRegId int16
+
+func (r testPath) GetTypeId() int16 {
+	return testPathGobRegId
+}
+
 func (r DataPath) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -467,7 +548,7 @@ func (r DataPath) GobEncode() ([]byte, error) {
 func (r DataPath) Encode(buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, &r.SrcPath); err != nil {
+	if err = gobtools.EncodeInterface(buf, r.SrcPath); err != nil {
 		return err
 	}
 
@@ -489,8 +570,12 @@ func (r *DataPath) GobDecode(b []byte) error {
 func (r *DataPath) Decode(buf *bytes.Reader) error {
 	var err error
 
-	if err = gobtools.DecodeInterface(buf, &r.SrcPath); err != nil {
+	if val2, err := gobtools.DecodeInterface(buf); err != nil {
 		return err
+	} else if val2 == nil {
+		r.SrcPath = nil
+	} else {
+		r.SrcPath = val2.(Path)
 	}
 
 	err = gobtools.DecodeString(buf, &r.RelativeInstallPath)
@@ -504,4 +589,10 @@ func (r *DataPath) Decode(buf *bytes.Reader) error {
 	}
 
 	return nil
+}
+
+var DataPathGobRegId int16
+
+func (r DataPath) GetTypeId() int16 {
+	return DataPathGobRegId
 }
