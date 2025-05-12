@@ -453,7 +453,7 @@ var proguardDictToProto = pctx.AndroidStaticRule("proguard_dict_to_proto", bluep
 }, "location")
 
 func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
-	dexParams *compileDexParams) (flags []string, deps android.Paths) {
+	dexParams *compileDexParams) (flags []string, deps android.Paths, incD8Compatible bool) {
 
 	flags = d.dexProperties.Dxflags
 	// Translate all the DX flags to D8 ones until all the build files have been migrated
@@ -523,10 +523,16 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 	}
 	flags = append(flags, "--min-api "+strconv.Itoa(minApiFlagValue))
 
+	incD8Compatible = false
+	// Incremental d8 does not have libraries passed to it for speed, so any
+	// desugaring with library classes is not possible.
+	// To cater for this we only enable incD8 when platform build flag is passed
+	// as it automatically disables desugaring.
 	if addAndroidPlatformBuildFlag {
 		flags = append(flags, "--android-platform-build")
+		incD8Compatible = true
 	}
-	return flags, deps
+	return flags, deps, incD8Compatible
 }
 
 func (d *dexer) d8Flags(ctx android.ModuleContext, dexParams *compileDexParams, useD8Inc bool) (d8Flags []string, d8Deps android.Paths, artProfileOutput *android.OutputPath) {
@@ -756,7 +762,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		zipFlags += " -L 0"
 	}
 
-	commonFlags, commonDeps := d.dexCommonFlags(ctx, dexParams)
+	commonFlags, commonDeps, incD8Compatible := d.dexCommonFlags(ctx, dexParams)
 
 	// Exclude kotlinc generated files when "exclude_kotlinc_generated_files" is set to true.
 	mergeZipsFlags := ""
@@ -767,7 +773,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	useR8 := d.effectiveOptimizeEnabled(ctx)
 	useD8 := !useR8 || ctx.Config().PartialCompileFlags().Use_d8
 	// d8Inc is applicable only when d8 is allowed.
-	useD8Inc := useD8 && ctx.Config().PartialCompileFlags().Enable_inc_d8
+	useD8Inc := useD8 && ctx.Config().PartialCompileFlags().Enable_inc_d8 && incD8Compatible
 	rbeR8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8")
 	rbeD8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8")
 	var rule blueprint.Rule
