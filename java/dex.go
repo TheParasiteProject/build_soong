@@ -195,7 +195,7 @@ func (d *dexer) optimizeOrObfuscateEnabled(ctx android.ModuleContext) bool {
 // Removes all outputs of d8Inc rule
 var d8IncClean = pctx.AndroidStaticRule("d8Inc-partialcompileclean",
 	blueprint.RuleParams{
-		Command: `rm -rf "${outDir}" "${builtOut}"`,
+		Command: `rm -rf "${outDir}" "${builtOut}" "${d8Deps}"`,
 	}, "outDir", "d8Flags", "d8Deps", "zipFlags", "mergeZipsFlags", "builtOut",
 )
 
@@ -234,6 +234,15 @@ var d8Inc, d8IncRE = pctx.MultiCommandRemoteStaticRules("d8Inc",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
 	}, []string{"outDir", "d8Flags", "zipFlags", "mergeZipsFlags", "d8Deps"}, nil)
+
+// Include all of the args for d8IncR8, so that we can generate the partialcompileclean target's build using the same list.
+var d8IncR8Clean = pctx.AndroidStaticRule("d8Incr8-partialcompileclean",
+	blueprint.RuleParams{
+		Command: `rm -rf "${outDir}" "${outDict}" "${outConfig}" "${outUsage}" "${outUsageZip}" "${outUsageDir}" ` +
+			`"${resourcesOutput}" "${outR8ArtProfile}" ${builtOut} ${d8Deps}`,
+	}, "outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir", "builtOut",
+	"d8Flags", "d8Deps", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile", "implicits",
+)
 
 var d8IncR8, d8IncR8RE = pctx.MultiCommandRemoteStaticRules("d8Incr8",
 	blueprint.RuleParams{
@@ -326,7 +335,7 @@ var d8, d8RE = pctx.MultiCommandRemoteStaticRules("d8",
 			ExecStrategy: "${config.RED8ExecStrategy}",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
-	}, []string{"outDir", "d8Flags", "d8Deps", "zipFlags", "mergeZipsFlags"}, nil)
+	}, []string{"outDir", "d8Flags", "zipFlags", "mergeZipsFlags"}, nil)
 
 // Include all of the args for d8r8, so that we can generate the partialcompileclean target's build using the same list.
 var d8r8Clean = pctx.AndroidStaticRule("d8r8-partialcompileclean",
@@ -334,7 +343,7 @@ var d8r8Clean = pctx.AndroidStaticRule("d8r8-partialcompileclean",
 		Command: `rm -rf "${outDir}" "${outDict}" "${outConfig}" "${outUsage}" "${outUsageZip}" "${outUsageDir}" ` +
 			`"${resourcesOutput}" "${outR8ArtProfile}" ${builtOut}`,
 	}, "outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir", "builtOut",
-	"d8Flags", "d8Deps", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile", "implicits",
+	"d8Flags", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile", "implicits",
 )
 
 var d8r8, d8r8RE = pctx.MultiCommandRemoteStaticRules("d8r8",
@@ -393,7 +402,7 @@ var d8r8, d8r8RE = pctx.MultiCommandRemoteStaticRules("d8r8",
 			Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 		},
 	}, []string{"outDir", "outDict", "outConfig", "outUsage", "outUsageZip", "outUsageDir",
-		"d8Flags", "d8Deps", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile"}, []string{"implicits"})
+		"d8Flags", "r8Flags", "zipFlags", "mergeZipsFlags", "resourcesOutput", "outR8ArtProfile"}, []string{"implicits"})
 
 var r8, r8RE = pctx.MultiCommandRemoteStaticRules("r8",
 	blueprint.RuleParams{
@@ -830,6 +839,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			args["implicits"] = strings.Join(deps.Strings(), ",")
 		}
 	}
+	cleanupD8R8, cleanupD8IncR8, cleanupD8Inc := false, false, false
 	if useD8 {
 		description = "d8"
 		d8Flags, d8Deps, d8ArtProfileOutputPath := d.d8Flags(ctx, dexParams, useD8Inc)
@@ -842,31 +852,38 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		// The file containing dependencies of the current module
 		// Any change in them may warrant changes in the incremental dex compilation
 		// source set.
-		d8DepsFile := javalibJar.ReplaceExtension(ctx, "jar.deps.rsp")
-		android.WriteFileRule(ctx, d8DepsFile, strings.Join(deps.Strings(), "\n"))
-		deps = append(deps, d8DepsFile)
-		args["d8Deps"] = d8DepsFile.String()
+		if useD8Inc {
+			d8DepsFile := android.PathForModuleOut(ctx, dexParams.jarName+".dex.deps.rsp")
+			android.WriteFileRule(ctx, d8DepsFile, strings.Join(deps.Strings(), "\n"))
+			deps = append(deps, d8DepsFile)
+			args["d8Deps"] = d8DepsFile.String()
+		}
 		// If we are generating both d8 and r8, only use RBE when both are enabled.
 		switch {
 		// r8 is the selected rule, useD8Inc is the override
 		case useR8 && rule == r8 && useD8Inc:
 			rule = d8IncR8
+			cleanupD8IncR8 = true
 			description = "d8IncR8"
 		// r8 is the selected rule, useD8 is the override
 		case useR8 && rule == r8:
 			rule = d8r8
+			cleanupD8R8 = true
 			description = "d8r8"
 		// rbeR8 is the selected rule, useD8Inc is the override
 		case useR8 && rule == r8RE && useD8Inc:
 			rule = d8IncR8RE
+			cleanupD8IncR8 = true
 			description = "d8IncR8"
 		// rbeR8 is the selected rule, useD8 is the override
 		case useR8 && rule == r8RE && rbeD8:
 			rule = d8r8RE
+			cleanupD8R8 = true
 			description = "d8r8"
 		// rbeD8 is the selected rule, useD8Inc is the override
 		case rbeD8 && useD8Inc:
 			rule = d8IncRE
+			cleanupD8Inc = true
 			description = "d8Inc"
 		// rbeD8 is the selected rule
 		case rbeD8:
@@ -874,6 +891,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		// D8 is the selected rule, useD8Inc is the override
 		case useD8Inc:
 			rule = d8Inc
+			cleanupD8Inc = true
 			description = "d8Inc"
 		// D8 is the selected rule
 		default:
@@ -895,8 +913,8 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		Implicits:       deps,
 		Args:            args,
 	})
-	// Run cleanup when d8r8 or d8IncR8 was used
-	if useR8 && (useD8 || useD8Inc) {
+	// Run cleanup when d8r8 was used
+	if cleanupD8R8 {
 		// Generate the rule for partial compile clean.
 		args["builtOut"] = javalibJar.String()
 		ctx.Build(pctx, android.BuildParams{
@@ -908,8 +926,21 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 		})
 		ctx.Phony("partialcompileclean", cleanPhonyPath)
 	}
+	// Run cleanup when d8IncR8 was used
+	if cleanupD8IncR8 {
+		// Generate the rule for partial compile clean.
+		args["builtOut"] = javalibJar.String()
+		ctx.Build(pctx, android.BuildParams{
+			Rule:        d8IncR8Clean,
+			Description: "d8IncR8Clean",
+			Output:      cleanPhonyPath,
+			Args:        args,
+			PhonyOutput: true,
+		})
+		ctx.Phony("partialcompileclean", cleanPhonyPath)
+	}
 	// Run cleanup when d8Inc was used
-	if !useR8 && useD8Inc {
+	if cleanupD8Inc {
 		// Generate the rule for partial compile clean.
 		args["builtOut"] = javalibJar.String()
 		ctx.Build(pctx, android.BuildParams{
