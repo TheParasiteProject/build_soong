@@ -2259,10 +2259,6 @@ func (c *deviceConfig) AconfigContainerValidation() string {
 	return c.config.productVariables.AconfigContainerValidation
 }
 
-func (c *deviceConfig) ProductEnableLogcatPersistence() bool {
-	return c.config.productVariables.ProductEnableLogcatPersistence
-}
-
 func (c *config) IgnorePrefer32OnDevice() bool {
 	return c.productVariables.IgnorePrefer32OnDevice
 }
