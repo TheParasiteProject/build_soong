@@ -19,6 +19,7 @@ import argparse
 import glob
 import os
 import shutil
+import stat
 import struct
 import subprocess
 import sys
@@ -93,6 +94,13 @@ def get_local_file_sha256_fields(zip_filepath: os.PathLike) -> dict[str, bytes]:
 
             if found_sha_in_file:
                 sha256_checksums[member_info.filename] = found_sha_in_file
+            elif member_info.external_attr != 0:
+                # Upper 16 bits of external_attr are UNIX permissions.
+                # If the file is a symlink then add its target as the value of the map.
+                mode = (member_info.external_attr >> 16) & 0xFFFF
+                if stat.S_ISLNK(mode):
+                    target = zip_ref.read(member_info.filename)
+                    sha256_checksums[member_info.filename] = target
             else:
                 print(f"{member_info.filename} sha not found", file=sys.stderr)
 
