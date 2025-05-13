@@ -122,7 +122,7 @@ type Module interface {
 	qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleName
 
 	// Get information about the properties that can contain visibility rules.
-	visibilityProperties() []visibilityProperty
+	visibilityProperties() []*visibilityProperty
 
 	RequiredModuleNames(ctx ConfigurableEvaluatorContext) []string
 	HostRequiredModuleNames() []string
@@ -877,13 +877,13 @@ type ModuleBase struct {
 
 	// Information about all the properties on the module that contains visibility rules that need
 	// checking.
-	visibilityPropertyInfo []visibilityProperty
+	visibilityPropertyInfo []*visibilityProperty
 
 	// The primary visibility property, may be nil, that controls access to the module.
-	primaryVisibilityProperty visibilityProperty
+	primaryVisibilityProperty *visibilityProperty
 
 	// The primary licenses property, may be nil, records license metadata for the module.
-	primaryLicensesProperty applicableLicensesProperty
+	primaryLicensesProperty *applicableLicensesProperty
 
 	noAddressSanitizer bool
 
@@ -1234,7 +1234,7 @@ func (m *ModuleBase) qualifiedModuleId(ctx BaseModuleContext) qualifiedModuleNam
 	return qualifiedModuleName{pkg: ctx.ModuleDir(), name: ctx.ModuleName()}
 }
 
-func (m *ModuleBase) visibilityProperties() []visibilityProperty {
+func (m *ModuleBase) visibilityProperties() []*visibilityProperty {
 	return m.visibilityPropertyInfo
 }
 
@@ -1976,7 +1976,7 @@ type CommonModuleInfo struct {
 	Host                bool
 	IsApexModule        bool
 	// The primary licenses property, may be nil, records license metadata for the module.
-	PrimaryLicensesProperty applicableLicensesProperty
+	PrimaryLicensesProperty *applicableLicensesProperty
 	Owner                   string
 	Vendor                  bool
 	Proprietary             bool
