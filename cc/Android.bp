@@ -44,6 +44,7 @@ bootstrap_go_package {
         "proto.go",
         "rs.go",
         "sanitize.go",
+        "sanitize_gob_enc.go",
         "sabi.go",
         "sdk.go",
         "snapshot_prebuilt.go",

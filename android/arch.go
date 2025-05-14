@@ -26,6 +26,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 /*
 Example blueprints file containing all variant property groups, with comment listing what type
 of variants get properties in that group:
@@ -122,6 +124,7 @@ func (a Arch) String() string {
 // ArchType is used to define the 4 supported architecture types (arm, arm64, x86, x86_64), as
 // well as the "common" architecture used for modules that support multiple architectures, for
 // example Java modules.
+// @auto-generate: gob
 type ArchType struct {
 	// Name is the name of the architecture type, "arm", "arm64", "x86", or "x86_64".
 	Name string
