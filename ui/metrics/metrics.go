@@ -101,6 +101,10 @@ func (m *Metrics) SetToplevelMakefiles(total int) {
 	m.mkMetrics.ToplevelMakefiles = uint32(total)
 }
 
+func (m *Metrics) SetSoongOnly(soongOnly bool) {
+	m.metrics.BuildConfig.SoongOnly = &soongOnly
+}
+
 func (m *Metrics) DumpMkMetrics(outPath string) {
 	shared.Save(&m.mkMetrics, outPath)
 }
