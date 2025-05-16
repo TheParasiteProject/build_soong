@@ -91,6 +91,7 @@ module {
 */
 
 // An Arch indicates a single CPU architecture.
+// @auto-generate: gob
 type Arch struct {
 	// The type of the architecture (arm, arm64, x86, or x86_64).
 	ArchType ArchType
@@ -235,6 +236,7 @@ func (class OsClass) String() string {
 }
 
 // OsType describes an OS variant of a module.
+// @auto-generate: gob
 type OsType struct {
 	// Name is the name of the OS.  It is also used as the name of the property in Android.bp
 	// files.
@@ -345,6 +347,7 @@ func OsTypeList() []OsType {
 }
 
 // Target specifies the OS and architecture that a module is being compiled for.
+// @auto-generate: gob
 type Target struct {
 	// Os the OS that the module is being compiled for (e.g. "linux_glibc", "android").
 	Os OsType

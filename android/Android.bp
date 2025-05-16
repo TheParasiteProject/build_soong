@@ -69,6 +69,7 @@ bootstrap_go_package {
         "license.go",
         "license_kind.go",
         "license_metadata.go",
+        "license_metadata_gob_enc.go",
         "license_sdk_member.go",
         "licenses.go",
         "logtags.go",
