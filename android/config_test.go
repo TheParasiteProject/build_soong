@@ -238,6 +238,11 @@ func (p partialCompileFlags) updateEnableIncD8(value bool) partialCompileFlags {
 	return p
 }
 
+func (p partialCompileFlags) updateEnableIncKotlinJavaDep(value bool) partialCompileFlags {
+	p.Enable_inc_kotlin_java_dep = value
+	return p
+}
+
 func TestPartialCompile(t *testing.T) {
 	mockConfig := func(value string) *config {
 		c := &config{
@@ -256,7 +261,7 @@ func TestPartialCompile(t *testing.T) {
 		{"false", true, partialCompileFlags{}},
 		{"true", true, enabledPartialCompileFlags},
 		{"true", false, partialCompileFlags{}},
-		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(true).updateEnableIncD8(true)},
+		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(true).updateEnableIncD8(true).updateEnableIncKotlinJavaDep(true)},
 
 		// This verifies both use_d8 and the processing order.
 		{"true,use_d8", true, enabledPartialCompileFlags.updateUseD8(true)},
@@ -295,6 +300,14 @@ func TestPartialCompile(t *testing.T) {
 		{"false,+inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
 		{"false,+enable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
 		{"false,-disable_inc_d8", true, partialCompileFlags{}.updateEnableIncD8(true)},
+
+		// enable_inc_kotlin_java_dep can be specified with any of 3 options.
+		{"false,-inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(false)},
+		{"false,-enable_inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(false)},
+		{"false,+disable_inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(false)},
+		{"false,+inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(true)},
+		{"false,+enable_inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(true)},
+		{"false,-disable_inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(true)},
 	}
 
 	for _, test := range tests {

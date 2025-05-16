@@ -454,6 +454,8 @@ type partialCompileFlags struct {
 	// Whether to enable incremental d8
 	Enable_inc_d8 bool
 
+	// Whether to enable passing dependencies incrementally from kotlin to java.
+	Enable_inc_kotlin_java_dep bool
 	// Add others as needed.
 }
 
@@ -462,20 +464,22 @@ var defaultPartialCompileFlags = partialCompileFlags{}
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=true`.
 var enabledPartialCompileFlags = partialCompileFlags{
-	Use_d8:                  true,
-	Disable_stub_validation: true,
-	Enable_inc_kotlin:       false,
-	Enable_inc_javac:        true,
-	Enable_inc_d8:           true,
+	Use_d8:                     true,
+	Disable_stub_validation:    true,
+	Enable_inc_kotlin:          false,
+	Enable_inc_javac:           true,
+	Enable_inc_d8:              true,
+	Enable_inc_kotlin_java_dep: false,
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=all`.
 var allPartialCompileFlags = partialCompileFlags{
-	Use_d8:                  true,
-	Disable_stub_validation: true,
-	Enable_inc_javac:        true,
-	Enable_inc_kotlin:       true,
-	Enable_inc_d8:           true,
+	Use_d8:                     true,
+	Disable_stub_validation:    true,
+	Enable_inc_javac:           true,
+	Enable_inc_kotlin:          true,
+	Enable_inc_d8:              true,
+	Enable_inc_kotlin_java_dep: true,
 }
 
 type deviceConfig struct {
@@ -573,6 +577,11 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 			ret.Enable_inc_kotlin = makeVal(state, defaultPartialCompileFlags.Enable_inc_kotlin)
 		case "disable_inc_kotlin":
 			ret.Enable_inc_kotlin = !makeVal(state, defaultPartialCompileFlags.Enable_inc_kotlin)
+
+		case "inc_kotlin_java_dep", "enable_inc_kotlin_java_dep":
+			ret.Enable_inc_kotlin_java_dep = makeVal(state, defaultPartialCompileFlags.Enable_inc_kotlin_java_dep)
+		case "disable_inc_kotlin_java_dep":
+			ret.Enable_inc_kotlin_java_dep = !makeVal(state, defaultPartialCompileFlags.Enable_inc_kotlin_java_dep)
 
 		case "stub_validation", "enable_stub_validation":
 			ret.Disable_stub_validation = !makeVal(state, !defaultPartialCompileFlags.Disable_stub_validation)

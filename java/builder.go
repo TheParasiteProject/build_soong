@@ -69,7 +69,7 @@ var (
 				`if [ -s $genAnnoSrcJarList ] ; then ` +
 				`echo >> $out.rsp && cat $genAnnoSrcJarList >> $out.rsp; fi && ` +
 				`${config.IncrementalJavacInputCmd} ` +
-				`--srcs $out.rsp --classDir $outDir --deps $javacDeps --javacTarget $out --srcDepsProto $out.proto --localHeaderJars $localHeaderJars && ` +
+				`--srcs $out.rsp --classDir $outDir --deps $javacDeps --javacTarget $out --srcDepsProto $out.proto --localHeaderJars $localHeaderJars --crossModuleJarList $crossModuleJars && ` +
 				`mkdir -p "$outDir" && ` +
 				`(if [ -s $out.inc.rsp ] ; then ` +
 				`${config.SoongJavacWrapper} $javaTemplate${config.JavacCmd} ` +
@@ -88,8 +88,10 @@ var (
 				`rm -rf $out.deps.pc_state.new; fi && ` +
 				`if [ -f "$out.headers.pc_state.new" ]; then mv "$out.headers.pc_state.new" "$out.headers.pc_state" && ` +
 				`rm -rf $out.headers.pc_state.new; fi && ` +
+				`if [ -f "$out.crossModuleDeps.pc_state.new" ]; then mv "$out.crossModuleDeps.pc_state.new" "$out.crossModuleDeps.pc_state" && ` +
+				`rm -rf $out.crossModuleDeps.pc_state.new; fi && ` +
 				`if [ -f $out.rsp ] && [ -f $out ]; then ` +
-				`${config.DependencyMapperJavacCmd} --src-path $out.rsp --jar-path $out --dependency-map-path $out.proto; fi`,
+				`${config.DependencyMapperJavacCmd} --src-path $out.rsp --jar-path $out --dependency-map-path $out.proto --cross-module-jar-list $crossModuleJars; fi`,
 			CommandDeps: []string{
 				"${config.DependencyMapperJavacCmd}",
 				"${config.IncrementalJavacInputCmd}",
@@ -121,7 +123,7 @@ var (
 				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 			},
 		}, []string{"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJarList", "genAnnoSrcJarList",
-			"outDir", "annoDir", "annoSrcJar", "javaVersion", "javacDeps", "localHeaderJars"}, nil)
+			"outDir", "annoDir", "annoSrcJar", "javaVersion", "javacDeps", "localHeaderJars", "crossModuleJars"}, nil)
 
 	// Compiling java is not conducive to proper dependency tracking.  The path-matches-class-name
 	// requirement leads to unpredictable generated source file names, and a single .java file
@@ -483,11 +485,11 @@ func DefaultJavaBuilderFlags() javaBuilderFlags {
 }
 
 func TransformJavaToClassesInc(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcJars, headerJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths, genAnnoSrcJar android.Path) {
+	srcFiles, srcJars, headerJars, crossModuleHeaderJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths, genAnnoSrcJar android.Path) {
 
 	// Compile java sources into .class files
 	desc := "javac-inc"
-	transformJavaToClassesInc(ctx, outputFile, srcFiles, srcJars, headerJars, annoSrcJar, flags, deps, "javac", desc, genAnnoSrcJar)
+	transformJavaToClassesInc(ctx, outputFile, srcFiles, srcJars, headerJars, crossModuleHeaderJars, annoSrcJar, flags, deps, "javac", desc, genAnnoSrcJar)
 }
 
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath, shardIdx int,
@@ -705,7 +707,7 @@ func TurbineApt(ctx android.ModuleContext, outputSrcJar, outputResJar android.Wr
 // compilation work incrementally (i.e. work with a smaller subset of src java files
 // rather than the full set)
 func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcJars, shardingHeaderJars android.Paths, annoSrcJar android.WritablePath,
+	srcFiles, srcJars, shardingHeaderJars, crossModuleHeaderJars android.Paths, annoSrcJar android.WritablePath,
 	flags javaBuilderFlags, deps android.Paths, intermediatesDir, desc string, genAnnoSrcJar android.Path) {
 
 	javacClasspath := flags.classpath
@@ -730,6 +732,18 @@ func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.Wri
 	deps = append(deps, flags.processorPath...)
 	deps = append(deps, javacClasspath...)
 
+	// Exclude some headers from deps.
+	// Headers will become deps for the jar.crossmoduledeps.rsp, which in turn will be a dep
+	// for the final compiled jar.
+	// These headers must be excluded because, currently, changes in deps causes a full javac
+	// recompilation. If changes to deps ever becomes incremental, this removal can be
+	// revisisted.
+	if crossModuleHeaderJars != nil {
+		deps = slices.DeleteFunc(deps, func(dep android.Path) bool {
+			return slices.Contains(crossModuleHeaderJars, dep)
+		})
+	}
+
 	// The file containing dependencies of the current module
 	// Any change in them may warrant changes in the incremental compilation
 	// source set.
@@ -746,7 +760,13 @@ func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.Wri
 	android.WriteFileRule(ctx, shardingHeaderRsp, strings.Join(shardingHeaderJars.Strings(), "\n"))
 	deps = append(deps, shardingHeaderRsp)
 
-	// Doing this now, sow that they are not added to javacDeps file
+	crossModuleDepsRsp := outputFile.ReplaceExtension(ctx, "jar.crossmoduledeps.rsp")
+	if crossModuleHeaderJars != nil {
+		android.WriteFileRule(ctx, crossModuleDepsRsp, strings.Join(crossModuleHeaderJars.Strings(), "\n"))
+		deps = append(deps, crossModuleDepsRsp)
+	}
+
+	// Doing this now, so that they are not added to javacDeps file
 	deps = append(deps, srcJars...)
 
 	classpathArg := javacClasspath.FormJavaClassPath("-classpath")
@@ -824,6 +844,7 @@ func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.Wri
 			"javaVersion":       flags.javaVersion.String(),
 			"javacDeps":         javacDeps.String(),
 			"localHeaderJars":   shardingHeaderRsp.String(),
+			"crossModuleJars":   crossModuleDepsRsp.String(),
 		},
 	})
 
