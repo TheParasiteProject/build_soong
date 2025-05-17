@@ -24,7 +24,10 @@ import (
 	"github.com/google/blueprint"
 )
 
+var pctx = android.NewPackageContext("android/soong/unbundled")
+
 func init() {
+	pctx.Import("android/soong/android")
 	registerUnbundledBuilder(android.InitRegistrationContext)
 }
 
@@ -34,7 +37,7 @@ func registerUnbundledBuilder(ctx android.RegistrationContext) {
 
 func unbundledBuilderFactory() android.Module {
 	m := &unbundledBuilder{}
-	android.InitAndroidArchModule(m, android.DeviceSupported, android.MultilibFirst)
+	android.InitAndroidModule(m)
 	return m
 }
 
@@ -53,6 +56,10 @@ func (unbundledDepTagType) ExcludeFromVisibilityEnforcement() {}
 
 var _ android.ExcludeFromVisibilityEnforcementTag = unbundledDepTagType{}
 
+func (unbundledDepTagType) UsesUnbundledVariant() {}
+
+var _ android.UsesUnbundledVariantDepTag = unbundledDepTagType{}
+
 var unbundledDepTag = unbundledDepTagType{}
 
 // We need to implement IsNativeCoverageNeeded so that in coverage builds we depend on the coverage
@@ -70,16 +77,11 @@ func (*unbundledBuilder) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	for _, app := range apps {
 		// Add a dependency on the app so we can get its providers later.
-		// We prefer the device variant if it exists. If not, try the host variant.
-		if ctx.OtherModuleDependencyVariantExists(nil, app) {
-			ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
-		} else if ctx.OtherModuleDependencyVariantExists(ctx.Config().BuildOSTarget.Variations(), app) {
-			ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), unbundledDepTag, app)
-		} else {
-			// If neither host nor device variants existed, add a dep on the device variant
-			// for the missing dependencies error.
-			ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
-		}
+		// unbundledDepTag implements android.UsesUnbundledVariantDepTag, which causes the
+		// os, arch, and sdk mutators to pick the most appropriate variants to use for unbundled
+		// builds. unbundledBuilder itself also implements cc.UseCoverage, which forces coverage
+		// variants of deps.
+		ctx.AddDependency(ctx.Module(), unbundledDepTag, app)
 	}
 }
 
@@ -132,4 +134,29 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictZip, targetProductPrefix+proguardZips.DictZip.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.DictMapping, targetProductPrefix+proguardZips.DictMapping.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", proguardZips.UsageZip, targetProductPrefix+proguardZips.UsageZip.Base())
+
+	// Dist jacoco report jar
+	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
+		jacocoZip := android.PathForModuleOut(ctx, "jacoco-report-classes-all.jar")
+		jacocoZipWithoutDeviceTests := android.PathForModuleOut(ctx, "jacoco-report-classes-all-without-device-tests.jar")
+		java.BuildJacocoZip(ctx, appModules, jacocoZipWithoutDeviceTests)
+		if ctx.Config().IsEnvTrue("JACOCO_PACKAGING_INCLUDE_DEVICE_TESTS") {
+			deviceTestsJacocoZip := java.DeviceTestsJacocoReportZip(ctx)
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.MergeZips,
+				Output: jacocoZip,
+				Inputs: []android.Path{
+					jacocoZipWithoutDeviceTests,
+					deviceTestsJacocoZip,
+				},
+			})
+		} else {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Output: jacocoZip,
+				Input:  jacocoZipWithoutDeviceTests,
+			})
+		}
+		ctx.DistForGoal("apps_only", jacocoZip)
+	}
 }

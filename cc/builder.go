@@ -304,8 +304,10 @@ var (
 	sAbiDiff = pctx.RuleFunc("sAbiDiff",
 		func(ctx android.PackageRuleContext) blueprint.RuleParams {
 			commandStr := "($sAbiDiffer ${extraFlags} -lib ${libName} -arch ${arch} -o ${out} -new ${in} -old ${referenceDump})"
-			commandStr += "|| (echo '${errorMessage}'"
-			commandStr += " && (mkdir -p $$DIST_DIR/abidiffs && cp ${out} $$DIST_DIR/abidiffs/)"
+			commandStr += "|| (echo 'First 50 lines of abidiff:'"
+			commandStr += " && head -n 50 ${out}"
+			commandStr += " && echo '${errorMessage}'"
+			commandStr += " && (test -n \"$$DIST_DIR\" && mkdir -p $$DIST_DIR/abidiffs && cp ${out} ${in} $$DIST_DIR/abidiffs/)"
 			commandStr += " && exit 1)"
 			return blueprint.RuleParams{
 				Command:     commandStr,
@@ -477,6 +479,17 @@ func (a Objects) Append(b Objects) Objects {
 		coverageFiles: append(a.coverageFiles, b.coverageFiles...),
 		sAbiDumpFiles: append(a.sAbiDumpFiles, b.sAbiDumpFiles...),
 		kytheFiles:    append(a.kytheFiles, b.kytheFiles...),
+	}
+}
+
+func (a Objects) Dedup() Objects {
+	return Objects{
+		objFiles:      android.FirstUniquePaths(a.objFiles),
+		tidyFiles:     android.FirstUniquePaths(a.tidyFiles),
+		tidyDepFiles:  android.FirstUniquePaths(a.tidyDepFiles),
+		coverageFiles: android.FirstUniquePaths(a.coverageFiles),
+		sAbiDumpFiles: android.FirstUniquePaths(a.sAbiDumpFiles),
+		kytheFiles:    android.FirstUniquePaths(a.kytheFiles),
 	}
 }
 
