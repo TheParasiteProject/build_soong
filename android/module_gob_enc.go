@@ -84,7 +84,7 @@ func (r InstallFilesInfo) Encode(buf *bytes.Buffer) error {
 		}
 	}
 
-	if err = gobtools.EncodeStruct(buf, &r.TransitivePackagingSpecs); err != nil {
+	if err = r.TransitivePackagingSpecs.Encode(buf); err != nil {
 		return err
 	}
 
@@ -92,7 +92,7 @@ func (r InstallFilesInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeStruct(buf, &r.TransitiveInstallFiles); err != nil {
+	if err = r.TransitiveInstallFiles.Encode(buf); err != nil {
 		return err
 	}
 
@@ -270,8 +270,7 @@ func (r *InstallFilesInfo) Decode(buf *bytes.Reader) error {
 		}
 	}
 
-	err = gobtools.DecodeStruct(buf, &r.TransitivePackagingSpecs)
-	if err != nil {
+	if err = r.TransitivePackagingSpecs.Decode(buf); err != nil {
 		return err
 	}
 
@@ -283,8 +282,7 @@ func (r *InstallFilesInfo) Decode(buf *bytes.Reader) error {
 		r.LicenseMetadataFile = val33.(WritablePath)
 	}
 
-	err = gobtools.DecodeStruct(buf, &r.TransitiveInstallFiles)
-	if err != nil {
+	if err = r.TransitiveInstallFiles.Decode(buf); err != nil {
 		return err
 	}
 
