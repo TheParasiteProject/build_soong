@@ -9,6 +9,8 @@ import (
 
 func init() {
 	TestSuiteInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(TestSuiteInfo) })
+	TestSuiteSharedLibsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(TestSuiteSharedLibsInfo) })
+	MakeNameInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(MakeNameInfo) })
 	filePairGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(filePair) })
 	testSuiteInstallsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(testSuiteInstallsInfo) })
 }
@@ -254,6 +256,103 @@ var TestSuiteInfoGobRegId int16
 
 func (r TestSuiteInfo) GetTypeId() int16 {
 	return TestSuiteInfoGobRegId
+}
+
+func (r TestSuiteSharedLibsInfo) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r TestSuiteSharedLibsInfo) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.MakeNames))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r.MakeNames); val1++ {
+		if err = gobtools.EncodeString(buf, r.MakeNames[val1]); err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+func (r *TestSuiteSharedLibsInfo) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *TestSuiteSharedLibsInfo) Decode(buf *bytes.Reader) error {
+	var err error
+
+	var val2 int32
+	err = gobtools.DecodeSimple[int32](buf, &val2)
+	if err != nil {
+		return err
+	}
+	if val2 > 0 {
+		r.MakeNames = make([]string, val2)
+		for val3 := 0; val3 < int(val2); val3++ {
+			err = gobtools.DecodeString(buf, &r.MakeNames[val3])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return err
+}
+
+var TestSuiteSharedLibsInfoGobRegId int16
+
+func (r TestSuiteSharedLibsInfo) GetTypeId() int16 {
+	return TestSuiteSharedLibsInfoGobRegId
+}
+
+func (r MakeNameInfo) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r MakeNameInfo) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeString(buf, r.Name); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *MakeNameInfo) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *MakeNameInfo) Decode(buf *bytes.Reader) error {
+	var err error
+
+	err = gobtools.DecodeString(buf, &r.Name)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+var MakeNameInfoGobRegId int16
+
+func (r MakeNameInfo) GetTypeId() int16 {
+	return MakeNameInfoGobRegId
 }
 
 func (r filePair) GobEncode() ([]byte, error) {

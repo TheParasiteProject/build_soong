@@ -10,7 +10,10 @@ import (
 func init() {
 	DistGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(Dist) })
 	InstallFilesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(InstallFilesInfo) })
+	ModuleBuildTargetsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleBuildTargetsInfo) })
+	CommonModuleInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(CommonModuleInfo) })
 	ApiLevelOrPlatformGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ApiLevelOrPlatform) })
+	HostToolProviderInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(HostToolProviderInfo) })
 	katiInstallGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(katiInstall) })
 	extraFilesZipGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(extraFilesZip) })
 	OutputFilesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(OutputFilesInfo) })
@@ -619,6 +622,557 @@ func (r InstallFilesInfo) GetTypeId() int16 {
 	return InstallFilesInfoGobRegId
 }
 
+func (r ModuleBuildTargetsInfo) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r ModuleBuildTargetsInfo) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeInterface(buf, r.InstallTarget); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeInterface(buf, r.CheckbuildTarget); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeString(buf, r.BlueprintDir); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *ModuleBuildTargetsInfo) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *ModuleBuildTargetsInfo) Decode(buf *bytes.Reader) error {
+	var err error
+
+	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+		return err
+	} else if val2 == nil {
+		r.InstallTarget = nil
+	} else {
+		r.InstallTarget = val2.(WritablePath)
+	}
+
+	if val4, err := gobtools.DecodeInterface(buf); err != nil {
+		return err
+	} else if val4 == nil {
+		r.CheckbuildTarget = nil
+	} else {
+		r.CheckbuildTarget = val4.(WritablePath)
+	}
+
+	err = gobtools.DecodeString(buf, &r.BlueprintDir)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+var ModuleBuildTargetsInfoGobRegId int16
+
+func (r ModuleBuildTargetsInfo) GetTypeId() int16 {
+	return ModuleBuildTargetsInfoGobRegId
+}
+
+func (r CommonModuleInfo) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r CommonModuleInfo) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeSimple(buf, r.Enabled); err != nil {
+		return err
+	}
+
+	if err = r.Target.Encode(buf); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.SkipAndroidMkProcessing); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeString(buf, r.BaseModuleName); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.CanHaveApexVariants); err != nil {
+		return err
+	}
+
+	if err = r.MinSdkVersion.Encode(buf); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeString(buf, r.SdkVersion); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.NotInPlatform); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.UninstallableApexPlatformVariant); err != nil {
+		return err
+	}
+
+	if err = r.MinSdkVersionSupported.Encode(buf); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.ModuleWithMinSdkVersionCheck); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.IsInstallableToApex); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.HideFromMake); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.SkipInstall); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.IsStubsModule); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.Host); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.IsApexModule); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeInterface(buf, r.PrimaryLicensesProperty); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeString(buf, r.Owner); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.Vendor); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.Proprietary); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.SocSpecific); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.ProductSpecific); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.SystemExtSpecific); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.DeviceSpecific); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.NoFullInstall); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.InVendorRamdisk); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.ExemptFromRequiredApplicableLicensesProperty); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.RequiredModuleNames))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r.RequiredModuleNames); val1++ {
+		if err = gobtools.EncodeString(buf, r.RequiredModuleNames[val1]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.HostRequiredModuleNames))); err != nil {
+		return err
+	}
+	for val2 := 0; val2 < len(r.HostRequiredModuleNames); val2++ {
+		if err = gobtools.EncodeString(buf, r.HostRequiredModuleNames[val2]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.TargetRequiredModuleNames))); err != nil {
+		return err
+	}
+	for val3 := 0; val3 < len(r.TargetRequiredModuleNames); val3++ {
+		if err = gobtools.EncodeString(buf, r.TargetRequiredModuleNames[val3]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.VintfFragmentModuleNames))); err != nil {
+		return err
+	}
+	for val4 := 0; val4 < len(r.VintfFragmentModuleNames); val4++ {
+		if err = gobtools.EncodeString(buf, r.VintfFragmentModuleNames[val4]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.Dists))); err != nil {
+		return err
+	}
+	for val5 := 0; val5 < len(r.Dists); val5++ {
+		if err = r.Dists[val5].Encode(buf); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.ExportedToMake); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeString(buf, r.Team); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeString(buf, r.PartitionTag); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.ApexAvailable))); err != nil {
+		return err
+	}
+	for val6 := 0; val6 < len(r.ApexAvailable); val6++ {
+		if err = gobtools.EncodeString(buf, r.ApexAvailable[val6]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.ApexAvailableFor))); err != nil {
+		return err
+	}
+	for val7 := 0; val7 < len(r.ApexAvailableFor); val7++ {
+		if err = gobtools.EncodeString(buf, r.ApexAvailableFor[val7]); err != nil {
+			return err
+		}
+	}
+
+	if err = r.ImageVariation.Encode(buf); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *CommonModuleInfo) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *CommonModuleInfo) Decode(buf *bytes.Reader) error {
+	var err error
+
+	err = gobtools.DecodeSimple[bool](buf, &r.Enabled)
+	if err != nil {
+		return err
+	}
+
+	if err = r.Target.Decode(buf); err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.SkipAndroidMkProcessing)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeString(buf, &r.BaseModuleName)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.CanHaveApexVariants)
+	if err != nil {
+		return err
+	}
+
+	if err = r.MinSdkVersion.Decode(buf); err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeString(buf, &r.SdkVersion)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.NotInPlatform)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.UninstallableApexPlatformVariant)
+	if err != nil {
+		return err
+	}
+
+	if err = r.MinSdkVersionSupported.Decode(buf); err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.ModuleWithMinSdkVersionCheck)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.IsInstallableToApex)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.HideFromMake)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.SkipInstall)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.IsStubsModule)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.Host)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.IsApexModule)
+	if err != nil {
+		return err
+	}
+
+	if val19, err := gobtools.DecodeInterface(buf); err != nil {
+		return err
+	} else if val19 == nil {
+		r.PrimaryLicensesProperty = nil
+	} else {
+		r.PrimaryLicensesProperty = val19.(applicableLicensesProperty)
+	}
+
+	err = gobtools.DecodeString(buf, &r.Owner)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.Vendor)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.Proprietary)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.SocSpecific)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.ProductSpecific)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.SystemExtSpecific)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.DeviceSpecific)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.NoFullInstall)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.InVendorRamdisk)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.ExemptFromRequiredApplicableLicensesProperty)
+	if err != nil {
+		return err
+	}
+
+	var val31 int32
+	err = gobtools.DecodeSimple[int32](buf, &val31)
+	if err != nil {
+		return err
+	}
+	if val31 > 0 {
+		r.RequiredModuleNames = make([]string, val31)
+		for val32 := 0; val32 < int(val31); val32++ {
+			err = gobtools.DecodeString(buf, &r.RequiredModuleNames[val32])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	var val35 int32
+	err = gobtools.DecodeSimple[int32](buf, &val35)
+	if err != nil {
+		return err
+	}
+	if val35 > 0 {
+		r.HostRequiredModuleNames = make([]string, val35)
+		for val36 := 0; val36 < int(val35); val36++ {
+			err = gobtools.DecodeString(buf, &r.HostRequiredModuleNames[val36])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	var val39 int32
+	err = gobtools.DecodeSimple[int32](buf, &val39)
+	if err != nil {
+		return err
+	}
+	if val39 > 0 {
+		r.TargetRequiredModuleNames = make([]string, val39)
+		for val40 := 0; val40 < int(val39); val40++ {
+			err = gobtools.DecodeString(buf, &r.TargetRequiredModuleNames[val40])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	var val43 int32
+	err = gobtools.DecodeSimple[int32](buf, &val43)
+	if err != nil {
+		return err
+	}
+	if val43 > 0 {
+		r.VintfFragmentModuleNames = make([]string, val43)
+		for val44 := 0; val44 < int(val43); val44++ {
+			err = gobtools.DecodeString(buf, &r.VintfFragmentModuleNames[val44])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	var val47 int32
+	err = gobtools.DecodeSimple[int32](buf, &val47)
+	if err != nil {
+		return err
+	}
+	if val47 > 0 {
+		r.Dists = make([]Dist, val47)
+		for val48 := 0; val48 < int(val47); val48++ {
+			if err = r.Dists[val48].Decode(buf); err != nil {
+				return err
+			}
+		}
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.ExportedToMake)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeString(buf, &r.Team)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeString(buf, &r.PartitionTag)
+	if err != nil {
+		return err
+	}
+
+	var val54 int32
+	err = gobtools.DecodeSimple[int32](buf, &val54)
+	if err != nil {
+		return err
+	}
+	if val54 > 0 {
+		r.ApexAvailable = make([]string, val54)
+		for val55 := 0; val55 < int(val54); val55++ {
+			err = gobtools.DecodeString(buf, &r.ApexAvailable[val55])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	var val58 int32
+	err = gobtools.DecodeSimple[int32](buf, &val58)
+	if err != nil {
+		return err
+	}
+	if val58 > 0 {
+		r.ApexAvailableFor = make([]string, val58)
+		for val59 := 0; val59 < int(val58); val59++ {
+			err = gobtools.DecodeString(buf, &r.ApexAvailableFor[val59])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if err = r.ImageVariation.Decode(buf); err != nil {
+		return err
+	}
+
+	return err
+}
+
+var CommonModuleInfoGobRegId int16
+
+func (r CommonModuleInfo) GetTypeId() int16 {
+	return CommonModuleInfoGobRegId
+}
+
 func (r ApiLevelOrPlatform) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -680,6 +1234,46 @@ var ApiLevelOrPlatformGobRegId int16
 
 func (r ApiLevelOrPlatform) GetTypeId() int16 {
 	return ApiLevelOrPlatformGobRegId
+}
+
+func (r HostToolProviderInfo) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r HostToolProviderInfo) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = r.HostToolPath.Encode(buf); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *HostToolProviderInfo) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *HostToolProviderInfo) Decode(buf *bytes.Reader) error {
+	var err error
+
+	if err = r.HostToolPath.Decode(buf); err != nil {
+		return err
+	}
+
+	return err
+}
+
+var HostToolProviderInfoGobRegId int16
+
+func (r HostToolProviderInfo) GetTypeId() int16 {
+	return HostToolProviderInfoGobRegId
 }
 
 func (r katiInstall) GobEncode() ([]byte, error) {

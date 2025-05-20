@@ -1938,6 +1938,7 @@ var SourceFilesInfoProvider = blueprint.NewProvider[SourceFilesInfo]()
 
 // ModuleBuildTargetsInfo is used by buildTargetSingleton to create checkbuild and
 // per-directory build targets.
+// @auto-generate: gob
 type ModuleBuildTargetsInfo struct {
 	InstallTarget    WritablePath
 	CheckbuildTarget WritablePath
@@ -1946,6 +1947,7 @@ type ModuleBuildTargetsInfo struct {
 
 var ModuleBuildTargetsProvider = blueprint.NewProvider[ModuleBuildTargetsInfo]()
 
+// @auto-generate: gob
 type CommonModuleInfo struct {
 	Enabled bool
 	// The Target of artifacts that this module variant is responsible for creating.
@@ -2011,6 +2013,7 @@ type ApiLevelOrPlatform struct {
 
 var CommonModuleInfoProvider = blueprint.NewProvider[*CommonModuleInfo]()
 
+// @auto-generate: gob
 type HostToolProviderInfo struct {
 	HostToolPath OptionalPath
 }
