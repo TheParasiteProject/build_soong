@@ -334,6 +334,7 @@ func exemptFromRequiredApplicableLicensesProperty(module ModuleOrProxy) bool {
 }
 
 // LicensesInfo contains information about licenses for a specific module.
+// @auto-generate: gob
 type LicensesInfo struct {
 	// The list of license modules this depends upon, either explicitly or through default package
 	// configuration.
