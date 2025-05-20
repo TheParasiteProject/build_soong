@@ -806,7 +806,7 @@ func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContex
 		ctx.Phony("droidcore-unbundled", moduleInfoJSONPath)
 		allDistContributions = append(allDistContributions, distContributions{
 			copiesForGoals: []*copiesForGoals{{
-				goals: "general-tests droidcore-unbundled haiku",
+				goals: "general-tests droidcore-unbundled haiku module-info",
 				copies: []distCopy{{
 					from: moduleInfoJSONPath,
 					dest: "module-info.json",
