@@ -23,8 +23,9 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
-	"github.com/google/blueprint/gobtools"
 )
+
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 func init() {
 	RegisterParallelSingletonType("testsuites", testSuiteFilesFactory)
@@ -41,6 +42,7 @@ type TestSuiteModule interface {
 	TestSuites() []string
 }
 
+// @auto-generate: gob
 type TestSuiteInfo struct {
 	// A suffix to append to the name of the test.
 	// Useful because historically different variants of soong modules became differently-named
@@ -91,36 +93,13 @@ var TestSuiteSharedLibsInfoProvider = blueprint.NewProvider[TestSuiteSharedLibsI
 // referenced in TestSuiteSharedLibsInfo
 var MakeNameInfoProvider = blueprint.NewProvider[string]()
 
+// @auto-generate: gob
 type filePair struct {
 	src Path
 	dst WritablePath
 }
 
-type filePairGob struct {
-	Src Path
-	Dst WritablePath
-}
-
-func (f *filePair) ToGob() *filePairGob {
-	return &filePairGob{
-		Src: f.src,
-		Dst: f.dst,
-	}
-}
-
-func (f *filePair) FromGob(data *filePairGob) {
-	f.src = data.Src
-	f.dst = data.Dst
-}
-
-func (p filePair) GobEncode() ([]byte, error) {
-	return gobtools.CustomGobEncode[filePairGob](&p)
-}
-
-func (p *filePair) GobDecode(data []byte) error {
-	return gobtools.CustomGobDecode[filePairGob](data, p)
-}
-
+// @auto-generate: gob
 type testSuiteInstallsInfo struct {
 	Files              []filePair
 	OneVariantInstalls []filePair

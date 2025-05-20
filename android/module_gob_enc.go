@@ -8,9 +8,206 @@ import (
 )
 
 func init() {
+	DistGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(Dist) })
 	InstallFilesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(InstallFilesInfo) })
+	ApiLevelOrPlatformGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ApiLevelOrPlatform) })
 	katiInstallGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(katiInstall) })
 	extraFilesZipGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(extraFilesZip) })
+	OutputFilesInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(OutputFilesInfo) })
+}
+
+func (r Dist) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r Dist) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.Targets))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r.Targets); val1++ {
+		if err = gobtools.EncodeString(buf, r.Targets[val1]); err != nil {
+			return err
+		}
+	}
+
+	val2 := r.Dest == nil
+	if err = gobtools.EncodeSimple(buf, val2); err != nil {
+		return err
+	}
+	if !val2 {
+		if err = gobtools.EncodeString(buf, (*r.Dest)); err != nil {
+			return err
+		}
+	}
+
+	val3 := r.Dir == nil
+	if err = gobtools.EncodeSimple(buf, val3); err != nil {
+		return err
+	}
+	if !val3 {
+		if err = gobtools.EncodeString(buf, (*r.Dir)); err != nil {
+			return err
+		}
+	}
+
+	val4 := r.Suffix == nil
+	if err = gobtools.EncodeSimple(buf, val4); err != nil {
+		return err
+	}
+	if !val4 {
+		if err = gobtools.EncodeString(buf, (*r.Suffix)); err != nil {
+			return err
+		}
+	}
+
+	val5 := r.Append_artifact_with_product == nil
+	if err = gobtools.EncodeSimple(buf, val5); err != nil {
+		return err
+	}
+	if !val5 {
+		if err = gobtools.EncodeSimple(buf, (*r.Append_artifact_with_product)); err != nil {
+			return err
+		}
+	}
+
+	val6 := r.Prepend_artifact_with_product == nil
+	if err = gobtools.EncodeSimple(buf, val6); err != nil {
+		return err
+	}
+	if !val6 {
+		if err = gobtools.EncodeSimple(buf, (*r.Prepend_artifact_with_product)); err != nil {
+			return err
+		}
+	}
+
+	val7 := r.Tag == nil
+	if err = gobtools.EncodeSimple(buf, val7); err != nil {
+		return err
+	}
+	if !val7 {
+		if err = gobtools.EncodeString(buf, (*r.Tag)); err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+func (r *Dist) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *Dist) Decode(buf *bytes.Reader) error {
+	var err error
+
+	var val2 int32
+	err = gobtools.DecodeSimple[int32](buf, &val2)
+	if err != nil {
+		return err
+	}
+	if val2 > 0 {
+		r.Targets = make([]string, val2)
+		for val3 := 0; val3 < int(val2); val3++ {
+			err = gobtools.DecodeString(buf, &r.Targets[val3])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	var val6 bool
+	if err = gobtools.DecodeSimple(buf, &val6); err != nil {
+		return err
+	}
+	if !val6 {
+		var val5 string
+		err = gobtools.DecodeString(buf, &val5)
+		if err != nil {
+			return err
+		}
+		r.Dest = &val5
+	}
+
+	var val9 bool
+	if err = gobtools.DecodeSimple(buf, &val9); err != nil {
+		return err
+	}
+	if !val9 {
+		var val8 string
+		err = gobtools.DecodeString(buf, &val8)
+		if err != nil {
+			return err
+		}
+		r.Dir = &val8
+	}
+
+	var val12 bool
+	if err = gobtools.DecodeSimple(buf, &val12); err != nil {
+		return err
+	}
+	if !val12 {
+		var val11 string
+		err = gobtools.DecodeString(buf, &val11)
+		if err != nil {
+			return err
+		}
+		r.Suffix = &val11
+	}
+
+	var val15 bool
+	if err = gobtools.DecodeSimple(buf, &val15); err != nil {
+		return err
+	}
+	if !val15 {
+		var val14 bool
+		err = gobtools.DecodeSimple[bool](buf, &val14)
+		if err != nil {
+			return err
+		}
+		r.Append_artifact_with_product = &val14
+	}
+
+	var val18 bool
+	if err = gobtools.DecodeSimple(buf, &val18); err != nil {
+		return err
+	}
+	if !val18 {
+		var val17 bool
+		err = gobtools.DecodeSimple[bool](buf, &val17)
+		if err != nil {
+			return err
+		}
+		r.Prepend_artifact_with_product = &val17
+	}
+
+	var val21 bool
+	if err = gobtools.DecodeSimple(buf, &val21); err != nil {
+		return err
+	}
+	if !val21 {
+		var val20 string
+		err = gobtools.DecodeString(buf, &val20)
+		if err != nil {
+			return err
+		}
+		r.Tag = &val20
+	}
+
+	return err
+}
+
+var DistGobRegId int16
+
+func (r Dist) GetTypeId() int16 {
+	return DistGobRegId
 }
 
 func (r InstallFilesInfo) GobEncode() ([]byte, error) {
@@ -422,6 +619,69 @@ func (r InstallFilesInfo) GetTypeId() int16 {
 	return InstallFilesInfoGobRegId
 }
 
+func (r ApiLevelOrPlatform) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r ApiLevelOrPlatform) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	val1 := r.ApiLevel == nil
+	if err = gobtools.EncodeSimple(buf, val1); err != nil {
+		return err
+	}
+	if !val1 {
+		if err = (*r.ApiLevel).Encode(buf); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.IsPlatform); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *ApiLevelOrPlatform) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *ApiLevelOrPlatform) Decode(buf *bytes.Reader) error {
+	var err error
+
+	var val2 bool
+	if err = gobtools.DecodeSimple(buf, &val2); err != nil {
+		return err
+	}
+	if !val2 {
+		var val1 ApiLevel
+		if err = val1.Decode(buf); err != nil {
+			return err
+		}
+		r.ApiLevel = &val1
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.IsPlatform)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+var ApiLevelOrPlatformGobRegId int16
+
+func (r ApiLevelOrPlatform) GetTypeId() int16 {
+	return ApiLevelOrPlatformGobRegId
+}
+
 func (r katiInstall) GobEncode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
@@ -618,4 +878,115 @@ var extraFilesZipGobRegId int16
 
 func (r extraFilesZip) GetTypeId() int16 {
 	return extraFilesZipGobRegId
+}
+
+func (r OutputFilesInfo) GobEncode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := r.Encode(buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r OutputFilesInfo) Encode(buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.DefaultOutputFiles))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r.DefaultOutputFiles); val1++ {
+		if err = gobtools.EncodeInterface(buf, r.DefaultOutputFiles[val1]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.TaggedOutputFiles))); err != nil {
+		return err
+	}
+	for k, v := range r.TaggedOutputFiles {
+		if err = gobtools.EncodeString(buf, k); err != nil {
+			return err
+		}
+		if err = gobtools.EncodeSimple(buf, int32(len(v))); err != nil {
+			return err
+		}
+		for val2 := 0; val2 < len(v); val2++ {
+			if err = gobtools.EncodeInterface(buf, v[val2]); err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
+
+func (r *OutputFilesInfo) GobDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	return r.Decode(buf)
+}
+
+func (r *OutputFilesInfo) Decode(buf *bytes.Reader) error {
+	var err error
+
+	var val3 int32
+	err = gobtools.DecodeSimple[int32](buf, &val3)
+	if err != nil {
+		return err
+	}
+	if val3 > 0 {
+		r.DefaultOutputFiles = make([]Path, val3)
+		for val4 := 0; val4 < int(val3); val4++ {
+			if val6, err := gobtools.DecodeInterface(buf); err != nil {
+				return err
+			} else if val6 == nil {
+				r.DefaultOutputFiles[val4] = nil
+			} else {
+				r.DefaultOutputFiles[val4] = val6.(Path)
+			}
+		}
+	}
+
+	var val7 int32
+	err = gobtools.DecodeSimple[int32](buf, &val7)
+	if err != nil {
+		return err
+	}
+	if val7 > 0 {
+		r.TaggedOutputFiles = make(map[string]Paths, val7)
+		for val8 := 0; val8 < int(val7); val8++ {
+			var k string
+			var v Paths
+			err = gobtools.DecodeString(buf, &k)
+			if err != nil {
+				return err
+			}
+			var val12 int32
+			err = gobtools.DecodeSimple[int32](buf, &val12)
+			if err != nil {
+				return err
+			}
+			if val12 > 0 {
+				v = make([]Path, val12)
+				for val13 := 0; val13 < int(val12); val13++ {
+					if val15, err := gobtools.DecodeInterface(buf); err != nil {
+						return err
+					} else if val15 == nil {
+						v[val13] = nil
+					} else {
+						v[val13] = val15.(Path)
+					}
+				}
+			}
+			r.TaggedOutputFiles[k] = v
+		}
+	}
+
+	return err
+}
+
+var OutputFilesInfoGobRegId int16
+
+func (r OutputFilesInfo) GetTypeId() int16 {
+	return OutputFilesInfoGobRegId
 }

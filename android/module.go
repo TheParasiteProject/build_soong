@@ -189,6 +189,7 @@ func newPackageId(pkg string) qualifiedModuleName {
 	return qualifiedModuleName{pkg: pkg, name: ""}
 }
 
+// @auto-generate: gob
 type Dist struct {
 	// Copy the output of this module to the $DIST_DIR when `dist` is specified on the
 	// command line and any of these targets are also on the command line, or otherwise
@@ -2002,6 +2003,7 @@ type CommonModuleInfo struct {
 	ImageVariation   blueprint.Variation
 }
 
+// @auto-generate: gob
 type ApiLevelOrPlatform struct {
 	ApiLevel   *ApiLevel
 	IsPlatform bool
@@ -3215,6 +3217,7 @@ func (o OutputFilesInfo) isEmpty() bool {
 	return o.DefaultOutputFiles == nil && o.TaggedOutputFiles == nil
 }
 
+// @auto-generate: gob
 type OutputFilesInfo struct {
 	// default output files when tag is an empty string ""
 	DefaultOutputFiles Paths
