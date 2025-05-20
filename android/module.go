@@ -897,13 +897,6 @@ type ModuleBase struct {
 	variables   map[string]string
 }
 
-func (m *ModuleBase) AddJSONData(d *map[string]interface{}) {
-	(*d)["Android"] = map[string]interface{}{
-		// Properties set in Blueprint or in blueprint of a defaults modules
-		"SetProperties": m.propertiesWithValues(),
-	}
-}
-
 type propInfo struct {
 	Name   string
 	Type   string
