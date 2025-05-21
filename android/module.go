@@ -2049,6 +2049,8 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		phonies:           make(map[string]Paths),
 	}
 
+	blueprintCtx.RegisterConfigurableEvaluator(ctx)
+
 	if ctx.config.captureBuild {
 		ctx.config.modulesForTests.Insert(ctx.ModuleName(), ctx.Module())
 	}
