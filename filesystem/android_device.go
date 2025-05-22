@@ -979,10 +979,12 @@ func (a *androidDevice) getBootimgHeaderVersion(ctx android.ModuleContext, bootI
 // - vbmeta_digest.txt
 func (a *androidDevice) addImgToTargetFiles(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir string) {
 	mkbootimg := ctx.Config().HostToolPath(ctx, "mkbootimg")
+	lpmake := ctx.Config().HostToolPath(ctx, "lpmake")
 	builder.Command().
 		Textf("PATH=%s:$PATH", ctx.Config().HostToolDir()).
 		Textf("MKBOOTIMG=%s", mkbootimg).
 		Implicit(mkbootimg).
+		Implicit(lpmake).
 		BuiltTool("add_img_to_target_files").
 		Flag("-a -v -p").
 		Flag(ctx.Config().HostToolDir()).
