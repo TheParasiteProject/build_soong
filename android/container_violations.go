@@ -302,6 +302,10 @@ var ContainerDependencyViolationAllowlist = map[string][]string{
 		"framework", // cts -> unstable
 	},
 
+	"CtsContentResolverTestCases": {
+		"framework", // cts -> unstable
+	},
+
 	"CtsContentSuggestionsTestCases": {
 		"framework", // cts -> unstable
 	},
