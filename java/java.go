@@ -38,6 +38,8 @@ import (
 	"android/soong/tradefed"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 func init() {
 	registerJavaBuildComponents(android.InitRegistrationContext)
 
@@ -234,6 +236,7 @@ var (
 	}, "jar_name", "partition", "main_class")
 )
 
+// @auto-generate: gob
 type ProguardSpecInfo struct {
 	// If true, proguard flags files will be exported to reverse dependencies across libs edges
 	// If false, proguard flags files will only be exported to reverse dependencies across
@@ -3571,7 +3574,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), android.PathForModuleInstall(ctx, "framework", j.Stem()+".jar"))
 	j.dexpreopter.uncompressedDex = shouldUncompressDex(ctx, android.RemoveOptionalPrebuiltPrefix(ctx.ModuleName()), &j.dexpreopter)
 
-	inputJar := ctx.ExpandSource(j.properties.Jars[0], "jars")
+	inputJar := android.PathForModuleSrc(ctx, j.properties.Jars[0])
 	dexOutputFile := android.PathForModuleOut(ctx, ctx.ModuleName()+".jar")
 
 	if j.dexpreopter.uncompressedDex {

@@ -11,16 +11,6 @@ func init() {
 	ModulePhonyInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModulePhonyInfo) })
 }
 
-func (r ModulePhonyInfo) GobEncode() ([]byte, error) {
-	buf := new(bytes.Buffer)
-
-	if err := r.Encode(buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (r ModulePhonyInfo) Encode(buf *bytes.Buffer) error {
 	var err error
 
@@ -40,12 +30,7 @@ func (r ModulePhonyInfo) Encode(buf *bytes.Buffer) error {
 			}
 		}
 	}
-	return nil
-}
-
-func (r *ModulePhonyInfo) GobDecode(b []byte) error {
-	buf := bytes.NewReader(b)
-	return r.Decode(buf)
+	return err
 }
 
 func (r *ModulePhonyInfo) Decode(buf *bytes.Reader) error {
@@ -86,7 +71,7 @@ func (r *ModulePhonyInfo) Decode(buf *bytes.Reader) error {
 		}
 	}
 
-	return nil
+	return err
 }
 
 var ModulePhonyInfoGobRegId int16

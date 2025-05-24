@@ -129,6 +129,8 @@ type SnapshotInfo struct {
 type TestBinaryInfo struct {
 	Gtest bool
 }
+
+// @auto-generate: gob
 type BenchmarkDecoratorInfo struct{}
 
 // @auto-generate: gob
@@ -274,6 +276,7 @@ type LinkableInfo struct {
 	ImplementationModuleName string
 }
 
+// @auto-generate: gob
 type InstallPair struct {
 	Src android.Path
 	Dst android.InstallPath
@@ -2746,7 +2749,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		BaseModuleName: c.BaseModuleName(),
 		Target:         ctx.Target(),
 	}
-	android.SetProvider(ctx, android.MakeNameInfoProvider, MakeLibName(&ccInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()))
+	android.SetProvider(ctx, android.MakeNameInfoProvider, android.MakeNameInfo{
+		Name: MakeLibName(&ccInfo, linkableInfo, &myCommonInfo, ctx.ModuleName()),
+	})
 
 	c.setOutputFiles(ctx)
 

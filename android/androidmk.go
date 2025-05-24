@@ -38,6 +38,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
+
 func init() {
 	RegisterAndroidMkBuildComponents(InitRegistrationContext)
 }
@@ -806,7 +808,7 @@ func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContex
 		ctx.Phony("droidcore-unbundled", moduleInfoJSONPath)
 		allDistContributions = append(allDistContributions, distContributions{
 			copiesForGoals: []*copiesForGoals{{
-				goals: "general-tests droidcore-unbundled haiku",
+				goals: "general-tests droidcore-unbundled haiku module-info",
 				copies: []distCopy{{
 					from: moduleInfoJSONPath,
 					dest: "module-info.json",
@@ -910,7 +912,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 				continue
 			}
 			if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-				moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON...)
+				moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON.Data...)
 			}
 			if contribution := getDistContributions(ctx, mod); contribution != nil {
 				allDistContributions = append(allDistContributions, *contribution)
@@ -928,7 +930,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 					continue
 				}
 				if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-					moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON...)
+					moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON.Data...)
 				}
 				if contribution := getDistContributions(ctx, mod.(Module)); contribution != nil {
 					allDistContributions = append(allDistContributions, *contribution)
@@ -942,7 +944,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 						continue
 					}
 					if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-						moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON...)
+						moduleInfoJSONs = append(moduleInfoJSONs, moduleInfoJSON.Data...)
 					}
 					if contribution := getDistContributions(ctx, mod.(Module)); contribution != nil {
 						allDistContributions = append(allDistContributions, *contribution)
@@ -1137,7 +1139,7 @@ func translateAndroidModule(ctx SingletonContext, w io.Writer, moduleInfoJSONs *
 
 	if !data.Entries.disabled() {
 		if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-			*moduleInfoJSONs = append(*moduleInfoJSONs, moduleInfoJSON...)
+			*moduleInfoJSONs = append(*moduleInfoJSONs, moduleInfoJSON.Data...)
 		}
 	}
 
@@ -1180,7 +1182,7 @@ func translateAndroidMkEntriesModule(ctx SingletonContext, w io.Writer, moduleIn
 
 		if providesModuleInfoJSON && !entries.disabled() {
 			// append only the name matching moduleInfoJSON entry
-			for _, m := range moduleInfoJSON {
+			for _, m := range moduleInfoJSON.Data {
 				if m.RegisterNameOverride == entries.OverrideName && m.SubName == entries.SubName {
 					*moduleInfoJSONs = append(*moduleInfoJSONs, m)
 				}
@@ -1272,11 +1274,13 @@ func AndroidMkEmitAssignList(w io.Writer, varName string, lists ...[]string) {
 	fmt.Fprintln(w)
 }
 
+// @auto-generate: gob
 type AndroidMkProviderInfo struct {
 	PrimaryInfo AndroidMkInfo
 	ExtraInfo   []AndroidMkInfo
 }
 
+// @auto-generate: gob
 type AndroidMkInfo struct {
 	// Android.mk class string, e.g. EXECUTABLES, JAVA_LIBRARIES, ETC
 	Class string
@@ -1352,7 +1356,7 @@ func translateAndroidMkEntriesInfoModule(ctx SingletonContext, w io.Writer, modu
 
 	if !info.PrimaryInfo.disabled() {
 		if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
-			*moduleInfoJSONs = append(*moduleInfoJSONs, moduleInfoJSON...)
+			*moduleInfoJSONs = append(*moduleInfoJSONs, moduleInfoJSON.Data...)
 		}
 	}
 

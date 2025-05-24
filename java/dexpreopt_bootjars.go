@@ -767,6 +767,7 @@ func (d *dexpreoptBootJars) buildBootZip(ctx android.ModuleContext) {
 		Inputs: []android.Path{
 			bootZipMetadataTmp,
 			globalSoong.UffdGcFlag,
+			globalSoong.AssumeValueFlags,
 			newlineFile,
 		},
 		Output: bootZipMetadata,
@@ -1328,6 +1329,8 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 		cmd.Flag(global.BootFlags)
 	}
 
+	cmd.Text("$(cat").Input(globalSoong.AssumeValueFlags).Text(")")
+
 	if extraFlags != "" {
 		cmd.Flag(extraFlags)
 	}
@@ -1419,6 +1422,10 @@ func bootImageProfileRuleCommon(ctx android.ModuleContext, name string, dexFiles
 	if path := android.ExistentPathForSource(ctx, extraProfile); path.Valid() {
 		profiles = append(profiles, path.Path())
 	}
+
+        // Remove duplicates while preserving order to ensure deterministic builds.
+	profiles = android.FirstUniquePaths(profiles)
+
 	// We concatenate the profiles into a single file. Later, `profman` filters the entries based on
 	// `dexFiles` to only keep the relevant ones. For example, when this function is called for
 	// generating the profile for the ART module, `profman` only keeps the entries for the ART module
