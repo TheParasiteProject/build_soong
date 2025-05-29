@@ -2229,7 +2229,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	installFiles.TransitiveInstallFiles = ctx.TransitiveInstallFiles
 	installFiles.TransitivePackagingSpecs = depset.New[PackagingSpec](depset.TOPOLOGICAL, ctx.packagingSpecs, dependencyPackagingSpecs)
 
-	SetProvider(ctx, InstallFilesProvider, installFiles)
+	if m.Enabled(ctx) {
+		SetProvider(ctx, InstallFilesProvider, installFiles)
+	}
 	buildLicenseMetadata(ctx, ctx.licenseMetadataFile)
 
 	var testSuiteInstalls []filePair
