@@ -381,8 +381,12 @@ var (
 	ExperimentalCppStdVersion = "gnu++2b"
 
 	// prebuilts/clang default settings.
-	ClangDefaultBase         = "prebuilts/clang/host"
-	ClangDefaultVersion      = "clang-r547379"
+	ClangDefaultBase = "prebuilts/clang/host"
+	// The Clang version used in the trunk branch.
+	// NOTE: This is deprecated and will be removed in a future version, use the getter function instead.
+	ClangDefaultVersion = "clang-r547379"
+	// The Clang short version used in the trunk branch.
+	// NOTE: This is deprecated and will be removed in a future version, use the getter function instead.
 	ClangDefaultShortVersion = "20"
 
 	// Directories with warnings from Android.bp files.
@@ -489,8 +493,18 @@ func init() {
 	pctx.PrefixedExistentPathsForSourcesVariable("CommonGlobalIncludes", "-I", commonGlobalIncludes)
 
 	pctx.StaticVariableWithEnvOverride("ClangBase", "LLVM_PREBUILTS_BASE", ClangDefaultBase)
-	pctx.StaticVariableWithEnvOverride("ClangVersion", "LLVM_PREBUILTS_VERSION", ClangDefaultVersion)
-	pctx.StaticVariableWithEnvOverride("ClangShortVersion", "LLVM_RELEASE_VERSION", ClangDefaultShortVersion)
+	pctx.VariableFunc("ClangVersion", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
+			return override
+		}
+		return ctx.Config().ReleaseBuildClangVersion(ClangDefaultVersion)
+	})
+	pctx.VariableFunc("ClangShortVersion", func(ctx android.PackageVarContext) string {
+		if override := ctx.Config().Getenv("LLVM_RELEASE_VERSION"); override != "" {
+			return override
+		}
+		return ctx.Config().ReleaseBuildClangShortVersion(ClangDefaultShortVersion)
+	})
 
 	pctx.StaticVariable("ClangPath", "${ClangBase}/${HostPrebuiltTag}/${ClangVersion}")
 	pctx.StaticVariable("ClangBin", "${ClangPath}/bin")
@@ -548,10 +562,18 @@ func clangPath(ctx android.PathContext) android.SourcePath {
 		if override := ctx.Config().Getenv("LLVM_PREBUILTS_BASE"); override != "" {
 			clangBase = override
 		}
-		clangVersion := ClangDefaultVersion
+		clangVersion := ctx.Config().ReleaseBuildClangVersion(ClangDefaultVersion)
 		if override := ctx.Config().Getenv("LLVM_PREBUILTS_VERSION"); override != "" {
 			clangVersion = override
 		}
 		return android.PathForSource(ctx, clangBase, ctx.Config().PrebuiltOS(), clangVersion)
 	})
+}
+
+func ClangVersion(ctx android.PathContext) string {
+	return ctx.Config().ReleaseBuildClangVersion(ClangDefaultVersion)
+}
+
+func ClangShortVersion(ctx android.PathContext) string {
+	return ctx.Config().ReleaseBuildClangShortVersion(ClangDefaultShortVersion)
 }
