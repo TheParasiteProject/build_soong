@@ -44,6 +44,8 @@ func FlagDeclarationFactory(protoPath string) (fd *rc_proto.FlagDeclaration, err
 		return nil, fmt.Errorf("%s incorrectly declares flag %s", protoPath, *fd.Name)
 	case fd.Namespace == nil:
 		return nil, fmt.Errorf("Flag declaration %s has no namespace.", protoPath)
+	case fd.Workflow == nil:
+		return nil, fmt.Errorf("Flag declaration %s has no workflow.", protoPath)
 	case fd.Containers != nil:
 		for _, container := range fd.Containers {
 			if !validContainer(container) {
