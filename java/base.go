@@ -1301,10 +1301,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 		transitiveStaticLibsHeaderJars := deps.transitiveStaticLibsHeaderJars
 
-		localHeaderJars, combinedHeaderJarFile := j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName,
+		localHeaderJars, _, preJarjarHeaderJarFile := j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName,
 			extraCombinedJars)
 
-		combinedHeaderJarFile, jarjared := j.jarjarIfNecessary(ctx, combinedHeaderJarFile, jarName, "turbine", false)
+		combinedHeaderJarFile, jarjared := j.jarjarIfNecessary(ctx, preJarjarHeaderJarFile, jarName, "turbine", false)
 		if jarjared {
 			localHeaderJars = android.Paths{combinedHeaderJarFile}
 			transitiveStaticLibsHeaderJars = nil
@@ -1332,6 +1332,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		j.outputFile = j.headerJarFile
 		return &JavaInfo{
 			HeaderJars:                          android.PathsIfNonNil(j.headerJarFile),
+			LocalHeaderJarsPreJarjar:            android.PathsIfNonNil(preJarjarHeaderJarFile),
 			LocalHeaderJars:                     localHeaderJars,
 			TransitiveStaticLibsHeaderJars:      depset.New(depset.PREORDER, localHeaderJars, transitiveStaticLibsHeaderJars),
 			TransitiveLibsHeaderJarsForR8:       j.transitiveLibsHeaderJarsForR8,
@@ -1491,6 +1492,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	var localHeaderJars android.Paths
 	var shardingHeaderJars android.Paths
 	var repackagedHeaderJarFile android.Path
+	var combinedHeaderJarFile android.Path
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !disableTurbine {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enableSharding = true
@@ -1502,9 +1504,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		}
 		extraJars := slices.Clone(kotlinHeaderJars)
 		extraJars = append(extraJars, extraCombinedJars...)
-		var combinedHeaderJarFile android.Path
-		localHeaderJars, combinedHeaderJarFile = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, extraJars)
-		shardingHeaderJars = localHeaderJars
+		localHeaderJars, shardingHeaderJars, combinedHeaderJarFile = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, extraJars)
 
 		var jarjared bool
 		j.headerJarFile, jarjared = j.jarjarIfNecessary(ctx, combinedHeaderJarFile, jarName, "turbine", false)
@@ -1549,7 +1549,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			// turbine was disabled, lets run it now
 			turbineExtraJars := slices.Clone(kotlinHeaderJars)
 			turbineExtraJars = append(turbineExtraJars, extraCombinedJars...)
-			shardingHeaderJars, _ = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJarsForTurbine, deps, flags, jarName, turbineExtraJars)
+			_, shardingHeaderJars, _ = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJarsForTurbine, deps, flags, jarName, turbineExtraJars)
 		}
 
 		var extraJarDeps android.Paths
@@ -2025,8 +2025,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		j.headerJarFile = deps.headerJarOverride.Path()
 	}
 	return &JavaInfo{
-		HeaderJars:           android.PathsIfNonNil(j.headerJarFile),
-		RepackagedHeaderJars: android.PathsIfNonNil(repackagedHeaderJarFile),
+		HeaderJars:               android.PathsIfNonNil(j.headerJarFile),
+		LocalHeaderJarsPreJarjar: android.PathsIfNonNil(combinedHeaderJarFile),
+		RepackagedHeaderJars:     android.PathsIfNonNil(repackagedHeaderJarFile),
 
 		LocalHeaderJars:                        localHeaderJars,
 		KotlinHeaderJars:                       kotlinHeaderJars,
@@ -2195,11 +2196,23 @@ func CheckKotlincFlags(ctx android.ModuleContext, flags []string) {
 
 func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars android.Paths,
 	deps deps, flags javaBuilderFlags, jarName string,
-	extraJars android.Paths) (localHeaderJars android.Paths, combinedHeaderJar android.Path) {
+	extraJars android.Paths) (localHeaderJars, localHeaderJarsForSharding android.Paths, combinedHeaderJar android.Path) {
 
 	if deps.headerJarOverride.Valid() {
-		localHeaderJars = append(localHeaderJars, deps.headerJarOverride.Path())
-	} else if len(srcFiles) > 0 || len(srcJars) > 0 {
+		// If we are sharding, we need the pre-jarjar override path; localHeaderJars always
+		// needs the jarjared version.
+		localHeaderJars = append(android.Paths{deps.headerJarOverride.Path()}, extraJars...)
+		var headerJar android.Path
+		if deps.headerJarOverridePreJarjar.Valid() {
+			headerJar = deps.headerJarOverridePreJarjar.Path()
+		} else {
+			headerJar = deps.headerJarOverride.Path()
+		}
+		localHeaderJarsForSharding = append(android.Paths{headerJar}, extraJars...)
+		return localHeaderJars, localHeaderJarsForSharding, deps.headerJarOverride.Path()
+	}
+
+	if len(srcFiles) > 0 || len(srcJars) > 0 {
 		// Compile java sources into turbine.jar.
 		turbineJar := android.PathForModuleOut(ctx, "turbine", jarName)
 		TransformJavaToHeaderClasses(ctx, turbineJar, srcFiles, srcJars, flags)
@@ -2220,7 +2233,7 @@ func (j *Module) compileJavaHeader(ctx android.ModuleContext, srcFiles, srcJars 
 	TransformJarsToJar(ctx, combinedHeaderJarOutputPath, "for turbine", jars, android.OptionalPath{},
 		false, nil, []string{"META-INF/TRANSITIVE"})
 
-	return localHeaderJars, combinedHeaderJarOutputPath
+	return localHeaderJars, localHeaderJars, combinedHeaderJarOutputPath
 }
 
 func (j *Module) instrument(ctx android.ModuleContext, flags javaBuilderFlags,
@@ -2597,9 +2610,10 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				if dep.HeaderJars == nil {
 					ctx.ModuleErrorf("%s does not provide header jars", otherName)
 				} else if len(dep.HeaderJars) > 1 {
-					ctx.ModuleErrorf("%s does not provides too many header jars", otherName)
+					ctx.ModuleErrorf("%s provides too many header jars", otherName)
 				} else {
 					deps.headerJarOverride = android.OptionalPathForPath(dep.HeaderJars[0])
+					deps.headerJarOverridePreJarjar = android.OptionalPathForPath(dep.LocalHeaderJarsPreJarjar[0])
 				}
 			case java9LibTag:
 				deps.java9Classpath = append(deps.java9Classpath, dep.HeaderJars...)
