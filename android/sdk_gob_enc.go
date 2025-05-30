@@ -11,7 +11,7 @@ func init() {
 	SdkMemberTypeBaseGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SdkMemberTypeBase) })
 }
 
-func (r SdkMemberTypeBase) Encode(buf *bytes.Buffer) error {
+func (r SdkMemberTypeBase) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.PropertyName); err != nil {
@@ -77,14 +77,14 @@ func (r SdkMemberTypeBase) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val3 := 0; val3 < len(r.Traits); val3++ {
-		if err = gobtools.EncodeInterface(buf, r.Traits[val3]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.Traits[val3]); err != nil {
 			return err
 		}
 	}
 	return err
 }
 
-func (r *SdkMemberTypeBase) Decode(buf *bytes.Reader) error {
+func (r *SdkMemberTypeBase) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.PropertyName)
@@ -180,7 +180,7 @@ func (r *SdkMemberTypeBase) Decode(buf *bytes.Reader) error {
 	if val20 > 0 {
 		r.Traits = make([]SdkMemberTrait, val20)
 		for val21 := 0; val21 < int(val20); val21++ {
-			if val23, err := gobtools.DecodeInterface(buf); err != nil {
+			if val23, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val23 == nil {
 				r.Traits[val21] = nil

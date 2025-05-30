@@ -11,7 +11,7 @@ func init() {
 	SanitizeUserPropsGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SanitizeUserProps) })
 }
 
-func (r SanitizeUserProps) Encode(buf *bytes.Buffer) error {
+func (r SanitizeUserProps) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	val1 := r.Never == nil
@@ -272,7 +272,7 @@ func (r SanitizeUserProps) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *SanitizeUserProps) Decode(buf *bytes.Reader) error {
+func (r *SanitizeUserProps) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 bool

@@ -15,7 +15,7 @@ func init() {
 	testSuiteInstallsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(testSuiteInstallsInfo) })
 }
 
-func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
+func (r TestSuiteInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.NameSuffix); err != nil {
@@ -35,7 +35,7 @@ func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.MainFile); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.MainFile); err != nil {
 		return err
 	}
 
@@ -47,7 +47,7 @@ func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.ConfigFile); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.ConfigFile); err != nil {
 		return err
 	}
 
@@ -59,7 +59,7 @@ func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val2 := 0; val2 < len(r.ExtraConfigs); val2++ {
-		if err = gobtools.EncodeInterface(buf, r.ExtraConfigs[val2]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.ExtraConfigs[val2]); err != nil {
 			return err
 		}
 	}
@@ -72,7 +72,7 @@ func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val3 := 0; val3 < len(r.Data); val3++ {
-		if err = r.Data[val3].Encode(buf); err != nil {
+		if err = r.Data[val3].Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
@@ -81,7 +81,7 @@ func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val4 := 0; val4 < len(r.NonArchData); val4++ {
-		if err = r.NonArchData[val4].Encode(buf); err != nil {
+		if err = r.NonArchData[val4].Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
@@ -90,7 +90,7 @@ func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val5 := 0; val5 < len(r.CompatibilitySupportFiles); val5++ {
-		if err = gobtools.EncodeInterface(buf, r.CompatibilitySupportFiles[val5]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.CompatibilitySupportFiles[val5]); err != nil {
 			return err
 		}
 	}
@@ -101,7 +101,7 @@ func (r TestSuiteInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *TestSuiteInfo) Decode(buf *bytes.Reader) error {
+func (r *TestSuiteInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.NameSuffix)
@@ -129,7 +129,7 @@ func (r *TestSuiteInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if val8, err := gobtools.DecodeInterface(buf); err != nil {
+	if val8, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val8 == nil {
 		r.MainFile = nil
@@ -147,7 +147,7 @@ func (r *TestSuiteInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if val12, err := gobtools.DecodeInterface(buf); err != nil {
+	if val12, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val12 == nil {
 		r.ConfigFile = nil
@@ -168,7 +168,7 @@ func (r *TestSuiteInfo) Decode(buf *bytes.Reader) error {
 	if val16 > 0 {
 		r.ExtraConfigs = make([]Path, val16)
 		for val17 := 0; val17 < int(val16); val17++ {
-			if val19, err := gobtools.DecodeInterface(buf); err != nil {
+			if val19, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val19 == nil {
 				r.ExtraConfigs[val17] = nil
@@ -191,7 +191,7 @@ func (r *TestSuiteInfo) Decode(buf *bytes.Reader) error {
 	if val22 > 0 {
 		r.Data = make([]DataPath, val22)
 		for val23 := 0; val23 < int(val22); val23++ {
-			if err = r.Data[val23].Decode(buf); err != nil {
+			if err = r.Data[val23].Decode(ctx, buf); err != nil {
 				return err
 			}
 		}
@@ -205,7 +205,7 @@ func (r *TestSuiteInfo) Decode(buf *bytes.Reader) error {
 	if val26 > 0 {
 		r.NonArchData = make([]DataPath, val26)
 		for val27 := 0; val27 < int(val26); val27++ {
-			if err = r.NonArchData[val27].Decode(buf); err != nil {
+			if err = r.NonArchData[val27].Decode(ctx, buf); err != nil {
 				return err
 			}
 		}
@@ -219,7 +219,7 @@ func (r *TestSuiteInfo) Decode(buf *bytes.Reader) error {
 	if val30 > 0 {
 		r.CompatibilitySupportFiles = make([]Path, val30)
 		for val31 := 0; val31 < int(val30); val31++ {
-			if val33, err := gobtools.DecodeInterface(buf); err != nil {
+			if val33, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val33 == nil {
 				r.CompatibilitySupportFiles[val31] = nil
@@ -243,7 +243,7 @@ func (r TestSuiteInfo) GetTypeId() int16 {
 	return TestSuiteInfoGobRegId
 }
 
-func (r TestSuiteSharedLibsInfo) Encode(buf *bytes.Buffer) error {
+func (r TestSuiteSharedLibsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.MakeNames))); err != nil {
@@ -257,7 +257,7 @@ func (r TestSuiteSharedLibsInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *TestSuiteSharedLibsInfo) Decode(buf *bytes.Reader) error {
+func (r *TestSuiteSharedLibsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 int32
@@ -284,7 +284,7 @@ func (r TestSuiteSharedLibsInfo) GetTypeId() int16 {
 	return TestSuiteSharedLibsInfoGobRegId
 }
 
-func (r MakeNameInfo) Encode(buf *bytes.Buffer) error {
+func (r MakeNameInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.Name); err != nil {
@@ -293,7 +293,7 @@ func (r MakeNameInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *MakeNameInfo) Decode(buf *bytes.Reader) error {
+func (r *MakeNameInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.Name)
@@ -310,23 +310,23 @@ func (r MakeNameInfo) GetTypeId() int16 {
 	return MakeNameInfoGobRegId
 }
 
-func (r filePair) Encode(buf *bytes.Buffer) error {
+func (r filePair) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.src); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.src); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.dst); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.dst); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *filePair) Decode(buf *bytes.Reader) error {
+func (r *filePair) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.src = nil
@@ -334,7 +334,7 @@ func (r *filePair) Decode(buf *bytes.Reader) error {
 		r.src = val2.(Path)
 	}
 
-	if val4, err := gobtools.DecodeInterface(buf); err != nil {
+	if val4, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val4 == nil {
 		r.dst = nil
@@ -351,14 +351,14 @@ func (r filePair) GetTypeId() int16 {
 	return filePairGobRegId
 }
 
-func (r testSuiteInstallsInfo) Encode(buf *bytes.Buffer) error {
+func (r testSuiteInstallsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.Files))); err != nil {
 		return err
 	}
 	for val1 := 0; val1 < len(r.Files); val1++ {
-		if err = r.Files[val1].Encode(buf); err != nil {
+		if err = r.Files[val1].Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
@@ -367,14 +367,14 @@ func (r testSuiteInstallsInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val2 := 0; val2 < len(r.OneVariantInstalls); val2++ {
-		if err = r.OneVariantInstalls[val2].Encode(buf); err != nil {
+		if err = r.OneVariantInstalls[val2].Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
 	return err
 }
 
-func (r *testSuiteInstallsInfo) Decode(buf *bytes.Reader) error {
+func (r *testSuiteInstallsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 int32
@@ -385,7 +385,7 @@ func (r *testSuiteInstallsInfo) Decode(buf *bytes.Reader) error {
 	if val2 > 0 {
 		r.Files = make([]filePair, val2)
 		for val3 := 0; val3 < int(val2); val3++ {
-			if err = r.Files[val3].Decode(buf); err != nil {
+			if err = r.Files[val3].Decode(ctx, buf); err != nil {
 				return err
 			}
 		}
@@ -399,7 +399,7 @@ func (r *testSuiteInstallsInfo) Decode(buf *bytes.Reader) error {
 	if val6 > 0 {
 		r.OneVariantInstalls = make([]filePair, val6)
 		for val7 := 0; val7 < int(val6); val7++ {
-			if err = r.OneVariantInstalls[val7].Decode(buf); err != nil {
+			if err = r.OneVariantInstalls[val7].Decode(ctx, buf); err != nil {
 				return err
 			}
 		}

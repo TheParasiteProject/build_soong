@@ -12,14 +12,14 @@ func init() {
 	PackagingSpecGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(PackagingSpec) })
 }
 
-func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
+func (r PackagingSpec) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.relPathInPackage); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.srcPath); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.srcPath); err != nil {
 		return err
 	}
 
@@ -36,7 +36,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val2 := 0; val2 < len(val1); val2++ {
-		if err = gobtools.EncodeInterface(buf, val1[val2]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, val1[val2]); err != nil {
 			return err
 		}
 	}
@@ -54,12 +54,12 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val4 := 0; val4 < len(val3); val4++ {
-		if err = gobtools.EncodeInterface(buf, val3[val4]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, val3[val4]); err != nil {
 			return err
 		}
 	}
 
-	if err = r.archType.Encode(buf); err != nil {
+	if err = r.archType.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -81,7 +81,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = r.fullInstallPath.Encode(buf); err != nil {
+	if err = r.fullInstallPath.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -95,7 +95,7 @@ func (r PackagingSpec) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
+func (r *PackagingSpec) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.relPathInPackage)
@@ -103,7 +103,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if val3, err := gobtools.DecodeInterface(buf); err != nil {
+	if val3, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val3 == nil {
 		r.srcPath = nil
@@ -130,7 +130,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 	if val8 > 0 {
 		val7 = make([]Path, val8)
 		for val9 := 0; val9 < int(val8); val9++ {
-			if val11, err := gobtools.DecodeInterface(buf); err != nil {
+			if val11, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val11 == nil {
 				val7[val9] = nil
@@ -160,7 +160,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 	if val16 > 0 {
 		val15 = make([]Path, val16)
 		for val17 := 0; val17 < int(val16); val17++ {
-			if val19, err := gobtools.DecodeInterface(buf); err != nil {
+			if val19, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val19 == nil {
 				val15[val17] = nil
@@ -171,7 +171,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 	}
 	r.aconfigPaths = uniquelist.Make(val15)
 
-	if err = r.archType.Decode(buf); err != nil {
+	if err = r.archType.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -202,7 +202,7 @@ func (r *PackagingSpec) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if err = r.fullInstallPath.Decode(buf); err != nil {
+	if err = r.fullInstallPath.Decode(ctx, buf); err != nil {
 		return err
 	}
 

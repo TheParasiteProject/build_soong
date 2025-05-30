@@ -14,7 +14,7 @@ func init() {
 	aconfigPropagatingDeclarationsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(aconfigPropagatingDeclarationsInfo) })
 }
 
-func (r AconfigDeclarationsProviderData) Encode(buf *bytes.Buffer) error {
+func (r AconfigDeclarationsProviderData) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.Package); err != nil {
@@ -29,17 +29,17 @@ func (r AconfigDeclarationsProviderData) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.IntermediateCacheOutputPath); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.IntermediateCacheOutputPath); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(buf, r.IntermediateDumpOutputPath); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.IntermediateDumpOutputPath); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *AconfigDeclarationsProviderData) Decode(buf *bytes.Reader) error {
+func (r *AconfigDeclarationsProviderData) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.Package)
@@ -57,7 +57,7 @@ func (r *AconfigDeclarationsProviderData) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if val5, err := gobtools.DecodeInterface(buf); err != nil {
+	if val5, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val5 == nil {
 		r.IntermediateCacheOutputPath = nil
@@ -65,7 +65,7 @@ func (r *AconfigDeclarationsProviderData) Decode(buf *bytes.Reader) error {
 		r.IntermediateCacheOutputPath = val5.(WritablePath)
 	}
 
-	if val7, err := gobtools.DecodeInterface(buf); err != nil {
+	if val7, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val7 == nil {
 		r.IntermediateDumpOutputPath = nil
@@ -82,7 +82,7 @@ func (r AconfigDeclarationsProviderData) GetTypeId() int16 {
 	return AconfigDeclarationsProviderDataGobRegId
 }
 
-func (r AconfigReleaseDeclarationsProviderData) Encode(buf *bytes.Buffer) error {
+func (r AconfigReleaseDeclarationsProviderData) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.Data))); err != nil {
@@ -92,14 +92,14 @@ func (r AconfigReleaseDeclarationsProviderData) Encode(buf *bytes.Buffer) error 
 		if err = gobtools.EncodeString(buf, k); err != nil {
 			return err
 		}
-		if err = v.Encode(buf); err != nil {
+		if err = v.Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
 	return err
 }
 
-func (r *AconfigReleaseDeclarationsProviderData) Decode(buf *bytes.Reader) error {
+func (r *AconfigReleaseDeclarationsProviderData) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val1 int32
@@ -116,7 +116,7 @@ func (r *AconfigReleaseDeclarationsProviderData) Decode(buf *bytes.Reader) error
 			if err != nil {
 				return err
 			}
-			if err = v.Decode(buf); err != nil {
+			if err = v.Decode(ctx, buf); err != nil {
 				return err
 			}
 			r.Data[k] = v
@@ -132,7 +132,7 @@ func (r AconfigReleaseDeclarationsProviderData) GetTypeId() int16 {
 	return AconfigReleaseDeclarationsProviderDataGobRegId
 }
 
-func (r ModeInfo) Encode(buf *bytes.Buffer) error {
+func (r ModeInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.Container); err != nil {
@@ -145,7 +145,7 @@ func (r ModeInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *ModeInfo) Decode(buf *bytes.Reader) error {
+func (r *ModeInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.Container)
@@ -167,7 +167,7 @@ func (r ModeInfo) GetTypeId() int16 {
 	return ModeInfoGobRegId
 }
 
-func (r aconfigPropagatingDeclarationsInfo) Encode(buf *bytes.Buffer) error {
+func (r aconfigPropagatingDeclarationsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.AconfigFiles))); err != nil {
@@ -181,7 +181,7 @@ func (r aconfigPropagatingDeclarationsInfo) Encode(buf *bytes.Buffer) error {
 			return err
 		}
 		for val1 := 0; val1 < len(v); val1++ {
-			if err = gobtools.EncodeInterface(buf, v[val1]); err != nil {
+			if err = gobtools.EncodeInterface(ctx, buf, v[val1]); err != nil {
 				return err
 			}
 		}
@@ -194,14 +194,14 @@ func (r aconfigPropagatingDeclarationsInfo) Encode(buf *bytes.Buffer) error {
 		if err = gobtools.EncodeString(buf, k); err != nil {
 			return err
 		}
-		if err = v.Encode(buf); err != nil {
+		if err = v.Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
 	return err
 }
 
-func (r *aconfigPropagatingDeclarationsInfo) Decode(buf *bytes.Reader) error {
+func (r *aconfigPropagatingDeclarationsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val1 int32
@@ -226,7 +226,7 @@ func (r *aconfigPropagatingDeclarationsInfo) Decode(buf *bytes.Reader) error {
 			if val6 > 0 {
 				v = make([]Path, val6)
 				for val7 := 0; val7 < int(val6); val7++ {
-					if val9, err := gobtools.DecodeInterface(buf); err != nil {
+					if val9, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 						return err
 					} else if val9 == nil {
 						v[val7] = nil
@@ -253,7 +253,7 @@ func (r *aconfigPropagatingDeclarationsInfo) Decode(buf *bytes.Reader) error {
 			if err != nil {
 				return err
 			}
-			if err = v.Decode(buf); err != nil {
+			if err = v.Decode(ctx, buf); err != nil {
 				return err
 			}
 			r.ModeInfos[k] = v
