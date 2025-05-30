@@ -198,10 +198,6 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 					if linkableInfo.UnstrippedOutputFile != nil {
 						fmt.Fprintln(w, "LOCAL_SOONG_UNSTRIPPED_BINARY :=", linkableInfo.UnstrippedOutputFile.String())
 					}
-					if fi.providers.ccInfo.LinkerInfo != nil && fi.providers.ccInfo.LinkerInfo.LibraryDecoratorInfo != nil && !linkableInfo.Static {
-						fmt.Fprintln(w, "LOCAL_ADDITIONAL_DEPENDENCIES +=", strings.Join(
-							fi.providers.ccInfo.LinkerInfo.LibraryDecoratorInfo.SAbiDiff.Strings(), " "))
-					}
 					if linkableInfo.CoverageOutputFile.Valid() {
 						fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", linkableInfo.CoverageOutputFile.String())
 					}
