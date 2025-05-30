@@ -180,7 +180,6 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"dex_bootjars":                              defaultDepCandidateProps(ctx.Config()),
 					"framework_compatibility_matrix.device.xml": defaultDepCandidateProps(ctx.Config()),
 					"init.environ.rc-soong":                     defaultDepCandidateProps(ctx.Config()),
-					"libcompiler_rt":                            defaultDepCandidateProps(ctx.Config()),
 					"libdmabufheap":                             defaultDepCandidateProps(ctx.Config()),
 					"libgsi":                                    defaultDepCandidateProps(ctx.Config()),
 					"llndk.libraries.txt":                       defaultDepCandidateProps(ctx.Config()),
