@@ -672,7 +672,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 		r8Flags = append(r8Flags, "--ignore-library-extends-program")
 	}
 
-	if BoolDefault(opt.Keep_runtime_invisible_annotations, false) {
+	if !ctx.Config().UseR8OnlyRuntimeVisibleAnnotations() && BoolDefault(opt.Keep_runtime_invisible_annotations, false) {
 		r8Flags = append(r8Flags, "--keep-runtime-invisible-annotations")
 	}
 
