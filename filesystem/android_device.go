@@ -284,7 +284,11 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
 	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
-	validations = append(validations, trebleLabelingTestTimestamp)
+
+	// Treble Labeling tests only for 202604 or later
+	if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
+		validations = append(validations, trebleLabelingTestTimestamp)
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
@@ -1349,6 +1353,10 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 
 		if !ctx.Config().EnforceSELinuxTrebleLabeling() {
 			cmd.Flag("--treat_as_warnings")
+		}
+
+		if ctx.Config().Debuggable() {
+			cmd.Flag("--debuggable")
 		}
 
 		cmd.FlagWithOutput("> ", testTimestamp)
