@@ -362,10 +362,6 @@ func (a *AndroidAppImport) GenerateAndroidBuildActions(ctx android.ModuleContext
 	}
 	setCommonAppInfo(appInfo, a)
 	android.SetProvider(ctx, AppInfoProvider, appInfo)
-	android.SetProvider(ctx, ApkCertInfoProvider, ApkCertInfo{
-		Certificate: appInfo.Certificate,
-		Name:        appInfo.InstallApkName + ".apk",
-	})
 }
 
 func (a *AndroidAppImport) InstallApkName() string {
@@ -801,12 +797,6 @@ func (a *AndroidTestImport) GenerateAndroidBuildActions(ctx android.ModuleContex
 		NeedsArchFolder:           true,
 		Data:                      data,
 		CompatibilitySupportFiles: a.data,
-	})
-
-	android.SetProvider(ctx, ApkCertInfoProvider, ApkCertInfo{
-		Certificate: a.Certificate(),
-		Name:        a.InstallApkName() + ".apk",
-		Test:        true,
 	})
 }
 
