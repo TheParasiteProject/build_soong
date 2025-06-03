@@ -124,7 +124,7 @@ type installationProperties struct {
 func defaultDepCandidateProps(config android.Config) *depCandidateProps {
 	return &depCandidateProps{
 		Namespace:           ".",
-		Arch:                []android.ArchType{config.BuildArch},
+		Arch:                []android.ArchType{config.DevicePrimaryArchType()},
 		NativeBridgeSupport: map[android.NativeBridgeSupport]bool{android.NativeBridgeDisabled: true},
 	}
 }
