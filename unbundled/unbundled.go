@@ -207,4 +207,6 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		}
 		ctx.DistForGoal("apps_only", jacocoZip)
 	}
+
+	ctx.DistForGoal("apps_only", java.ApkCertsFile(ctx))
 }
