@@ -815,10 +815,13 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	htmlGzNotice := android.PathForModuleOut(ctx, "NOTICE.html.gz")
 	android.BuildNoticeHtmlOutputFromLicenseMetadata(
 		ctx, htmlGzNotice, "", "",
-		[]string{
-			android.PathForModuleInstall(ctx).String() + "/",
-			android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
-		})
+		android.BuildNoticeFromLicenseDataArgs{
+			StripPrefix: []string{
+				android.PathForModuleInstall(ctx).String() + "/",
+				android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
+			},
+		},
+	)
 	noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().Text("cp").

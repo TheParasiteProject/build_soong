@@ -129,9 +129,11 @@ func (s *sdkRepoHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	noticeFile := android.PathForModuleOut(ctx, "NOTICES.txt")
 	android.BuildNoticeTextOutputFromLicenseMetadata(
 		ctx, noticeFile, "", "",
-		[]string{
-			android.PathForModuleInstall(ctx, "sdk-repo").String() + "/",
-			outputZipFile.String(),
+		android.BuildNoticeFromLicenseDataArgs{
+			StripPrefix: []string{
+				android.PathForModuleInstall(ctx, "sdk-repo").String() + "/",
+				outputZipFile.String(),
+			},
 		})
 	builder.Command().Text("cp").
 		Input(noticeFile).

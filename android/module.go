@@ -2225,12 +2225,13 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	if m.Enabled(ctx) {
 		SetProvider(ctx, InstallFilesProvider, installFiles)
 	}
-	buildLicenseMetadata(ctx, ctx.licenseMetadataFile)
 
 	var testSuiteInstalls []filePair
 	if ctx.testSuiteInfoSet {
 		testSuiteInstalls = m.setupTestSuites(ctx, ctx.testSuiteInfo)
 	}
+
+	buildLicenseMetadata(ctx, ctx.licenseMetadataFile, testSuiteInstalls)
 
 	if m.Enabled(ctx) {
 		m.generateModuleTarget(ctx, testSuiteInstalls)
