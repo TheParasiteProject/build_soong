@@ -587,7 +587,7 @@ func IsOptionalUsesLibraryDepTag(depTag blueprint.DependencyTag) bool {
 	if tag, ok := depTag.(usesLibraryDependencyTag); ok {
 		return tag.optional
 	}
-	return false
+	return depTag == r8LibraryJarTag
 }
 
 // A tag that is used for staging the dependencies of a module, for populating uses libraries

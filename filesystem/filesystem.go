@@ -1046,13 +1046,23 @@ func (f *filesystem) rootDirString() string {
 }
 
 func (f *filesystem) verifyGenericConfig(ctx android.ModuleContext, specs map[string]android.PackagingSpec) {
+	// This image is not bundled with the platform.
+	if ctx.Config().UnbundledBuild() {
+		return
+	}
+
+	// TODO(b/411581190): These system images include system_ext and product modules in the system
+	// partition. They must be included with a different depTag so that we can skip those non-system
+	// modules in this verification.
+	systemImagesWithSubpartitions := []string{
+		"android_gsi",
+		"aosp_system_image",
+	}
+
 	// Verify that modules installed in the system partition use the generic configiguration. This
 	// also checks there are any unexpected dependencies from system modules to modules installed in
 	// non-system partitions.
-	// TODO(b/411581190): aosp_system_image includes system_ext and product modules in the system
-	// partition. They must be included with a different depTag so that we can skip those non-system
-	// modules in this verification.
-	if !f.UseGenericConfig() || f.partitionName() != "system" || proptools.Bool(f.properties.Is_auto_generated) || f.Name() == "aosp_system_image" {
+	if !f.UseGenericConfig() || f.partitionName() != "system" || proptools.Bool(f.properties.Is_auto_generated) || android.InList(f.Name(), systemImagesWithSubpartitions) {
 		return
 	}
 
