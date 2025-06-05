@@ -333,6 +333,8 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			ctx.Phony("droid", android.PathForPhony(ctx, hostTool+"-host"))
 		}
 	}
+
+	a.checkVintf(ctx)
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
@@ -1334,4 +1336,22 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 	}
 
 	return testTimestamp
+}
+
+func (a *androidDevice) checkVintf(ctx android.ModuleContext) {
+	if !proptools.Bool(a.deviceProps.Main_device) {
+		return
+	}
+	if ctx.Config().KatiEnabled() {
+		// Make will generate the vintf checks.
+		return
+	}
+	fsInfoMap := a.getFsInfos(ctx)
+	for _, partition := range android.SortedKeys(fsInfoMap) {
+		checkVintfLog := fsInfoMap[partition].checkVintfLog
+		if checkVintfLog != nil {
+			ctx.Phony("check-vintf-all", checkVintfLog)
+		}
+	}
+	// TODO (b/415130821): Create the monolithic check_vintf_compatible.log
 }
