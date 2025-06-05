@@ -17,6 +17,7 @@ package java
 import (
 	"crypto/sha256"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -122,6 +123,7 @@ type aapt struct {
 	proguardOptionsFile                android.Path
 	rTxt                               android.Path
 	rJar                               android.Path
+	kSnapshotFiles                     map[string]android.Path
 	extraAaptPackagesFile              android.Path
 	mergedManifestFile                 android.Path
 	noticeFile                         android.OptionalPath
@@ -459,6 +461,8 @@ func filterRRO(rroDirsDepSet depset.DepSet[rroDir], filter overlayType) android.
 
 func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptions) {
 
+	a.kSnapshotFiles = make(map[string]android.Path)
+
 	staticResourcesNodesDepSet, sharedResourcesNodesDepSet, staticRRODirsDepSet, staticManifestsDepSet, sharedExportPackages, libFlags :=
 		aaptLibs(ctx, opts.sdkContext, opts.classLoaderContexts, opts.usesLibrary)
 
@@ -735,6 +739,16 @@ func (a *aapt) buildActions(ctx android.ModuleContext, opts aaptBuildActionOptio
 		Transitive(staticManifestsDepSet).Build()
 }
 
+func (a *aapt) addKSnapshot(ctx android.ModuleContext, jarFile android.Path) {
+	if jarFile == nil {
+		return
+	}
+	if _, exists := a.kSnapshotFiles[jarFile.String()]; !exists {
+		snapshot := SnapshotJarForKotlin(ctx, jarFile.(android.WritablePath))
+		a.kSnapshotFiles[jarFile.String()] = snapshot
+	}
+}
+
 // comileResInDir finds the resource files in dirs by globbing and then compiles them using aapt2
 // returns the file paths of compiled resources
 // dirs[0] is used as compileRes
@@ -986,6 +1000,11 @@ type AndroidLibrary struct {
 }
 
 var _ AndroidLibraryDependency = (*AndroidLibrary)(nil)
+var _ KSnapshotContainer = (*AndroidLibrary)(nil)
+
+func (a *AndroidLibrary) JarToSnapshotMap() map[string]android.Path {
+	return a.kSnapshotFiles
+}
 
 func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.usesLibrary.deps(ctx, false)
@@ -1027,6 +1046,8 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 			usesLibrary:                    &a.usesLibrary,
 		},
 	)
+
+	maps.Copy(a.kSnapshotFiles, a.aapt.kSnapshotFiles)
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	a.hideApexVariantFromMake = !apexInfo.IsForPlatform()
@@ -1103,16 +1124,23 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	if javaInfo != nil {
 		setExtraJavaInfo(ctx, a, javaInfo)
 		android.SetProvider(ctx, JavaInfoProvider, javaInfo)
+	} else {
+		fmt.Printf("%s\n", ctx.ModuleName())
+		for k, v := range a.kSnapshotFiles {
+			fmt.Printf("%s: %s\n", k, v)
+		}
 	}
 
 	a.setOutputFiles(ctx)
 
 	buildComplianceMetadata(ctx)
 
-	moduleInfoJSON := ctx.ModuleInfoJSON()
-	moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
-	moduleInfoJSON.ClassesJar = []string{a.Library.implementationAndResourcesJar.String()}
-	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	if javaInfo != nil {
+		moduleInfoJSON := ctx.ModuleInfoJSON()
+		moduleInfoJSON.Class = []string{"JAVA_LIBRARIES"}
+		moduleInfoJSON.ClassesJar = []string{a.Library.implementationAndResourcesJar.String()}
+		moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	}
 }
 
 func (a *AndroidLibrary) setOutputFiles(ctx android.ModuleContext) {
@@ -1214,6 +1242,7 @@ type AARImport struct {
 	assetsPackage                      android.Path
 	rTxt                               android.Path
 	rJar                               android.Path
+	kSnapshotFiles                     map[string]android.Path
 
 	resourcesNodesDepSet depset.DepSet[*resourcesNode]
 	manifestsDepSet      depset.DepSet[android.Path]
@@ -1348,6 +1377,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	a.kSnapshotFiles = make(map[string]android.Path)
 	a.sdkVersion = a.SdkVersion(ctx)
 	a.minSdkVersion = a.MinSdkVersion(ctx)
 
@@ -1404,6 +1434,8 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			"assetsPackage":      assetsPackage.String(),
 		},
 	})
+
+	a.addKSnapshot(ctx, classpathFile)
 
 	a.proguardFlags = proguardFlags
 	a.assetsPackage = assetsPackage
@@ -1464,6 +1496,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	resourceProcessorBusyBoxGenerateBinaryR(ctx, a.rTxt, a.manifest, rJar, nil, true, nil, false)
 	ctx.CheckbuildFile(rJar)
 	a.rJar = rJar
+	a.addKSnapshot(ctx, a.rJar)
 
 	aapt2ExtractExtraPackages(ctx, extraAaptPackagesFile, a.rJar)
 	a.extraAaptPackagesFile = extraAaptPackagesFile
@@ -1515,6 +1548,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				transitiveStaticLibsHeaderJars = append(transitiveStaticLibsHeaderJars, dep.TransitiveStaticLibsHeaderJars)
 				transitiveStaticLibsImplementationJars = append(transitiveStaticLibsImplementationJars, dep.TransitiveStaticLibsImplementationJars)
 				transitiveStaticLibsResourceJars = append(transitiveStaticLibsResourceJars, dep.TransitiveStaticLibsResourceJars)
+				maps.Copy(a.kSnapshotFiles, dep.KSnapshotFiles)
 			}
 		}
 		addCLCFromDep(ctx, module, a.classLoaderContexts)
@@ -1588,6 +1622,7 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ImplementationAndResourcesJars:         android.PathsIfNonNil(a.implementationAndResourcesJarFile),
 		ImplementationJars:                     android.PathsIfNonNil(a.implementationJarFile),
 		StubsLinkType:                          Implementation,
+		KSnapshotFiles:                         a.kSnapshotFiles,
 		// TransitiveAconfigFiles: // TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 	}
 	setExtraJavaInfo(ctx, a, javaInfo)
@@ -1630,6 +1665,22 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	moduleInfoJSON.ClassesJar = []string{a.implementationAndResourcesJarFile.String()}
 	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 }
+
+func (a *AARImport) addKSnapshot(ctx android.ModuleContext, jarFile android.Path) {
+	if jarFile == nil {
+		return
+	}
+	if _, exists := a.kSnapshotFiles[jarFile.String()]; !exists {
+		snapshot := SnapshotJarForKotlin(ctx, jarFile.(android.WritablePath))
+		a.kSnapshotFiles[jarFile.String()] = snapshot
+	}
+}
+
+func (a AARImport) JarToSnapshotMap() map[string]android.Path {
+	return a.kSnapshotFiles
+}
+
+var _ KSnapshotContainer = AARImport{}
 
 func (a *AARImport) HeaderJars() android.Paths {
 	return android.Paths{a.headerJarFile}

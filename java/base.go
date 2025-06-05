@@ -16,6 +16,7 @@ package java
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -508,6 +509,9 @@ type Module struct {
 	// args and dependencies to package source files into a srcjar
 	srcJarArgs []string
 	srcJarDeps android.Paths
+
+	kSnapshotFiles     map[string]android.Path
+	skipKSnapshotFiles map[string]bool
 
 	// the source files of this module and all its static dependencies
 	transitiveSrcFiles depset.DepSet[android.Path]
@@ -1113,6 +1117,8 @@ func (j *Module) collectBuilderFlags(ctx android.ModuleContext, deps deps) javaB
 	// systemModules
 	flags.systemModules = deps.systemModules
 
+	flags.kSnapshotFiles = deps.kSnapshotFiles
+
 	return flags
 }
 
@@ -1194,6 +1200,18 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	}
 
 	deps := j.collectDeps(ctx)
+	j.kSnapshotFiles = deps.kSnapshotFiles
+	j.skipKSnapshotFiles = make(map[string]bool)
+	if extraClasspathJars != nil {
+		for _, jar := range extraClasspathJars {
+			j.addKSnapshot(ctx, jar)
+		}
+	}
+	if extraCombinedJars != nil {
+		for _, jar := range extraCombinedJars {
+			j.addKSnapshot(ctx, jar)
+		}
+	}
 	flags := j.collectBuilderFlags(ctx, deps)
 
 	if flags.javaVersion.usesJavaModules() {
@@ -1312,6 +1330,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		j.headerJarFile = combinedHeaderJarFile
 		if deps.headerJarOverride.Valid() {
 			j.headerJarFile = deps.headerJarOverride.Path()
+		} else {
+			j.addKSnapshot(ctx, j.headerJarFile)
 		}
 
 		if len(localHeaderJars) > 0 {
@@ -1319,6 +1339,10 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		} else {
 			// There are no local sources or resources in this module, so there is nothing to checkbuild.
 			ctx.UncheckedModule()
+		}
+
+		for _, hj := range localHeaderJars {
+			j.addKSnapshot(ctx, hj)
 		}
 
 		j.outputFile = j.headerJarFile
@@ -1338,6 +1362,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			SdkVersion:                          j.SdkVersion(ctx),
 			OverrideMinSdkVersion:               j.overridableProperties.Min_sdk_version,
 			Installable:                         BoolDefault(j.properties.Installable, true),
+			KSnapshotFiles:                      j.kSnapshotFiles,
 		}
 	}
 
@@ -1459,6 +1484,9 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			// Disable annotation processing in javac, it's already been handled by kapt
 			flags.processorPath = nil
 			flags.processors = nil
+
+			j.addKSnapshot(ctx, kaptSrcJar)
+			j.addKSnapshot(ctx, kaptResJar)
 		}
 
 		j.kotlinCompile(ctx, kotlinJar, kotlinHeaderJar, uniqueSrcFiles, kotlinCommonSrcFiles, srcJars, flags, kotlinCompileData, incrementalKotlin)
@@ -1474,6 +1502,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		localImplementationJars = append(localImplementationJars, kotlinJarPath)
 
 		kotlinHeaderJars = append(kotlinHeaderJars, kotlinHeaderJar)
+		j.addKSnapshot(ctx, kotlinHeaderJar)
 	}
 
 	j.compiledSrcJars = srcJars
@@ -1702,7 +1731,6 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	// Combine the classes built from sources, any manifests, and any static libraries into
 	// classes.jar. If there is only one input jar this step will be skipped.
 	var outputFile android.Path
-
 	completeStaticLibsImplementationJars := depset.New(depset.PREORDER, localImplementationJars, deps.transitiveStaticLibsImplementationJars)
 
 	jars := completeStaticLibsImplementationJars.ToList()
@@ -1732,6 +1760,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 			outputFile = copiedJar
 		} else {
 			outputFile = jars[0]
+			// Don't ksnap this output. It was done elsewhere.
+			j.skipKSnapshot(jars[0])
 		}
 	} else {
 		combinedJar := android.PathForModuleOut(ctx, "combined", jarName)
@@ -2010,6 +2040,17 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		ctx.UncheckedModule()
 	}
 
+	j.addKSnapshot(ctx, outputFile)
+	for _, rJar := range localResourceJars {
+		j.addKSnapshot(ctx, rJar)
+	}
+	for _, hJar := range localHeaderJars {
+		j.addKSnapshot(ctx, hJar)
+	}
+	if combinedResourceJar != nil {
+		j.addKSnapshot(ctx, combinedResourceJar)
+	}
+
 	// Save the output file with no relative path so that it doesn't end up in a subdirectory when used as a resource
 	j.outputFile = outputFile.WithoutRel()
 
@@ -2035,6 +2076,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		AidlIncludeDirs:                     j.exportAidlIncludeDirs,
 		SrcJarArgs:                          j.srcJarArgs,
 		SrcJarDeps:                          j.srcJarDeps,
+		KSnapshotFiles:                      j.kSnapshotFiles,
 		TransitiveSrcFiles:                  j.transitiveSrcFiles,
 		ExportedPlugins:                     j.exportedPluginJars,
 		ExportedPluginClasses:               j.exportedPluginClasses,
@@ -2047,6 +2089,26 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		OverrideMinSdkVersion:               j.overridableProperties.Min_sdk_version,
 		Installable:                         BoolDefault(j.properties.Installable, true),
 	}
+}
+
+func (j *Module) addKSnapshot(ctx android.ModuleContext, jarFile android.Path) {
+	if jarFile == nil {
+		return
+	}
+	if skip, exists := j.skipKSnapshotFiles[jarFile.String()]; exists && skip {
+		return
+	}
+	if _, exists := j.kSnapshotFiles[jarFile.String()]; !exists {
+		snapshot := SnapshotJarForKotlin(ctx, jarFile.(android.WritablePath))
+		j.kSnapshotFiles[jarFile.String()] = snapshot
+	}
+}
+
+func (j *Module) skipKSnapshot(jarFile android.Path) {
+	if jarFile == nil {
+		return
+	}
+	j.skipKSnapshotFiles[jarFile.String()] = true
 }
 
 func (j *Module) useCompose(ctx android.BaseModuleContext) bool {
@@ -2549,6 +2611,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 	var transitiveStaticJarsHeaderLibs []depset.DepSet[android.Path]
 	var transitiveStaticJarsImplementationLibs []depset.DepSet[android.Path]
 	var transitiveStaticJarsResourceLibs []depset.DepSet[android.Path]
+	deps.kSnapshotFiles = make(map[string]android.Path)
 
 	ctx.VisitDirectDepsProxy(func(module android.ModuleProxy) {
 		otherName := ctx.OtherModuleName(module)
@@ -2579,6 +2642,9 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					dep = syspropDep.JavaInfo
 				}
 			}
+
+			maps.Copy(deps.kSnapshotFiles, dep.KSnapshotFiles)
+
 			switch tag {
 			case bootClasspathTag:
 				deps.bootClasspath = append(deps.bootClasspath, dep.HeaderJars...)
