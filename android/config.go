@@ -237,20 +237,6 @@ func (c Config) ReleaseAconfigFlagDefaultPermission() string {
 	return c.config.productVariables.ReleaseAconfigFlagDefaultPermission
 }
 
-func (c Config) ReleaseBuildClangVersion(defaultVersion string) string {
-	if val, exists := c.GetBuildFlag("RELEASE_BUILD_CLANG_VERSION"); exists {
-		return val
-	}
-	return defaultVersion
-}
-
-func (c Config) ReleaseBuildClangShortVersion(defaultVersion string) string {
-	if val, exists := c.GetBuildFlag("RELEASE_BUILD_CLANG_SHORT_VERSION"); exists {
-		return val
-	}
-	return defaultVersion
-}
-
 // The flag indicating behavior for the tree wrt building modules or using prebuilts
 // derived from RELEASE_DEFAULT_MODULE_BUILD_FROM_SOURCE
 func (c Config) ReleaseDefaultModuleBuildFromSource() bool {
