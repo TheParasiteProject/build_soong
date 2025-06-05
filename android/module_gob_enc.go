@@ -606,6 +606,15 @@ func (r ModuleBuildTargetsInfo) Encode(buf *bytes.Buffer) error {
 	if err = gobtools.EncodeString(buf, r.BlueprintDir); err != nil {
 		return err
 	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.AllDeps))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r.AllDeps); val1++ {
+		if err = gobtools.EncodeInterface(buf, r.AllDeps[val1]); err != nil {
+			return err
+		}
+	}
 	return err
 }
 
@@ -631,6 +640,24 @@ func (r *ModuleBuildTargetsInfo) Decode(buf *bytes.Reader) error {
 	err = gobtools.DecodeString(buf, &r.BlueprintDir)
 	if err != nil {
 		return err
+	}
+
+	var val8 int32
+	err = gobtools.DecodeSimple[int32](buf, &val8)
+	if err != nil {
+		return err
+	}
+	if val8 > 0 {
+		r.AllDeps = make([]Path, val8)
+		for val9 := 0; val9 < int(val8); val9++ {
+			if val11, err := gobtools.DecodeInterface(buf); err != nil {
+				return err
+			} else if val11 == nil {
+				r.AllDeps[val9] = nil
+			} else {
+				r.AllDeps[val9] = val11.(Path)
+			}
+		}
 	}
 
 	return err
