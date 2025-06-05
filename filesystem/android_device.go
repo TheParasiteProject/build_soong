@@ -1346,12 +1346,21 @@ func (a *androidDevice) checkVintf(ctx android.ModuleContext) {
 		// Make will generate the vintf checks.
 		return
 	}
+	var checkVintfLogs android.Paths
 	fsInfoMap := a.getFsInfos(ctx)
 	for _, partition := range android.SortedKeys(fsInfoMap) {
 		checkVintfLog := fsInfoMap[partition].checkVintfLog
 		if checkVintfLog != nil {
-			ctx.Phony("check-vintf-all", checkVintfLog)
+			checkVintfLogs = append(checkVintfLogs, checkVintfLog)
 		}
 	}
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.SetPhonyOutput()
+	cmd := rule.Command()
+	for _, checkVintfLog := range checkVintfLogs {
+		cmd.Textf(" echo %s; cat %s; echo; ", checkVintfLog, checkVintfLog).Implicit(checkVintfLog)
+	}
+	cmd.ImplicitOutput(android.PathForPhony(ctx, "check-vintf-all"))
+	rule.Build("check-vintf-all", "check-vintf-all")
 	// TODO (b/415130821): Create the monolithic check_vintf_compatible.log
 }
