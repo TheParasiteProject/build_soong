@@ -1738,22 +1738,10 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		deps = append(deps, outputFiles...)
 	}
 
-	// only add the required deps if !shouldSkipAndroidMk so that we don't have to deal with
-	// figuring out the dep's namespace.
-	// TODO: improve on this so modules in a namespace also work.
-	if !shouldSkipAndroidMk {
-		requiredSuffix := ""
-		if ctx.Config().KatiEnabled() {
-			requiredSuffix += "-soong"
-		}
-		for _, dep := range m.RequiredModuleNames(ctx) {
-			deps = append(deps, PathForPhony(ctx, dep+requiredSuffix))
-		}
-		for _, dep := range m.HostRequiredModuleNames() {
-			deps = append(deps, PathForPhony(ctx, dep+"-host"+requiredSuffix))
-		}
-		for _, dep := range m.TargetRequiredModuleNames() {
-			deps = append(deps, PathForPhony(ctx, dep+"-target"+requiredSuffix))
+	// Act as if you built the required dependencies as well when building the current module
+	for _, dep := range ctx.GetDirectDepsProxyWithTag(RequiredDepTag) {
+		if info, ok := OtherModuleProvider(ctx, dep, ModuleBuildTargetsProvider); ok {
+			deps = append(deps, info.AllDeps...)
 		}
 	}
 
@@ -1776,6 +1764,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		}
 
 		info.BlueprintDir = ctx.ModuleDir()
+		info.AllDeps = deps
 		SetProvider(ctx, ModuleBuildTargetsProvider, info)
 	}
 }
@@ -1938,6 +1927,7 @@ type ModuleBuildTargetsInfo struct {
 	InstallTarget    WritablePath
 	CheckbuildTarget WritablePath
 	BlueprintDir     string
+	AllDeps          Paths
 }
 
 var ModuleBuildTargetsProvider = blueprint.NewProvider[ModuleBuildTargetsInfo]()
@@ -2241,7 +2231,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		testSuiteInstalls = m.setupTestSuites(ctx, ctx.testSuiteInfo)
 	}
 
-	m.generateModuleTarget(ctx, testSuiteInstalls)
+	if m.Enabled(ctx) {
+		m.generateModuleTarget(ctx, testSuiteInstalls)
+	}
 	if ctx.Failed() {
 		return
 	}
