@@ -1979,6 +1979,7 @@ type CommonModuleInfo struct {
 	ProductSpecific         bool
 	SystemExtSpecific       bool
 	DeviceSpecific          bool
+	UseGenericConfig        bool
 	// When set to true, this module is not installed to the full install path (ex: under
 	// out/target/product/<name>/<partition>). It can be installed only to the packaging
 	// modules like android_filesystem.
@@ -2369,6 +2370,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		ProductSpecific:                  Bool(m.commonProperties.Product_specific),
 		SystemExtSpecific:                Bool(m.commonProperties.System_ext_specific),
 		DeviceSpecific:                   Bool(m.commonProperties.Device_specific),
+		UseGenericConfig:                 m.module.UseGenericConfig(),
 		NoFullInstall:                    proptools.Bool(m.commonProperties.No_full_install),
 		InVendorRamdisk:                  m.InVendorRamdisk(),
 		ExemptFromRequiredApplicableLicensesProperty: exemptFromRequiredApplicableLicensesProperty(m.module),
@@ -2785,7 +2787,9 @@ func (m *ModuleBase) Overrides() []string {
 }
 
 func (m *ModuleBase) UseGenericConfig() bool {
-	return proptools.Bool(m.commonProperties.Use_generic_config)
+	// Platform module installed in the device must use generic config by default
+	defaultUseGenericConfig := m.Platform() && !m.Host() && !m.InstallInRamdisk() && !m.InstallInVendorRamdisk() && !m.InstallInRecovery()
+	return proptools.BoolDefault(m.commonProperties.Use_generic_config, defaultUseGenericConfig)
 }
 
 type ConfigContext interface {
