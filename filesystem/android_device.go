@@ -416,7 +416,12 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
-	android.BuildSymbolsZip(ctx, allInstalledModules, a.symbolsZipFile, a.symbolsMappingFile)
+	allInstalledSymbolsPaths, allInstalledSymbolsMappingPaths := android.BuildSymbolsZip(ctx, allInstalledModules, a.symbolsZipFile, a.symbolsMappingFile)
+	if !ctx.Config().KatiEnabled() {
+		ctx.Phony("symbols-files", allInstalledSymbolsPaths...)
+		ctx.Phony("symbols-mappings", allInstalledSymbolsMappingPaths...)
+		ctx.Phony("droidcore-unbundled", android.PathForPhony(ctx, "symbols-files"), android.PathForPhony(ctx, "symbols-mappings"))
+	}
 }
 
 func (a *androidDevice) distInstalledFiles(ctx android.ModuleContext) {
