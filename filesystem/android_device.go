@@ -657,36 +657,38 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	zipBuilder.Build("target_files", "Build target_files.zip")
 	a.targetFilesZip = targetFilesZip
 
-	otaBuilder := android.NewRuleBuilder(pctx, ctx)
-	pem, _ := ctx.Config().DefaultAppCertificate(ctx)
-	pemWithoutFileExt := strings.TrimSuffix(pem.String(), ".x509.pem")
-	otaBuilder.Command().
-		BuiltTool("ota_from_target_files").
-		Flag("--verbose").
-		FlagWithArg("-k ", pemWithoutFileExt).
-		FlagWithOutput("--output_metadata_path ", otaMetadata).
-		Text(targetFilesDir.String()).
-		Output(otaFilesZip).
-		Implicit(ctx.Config().HostToolPath(ctx, "delta_generator")).
-		Implicit(ctx.Config().HostToolPath(ctx, "checkvintf")).
-		Implicit(targetFilesDirStamp)
-	otaBuilder.Build("ota_zip", "Build ota from target files")
-	a.otaFilesZip = otaFilesZip
-	a.otaMetadata = otaMetadata
-
-	// Partial ota
-	if len(a.deviceProps.Partial_ota_update_partitions) > 0 {
-		partialOtaBuilder := android.NewRuleBuilder(pctx, ctx)
-		partialOtaBuilder.Command().
+	if ctx.Config().BuildOTAPackage() {
+		otaBuilder := android.NewRuleBuilder(pctx, ctx)
+		pem, _ := ctx.Config().DefaultAppCertificate(ctx)
+		pemWithoutFileExt := strings.TrimSuffix(pem.String(), ".x509.pem")
+		otaBuilder.Command().
 			BuiltTool("ota_from_target_files").
 			Flag("--verbose").
 			FlagWithArg("-k ", pemWithoutFileExt).
-			FlagForEachArg("--partial ", a.deviceProps.Partial_ota_update_partitions).
+			FlagWithOutput("--output_metadata_path ", otaMetadata).
 			Text(targetFilesDir.String()).
-			Output(partialOtaFilesZip).
+			Output(otaFilesZip).
+			Implicit(ctx.Config().HostToolPath(ctx, "delta_generator")).
+			Implicit(ctx.Config().HostToolPath(ctx, "checkvintf")).
 			Implicit(targetFilesDirStamp)
-		partialOtaBuilder.Build("partial_ota_zip", "Build partial ota from target files")
-		a.partialOtaFilesZip = partialOtaFilesZip
+		otaBuilder.Build("ota_zip", "Build ota from target files")
+		a.otaFilesZip = otaFilesZip
+		a.otaMetadata = otaMetadata
+
+		// Partial ota
+		if len(a.deviceProps.Partial_ota_update_partitions) > 0 {
+			partialOtaBuilder := android.NewRuleBuilder(pctx, ctx)
+			partialOtaBuilder.Command().
+				BuiltTool("ota_from_target_files").
+				Flag("--verbose").
+				FlagWithArg("-k ", pemWithoutFileExt).
+				FlagForEachArg("--partial ", a.deviceProps.Partial_ota_update_partitions).
+				Text(targetFilesDir.String()).
+				Output(partialOtaFilesZip).
+				Implicit(targetFilesDirStamp)
+			partialOtaBuilder.Build("partial_ota_zip", "Build partial ota from target files")
+			a.partialOtaFilesZip = partialOtaFilesZip
+		}
 	}
 }
 
