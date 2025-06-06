@@ -1932,3 +1932,15 @@ func deviceSkusForCheckVintf(ctx android.ModuleContext) []string {
 	}
 	return ctx.Config().DeviceManifestSkus()
 }
+
+func odmSkusForCheckVintf(ctx android.ModuleContext) []string {
+	// Check ODM SKU=(empty) case when:
+	// - ODM_MANIFEST_FILE is not empty; OR
+	// - ODM_MANIFEST_FILE is empty AND ODM_MANIFEST_SKUS is empty (only vendor manifest fragments are used)
+	if len(ctx.Config().OdmManifestFiles()) > 0 {
+		return []string{""}
+	} else if len(ctx.Config().OdmManifestSkus()) == 0 {
+		return []string{""}
+	}
+	return ctx.Config().OdmManifestSkus()
+}
