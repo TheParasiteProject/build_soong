@@ -2137,7 +2137,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 					from: src,
 					to:   installedVintfFragment,
 				})
-				ctx.PackageFile(vintfDir, src.Base(), src)
 				ctx.installedVintfFragmentsPaths = append(ctx.installedVintfFragmentsPaths, installedVintfFragment)
 			}
 			installFiles.VintfFragmentsPaths = ctx.vintfFragmentsPaths
