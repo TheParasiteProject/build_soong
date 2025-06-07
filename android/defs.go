@@ -146,6 +146,12 @@ var (
 			},
 		})
 
+	AssembleVintfRule = pctx.StaticRule("AssembleVintfRule", blueprint.RuleParams{
+		Command:     `rm -f $out && VINTF_IGNORE_TARGET_FCM_VERSION=true ${AssembleVintf} -i $in -o $out`,
+		CommandDeps: []string{"${AssembleVintf}"},
+		Description: "run assemble_vintf",
+	})
+
 	// Used only when USE_RBE=true is set, to restrict non-RBE jobs to the local parallelism value
 	localPool = blueprint.NewBuiltinPool("local_pool")
 
@@ -164,6 +170,7 @@ func init() {
 	})
 
 	pctx.HostBinToolVariable("MergeZipsCmd", "merge_zips")
+	pctx.HostBinToolVariable("AssembleVintf", "assemble_vintf")
 }
 
 // CopyFileRule creates a ninja rule to copy path to outPath.
