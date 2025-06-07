@@ -1281,17 +1281,20 @@ func (library *libraryDecorator) linkShared(ctx ModuleContext,
 		}
 	}
 
+	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
+	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
+	library.linkSAbiDumpFiles(ctx, deps, objs, fileName, unstrippedOutputFile)
+
+	validations := slices.Concat(objs.tidyDepFiles, library.sAbiDiff)
+
 	transformObjToDynamicBinary(ctx, objs.objFiles, sharedLibs,
 		deps.StaticLibs, deps.LateStaticLibs, deps.WholeStaticLibs, linkerDeps, deps.CrtBegin,
-		deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, objs.tidyDepFiles)
+		deps.CrtEnd, false, builderFlags, outputFile, implicitOutputs, validations)
 
 	objs.coverageFiles = append(objs.coverageFiles, deps.StaticLibObjs.coverageFiles...)
 	objs.coverageFiles = append(objs.coverageFiles, deps.WholeStaticLibObjs.coverageFiles...)
-	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.StaticLibObjs.sAbiDumpFiles...)
-	objs.sAbiDumpFiles = append(objs.sAbiDumpFiles, deps.WholeStaticLibObjs.sAbiDumpFiles...)
 
 	library.coverageOutputFile = transformCoverageFilesToZip(ctx, objs, library.getLibName(ctx))
-	library.linkSAbiDumpFiles(ctx, deps, objs, fileName, unstrippedOutputFile)
 
 	var transitiveStaticLibrariesForOrdering depset.DepSet[android.Path]
 	if static := ctx.GetDirectDepsProxyWithTag(staticVariantTag); len(static) > 0 {
@@ -1548,7 +1551,10 @@ func (library *libraryDecorator) optInAbiDiff(ctx android.ModuleContext,
 
 	// Most opt-in libraries do not have dumps for all default architectures.
 	if ctx.Config().HasDeviceProduct() {
-		errorMessage += " --product " + ctx.Config().DeviceProduct()
+		// Instead of showing the product name directly, use an env variable to
+		// the error message to avoid changing build rules just because of lunch
+		// target change.
+		errorMessage += " --product $$TARGET_PRODUCT"
 	}
 
 	library.sourceAbiDiff(ctx, sourceDump, referenceDump, baseName, nameExt,

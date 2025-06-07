@@ -124,7 +124,7 @@ type installationProperties struct {
 func defaultDepCandidateProps(config android.Config) *depCandidateProps {
 	return &depCandidateProps{
 		Namespace:           ".",
-		Arch:                []android.ArchType{config.BuildArch},
+		Arch:                []android.ArchType{config.DevicePrimaryArchType()},
 		NativeBridgeSupport: map[android.NativeBridgeSupport]bool{android.NativeBridgeDisabled: true},
 	}
 }
@@ -160,7 +160,7 @@ func productInstalledModules(ctx android.LoadHookContext) []string {
 	return allInstalledModules
 }
 
-func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string, avbpubkeyGenerated bool) *FsGenState {
+func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string) *FsGenState {
 	return ctx.Config().Once(fsGenStateOnceKey, func() interface{} {
 		allInstalledModules := slices.Concat(
 			productInstalledModules(ctx),
@@ -255,9 +255,7 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 			nativeBridgeModules:             map[string]bool{},
 		}
 
-		if avbpubkeyGenerated {
-			(*fsGenState.fsDeps["product"])["system_other_avbpubkey"] = defaultDepCandidateProps(ctx.Config())
-		}
+		(*fsGenState.fsDeps["product"])["system_other_avbpubkey"] = defaultDepCandidateProps(ctx.Config())
 
 		if len(ctx.Config().DeviceManifestFiles()) > 0 {
 			(*fsGenState.fsDeps["vendor"])["vendor_manifest.xml"] = defaultDepCandidateProps(ctx.Config())
@@ -267,6 +265,12 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 		(*fsGenState.fsDeps["recovery"])[fmt.Sprintf("recovery-resources-common-%s", getDpi(ctx))] = defaultDepCandidateProps(ctx.Config())
 		(*fsGenState.fsDeps["recovery"])[getRecoveryFontModuleName(ctx)] = defaultDepCandidateProps(ctx.Config())
 		(*fsGenState.fsDeps["recovery"])[createRecoveryBuildProp(ctx)] = defaultDepCandidateProps(ctx.Config())
+		if name, _ := getRecoveryBackgroundPicturesGeneratorModuleName(ctx); name != "" {
+			(*fsGenState.fsDeps["recovery"])[name] = defaultDepCandidateProps(ctx.Config())
+		}
+		if name := createTargetRecoveryWipeModuleName(ctx); name != "" {
+			(*fsGenState.fsDeps["recovery"])[name] = defaultDepCandidateProps(ctx.Config())
+		}
 
 		// VNDK APEXes are deprecated and are not supported and disabled for riscv64 arch.
 		// Adding these modules as deps of the auto generated riscv64 arch filesystem modules
@@ -434,7 +438,11 @@ func setDepsMutator(mctx android.BottomUpMutatorContext) {
 			// Handwritten image, don't modify it
 			return
 		}
-		depsStruct := generateDepStruct(*fsDeps[partition], fsGenState.generatedPrebuiltEtcModuleNames)
+		backgroundRecoveryImageGenerator, _ := getRecoveryBackgroundPicturesGeneratorModuleName(mctx)
+		// backgroundRecoveryImageGenerator generates additional images which takes precedence over images files
+		// created by other deps of recovery.img.
+		// Use this in highPriorityDeps
+		depsStruct := generateDepStruct(*fsDeps[partition], append([]string{backgroundRecoveryImageGenerator}, fsGenState.generatedPrebuiltEtcModuleNames...))
 		if err := proptools.AppendMatchingProperties(m.GetProperties(), depsStruct, nil); err != nil {
 			mctx.ModuleErrorf(err.Error())
 		}

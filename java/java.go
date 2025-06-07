@@ -296,6 +296,11 @@ type JavaInfo struct {
 
 	RepackagedHeaderJars android.Paths
 
+	// list of header jars that have not been jarjared.  This should only be used as part of
+	// handling header_jar_override, where we need to use this as the header jars for this implementation of
+	// The only place this is needed is when `header_jar_override` on another module references this module.
+	LocalHeaderJarsPreJarjar android.Paths
+
 	// set of header jars for all transitive libs deps
 	TransitiveLibsHeaderJarsForR8 depset.DepSet[android.Path]
 
@@ -578,6 +583,13 @@ func IsJniDepTag(depTag blueprint.DependencyTag) bool {
 	return depTag == jniLibTag || depTag == jniInstallTag
 }
 
+func IsOptionalUsesLibraryDepTag(depTag blueprint.DependencyTag) bool {
+	if tag, ok := depTag.(usesLibraryDependencyTag); ok {
+		return tag.optional
+	}
+	return depTag == r8LibraryJarTag
+}
+
 // A tag that is used for staging the dependencies of a module, for populating uses libraries
 // dependencies.
 type usesLibStagingTagStruct struct {
@@ -756,7 +768,9 @@ type deps struct {
 	composePlugin           android.OptionalPath
 	kotlinPlugins           android.Paths
 	aconfigProtoFiles       android.Paths
-	headerJarOverride       android.OptionalPath
+
+	headerJarOverride          android.OptionalPath
+	headerJarOverridePreJarjar android.OptionalPath
 
 	disableTurbine bool
 

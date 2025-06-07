@@ -189,6 +189,10 @@ func (a *androidDevice) addDepsForTargetFilesMetadata(ctx android.BottomUpMutato
 	ctx.AddFarVariationDependencies(ctx.Config().AndroidCommonTarget.Variations(), fileContextsDepTag, "file_contexts_bin_gen")
 }
 
+func (a *androidDevice) UseGenericConfig() bool {
+	return false
+}
+
 func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	if proptools.Bool(a.deviceProps.Main_device) {
 		numMainAndroidDevices := ctx.Config().Once(numMainAndroidDevicesOnceKey, func() interface{} {
@@ -204,7 +208,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	allInstalledModules := a.allInstalledModules(ctx)
 
-	a.apkCertsInfo = a.buildApkCertsInfo(ctx, allInstalledModules)
+	a.apkCertsInfo = a.buildApkCertsInfo(ctx)
 	a.kernelVersion, a.kernelConfig = a.extractKernelVersionAndConfigs(ctx)
 	a.miscInfo = a.addMiscInfo(ctx)
 	a.buildTargetFilesZip(ctx, allInstalledModules)
@@ -284,7 +288,11 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
 	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
-	validations = append(validations, trebleLabelingTestTimestamp)
+
+	// Treble Labeling tests only for 202604 or later
+	if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
+		validations = append(validations, trebleLabelingTestTimestamp)
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
@@ -325,6 +333,8 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			ctx.Phony("droid", android.PathForPhony(ctx, hostTool+"-host"))
 		}
 	}
+
+	a.checkVintf(ctx)
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
@@ -408,7 +418,12 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
-	android.BuildSymbolsZip(ctx, allInstalledModules, a.symbolsZipFile, a.symbolsMappingFile)
+	allInstalledSymbolsPaths, allInstalledSymbolsMappingPaths := android.BuildSymbolsZip(ctx, allInstalledModules, a.symbolsZipFile, a.symbolsMappingFile)
+	if !ctx.Config().KatiEnabled() {
+		ctx.Phony("symbols-files", allInstalledSymbolsPaths...)
+		ctx.Phony("symbols-mappings", allInstalledSymbolsMappingPaths...)
+		ctx.Phony("droidcore-unbundled", android.PathForPhony(ctx, "symbols-files"), android.PathForPhony(ctx, "symbols-mappings"))
+	}
 }
 
 func (a *androidDevice) distInstalledFiles(ctx android.ModuleContext) {
@@ -641,7 +656,8 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		FlagWithArg("-k ", pemWithoutFileExt).
 		FlagWithOutput("--output_metadata_path ", otaMetadata).
 		Text(targetFilesDir.String()).
-		Output(otaFilesZip)
+		Output(otaFilesZip).
+		Implicit(ctx.Config().HostToolPath(ctx, "delta_generator"))
 	a.otaFilesZip = otaFilesZip
 	a.otaMetadata = otaMetadata
 
@@ -1152,73 +1168,28 @@ func (a *androidDevice) extractKernelVersionAndConfigs(ctx android.ModuleContext
 	return extractedVersionFile, extractedConfigsFile
 }
 
-func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) android.Path {
-	// TODO (spandandas): Add compressed
-	formatLine := func(cert java.Certificate, name, partition string) string {
-		pem := cert.AndroidMkString()
-		var key string
-		if cert.Key == nil {
-			key = ""
-		} else {
-			key = cert.Key.String()
-		}
-		return fmt.Sprintf(`name="%s" certificate="%s" private_key="%s" partition="%s"`, name, pem, key, partition)
-	}
-
+func (a *androidDevice) buildApkCertsInfo(ctx android.ModuleContext) android.Path {
 	apkCerts := []string{}
-	var apkCertsFiles android.Paths
-	for _, installedModule := range allInstalledModules {
-		partition := ""
-		if commonInfo, ok := android.OtherModuleProvider(ctx, installedModule, android.CommonModuleInfoProvider); ok {
-			partition = commonInfo.PartitionTag
-		} else {
-			ctx.ModuleErrorf("%s does not set CommonModuleInfoKey", installedModule.Name())
-		}
-		if info, ok := android.OtherModuleProvider(ctx, installedModule, java.AppInfoProvider); ok {
-			if info.AppSet {
-				apkCertsFiles = append(apkCertsFiles, info.ApkCertsFile)
-			} else {
-				apkCerts = append(apkCerts, formatLine(info.Certificate, info.InstallApkName+".apk", partition))
-			}
-		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, java.AppInfosProvider); ok {
-			for _, certInfo := range info {
-				// Partition information of apk-in-apex is not exported to the legacy Make packaging system.
-				// Hardcode the partition to "system"
-				apkCerts = append(apkCerts, formatLine(certInfo.Certificate, certInfo.InstallApkName+".apk", "system"))
-			}
-		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, java.RuntimeResourceOverlayInfoProvider); ok {
-			apkCerts = append(apkCerts, formatLine(info.Certificate, info.OutputFile.Base(), partition))
-		} else if info, ok := android.OtherModuleProvider(ctx, installedModule, ApkCertsInfoProvider); ok {
-			apkCertsFiles = append(apkCertsFiles, info.ApkCertsFile)
-		}
-	}
-	slices.Sort(apkCerts) // sort by name
 	fsInfos := a.getFsInfos(ctx)
 	if fsInfos["system"].HasFsverity {
 		defaultPem, defaultKey := ctx.Config().DefaultAppCertificate(ctx)
-		apkCerts = append(apkCerts, formatLine(java.Certificate{Pem: defaultPem, Key: defaultKey}, "BuildManifest.apk", "system"))
+		apkCerts = append(apkCerts, java.FormatApkCertsLine(java.Certificate{Pem: defaultPem, Key: defaultKey}, "BuildManifest.apk", "system"))
 		if info, ok := fsInfos["system_ext"]; ok && info.HasFsverity {
-			apkCerts = append(apkCerts, formatLine(java.Certificate{Pem: defaultPem, Key: defaultKey}, "BuildManifestSystemExt.apk", "system_ext"))
+			apkCerts = append(apkCerts, java.FormatApkCertsLine(java.Certificate{Pem: defaultPem, Key: defaultKey}, "BuildManifestSystemExt.apk", "system_ext"))
 		}
 	}
 
-	apkCertsInfoWithoutAppSets := android.PathForModuleOut(ctx, "apkcerts_without_app_sets.txt")
-	android.WriteFileRuleVerbatim(ctx, apkCertsInfoWithoutAppSets, strings.Join(apkCerts, "\n")+"\n")
+	apkCertsForBuildManifest := android.PathForModuleOut(ctx, "apkcerts_for_buildmanifest.txt")
+	android.WriteFileRuleVerbatim(ctx, apkCertsForBuildManifest, strings.Join(apkCerts, "\n")+"\n")
 	apkCertsInfo := android.PathForModuleOut(ctx, "apkcerts.txt")
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.CatAndSort,
 		Description: "combine apkcerts.txt",
 		Output:      apkCertsInfo,
-		Inputs:      append(apkCertsFiles, apkCertsInfoWithoutAppSets),
+		Inputs:      android.Paths{java.ApkCertsFile(ctx), apkCertsForBuildManifest},
 	})
 	return apkCertsInfo
 }
-
-type ApkCertsInfo struct {
-	ApkCertsFile android.Path
-}
-
-var ApkCertsInfoProvider = blueprint.NewProvider[ApkCertsInfo]()
 
 func findAllPreinstalledApps(partitions []string, fsInfos map[string]FilesystemInfo) android.Paths {
 	var ret android.Paths
@@ -1351,6 +1322,10 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 			cmd.Flag("--treat_as_warnings")
 		}
 
+		if ctx.Config().Debuggable() {
+			cmd.Flag("--debuggable")
+		}
+
 		cmd.FlagWithOutput("> ", testTimestamp)
 	}
 
@@ -1361,4 +1336,31 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 	}
 
 	return testTimestamp
+}
+
+func (a *androidDevice) checkVintf(ctx android.ModuleContext) {
+	if !proptools.Bool(a.deviceProps.Main_device) {
+		return
+	}
+	if ctx.Config().KatiEnabled() {
+		// Make will generate the vintf checks.
+		return
+	}
+	var checkVintfLogs android.Paths
+	fsInfoMap := a.getFsInfos(ctx)
+	for _, partition := range android.SortedKeys(fsInfoMap) {
+		checkVintfLog := fsInfoMap[partition].checkVintfLog
+		if checkVintfLog != nil {
+			checkVintfLogs = append(checkVintfLogs, checkVintfLog)
+		}
+	}
+	rule := android.NewRuleBuilder(pctx, ctx)
+	rule.SetPhonyOutput()
+	cmd := rule.Command()
+	for _, checkVintfLog := range checkVintfLogs {
+		cmd.Textf(" echo %s; cat %s; echo; ", checkVintfLog, checkVintfLog).Implicit(checkVintfLog)
+	}
+	cmd.ImplicitOutput(android.PathForPhony(ctx, "check-vintf-all"))
+	rule.Build("check-vintf-all", "check-vintf-all")
+	// TODO (b/415130821): Create the monolithic check_vintf_compatible.log
 }

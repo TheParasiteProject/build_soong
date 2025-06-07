@@ -260,6 +260,9 @@ type FilesystemProperties struct {
 	// Whether this partition is not supported by flashall.
 	// If true, this partition will not be included in the `updatedpackage` dist artifact.
 	No_flashall *bool
+
+	// Run checkvintf on the vintf manifests of the filesystem
+	Check_vintf *bool
 }
 
 type AndroidFilesystemDeps struct {
@@ -348,6 +351,13 @@ var dependencyTagWithVisibilityEnforcementBypass = depTagWithVisibilityEnforceme
 // ramdiskDevNodesDescription is the name of the filegroup module that provides the file that
 // contains the description of dev nodes added to the CPIO archive for the ramdisk partition.
 const ramdiskDevNodesDescription = "ramdisk_node_list"
+
+func (f *filesystem) UseGenericConfig() bool {
+	if proptools.Bool(f.properties.Is_auto_generated) {
+		return false
+	}
+	return f.PartitionType() == "system"
+}
 
 func (f *filesystem) setDevNodesDescriptionProp() {
 	if proptools.String(f.properties.Partition_name) == "ramdisk" {
@@ -479,6 +489,9 @@ type FilesystemInfo struct {
 	NoFlashall       bool
 	// HasOrIsRecovery returns true for recovery and for ramdisks with a recovery partition.
 	HasOrIsRecovery bool
+
+	// Results of check_vintf
+	checkVintfLog android.Path
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -647,11 +660,13 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	platformGeneratedFiles := []string{}
 	f.entries = f.copyPackagingSpecs(ctx, builder, specs, rootDir, rebasedDir)
+	f.verifyGenericConfig(ctx, specs)
 	f.buildNonDepsFiles(ctx, builder, rootDir, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildEventLogtagsFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildAconfigFlagsFiles(ctx, builder, specs, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.filesystemBuilder.BuildLinkerConfigFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
+	checkVintfLog := f.checkVintf(ctx, rebasedDir)
 	// Assemeble the staging dir and output a timestamp
 	builder.Command().Text("touch").Output(f.fileystemStagingDirTimestamp(ctx))
 	builder.Build("assemble_filesystem_staging_dir", fmt.Sprintf("Assemble filesystem staging dir %s", f.BaseModuleName()))
@@ -757,6 +772,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		PartitionName:       f.partitionName(),
 		HasOrIsRecovery:     f.hasOrIsRecovery(ctx),
 		NoFlashall:          proptools.Bool(f.properties.No_flashall),
+		checkVintfLog:       checkVintfLog,
 	}
 	if proptools.Bool(f.properties.Use_avb) {
 		fsInfo.UseAvb = true
@@ -1035,6 +1051,79 @@ func (f *filesystem) copyPackagingSpecs(ctx android.ModuleContext, builder *andr
 
 func (f *filesystem) rootDirString() string {
 	return f.partitionName()
+}
+
+func (f *filesystem) verifyGenericConfig(ctx android.ModuleContext, specs map[string]android.PackagingSpec) {
+	// This image is not bundled with the platform.
+	if ctx.Config().UnbundledBuild() {
+		return
+	}
+
+	// TODO(b/411581190): These system images include system_ext and product modules in the system
+	// partition. They must be included with a different depTag so that we can skip those non-system
+	// modules in this verification.
+	systemImagesWithSubpartitions := []string{
+		"android_gsi",
+		"aosp_system_image",
+	}
+
+	// Verify that modules installed in the system partition use the generic configiguration. This
+	// also checks there are any unexpected dependencies from system modules to modules installed in
+	// non-system partitions.
+	if !f.UseGenericConfig() || f.partitionName() != "system" || proptools.Bool(f.properties.Is_auto_generated) || android.InList(f.Name(), systemImagesWithSubpartitions) {
+		return
+	}
+
+	allowedModules := []string{
+		// build_flag_system collects information from the metadata for each product.
+		"build_flag_system",
+		// microdroid_ramdisk is an android_filesystem included in the system image.
+		"microdroid_ramdisk",
+		// notice_xml_system collects information from the metadata for each product.
+		"notice_xml_system",
+		// product_config collects all product variables that are required in every partition.
+		"product_config",
+	}
+
+	nonGenericModules := make(map[string]string)
+	visitedModules := make(map[string]bool)
+
+	for _, m := range allowedModules {
+		visitedModules[m] = true
+	}
+
+	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
+		moduleName := child.Name()
+		if visitedModules[moduleName] {
+			return false
+		}
+		visitedModules[moduleName] = true
+
+		moduleInfo := android.OtherModulePointerProviderOrDefault(ctx, child, android.CommonModuleInfoProvider)
+		if !moduleInfo.Enabled || moduleInfo.Target.Os.Class == android.Host {
+			return false
+		}
+
+		// Skip optional library deps which are mostly from a different partition.
+		depTag := ctx.OtherModuleDependencyTag(child)
+		if java.IsOptionalUsesLibraryDepTag(depTag) {
+			return false
+		}
+
+		// Modules requiring non-generic configuration must not be included in the system image.
+		if !moduleInfo.UseGenericConfig {
+			nonGenericModules[moduleName] = parent.Name()
+		}
+		return true
+	})
+
+	if len(nonGenericModules) > 0 {
+		errStr := "\n"
+		for _, m := range android.SortedKeys(nonGenericModules) {
+			errStr += fmt.Sprintf("\t%q from %q,\n", m, nonGenericModules[m])
+		}
+		ctx.ModuleErrorf("includes non-generic modules:%s", errStr)
+	}
 }
 
 type buildImageParams struct {
@@ -1782,4 +1871,64 @@ func setCommonFilesystemInfo(ctx android.ModuleContext, m Filesystem) {
 		Output:           m.OutputPath(),
 		SignedOutputPath: m.SignedOutputPath(),
 	})
+}
+
+// Runs checkvintf on the staging directory of the filesystem.
+func (f *filesystem) checkVintf(ctx android.ModuleContext, rebasedDir android.OutputPath) android.Path {
+	if !proptools.Bool(f.properties.Check_vintf) {
+		return nil
+	}
+	checkVintfLog := android.PathForModuleOut(ctx, "vintf", "check_vintf_"+f.PartitionType()+".log")
+	extractedApexDir := android.PathForModuleOut(ctx, "vintf", "apex_extracted")
+
+	builder := android.NewRuleBuilder(pctx, ctx)
+	// Use apexd_host to extract the apexes of this partition to an intermediate location.
+	// This intermediate location will be subsequently used by checkvintf.
+	cmd := builder.Command()
+	cmd.Textf("rm -rf %s", checkVintfLog).
+		Textf("rm -rf %s && mkdir -p %s && ", extractedApexDir.String(), extractedApexDir.String()).
+		BuiltTool("apexd_host").
+		FlagWithArg(fmt.Sprintf(" --%s_path ", f.PartitionType()), rebasedDir.String()).
+		FlagWithArg(" --apex_path ", extractedApexDir.String())
+
+	if f.PartitionType() == "system" {
+		cmd.Textf(" && ").
+			BuiltTool("checkvintf").
+			Flag("--check-one").
+			Implicit(f.fileystemStagingDirTimestamp(ctx)).
+			FlagWithArg("--dirmap ", fmt.Sprintf("/system:%s", rebasedDir.String())).
+			FlagWithArg("--dirmap ", fmt.Sprintf("/apex:%s", extractedApexDir.String())).
+			FlagWithOutput(">> ", checkVintfLog).
+			Flag("2>&1 ").
+			Textf(" || ( cat %s && exit 1 ); ", checkVintfLog.String())
+	} else {
+		// checkvintf against each device sku
+		for _, vendorSku := range deviceSkusForCheckVintf(ctx) {
+			cmd.Textf(" && ").
+				BuiltTool("checkvintf").
+				Flag("--check-one").
+				Implicit(f.fileystemStagingDirTimestamp(ctx)).
+				FlagWithArg("--dirmap ", fmt.Sprintf("/vendor:%s", rebasedDir.String())).
+				FlagWithArg("--dirmap ", fmt.Sprintf("/apex:%s", extractedApexDir.String())).
+				FlagWithArg("--property ", "ro.boot.product.vendor.sku="+vendorSku).
+				FlagWithOutput(">> ", checkVintfLog).
+				Flag("2>&1 ").
+				Textf(" || ( cat %s && exit 1 ); ", checkVintfLog.String())
+		}
+	}
+
+	builder.Build(checkVintfLog.Base(), checkVintfLog.Base())
+	return checkVintfLog
+}
+
+func deviceSkusForCheckVintf(ctx android.ModuleContext) []string {
+	// Check vendor SKU=(empty) case when:
+	// - DEVICE_MANIFEST_FILE is not empty; OR
+	// - DEVICE_MANIFEST_FILE is empty AND DEVICE_MANIFEST_SKUS is empty (only vendor manifest fragments are used)
+	if len(ctx.Config().DeviceManifestFiles()) > 0 {
+		return []string{""}
+	} else if len(ctx.Config().DeviceManifestSkus()) == 0 {
+		return []string{""}
+	}
+	return ctx.Config().DeviceManifestSkus()
 }
