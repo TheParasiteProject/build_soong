@@ -151,10 +151,15 @@ func GetReleaseArgs(configs *rc_lib.ReleaseConfigs, commonFlags Flags) ([]*rc_li
 func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, args []string) error {
 	isTrace := cmd == "trace"
 	isSet := cmd == "set"
+	isGet := cmd == "get"
 
 	var all bool
+	var jsonVars bool
 	getFlags := flag.NewFlagSet("get", flag.ExitOnError)
 	getFlags.BoolVar(&all, "all", false, "Display all flags")
+	if isGet {
+		getFlags.BoolVar(&jsonVars, "json", false, "Output flag as json object")
+	}
 	getFlags.Parse(args)
 	args = getFlags.Args()
 
@@ -165,8 +170,14 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	if err != nil {
 		return err
 	}
-	if isTrace && len(releaseConfigList) > 1 {
-		return fmt.Errorf("trace command only allows one --release argument.  Got: %s", strings.Join(commonFlags.targetReleases, " "))
+
+	if len(releaseConfigList) > 1 {
+		switch {
+		case isTrace:
+			return fmt.Errorf("trace command only allows one --release argument.  Got: %s", strings.Join(commonFlags.targetReleases, " "))
+		case jsonVars:
+			return fmt.Errorf("--shell only allows one --release argument.  Got: %s", strings.Join(commonFlags.targetReleases, " "))
+		}
 	}
 
 	if all {
@@ -181,8 +192,11 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	var releaseNameFormat, variableNameFormat string
 	valueFormat := "%s"
 	showReleaseName := len(releaseConfigList) > 1
-	showVariableName := len(args) > 1
-	if showVariableName {
+	showVariableName := len(args) > 1 || jsonVars
+	if jsonVars {
+		variableNameFormat = `"%s": `
+		valueFormat = `"%s"`
+	} else if showVariableName {
 		for _, arg := range args {
 			maxVariableNameLen = max(len(arg), maxVariableNameLen)
 		}
@@ -197,7 +211,7 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 		valueFormat = "'%s'"
 	}
 
-	outputOneLine := func(variable, release, value, valueFormat string) {
+	outputOneLine := func(variable, release, value, valueFormat string, last bool) {
 		var outStr string
 		if showVariableName {
 			outStr += fmt.Sprintf(variableNameFormat, variable)
@@ -206,6 +220,9 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 			outStr += fmt.Sprintf(releaseNameFormat, release)
 		}
 		outStr += fmt.Sprintf(valueFormat, value)
+		if jsonVars && !last {
+			outStr += ","
+		}
 		fmt.Println(outStr)
 	}
 
@@ -215,7 +232,8 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 		}
 	}
 
-	for _, arg := range args {
+	numArgs := len(args)
+	for argIdx, arg := range args {
 		for _, config := range releaseConfigList {
 			if isSet {
 				// If this is from the set command, format the output as:
@@ -231,7 +249,7 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 					if err != nil {
 						return err
 					}
-					outputOneLine(arg, "<default>", defaultValue, valueFormat)
+					outputOneLine(arg, "<default>", defaultValue, valueFormat, argIdx == numArgs-1)
 				case config.AconfigFlagsOnly:
 					continue
 				case config.Name == "trunk":
@@ -240,9 +258,9 @@ func GetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 			}
 			val, err := MarshalFlagValue(config, arg)
 			if err == nil {
-				outputOneLine(arg, config.Name, val, valueFormat)
-			} else {
-				outputOneLine(arg, config.Name, "REDACTED", "%s")
+				outputOneLine(arg, config.Name, val, valueFormat, argIdx == numArgs-1)
+			} else if !jsonVars {
+				outputOneLine(arg, config.Name, "REDACTED", "%s", argIdx == numArgs-1)
 			}
 			if err == nil && isTrace {
 				for _, trace := range config.FlagArtifacts[arg].Traces {
