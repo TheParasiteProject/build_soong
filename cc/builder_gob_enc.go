@@ -12,14 +12,14 @@ func init() {
 	ObjectsGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(Objects) })
 }
 
-func (r Objects) Encode(buf *bytes.Buffer) error {
+func (r Objects) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.objFiles))); err != nil {
 		return err
 	}
 	for val1 := 0; val1 < len(r.objFiles); val1++ {
-		if err = gobtools.EncodeInterface(buf, r.objFiles[val1]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.objFiles[val1]); err != nil {
 			return err
 		}
 	}
@@ -28,7 +28,7 @@ func (r Objects) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val2 := 0; val2 < len(r.tidyFiles); val2++ {
-		if err = gobtools.EncodeInterface(buf, r.tidyFiles[val2]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.tidyFiles[val2]); err != nil {
 			return err
 		}
 	}
@@ -37,7 +37,7 @@ func (r Objects) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val3 := 0; val3 < len(r.tidyDepFiles); val3++ {
-		if err = gobtools.EncodeInterface(buf, r.tidyDepFiles[val3]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.tidyDepFiles[val3]); err != nil {
 			return err
 		}
 	}
@@ -46,7 +46,7 @@ func (r Objects) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val4 := 0; val4 < len(r.coverageFiles); val4++ {
-		if err = gobtools.EncodeInterface(buf, r.coverageFiles[val4]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.coverageFiles[val4]); err != nil {
 			return err
 		}
 	}
@@ -55,7 +55,7 @@ func (r Objects) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val5 := 0; val5 < len(r.sAbiDumpFiles); val5++ {
-		if err = gobtools.EncodeInterface(buf, r.sAbiDumpFiles[val5]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.sAbiDumpFiles[val5]); err != nil {
 			return err
 		}
 	}
@@ -64,14 +64,14 @@ func (r Objects) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val6 := 0; val6 < len(r.kytheFiles); val6++ {
-		if err = gobtools.EncodeInterface(buf, r.kytheFiles[val6]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.kytheFiles[val6]); err != nil {
 			return err
 		}
 	}
 	return err
 }
 
-func (r *Objects) Decode(buf *bytes.Reader) error {
+func (r *Objects) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val3 int32
@@ -82,7 +82,7 @@ func (r *Objects) Decode(buf *bytes.Reader) error {
 	if val3 > 0 {
 		r.objFiles = make([]android.Path, val3)
 		for val4 := 0; val4 < int(val3); val4++ {
-			if val6, err := gobtools.DecodeInterface(buf); err != nil {
+			if val6, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val6 == nil {
 				r.objFiles[val4] = nil
@@ -100,7 +100,7 @@ func (r *Objects) Decode(buf *bytes.Reader) error {
 	if val9 > 0 {
 		r.tidyFiles = make([]android.Path, val9)
 		for val10 := 0; val10 < int(val9); val10++ {
-			if val12, err := gobtools.DecodeInterface(buf); err != nil {
+			if val12, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val12 == nil {
 				r.tidyFiles[val10] = nil
@@ -118,7 +118,7 @@ func (r *Objects) Decode(buf *bytes.Reader) error {
 	if val15 > 0 {
 		r.tidyDepFiles = make([]android.Path, val15)
 		for val16 := 0; val16 < int(val15); val16++ {
-			if val18, err := gobtools.DecodeInterface(buf); err != nil {
+			if val18, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val18 == nil {
 				r.tidyDepFiles[val16] = nil
@@ -136,7 +136,7 @@ func (r *Objects) Decode(buf *bytes.Reader) error {
 	if val21 > 0 {
 		r.coverageFiles = make([]android.Path, val21)
 		for val22 := 0; val22 < int(val21); val22++ {
-			if val24, err := gobtools.DecodeInterface(buf); err != nil {
+			if val24, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val24 == nil {
 				r.coverageFiles[val22] = nil
@@ -154,7 +154,7 @@ func (r *Objects) Decode(buf *bytes.Reader) error {
 	if val27 > 0 {
 		r.sAbiDumpFiles = make([]android.Path, val27)
 		for val28 := 0; val28 < int(val27); val28++ {
-			if val30, err := gobtools.DecodeInterface(buf); err != nil {
+			if val30, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val30 == nil {
 				r.sAbiDumpFiles[val28] = nil
@@ -172,7 +172,7 @@ func (r *Objects) Decode(buf *bytes.Reader) error {
 	if val33 > 0 {
 		r.kytheFiles = make([]android.Path, val33)
 		for val34 := 0; val34 < int(val33); val34++ {
-			if val36, err := gobtools.DecodeInterface(buf); err != nil {
+			if val36, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val36 == nil {
 				r.kytheFiles[val34] = nil

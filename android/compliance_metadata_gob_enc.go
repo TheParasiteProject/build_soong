@@ -11,7 +11,7 @@ func init() {
 	ComplianceMetadataInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ComplianceMetadataInfo) })
 }
 
-func (r ComplianceMetadataInfo) Encode(buf *bytes.Buffer) error {
+func (r ComplianceMetadataInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.properties))); err != nil {
@@ -73,7 +73,7 @@ func (r ComplianceMetadataInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *ComplianceMetadataInfo) Decode(buf *bytes.Reader) error {
+func (r *ComplianceMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val1 int32
