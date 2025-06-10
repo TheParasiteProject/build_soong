@@ -1413,7 +1413,10 @@ func (a *androidDevice) createMonolithicVintfCompatibleLog(ctx android.ModuleCon
 		ctx.DeviceConfig().ShippingApiLevel(),
 	)
 
-	// TODO (b/415130821): Print PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS to output
+	// TODO: Handle devices that set PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS to false.
+	if a.kernelVersion != nil {
+		builder.Command().Textf("echo -n -e PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS=true >> %s", checkVintfLog)
+	}
 	builder.Command().Textf("echo -n -e 'Args: \\n  ' >> %s", checkVintfLog)
 	builder.Command().Textf("echo -n -e '%s: \\n  ' >> %s", additionalArgs, checkVintfLog)
 
