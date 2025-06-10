@@ -275,10 +275,11 @@ type ProductVariables struct {
 	AAPTPreferredConfig *string  `json:",omitempty"`
 	AAPTPrebuiltDPI     []string `json:",omitempty"`
 
-	DefaultAppCertificate           *string  `json:",omitempty"`
-	ExtraOtaKeys                    []string `json:",omitempty"`
-	ExtraOtaRecoveryKeys            []string `json:",omitempty"`
-	MainlineSepolicyDevCertificates *string  `json:",omitempty"`
+	DefaultAppCertificate                    *string  `json:",omitempty"`
+	ExtraOtaKeys                             []string `json:",omitempty"`
+	ExtraOtaRecoveryKeys                     []string `json:",omitempty"`
+	MainlineSepolicyDevCertificates          *string  `json:",omitempty"`
+	MainlineBluetoothSepolicyDevCertificates *string  `json:",omitempty"`
 
 	AppsDefaultVersionName *string `json:",omitempty"`
 
