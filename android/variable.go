@@ -658,6 +658,7 @@ type PartitionVariables struct {
 	InternalKernelCmdline             []string `json:",omitempty"`
 	InternalBootconfig                []string `json:",omitempty"`
 	InternalBootconfigFile            string   `json:",omitempty"`
+	BoardPrebuiltBootImage            string   `json:",omitempty"`
 
 	// Super image stuff
 	ProductUseDynamicPartitions       bool                                     `json:",omitempty"`
