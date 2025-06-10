@@ -224,7 +224,18 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	for _, install := range toInstall {
 		testInstalledSharedLibsDeduper[install.dst.String()] = true
 	}
-	for _, suite := range []string{"general-tests", "device-tests", "vts", "tvts", "art-host-tests", "host-unit-tests", "camera-hal-tests"} {
+	for _, suite := range []string{
+		"general-tests",
+		"device-tests",
+		"vts",
+		"tvts",
+		"art-host-tests",
+		"host-unit-tests",
+		"camera-hal-tests",
+		"automotive-tests",
+		"automotive-general-tests",
+		"automotive-sdv-tests",
+	} {
 		var myTestCases WritablePath = hostOutTestCases
 		switch suite {
 		case "vts", "tvts":
@@ -382,6 +393,7 @@ type testSuiteConfig struct {
 	name                           string
 	buildHostSharedLibsZip         bool
 	includeHostSharedLibsInMainZip bool
+	hostJavaTools                  []string
 }
 
 var testSuiteConfigs = []testSuiteConfig{
@@ -395,6 +407,16 @@ var testSuiteConfigs = []testSuiteConfig{
 	{
 		name:                           "device-tests",
 		includeHostSharedLibsInMainZip: true,
+	},
+	{
+		name: "automotive-tests",
+	},
+	{
+		name:          "automotive-general-tests",
+		hostJavaTools: []string{"compatibility-host-util", "cts-tradefed", "vts-tradefed"},
+	},
+	{
+		name: "automotive-sdv-tests",
 	},
 }
 
@@ -528,6 +550,7 @@ func packageTestSuite(ctx SingletonContext, files, sharedLibs Paths, suiteConfig
 	WriteFileRule(ctx, testsZipCmdHostFileInput, strings.Join(testsZipCmdHostFileInputContent, " "))
 
 	testsZipCmd.
+		FlagWithArg("-P ", "host").
 		FlagWithInput("-l ", testsZipCmdHostFileInput).
 		FlagWithArg("-P ", "target").
 		FlagWithArg("-C ", targetOut)
@@ -549,6 +572,15 @@ func packageTestSuite(ctx SingletonContext, files, sharedLibs Paths, suiteConfig
 
 	WriteFileRule(ctx, testsZipCmdTargetFileInput, strings.Join(testsZipCmdTargetFileInputContent, " "))
 	testsZipCmd.FlagWithInput("-l ", testsZipCmdTargetFileInput)
+
+	if len(suiteConfig.hostJavaTools) > 0 {
+		testsZipCmd.FlagWithArg("-P ", "host/tools")
+		testsZipCmd.Flag("-j")
+
+		for _, hostJavaTool := range suiteConfig.hostJavaTools {
+			testsZipCmd.FlagWithInput("-f ", ctx.Config().HostJavaToolPath(ctx, hostJavaTool+".jar"))
+		}
+	}
 
 	testsZipBuilder.Build(suiteConfig.name, "building "+suiteConfig.name+" zip")
 	testsConfigsZipBuilder.Build(suiteConfig.name+"-configs", "building "+suiteConfig.name+" configs zip")
