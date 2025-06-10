@@ -26,6 +26,11 @@ import zipfile
 
 from ninja_determinism_test import Product, get_top, transitively_included_ninja_files
 
+# Equivalent of soong's IsEnvTrue
+def is_env_true(e: str) -> bool:
+    value = os.environ.get(e, '').lower()
+    return value == '1' or value == 'y' or value == 'yes' or value == 'on' or value == 'true'
+
 def run_build_target_files_zip(product: Product, soong_only: bool) -> bool:
     """Runs a build and returns if it succeeded or not."""
     soong_only_arg = '--no-soong-only'
@@ -122,7 +127,10 @@ def find_build_id() -> str | None:
 def zip_ninja_files(subdistdir: str, product: Product):
     out_dir = os.getenv('OUT_DIR', 'out')
     root_dir = os.path.dirname(out_dir)
-    files_to_zip = transitively_included_ninja_files(out_dir, os.path.join(out_dir, f'combined-{product.product}.ninja'), {})
+    root_ninja_name = f'combined-{product.product}.ninja'
+    if is_env_true('EMMA_INSTRUMENT'):
+        root_ninja_name = f'combined-{product.product}.coverage.ninja'
+    files_to_zip = transitively_included_ninja_files(out_dir, os.path.join(out_dir, root_ninja_name), {})
 
     zip_filename = os.path.join(subdistdir, "ninja_files.zip")
     with zipfile.ZipFile(zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zipf:
