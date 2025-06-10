@@ -1598,6 +1598,10 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if proptools.Bool(a.properties.Extract_jni) {
 		for _, t := range ctx.MultiTargets() {
+			// Don't attempt to extract JNI libraries for riscv64, we don't have any AARs with riscv64 JNI library support yet.
+			if t.Arch.ArchType == android.Riscv64 {
+				continue
+			}
 			arch := t.Arch.Abi[0]
 			path := android.PathForModuleOut(ctx, arch+"_jni.zip")
 			a.jniPackages = append(a.jniPackages, path)
