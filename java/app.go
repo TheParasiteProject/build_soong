@@ -1099,11 +1099,14 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		noticeFile := android.PathForModuleOut(ctx, "NOTICE.html.gz")
 		android.BuildNoticeHtmlOutputFromLicenseMetadata(
 			ctx, noticeFile, "", "",
-			[]string{
-				a.installDir.String() + "/",
-				android.PathForModuleInstall(ctx).String() + "/",
-				a.outputFile.String(),
-			})
+			android.BuildNoticeFromLicenseDataArgs{
+				StripPrefix: []string{
+					a.installDir.String() + "/",
+					android.PathForModuleInstall(ctx).String() + "/",
+					a.outputFile.String(),
+				},
+			},
+		)
 		builder := android.NewRuleBuilder(pctx, ctx)
 		builder.Command().Text("cp").
 			Input(noticeFile).
