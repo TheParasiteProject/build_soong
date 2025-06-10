@@ -1001,6 +1001,9 @@ func (a *AndroidLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 }
 
 func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	if checkSdkViolation, ok := ctx.Config().GetBuildFlag("RELEASE_AAR_SDK_VIOLATION_CHECK"); ok && checkSdkViolation == "true" {
+		a.checkSdkVersions(ctx)
+	}
 	packageNameProp := a.aaptProperties.Package_name.Get(ctx)
 	if packageNameProp.IsPresent() {
 		if a.aaptProperties.Manifest != nil {

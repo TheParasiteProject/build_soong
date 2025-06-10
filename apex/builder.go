@@ -82,7 +82,6 @@ func init() {
 	pctx.HostBinToolVariable("fsck_erofs", "fsck.erofs")
 	pctx.SourcePathVariable("genNdkUsedbyApexPath", "build/soong/scripts/gen_ndk_usedby_apex.sh")
 	pctx.HostBinToolVariable("conv_linker_config", "conv_linker_config")
-	pctx.HostBinToolVariable("assemble_vintf", "assemble_vintf")
 	pctx.HostBinToolVariable("apex_elf_checker", "apex_elf_checker")
 	pctx.HostBinToolVariable("aconfig", "aconfig")
 	pctx.HostBinToolVariable("host_apex_verifier", "host_apex_verifier")
@@ -231,12 +230,6 @@ var (
 		CommandDeps: []string{"${host_apex_verifier}", "${deapexer}", "${debugfs}", "${fsck_erofs}"},
 		Description: "run host_apex_verifier",
 	}, "partition_tag")
-
-	assembleVintfRule = pctx.StaticRule("assembleVintfRule", blueprint.RuleParams{
-		Command:     `rm -f $out && VINTF_IGNORE_TARGET_FCM_VERSION=true ${assemble_vintf} -i $in -o $out`,
-		CommandDeps: []string{"${assemble_vintf}"},
-		Description: "run assemble_vintf",
-	})
 
 	apexElfCheckerUnwantedRule = pctx.StaticRule("apexElfCheckerUnwantedRule", blueprint.RuleParams{
 		Command:     `${apex_elf_checker} --tool_path ${tool_path} --unwanted ${unwanted} ${in} && touch ${out}`,
@@ -528,7 +521,7 @@ func shouldApplyAssembleVintf(fi apexFile) bool {
 func runAssembleVintf(ctx android.ModuleContext, vintfFragment android.Path) android.Path {
 	processed := android.PathForModuleOut(ctx, "vintf", vintfFragment.Base())
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        assembleVintfRule,
+		Rule:        android.AssembleVintfRule,
 		Input:       vintfFragment,
 		Output:      processed,
 		Description: "run assemble_vintf for VINTF in APEX",
@@ -815,10 +808,13 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 	htmlGzNotice := android.PathForModuleOut(ctx, "NOTICE.html.gz")
 	android.BuildNoticeHtmlOutputFromLicenseMetadata(
 		ctx, htmlGzNotice, "", "",
-		[]string{
-			android.PathForModuleInstall(ctx).String() + "/",
-			android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
-		})
+		android.BuildNoticeFromLicenseDataArgs{
+			StripPrefix: []string{
+				android.PathForModuleInstall(ctx).String() + "/",
+				android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
+			},
+		},
+	)
 	noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().Text("cp").

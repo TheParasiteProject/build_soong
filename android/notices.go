@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 func modulesOutputDirs(ctx BuilderContext, modules ...ModuleProxy) []string {
@@ -63,9 +64,8 @@ func modulesLicenseMetadata(ctx OtherModuleProviderContext, modules ...ModulePro
 // buildNoticeOutputFromLicenseMetadata writes out a notice file.
 func buildNoticeOutputFromLicenseMetadata(
 	ctx BuilderAndOtherModuleProviderContext, tool, ruleName string, outputFile WritablePath,
-	libraryName string, stripPrefix []string, modules ...ModuleProxy) {
+	libraryName string, extraArgs BuildNoticeFromLicenseDataArgs, modules ...ModuleProxy) {
 	depsFile := outputFile.ReplaceExtension(ctx, strings.TrimPrefix(outputFile.Ext()+".d", "."))
-	rule := NewRuleBuilder(pctx, ctx)
 	if len(modules) == 0 {
 		if mctx, ok := ctx.(ModuleContext); ok {
 			modules = []ModuleProxy{{blueprint.CreateModuleProxy(mctx.Module())}}
@@ -76,22 +76,51 @@ func buildNoticeOutputFromLicenseMetadata(
 	if libraryName == "" {
 		libraryName = modules[0].Name()
 	}
+	rule := NewRuleBuilder(pctx, ctx)
 	cmd := rule.Command().
 		BuiltTool(tool).
 		FlagWithOutput("-o ", outputFile).
-		FlagWithDepFile("-d ", depsFile)
-	if len(stripPrefix) > 0 {
-		cmd = cmd.FlagForEachArg("--strip_prefix ", stripPrefix)
-	}
-	outputs := modulesOutputDirs(ctx, modules...)
-	if len(outputs) > 0 {
-		cmd = cmd.FlagForEachArg("--strip_prefix ", outputs)
-	}
+		FlagWithDepFile("-d ", depsFile).
+		FlagForEachArg("--strip_prefix ", extraArgs.StripPrefix).
+		FlagForEachArg("--strip_prefix ", modulesOutputDirs(ctx, modules...))
+
 	if libraryName != "" {
-		cmd = cmd.FlagWithArg("--product ", libraryName)
+		cmd.FlagWithArg("--product ", proptools.ShellEscapeIncludingSpaces(libraryName))
 	}
-	cmd = cmd.Inputs(modulesLicenseMetadata(ctx, modules...))
+	if extraArgs.Title != "" {
+		cmd.FlagWithArg("--title ", proptools.ShellEscapeIncludingSpaces(extraArgs.Title))
+	}
+	// The difference between nil and empty slice matters here, to allow for empty filter sets
+	if extraArgs.Filter != nil {
+		cmd.Flag("--filter")
+		cmd.FlagForEachArg("--filter_to ", extraArgs.Filter)
+	}
+	cmd.FlagForEachArg("--replace ", extraArgs.Replace.Args())
+	cmd.Inputs(modulesLicenseMetadata(ctx, modules...))
 	rule.Build(ruleName, "container notice file")
+}
+
+type NoticeReplace struct {
+	From string
+	To   string
+}
+
+type NoticeReplaces []NoticeReplace
+
+func (r *NoticeReplaces) Args() []string {
+	var result []string
+	for _, i := range *r {
+		result = append(result, i.From+":::"+i.To)
+	}
+	return result
+}
+
+// Additional optional arguments that can be passed to notice building functions
+type BuildNoticeFromLicenseDataArgs struct {
+	Title       string
+	StripPrefix []string
+	Filter      []string
+	Replace     NoticeReplaces
 }
 
 // BuildNoticeTextOutputFromLicenseMetadata writes out a notice text file based
@@ -99,9 +128,9 @@ func buildNoticeOutputFromLicenseMetadata(
 // current context module if none given.
 func BuildNoticeTextOutputFromLicenseMetadata(
 	ctx BuilderAndOtherModuleProviderContext, outputFile WritablePath, ruleName, libraryName string,
-	stripPrefix []string, modules ...ModuleProxy) {
+	extraArgs BuildNoticeFromLicenseDataArgs, modules ...ModuleProxy) {
 	buildNoticeOutputFromLicenseMetadata(ctx, "textnotice", "text_notice_"+ruleName,
-		outputFile, libraryName, stripPrefix, modules...)
+		outputFile, libraryName, extraArgs, modules...)
 }
 
 // BuildNoticeHtmlOutputFromLicenseMetadata writes out a notice text file based
@@ -109,9 +138,9 @@ func BuildNoticeTextOutputFromLicenseMetadata(
 // current context module if none given.
 func BuildNoticeHtmlOutputFromLicenseMetadata(
 	ctx BuilderAndOtherModuleProviderContext, outputFile WritablePath, ruleName, libraryName string,
-	stripPrefix []string, modules ...ModuleProxy) {
+	extraArgs BuildNoticeFromLicenseDataArgs, modules ...ModuleProxy) {
 	buildNoticeOutputFromLicenseMetadata(ctx, "htmlnotice", "html_notice_"+ruleName,
-		outputFile, libraryName, stripPrefix, modules...)
+		outputFile, libraryName, extraArgs, modules...)
 }
 
 // BuildNoticeXmlOutputFromLicenseMetadata writes out a notice text file based
@@ -119,7 +148,7 @@ func BuildNoticeHtmlOutputFromLicenseMetadata(
 // current context module if none given.
 func BuildNoticeXmlOutputFromLicenseMetadata(
 	ctx BuilderAndOtherModuleProviderContext, outputFile WritablePath, ruleName, libraryName string,
-	stripPrefix []string, modules ...ModuleProxy) {
+	extraArgs BuildNoticeFromLicenseDataArgs, modules ...ModuleProxy) {
 	buildNoticeOutputFromLicenseMetadata(ctx, "xmlnotice", "xml_notice_"+ruleName,
-		outputFile, libraryName, stripPrefix, modules...)
+		outputFile, libraryName, extraArgs, modules...)
 }

@@ -908,7 +908,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 			// Deep copy the provider info since we need to modify the info later
 			info := deepCopyAndroidMkProviderInfo(info)
 			info.PrimaryInfo.fillInEntries(ctx, mod, commonInfo)
-			if info.PrimaryInfo.disabled() {
+			if info.PrimaryInfo.Disabled {
 				continue
 			}
 			if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
@@ -926,7 +926,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 				}
 
 				data.fillInData(ctx, mod.(Module))
-				if data.Entries.disabled() {
+				if data.Entries.Disabled {
 					continue
 				}
 				if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {
@@ -940,7 +940,7 @@ func getSoongOnlyDataFromMods(ctx fillInEntriesContext, mods []ModuleOrProxy) ([
 				entriesList := x.AndroidMkEntries()
 				for _, entries := range entriesList {
 					entries.fillInEntries(ctx, mod.(Module))
-					if entries.disabled() {
+					if entries.Disabled {
 						continue
 					}
 					if moduleInfoJSON, ok := OtherModuleProvider(ctx, mod, ModuleInfoJSONProvider); ok {

@@ -12,10 +12,10 @@ func init() {
 	AndroidMkInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(AndroidMkInfo) })
 }
 
-func (r AndroidMkProviderInfo) Encode(buf *bytes.Buffer) error {
+func (r AndroidMkProviderInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.PrimaryInfo.Encode(buf); err != nil {
+	if err = r.PrimaryInfo.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -23,17 +23,17 @@ func (r AndroidMkProviderInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val1 := 0; val1 < len(r.ExtraInfo); val1++ {
-		if err = r.ExtraInfo[val1].Encode(buf); err != nil {
+		if err = r.ExtraInfo[val1].Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
 	return err
 }
 
-func (r *AndroidMkProviderInfo) Decode(buf *bytes.Reader) error {
+func (r *AndroidMkProviderInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.PrimaryInfo.Decode(buf); err != nil {
+	if err = r.PrimaryInfo.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (r *AndroidMkProviderInfo) Decode(buf *bytes.Reader) error {
 	if val3 > 0 {
 		r.ExtraInfo = make([]AndroidMkInfo, val3)
 		for val4 := 0; val4 < int(val3); val4++ {
-			if err = r.ExtraInfo[val4].Decode(buf); err != nil {
+			if err = r.ExtraInfo[val4].Decode(ctx, buf); err != nil {
 				return err
 			}
 		}
@@ -60,7 +60,7 @@ func (r AndroidMkProviderInfo) GetTypeId() int16 {
 	return AndroidMkProviderInfoGobRegId
 }
 
-func (r AndroidMkInfo) Encode(buf *bytes.Buffer) error {
+func (r AndroidMkInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.Class); err != nil {
@@ -75,7 +75,7 @@ func (r AndroidMkInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = r.OutputFile.Encode(buf); err != nil {
+	if err = r.OutputFile.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -160,7 +160,7 @@ func (r AndroidMkInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *AndroidMkInfo) Decode(buf *bytes.Reader) error {
+func (r *AndroidMkInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.Class)
@@ -178,7 +178,7 @@ func (r *AndroidMkInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if err = r.OutputFile.Decode(buf); err != nil {
+	if err = r.OutputFile.Decode(ctx, buf); err != nil {
 		return err
 	}
 

@@ -14,7 +14,7 @@ func init() {
 	ModuleInfoJSONInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModuleInfoJSONInfo) })
 }
 
-func (r CoreModuleInfoJSON) Encode(buf *bytes.Buffer) error {
+func (r CoreModuleInfoJSON) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.RegisterName); err != nil {
@@ -90,7 +90,7 @@ func (r CoreModuleInfoJSON) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *CoreModuleInfoJSON) Decode(buf *bytes.Reader) error {
+func (r *CoreModuleInfoJSON) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.RegisterName)
@@ -217,7 +217,7 @@ func (r CoreModuleInfoJSON) GetTypeId() int16 {
 	return CoreModuleInfoJSONGobRegId
 }
 
-func (r ExtraModuleInfoJSON) Encode(buf *bytes.Buffer) error {
+func (r ExtraModuleInfoJSON) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeString(buf, r.SubName); err != nil {
@@ -430,7 +430,7 @@ func (r ExtraModuleInfoJSON) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *ExtraModuleInfoJSON) Decode(buf *bytes.Reader) error {
+func (r *ExtraModuleInfoJSON) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	err = gobtools.DecodeString(buf, &r.SubName)
@@ -777,27 +777,27 @@ func (r ExtraModuleInfoJSON) GetTypeId() int16 {
 	return ExtraModuleInfoJSONGobRegId
 }
 
-func (r ModuleInfoJSON) Encode(buf *bytes.Buffer) error {
+func (r ModuleInfoJSON) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.core.Encode(buf); err != nil {
+	if err = r.core.Encode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.ExtraModuleInfoJSON.Encode(buf); err != nil {
+	if err = r.ExtraModuleInfoJSON.Encode(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *ModuleInfoJSON) Decode(buf *bytes.Reader) error {
+func (r *ModuleInfoJSON) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.core.Decode(buf); err != nil {
+	if err = r.core.Decode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.ExtraModuleInfoJSON.Decode(buf); err != nil {
+	if err = r.ExtraModuleInfoJSON.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -810,7 +810,7 @@ func (r ModuleInfoJSON) GetTypeId() int16 {
 	return ModuleInfoJSONGobRegId
 }
 
-func (r ModuleInfoJSONInfo) Encode(buf *bytes.Buffer) error {
+func (r ModuleInfoJSONInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.Data))); err != nil {
@@ -822,7 +822,7 @@ func (r ModuleInfoJSONInfo) Encode(buf *bytes.Buffer) error {
 			return err
 		}
 		if !val2 {
-			if err = (*r.Data[val1]).Encode(buf); err != nil {
+			if err = (*r.Data[val1]).Encode(ctx, buf); err != nil {
 				return err
 			}
 		}
@@ -830,7 +830,7 @@ func (r ModuleInfoJSONInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *ModuleInfoJSONInfo) Decode(buf *bytes.Reader) error {
+func (r *ModuleInfoJSONInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 int32
@@ -847,7 +847,7 @@ func (r *ModuleInfoJSONInfo) Decode(buf *bytes.Reader) error {
 			}
 			if !val5 {
 				var val4 ModuleInfoJSON
-				if err = val4.Decode(buf); err != nil {
+				if err = val4.Decode(ctx, buf); err != nil {
 					return err
 				}
 				r.Data[val3] = &val4

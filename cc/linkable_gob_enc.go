@@ -14,18 +14,18 @@ func init() {
 	ImplementationDepInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ImplementationDepInfo) })
 }
 
-func (r SharedLibraryInfo) Encode(buf *bytes.Buffer) error {
+func (r SharedLibraryInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.SharedLibrary); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.SharedLibrary); err != nil {
 		return err
 	}
 
-	if err = r.Target.Encode(buf); err != nil {
+	if err = r.Target.Encode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TableOfContents.Encode(buf); err != nil {
+	if err = r.TableOfContents.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -33,20 +33,20 @@ func (r SharedLibraryInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 
-	if err = r.ImplementationDeps.EncodeString(buf); err != nil {
+	if err = r.ImplementationDeps.EncodeString(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveStaticLibrariesForOrdering.EncodeInterface(buf); err != nil {
+	if err = r.TransitiveStaticLibrariesForOrdering.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *SharedLibraryInfo) Decode(buf *bytes.Reader) error {
+func (r *SharedLibraryInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.SharedLibrary = nil
@@ -54,11 +54,11 @@ func (r *SharedLibraryInfo) Decode(buf *bytes.Reader) error {
 		r.SharedLibrary = val2.(android.Path)
 	}
 
-	if err = r.Target.Decode(buf); err != nil {
+	if err = r.Target.Decode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TableOfContents.Decode(buf); err != nil {
+	if err = r.TableOfContents.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -67,11 +67,11 @@ func (r *SharedLibraryInfo) Decode(buf *bytes.Reader) error {
 		return err
 	}
 
-	if err = r.ImplementationDeps.DecodeString(buf); err != nil {
+	if err = r.ImplementationDeps.DecodeString(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.TransitiveStaticLibrariesForOrdering.DecodeInterface(buf); err != nil {
+	if err = r.TransitiveStaticLibrariesForOrdering.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
@@ -84,18 +84,18 @@ func (r SharedLibraryInfo) GetTypeId() int16 {
 	return SharedLibraryInfoGobRegId
 }
 
-func (r StaticLibraryInfo) Encode(buf *bytes.Buffer) error {
+func (r StaticLibraryInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(buf, r.StaticLibrary); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.StaticLibrary); err != nil {
 		return err
 	}
 
-	if err = r.Objects.Encode(buf); err != nil {
+	if err = r.Objects.Encode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.ReuseObjects.Encode(buf); err != nil {
+	if err = r.ReuseObjects.Encode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -103,21 +103,21 @@ func (r StaticLibraryInfo) Encode(buf *bytes.Buffer) error {
 		return err
 	}
 	for val1 := 0; val1 < len(r.WholeStaticLibsFromPrebuilts); val1++ {
-		if err = gobtools.EncodeInterface(buf, r.WholeStaticLibsFromPrebuilts[val1]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.WholeStaticLibsFromPrebuilts[val1]); err != nil {
 			return err
 		}
 	}
 
-	if err = r.TransitiveStaticLibrariesForOrdering.EncodeInterface(buf); err != nil {
+	if err = r.TransitiveStaticLibrariesForOrdering.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *StaticLibraryInfo) Decode(buf *bytes.Reader) error {
+func (r *StaticLibraryInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if val2, err := gobtools.DecodeInterface(buf); err != nil {
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
 		r.StaticLibrary = nil
@@ -125,11 +125,11 @@ func (r *StaticLibraryInfo) Decode(buf *bytes.Reader) error {
 		r.StaticLibrary = val2.(android.Path)
 	}
 
-	if err = r.Objects.Decode(buf); err != nil {
+	if err = r.Objects.Decode(ctx, buf); err != nil {
 		return err
 	}
 
-	if err = r.ReuseObjects.Decode(buf); err != nil {
+	if err = r.ReuseObjects.Decode(ctx, buf); err != nil {
 		return err
 	}
 
@@ -141,7 +141,7 @@ func (r *StaticLibraryInfo) Decode(buf *bytes.Reader) error {
 	if val7 > 0 {
 		r.WholeStaticLibsFromPrebuilts = make([]android.Path, val7)
 		for val8 := 0; val8 < int(val7); val8++ {
-			if val10, err := gobtools.DecodeInterface(buf); err != nil {
+			if val10, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val10 == nil {
 				r.WholeStaticLibsFromPrebuilts[val8] = nil
@@ -151,7 +151,7 @@ func (r *StaticLibraryInfo) Decode(buf *bytes.Reader) error {
 		}
 	}
 
-	if err = r.TransitiveStaticLibrariesForOrdering.DecodeInterface(buf); err != nil {
+	if err = r.TransitiveStaticLibrariesForOrdering.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 
@@ -164,19 +164,19 @@ func (r StaticLibraryInfo) GetTypeId() int16 {
 	return StaticLibraryInfoGobRegId
 }
 
-func (r ImplementationDepInfo) Encode(buf *bytes.Buffer) error {
+func (r ImplementationDepInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = r.ImplementationDeps.EncodeInterface(buf); err != nil {
+	if err = r.ImplementationDeps.EncodeInterface(ctx, buf); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *ImplementationDepInfo) Decode(buf *bytes.Reader) error {
+func (r *ImplementationDepInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	if err = r.ImplementationDeps.DecodeInterface(buf); err != nil {
+	if err = r.ImplementationDeps.DecodeInterface(ctx, buf); err != nil {
 		return err
 	}
 

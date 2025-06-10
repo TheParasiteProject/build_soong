@@ -71,10 +71,12 @@ func (s *genNoticeBuildRules) GenerateBuildActions(ctx SingletonContext) {
 		}
 		out(ctx, gm.Output, ctx.ModuleName(m),
 			proptools.StringDefault(gm.ArtifactName, defaultName),
-			[]string{
-				filepath.Join(ctx.Config().OutDir(), "target", "product", ctx.Config().DeviceName()) + "/",
-				ctx.Config().OutDir() + "/",
-				ctx.Config().SoongOutDir() + "/",
+			BuildNoticeFromLicenseDataArgs{
+				StripPrefix: []string{
+					filepath.Join(ctx.Config().OutDir(), "target", "product", ctx.Config().DeviceName()) + "/",
+					ctx.Config().OutDir() + "/",
+					ctx.Config().SoongOutDir() + "/",
+				},
 			}, modules...)
 	})
 }

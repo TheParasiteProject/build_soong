@@ -241,6 +241,16 @@ func (bpf *bpf) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	})
 
 	ctx.SetOutputFiles(bpf.objs, "")
+
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"FAKE"}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+	moduleInfoJSON.ExtraRequired = []string{}
+	name := bpf.ModuleBase.Name()
+	for _, obj := range bpf.objs {
+		objName := name + "_" + obj.Base()
+		moduleInfoJSON.ExtraRequired = append(moduleInfoJSON.ExtraRequired, objName)
+	}
 }
 
 func (bpf *bpf) AndroidMk() android.AndroidMkData {

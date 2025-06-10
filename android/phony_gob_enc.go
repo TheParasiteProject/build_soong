@@ -11,7 +11,7 @@ func init() {
 	ModulePhonyInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModulePhonyInfo) })
 }
 
-func (r ModulePhonyInfo) Encode(buf *bytes.Buffer) error {
+func (r ModulePhonyInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.Phonies))); err != nil {
@@ -25,7 +25,7 @@ func (r ModulePhonyInfo) Encode(buf *bytes.Buffer) error {
 			return err
 		}
 		for val1 := 0; val1 < len(v); val1++ {
-			if err = gobtools.EncodeInterface(buf, v[val1]); err != nil {
+			if err = gobtools.EncodeInterface(ctx, buf, v[val1]); err != nil {
 				return err
 			}
 		}
@@ -33,7 +33,7 @@ func (r ModulePhonyInfo) Encode(buf *bytes.Buffer) error {
 	return err
 }
 
-func (r *ModulePhonyInfo) Decode(buf *bytes.Reader) error {
+func (r *ModulePhonyInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val1 int32
@@ -58,7 +58,7 @@ func (r *ModulePhonyInfo) Decode(buf *bytes.Reader) error {
 			if val6 > 0 {
 				v = make([]Path, val6)
 				for val7 := 0; val7 < int(val6); val7++ {
-					if val9, err := gobtools.DecodeInterface(buf); err != nil {
+					if val9, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 						return err
 					} else if val9 == nil {
 						v[val7] = nil

@@ -11,21 +11,21 @@ func init() {
 	LogtagsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LogtagsInfo) })
 }
 
-func (r LogtagsInfo) Encode(buf *bytes.Buffer) error {
+func (r LogtagsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.Logtags))); err != nil {
 		return err
 	}
 	for val1 := 0; val1 < len(r.Logtags); val1++ {
-		if err = gobtools.EncodeInterface(buf, r.Logtags[val1]); err != nil {
+		if err = gobtools.EncodeInterface(ctx, buf, r.Logtags[val1]); err != nil {
 			return err
 		}
 	}
 	return err
 }
 
-func (r *LogtagsInfo) Decode(buf *bytes.Reader) error {
+func (r *LogtagsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val3 int32
@@ -36,7 +36,7 @@ func (r *LogtagsInfo) Decode(buf *bytes.Reader) error {
 	if val3 > 0 {
 		r.Logtags = make([]Path, val3)
 		for val4 := 0; val4 < int(val3); val4++ {
-			if val6, err := gobtools.DecodeInterface(buf); err != nil {
+			if val6, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 				return err
 			} else if val6 == nil {
 				r.Logtags[val4] = nil

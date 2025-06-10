@@ -657,7 +657,8 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		FlagWithOutput("--output_metadata_path ", otaMetadata).
 		Text(targetFilesDir.String()).
 		Output(otaFilesZip).
-		Implicit(ctx.Config().HostToolPath(ctx, "delta_generator"))
+		Implicit(ctx.Config().HostToolPath(ctx, "delta_generator")).
+		Implicit(ctx.Config().HostToolPath(ctx, "checkvintf"))
 	a.otaFilesZip = otaFilesZip
 	a.otaMetadata = otaMetadata
 
@@ -1354,6 +1355,8 @@ func (a *androidDevice) checkVintf(ctx android.ModuleContext) {
 			checkVintfLogs = append(checkVintfLogs, checkVintfLog)
 		}
 	}
+	checkVintfLogs = append(checkVintfLogs, a.createMonolithicVintfCompatibleLog(ctx, fsInfoMap))
+
 	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.SetPhonyOutput()
 	cmd := rule.Command()
@@ -1362,5 +1365,76 @@ func (a *androidDevice) checkVintf(ctx android.ModuleContext) {
 	}
 	cmd.ImplicitOutput(android.PathForPhony(ctx, "check-vintf-all"))
 	rule.Build("check-vintf-all", "check-vintf-all")
-	// TODO (b/415130821): Create the monolithic check_vintf_compatible.log
+}
+
+// Runs checkvintf --check-compat on the staging directories of the partitions per (odm_sku, vendor_sku)
+func (a *androidDevice) createMonolithicVintfCompatibleLog(ctx android.ModuleContext, fsInfos map[string]FilesystemInfo) android.Path {
+	addPartitionsToApexdCmd := func(cmd *android.RuleBuilderCommand) {
+		for _, partition := range []string{"system", "vendor", "odm", "product", "system_ext"} {
+			// Some devices might not have all partitions, check existence.
+			if _, exists := fsInfos[partition]; exists {
+				cmd.FlagWithArg(fmt.Sprintf(" --%s_path ", partition), fsInfos[partition].RebasedDir.String()).
+					Implicit(fsInfos[partition].Output)
+			}
+		}
+	}
+	addPartitionsToCheckVintfCmd := func(cmd *android.RuleBuilderCommand) {
+		for _, partition := range []string{"system", "vendor", "odm", "product", "system_ext"} {
+			// Some devices might not have all partitions, check existence.
+			if _, exists := fsInfos[partition]; exists {
+				cmd.FlagWithArg("--dirmap ", fmt.Sprintf("/%s:%s", partition, fsInfos[partition].RebasedDir.String())).
+					Implicit(fsInfos[partition].Output)
+			}
+		}
+	}
+
+	checkVintfLog := android.PathForModuleOut(ctx, "vintf", "check_vintf_compatible.log")
+	extractedApexDir := android.PathForModuleOut(ctx, "vintf", "apex_extracted")
+
+	builder := android.NewRuleBuilder(pctx, ctx)
+	// Use apexd_host to extract the apexes of the partitions to an intermediate location.
+	// This intermediate location will be subsequently used by checkvintf.
+	cmd := builder.Command()
+	cmd.Textf("rm -rf %s", checkVintfLog)
+	cmd.Textf("rm -rf %s && mkdir -p %s && ", extractedApexDir.String(), extractedApexDir.String())
+	cmd.BuiltTool("apexd_host")
+	addPartitionsToApexdCmd(cmd)
+	cmd.FlagWithArg(" --apex_path ", extractedApexDir.String())
+
+	var additionalArgs string
+	if a.kernelVersion != nil && a.kernelConfig != nil {
+		additionalArgs += fmt.Sprintf(
+			" --kernel %s:%s ",
+			a.kernelVersion.String(),
+			a.kernelConfig.String(),
+		)
+	}
+	additionalArgs += fmt.Sprintf(
+		" --property ro.product.first_api_level=%s ",
+		ctx.DeviceConfig().ShippingApiLevel(),
+	)
+
+	// TODO (b/415130821): Print PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS to output
+	builder.Command().Textf("echo -n -e 'Args: \\n  ' >> %s", checkVintfLog)
+	builder.Command().Textf("echo -n -e '%s: \\n  ' >> %s", additionalArgs, checkVintfLog)
+
+	for _, odmSku := range odmSkusForCheckVintf(ctx) {
+		for _, vendorSku := range deviceSkusForCheckVintf(ctx) {
+			cmd := builder.Command()
+			cmd.Textf("echo -n -e 'For ODM SKU = %s, vendor SKU = %s \\n ' >> %s && ", odmSku, vendorSku, checkVintfLog).
+				BuiltTool("checkvintf").
+				Flag("--check-compat").
+				Flag(additionalArgs)
+			addPartitionsToCheckVintfCmd(cmd)
+			cmd.FlagWithArg("--dirmap ", fmt.Sprintf("/apex:%s", extractedApexDir.String())).
+				FlagWithArg("--property ", "ro.boot.product.hardware.sku="+odmSku).
+				FlagWithArg("--property ", "ro.boot.product.vendor.sku="+vendorSku).
+				FlagWithOutput(">> ", checkVintfLog).
+				Flag("2>&1 ").
+				Textf(" || ( cat %s && exit 1 ); ", checkVintfLog.String())
+		}
+	}
+
+	builder.Build("check_vintf_compatible", "check_vintf_compatible")
+	return checkVintfLog
 }
