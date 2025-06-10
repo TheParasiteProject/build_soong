@@ -240,14 +240,14 @@ func (c Config) ReleaseAconfigFlagDefaultPermission() string {
 }
 
 func (c Config) ReleaseBuildClangVersion(defaultVersion string) string {
-	if val, exists := c.GetBuildFlag("RELEASE_BUILD_CLANG_VERSION"); exists {
+	if val, exists := c.GetBuildFlag("RELEASE_BUILD_CLANG_VERSION"); exists && val != "" {
 		return val
 	}
 	return defaultVersion
 }
 
 func (c Config) ReleaseBuildClangShortVersion(defaultVersion string) string {
-	if val, exists := c.GetBuildFlag("RELEASE_BUILD_CLANG_SHORT_VERSION"); exists {
+	if val, exists := c.GetBuildFlag("RELEASE_BUILD_CLANG_SHORT_VERSION"); exists && val != "" {
 		return val
 	}
 	return defaultVersion
