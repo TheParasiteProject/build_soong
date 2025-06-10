@@ -636,6 +636,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	if a.deviceProps.Bootloader != nil {
 		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Bootloader))).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
 	}
+	a.copyPrebuiltImages(ctx, builder, targetFilesDir)
 
 	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir, allInstalledModules)
 
@@ -675,6 +676,17 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	}
 
 	builder.Build("target_files_"+ctx.ModuleName(), "Build target_files.zip")
+}
+
+// TODO: dtbo, pvmfw, ...
+func (a *androidDevice) copyPrebuiltImages(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.Path) {
+	if a.partitionProps.Boot_partition_name != nil {
+		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_partition_name), filesystemDepTag)
+		if bootImgInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, BootimgInfoProvider); bootImgInfo.IsPrebuilt {
+			builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/", targetFilesDir)
+			builder.Command().Text("cp").Input(bootImgInfo.Output).Textf(" %s/PREBUILT_IMAGES/", targetFilesDir)
+		}
+	}
 }
 
 func writeFileWithNewLines(ctx android.ModuleContext, path android.WritablePath, contents []string) {
