@@ -666,6 +666,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	f.buildEventLogtagsFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildAconfigFlagsFiles(ctx, builder, specs, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.filesystemBuilder.BuildLinkerConfigFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
+	f.assembleVintfs(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	checkVintfLog := f.checkVintf(ctx, rebasedDir)
 	// Assemeble the staging dir and output a timestamp
 	builder.Command().Text("touch").Output(f.fileystemStagingDirTimestamp(ctx))
@@ -1578,6 +1579,46 @@ func (f *filesystem) BuildLinkerConfigFile(
 	*platformGeneratedFiles = append(*platformGeneratedFiles, installPath.String())
 
 	f.appendToEntry(ctx, output)
+}
+
+// Runs assemble_vintf on vintf_fragments of installed deps.
+// vintf_fragment_modules are excluded, since they have been
+// already processed via assemble_vintf.
+func (f *filesystem) assembleVintfs(
+	ctx android.ModuleContext,
+	builder *android.RuleBuilder,
+	rebasedDir android.OutputPath,
+	fullInstallPaths *[]FullInstallPathInfo,
+	platformGeneratedFiles *[]string,
+) {
+
+	if len(f.UniqueVintfFragmentsPaths) == 0 {
+		return
+	}
+	pathPrefix := ""
+	if f.PartitionType() == "vendor_ramdisk" || f.PartitionType() == "recovery" {
+		pathPrefix = "system" // vintf manifests are not installed in root.
+	}
+	vintfInStagingDir := rebasedDir.Join(ctx, pathPrefix, "etc", "vintf", "manifest")
+	builder.Command().Text("mkdir").Flag("-p").Text(vintfInStagingDir.String())
+
+	for _, vintf := range f.UniqueVintfFragmentsPaths {
+		soongAssembledVintf := android.PathForModuleOut(ctx, "assemble_vintf", vintf.Base())
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.AssembleVintfRule,
+			Input:  vintf,
+			Output: soongAssembledVintf,
+		})
+		soongAssembledVintfInStagingDir := vintfInStagingDir.Join(ctx, vintf.Base())
+		builder.Command().Text("cp").Input(soongAssembledVintf).Output(soongAssembledVintfInStagingDir)
+
+		installPath := android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), pathPrefix, "etc", "vintf", "manifest", vintf.Base())
+		*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
+			FullInstallPath: installPath,
+			SourcePath:      soongAssembledVintf,
+		})
+		*platformGeneratedFiles = append(*platformGeneratedFiles, installPath.String())
+	}
 }
 
 func (f *filesystem) ShouldUseVintfFragmentModuleOnly() bool {
