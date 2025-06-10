@@ -514,12 +514,14 @@ type targetFilesystemZipCopy struct {
 
 func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
 	targetFilesDir := android.PathForModuleOut(ctx, "target_files_dir")
+	targetFilesDirStamp := android.PathForModuleOut(ctx, "target_files_dir.stamp")
 	targetFilesZip := android.PathForModuleOut(ctx, "target_files.zip")
 	otaFilesZip := android.PathForModuleOut(ctx, "ota.zip")
 	otaMetadata := android.PathForModuleOut(ctx, "ota_metadata")
 	partialOtaFilesZip := android.PathForModuleOut(ctx, "partial-ota.zip")
 
 	builder := android.NewRuleBuilder(pctx, ctx)
+	builder.Command().Textf("rm -rf %s", targetFilesDirStamp.String())
 	builder.Command().Textf("rm -rf %s", targetFilesDir.String())
 	builder.Command().Textf("mkdir -p %s", targetFilesDir.String())
 	toCopy := []targetFilesZipCopy{
@@ -639,18 +641,25 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 
 	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir, allInstalledModules)
 
-	a.targetFilesZip = targetFilesZip
-	builder.Command().
+	builder.Command().Text("touch ").Output(targetFilesDirStamp)
+	builder.Build("target_files_dir", "Build target_files staging directory")
+
+	zipBuilder := android.NewRuleBuilder(pctx, ctx)
+	zipBuilder.Command().
 		BuiltTool("soong_zip").
 		Text("-d").
 		FlagWithOutput("-o ", targetFilesZip).
 		FlagWithArg("-C ", targetFilesDir.String()).
 		FlagWithArg("-D ", targetFilesDir.String()).
-		Text("-sha256")
+		Text("-sha256").
+		Implicit(targetFilesDirStamp)
+	zipBuilder.Build("target_files", "Build target_files.zip")
+	a.targetFilesZip = targetFilesZip
 
+	otaBuilder := android.NewRuleBuilder(pctx, ctx)
 	pem, _ := ctx.Config().DefaultAppCertificate(ctx)
 	pemWithoutFileExt := strings.TrimSuffix(pem.String(), ".x509.pem")
-	builder.Command().
+	otaBuilder.Command().
 		BuiltTool("ota_from_target_files").
 		Flag("--verbose").
 		FlagWithArg("-k ", pemWithoutFileExt).
@@ -658,23 +667,26 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		Text(targetFilesDir.String()).
 		Output(otaFilesZip).
 		Implicit(ctx.Config().HostToolPath(ctx, "delta_generator")).
-		Implicit(ctx.Config().HostToolPath(ctx, "checkvintf"))
+		Implicit(ctx.Config().HostToolPath(ctx, "checkvintf")).
+		Implicit(targetFilesDirStamp)
+	otaBuilder.Build("ota_zip", "Build ota from target files")
 	a.otaFilesZip = otaFilesZip
 	a.otaMetadata = otaMetadata
 
 	// Partial ota
 	if len(a.deviceProps.Partial_ota_update_partitions) > 0 {
-		builder.Command().
+		partialOtaBuilder := android.NewRuleBuilder(pctx, ctx)
+		partialOtaBuilder.Command().
 			BuiltTool("ota_from_target_files").
 			Flag("--verbose").
 			FlagWithArg("-k ", pemWithoutFileExt).
 			FlagForEachArg("--partial ", a.deviceProps.Partial_ota_update_partitions).
 			Text(targetFilesDir.String()).
-			Output(partialOtaFilesZip)
+			Output(partialOtaFilesZip).
+			Implicit(targetFilesDirStamp)
+		partialOtaBuilder.Build("partial_ota_zip", "Build partial ota from target files")
 		a.partialOtaFilesZip = partialOtaFilesZip
 	}
-
-	builder.Build("target_files_"+ctx.ModuleName(), "Build target_files.zip")
 }
 
 func writeFileWithNewLines(ctx android.ModuleContext, path android.WritablePath, contents []string) {
