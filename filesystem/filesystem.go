@@ -104,6 +104,9 @@ type filesystem struct {
 	// Keeps the entries installed from this filesystem
 	entries []string
 
+	// List of subpartitions installed in this filesystem
+	subPartitions []string
+
 	filesystemBuilder filesystemBuilder
 
 	selinuxFc android.Path
@@ -592,6 +595,9 @@ func (f *filesystem) ModifyPackagingSpec(ps *android.PackagingSpec) {
 		subPartition := strings.TrimPrefix(ps.Partition(), prefix)
 		ps.SetPartition(f.PartitionType())
 		ps.SetRelPathInPackage(filepath.Join(subPartition, ps.RelPathInPackage()))
+		if !android.InList(subPartition, f.subPartitions) {
+			f.subPartitions = append(f.subPartitions, subPartition)
+		}
 	}
 }
 
@@ -660,7 +666,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	platformGeneratedFiles := []string{}
 	f.entries = f.copyPackagingSpecs(ctx, builder, specs, rootDir, rebasedDir)
-	f.verifyGenericConfig(ctx, specs)
+	f.verifyGenericConfig(ctx)
 	f.buildNonDepsFiles(ctx, builder, rootDir, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildFsverityMetadataFiles(ctx, builder, specs, rootDir, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
 	f.buildEventLogtagsFile(ctx, builder, rebasedDir, &fullInstallPaths, &platformGeneratedFiles)
@@ -1053,24 +1059,16 @@ func (f *filesystem) rootDirString() string {
 	return f.partitionName()
 }
 
-func (f *filesystem) verifyGenericConfig(ctx android.ModuleContext, specs map[string]android.PackagingSpec) {
+func (f *filesystem) verifyGenericConfig(ctx android.ModuleContext) {
 	// This image is not bundled with the platform.
 	if ctx.Config().UnbundledBuild() {
 		return
 	}
 
-	// TODO(b/411581190): These system images include system_ext and product modules in the system
-	// partition. They must be included with a different depTag so that we can skip those non-system
-	// modules in this verification.
-	systemImagesWithSubpartitions := []string{
-		"android_gsi",
-		"aosp_system_image",
-	}
-
 	// Verify that modules installed in the system partition use the generic configiguration. This
 	// also checks there are any unexpected dependencies from system modules to modules installed in
 	// non-system partitions.
-	if !f.UseGenericConfig() || f.partitionName() != "system" || proptools.Bool(f.properties.Is_auto_generated) || android.InList(f.Name(), systemImagesWithSubpartitions) {
+	if !f.UseGenericConfig() || f.partitionName() != "system" || proptools.Bool(f.properties.Is_auto_generated) {
 		return
 	}
 
@@ -1110,8 +1108,24 @@ func (f *filesystem) verifyGenericConfig(ctx android.ModuleContext, specs map[st
 			return false
 		}
 
+		installedInSubpartition := func() bool {
+			if moduleInfo.SystemExtSpecific {
+				return android.InList("system_ext", f.subPartitions)
+			} else if moduleInfo.ProductSpecific {
+				return android.InList("product", f.subPartitions)
+			} else if moduleInfo.Vendor || moduleInfo.Proprietary || moduleInfo.SocSpecific {
+				return android.InList("vendor", f.subPartitions)
+			}
+			return false
+		}
+
 		// Modules requiring non-generic configuration must not be included in the system image.
+		// However, some targets install system_ext or product modules in the system partition.
+		// Allow those subpartition modules to use non-generic configuration.
 		if !moduleInfo.UseGenericConfig {
+			if installedInSubpartition() {
+				return false
+			}
 			nonGenericModules[moduleName] = parent.Name()
 		}
 		return true
