@@ -96,6 +96,7 @@ bootstrap_go_package {
         "onceper.go",
         "otatools_package_cert_zip.go",
         "override_module.go",
+        "owners_zip.go",
         "package.go",
         "package_ctx.go",
         "packaging.go",
