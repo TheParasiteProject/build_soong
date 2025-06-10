@@ -657,7 +657,8 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		FlagWithOutput("--output_metadata_path ", otaMetadata).
 		Text(targetFilesDir.String()).
 		Output(otaFilesZip).
-		Implicit(ctx.Config().HostToolPath(ctx, "delta_generator"))
+		Implicit(ctx.Config().HostToolPath(ctx, "delta_generator")).
+		Implicit(ctx.Config().HostToolPath(ctx, "checkvintf"))
 	a.otaFilesZip = otaFilesZip
 	a.otaMetadata = otaMetadata
 
