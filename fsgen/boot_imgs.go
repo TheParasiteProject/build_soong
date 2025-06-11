@@ -12,7 +12,54 @@ import (
 )
 
 func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
+	getPartitionSize := func(partitionVariables android.PartitionVariables) *int64 {
+		var partitionSize *int64
+		if partitionVariables.BoardBootimagePartitionSize != "" {
+			// Base of zero will allow base 10 or base 16 if starting with 0x
+			parsed, err := strconv.ParseInt(partitionVariables.BoardBootimagePartitionSize, 0, 64)
+			if err != nil {
+				panic(fmt.Sprintf("BOARD_BOOTIMAGE_PARTITION_SIZE must be an int, got %s", partitionVariables.BoardBootimagePartitionSize))
+			}
+			partitionSize = &parsed
+		}
+		return partitionSize
+	}
 	partitionVariables := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	avbInfo := getAvbInfo(ctx.Config(), "boot")
+	bootImageName := generatedModuleNameForPartition(ctx.Config(), "boot")
+	var securityPatch *string
+	if partitionVariables.BootSecurityPatch != "" {
+		securityPatch = &partitionVariables.BootSecurityPatch
+	}
+
+	if partitionVariables.BoardPrebuiltBootImage != "" {
+		// prebuilt bootimg
+		ctx.CreateModuleInDirectory(
+			filesystem.PrebuiltBootimgFactory,
+			".",
+			&struct {
+				Name *string
+				Src  *string
+			}{
+				Name: proptools.StringPtr(bootImageName),
+				Src:  proptools.StringPtr(partitionVariables.BoardPrebuiltBootImage),
+			},
+			&filesystem.CommonBootimgProperties{
+				Boot_image_type:             proptools.StringPtr("boot"),
+				Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
+				Partition_size:              getPartitionSize(partitionVariables),
+				Use_avb:                     avbInfo.avbEnable,
+				Avb_mode:                    avbInfo.avbMode,
+				Avb_private_key:             avbInfo.avbkeyFilegroup,
+				Avb_rollback_index:          avbInfo.avbRollbackIndex,
+				Avb_rollback_index_location: avbInfo.avbRollbackIndexLocation,
+				Avb_algorithm:               avbInfo.avbAlgorithm,
+				Security_patch:              securityPatch,
+			},
+		)
+
+		return true
+	}
 
 	if partitionVariables.TargetKernelPath == "" {
 		// There are potentially code paths that don't set TARGET_KERNEL_PATH
@@ -37,25 +84,6 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 		},
 	)
 
-	var partitionSize *int64
-	if partitionVariables.BoardBootimagePartitionSize != "" {
-		// Base of zero will allow base 10 or base 16 if starting with 0x
-		parsed, err := strconv.ParseInt(partitionVariables.BoardBootimagePartitionSize, 0, 64)
-		if err != nil {
-			panic(fmt.Sprintf("BOARD_BOOTIMAGE_PARTITION_SIZE must be an int, got %s", partitionVariables.BoardBootimagePartitionSize))
-		}
-		partitionSize = &parsed
-	}
-
-	var securityPatch *string
-	if partitionVariables.BootSecurityPatch != "" {
-		securityPatch = &partitionVariables.BootSecurityPatch
-	}
-
-	avbInfo := getAvbInfo(ctx.Config(), "boot")
-
-	bootImageName := generatedModuleNameForPartition(ctx.Config(), "boot")
-
 	var dtbPrebuilt *string
 	if dtbImg.include && dtbImg.imgType == "boot" {
 		dtbPrebuilt = proptools.StringPtr(":" + dtbImg.name)
@@ -77,7 +105,7 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("boot"),
 			Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
-			Partition_size:              partitionSize,
+			Partition_size:              getPartitionSize(partitionVariables),
 			Use_avb:                     avbInfo.avbEnable,
 			Avb_mode:                    avbInfo.avbMode,
 			Avb_private_key:             avbInfo.avbkeyFilegroup,
