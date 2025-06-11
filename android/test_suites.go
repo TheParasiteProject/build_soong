@@ -142,7 +142,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	files := make(map[string]testModulesInstallsMap)
 	sharedLibRoots := make(map[string][]string)
 	sharedLibGraph := make(map[string][]string)
-	allTestSuiteInstalls := make(map[string][]Path)
+	allTestSuiteInstalls := make(map[string]Paths)
 	var toInstall []filePair
 	var oneVariantInstalls []filePair
 
@@ -300,9 +300,11 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	ctx.Phony("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 	ctx.DistForGoal("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 
-	packageTestSuite(ctx, allTestSuiteInstalls["performance-tests"], nil, performanceTests)
-	packageTestSuite(ctx, allTestSuiteInstalls["device-platinum-tests"], nil, devicePlatinumTests)
-	packageTestSuite(ctx, allTestSuiteInstalls["device-tests"], testInstalledSharedLibs["device-tests"], deviceTests)
+	for _, testSuiteConfig := range testSuiteConfigs {
+		files := allTestSuiteInstalls[testSuiteConfig.name]
+		sharedLibs := testInstalledSharedLibs[testSuiteConfig.name]
+		packageTestSuite(ctx, files, sharedLibs, testSuiteConfig)
+	}
 
 	for _, suite := range all_compatibility_suites {
 		modules := slices.Collect(maps.Keys(files[suite.name]))
@@ -376,41 +378,24 @@ func gatherHostSharedLibs(ctx SingletonContext, sharedLibRoots, sharedLibGraph m
 	return hostSharedLibs
 }
 
-type suiteKind int
-
-const (
-	performanceTests suiteKind = iota
-	deviceTests
-	devicePlatinumTests
-)
-
-func (sk suiteKind) String() string {
-	switch sk {
-	case performanceTests:
-		return "performance-tests"
-	case deviceTests:
-		return "device-tests"
-	case devicePlatinumTests:
-		return "device-platinum-tests"
-	default:
-		panic(fmt.Sprintf("Unrecognized suite kind %d for use in packageTestSuite", sk))
-	}
+type testSuiteConfig struct {
+	name                           string
+	buildHostSharedLibsZip         bool
+	includeHostSharedLibsInMainZip bool
 }
 
-func (sk suiteKind) buildHostSharedLibsZip() bool {
-	switch sk {
-	case devicePlatinumTests:
-		return true
-	}
-	return false
-}
-
-func (sk suiteKind) includeHostSharedLibsInMainZip() bool {
-	switch sk {
-	case deviceTests:
-		return true
-	}
-	return false
+var testSuiteConfigs = []testSuiteConfig{
+	{
+		name: "performance-tests",
+	},
+	{
+		name:                   "device-platinum-tests",
+		buildHostSharedLibsZip: true,
+	},
+	{
+		name:                           "device-tests",
+		includeHostSharedLibsInMainZip: true,
+	},
 }
 
 func buildTestSuite(ctx SingletonContext, suiteName string, files testModulesInstallsMap) (Path, Path) {
@@ -484,22 +469,22 @@ func pathForTestSymbols(ctx PathContext, pathComponents ...string) InstallPath {
 	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", pathComponents...)
 }
 
-func packageTestSuite(ctx SingletonContext, files Paths, sharedLibs Paths, sk suiteKind) {
+func packageTestSuite(ctx SingletonContext, files, sharedLibs Paths, suiteConfig testSuiteConfig) {
 	hostOutTestCases := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, "testcases")
 	targetOutTestCases := pathForInstall(ctx, ctx.Config().AndroidFirstDeviceTarget.Os, ctx.Config().AndroidFirstDeviceTarget.Arch.ArchType, "testcases")
 	hostOut := filepath.Dir(hostOutTestCases.String())
 	targetOut := filepath.Dir(targetOutTestCases.String())
 
-	testsZip := pathForPackaging(ctx, sk.String()+".zip")
-	testsListTxt := pathForPackaging(ctx, sk.String()+"_list.txt")
-	testsListZip := pathForPackaging(ctx, sk.String()+"_list.zip")
-	testsConfigsZip := pathForPackaging(ctx, sk.String()+"_configs.zip")
-	testsHostSharedLibsZip := pathForPackaging(ctx, sk.String()+"_host-shared-libs.zip")
+	testsZip := pathForPackaging(ctx, suiteConfig.name+".zip")
+	testsListTxt := pathForPackaging(ctx, suiteConfig.name+"_list.txt")
+	testsListZip := pathForPackaging(ctx, suiteConfig.name+"_list.zip")
+	testsConfigsZip := pathForPackaging(ctx, suiteConfig.name+"_configs.zip")
+	testsHostSharedLibsZip := pathForPackaging(ctx, suiteConfig.name+"_host-shared-libs.zip")
 	var listLines []string
 
 	// use intermediate files to hold the file inputs, to prevent argument list from being too long
-	testsZipCmdHostFileInput := PathForIntermediates(ctx, sk.String()+"_host_list.txt")
-	testsZipCmdTargetFileInput := PathForIntermediates(ctx, sk.String()+"_target_list.txt")
+	testsZipCmdHostFileInput := PathForIntermediates(ctx, suiteConfig.name+"_host_list.txt")
+	testsZipCmdTargetFileInput := PathForIntermediates(ctx, suiteConfig.name+"_target_list.txt")
 	var testsZipCmdHostFileInputContent, testsZipCmdTargetFileInputContent []string
 
 	testsZipBuilder := NewRuleBuilder(pctx, ctx)
@@ -531,7 +516,7 @@ func packageTestSuite(ctx SingletonContext, files Paths, sharedLibs Paths, sk su
 		}
 	}
 
-	if sk.includeHostSharedLibsInMainZip() {
+	if suiteConfig.includeHostSharedLibsInMainZip {
 		for _, f := range sharedLibs {
 			if strings.HasPrefix(f.String(), hostOutTestCases.String()) {
 				testsZipCmdHostFileInputContent = append(testsZipCmdHostFileInputContent, f.String())
@@ -565,10 +550,10 @@ func packageTestSuite(ctx SingletonContext, files Paths, sharedLibs Paths, sk su
 	WriteFileRule(ctx, testsZipCmdTargetFileInput, strings.Join(testsZipCmdTargetFileInputContent, " "))
 	testsZipCmd.FlagWithInput("-l ", testsZipCmdTargetFileInput)
 
-	testsZipBuilder.Build(sk.String(), "building "+sk.String()+" zip")
-	testsConfigsZipBuilder.Build(sk.String()+"-configs", "building "+sk.String()+" configs zip")
+	testsZipBuilder.Build(suiteConfig.name, "building "+suiteConfig.name+" zip")
+	testsConfigsZipBuilder.Build(suiteConfig.name+"-configs", "building "+suiteConfig.name+" configs zip")
 
-	if sk.buildHostSharedLibsZip() {
+	if suiteConfig.buildHostSharedLibsZip {
 		testsHostSharedLibsZipBuilder := NewRuleBuilder(pctx, ctx)
 		testsHostSharedLibsZipCmd := testsHostSharedLibsZipBuilder.Command().
 			BuiltTool("soong_zip").
@@ -583,7 +568,7 @@ func packageTestSuite(ctx SingletonContext, files Paths, sharedLibs Paths, sk su
 			}
 		}
 
-		testsHostSharedLibsZipBuilder.Build(sk.String()+"-host-shared-libs", "building "+sk.String()+"host shared libs")
+		testsHostSharedLibsZipBuilder.Build(suiteConfig.name+"-host-shared-libs", "building "+suiteConfig.name+"host shared libs")
 	}
 
 	WriteFileRule(ctx, testsListTxt, strings.Join(listLines, "\n"))
@@ -593,16 +578,16 @@ func packageTestSuite(ctx SingletonContext, files Paths, sharedLibs Paths, sk su
 		BuiltTool("soong_zip").
 		Flag("-d").
 		FlagWithOutput("-o ", testsListZip).
-		FlagWithArg("-e ", sk.String()+"_list").
+		FlagWithArg("-e ", suiteConfig.name+"_list").
 		FlagWithInput("-f ", testsListTxt)
-	testsListZipBuilder.Build(sk.String()+"_list_zip", "building "+sk.String()+" list zip")
+	testsListZipBuilder.Build(suiteConfig.name+"_list_zip", "building "+suiteConfig.name+" list zip")
 
-	ctx.Phony(sk.String(), testsZip)
-	ctx.DistForGoal(sk.String(), testsZip, testsListZip, testsConfigsZip)
-	if sk.buildHostSharedLibsZip() {
-		ctx.DistForGoal(sk.String(), testsHostSharedLibsZip)
+	ctx.Phony(suiteConfig.name, testsZip)
+	ctx.DistForGoal(suiteConfig.name, testsZip, testsListZip, testsConfigsZip)
+	if suiteConfig.buildHostSharedLibsZip {
+		ctx.DistForGoal(suiteConfig.name, testsHostSharedLibsZip)
 	}
-	ctx.Phony("tests", PathForPhony(ctx, sk.String()))
+	ctx.Phony("tests", PathForPhony(ctx, suiteConfig.name))
 }
 
 func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, testSuiteModules []ModuleProxy) {
