@@ -1103,28 +1103,29 @@ func (f *filesystem) verifyGenericConfig(ctx android.ModuleContext) {
 			return false
 		}
 
-		// Skip optional library deps which are mostly from a different partition.
+		// Dynamic dependencies can be installed in a non-system partition
+		isDynamicDependency := false
 		depTag := ctx.OtherModuleDependencyTag(child)
-		if java.IsOptionalUsesLibraryDepTag(depTag) {
-			return false
+		if java.IsOptionalUsesLibraryDepTag(depTag) || java.IsLibDepTag(depTag) || cc.IsSharedDepTag(depTag) {
+			isDynamicDependency = true
 		}
 
-		installedInSubpartition := func() bool {
-			if moduleInfo.SystemExtSpecific {
-				return android.InList("system_ext", f.subPartitions)
-			} else if moduleInfo.ProductSpecific {
-				return android.InList("product", f.subPartitions)
-			} else if moduleInfo.Vendor || moduleInfo.Proprietary || moduleInfo.SocSpecific {
-				return android.InList("vendor", f.subPartitions)
-			}
-			return false
+		// Non-generic config is allowed only for the modules installed in non-system partitions.
+		// The dependency must be from a dynamic link or system subpartition modules.
+		isAllowedNonGenericConfig := false
+		if moduleInfo.SystemExtSpecific {
+			isAllowedNonGenericConfig = isDynamicDependency || android.InList("system_ext", f.subPartitions)
+		} else if moduleInfo.ProductSpecific {
+			isAllowedNonGenericConfig = isDynamicDependency || android.InList("product", f.subPartitions)
+		} else if moduleInfo.Vendor || moduleInfo.Proprietary || moduleInfo.SocSpecific {
+			isAllowedNonGenericConfig = isDynamicDependency || android.InList("vendor", f.subPartitions)
 		}
 
 		// Modules requiring non-generic configuration must not be included in the system image.
 		// However, some targets install system_ext or product modules in the system partition.
 		// Allow those subpartition modules to use non-generic configuration.
 		if !moduleInfo.UseGenericConfig {
-			if !installedInSubpartition() {
+			if !isAllowedNonGenericConfig {
 				nonGenericModules[moduleName] = parent.Name()
 			}
 			return false
