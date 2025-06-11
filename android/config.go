@@ -2578,3 +2578,7 @@ func (c *config) SELinuxTrebleLabelingTrackingListFile(ctx PathContext) Path {
 
 	return PathForSource(ctx, path)
 }
+
+func (c *config) BuildOTAPackage() bool {
+	return Bool(c.productVariables.BuildOTAPackage)
+}
