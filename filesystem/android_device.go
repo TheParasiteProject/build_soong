@@ -638,6 +638,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	if a.deviceProps.Bootloader != nil {
 		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Bootloader))).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
 	}
+	a.copyPrebuiltImages(ctx, builder, targetFilesDir)
 
 	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir, allInstalledModules)
 
@@ -686,6 +687,17 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 			Implicit(targetFilesDirStamp)
 		partialOtaBuilder.Build("partial_ota_zip", "Build partial ota from target files")
 		a.partialOtaFilesZip = partialOtaFilesZip
+	}
+}
+
+// TODO: dtbo, pvmfw, ...
+func (a *androidDevice) copyPrebuiltImages(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.Path) {
+	if a.partitionProps.Boot_partition_name != nil {
+		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_partition_name), filesystemDepTag)
+		if bootImgInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, BootimgInfoProvider); bootImgInfo.IsPrebuilt {
+			builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/", targetFilesDir)
+			builder.Command().Text("cp").Input(bootImgInfo.Output).Textf(" %s/PREBUILT_IMAGES/", targetFilesDir)
+		}
 	}
 }
 

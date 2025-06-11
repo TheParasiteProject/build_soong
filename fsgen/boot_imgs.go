@@ -69,8 +69,13 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 	ctx.CreateModule(
 		filesystem.BootimgFactory,
 		&filesystem.BootimgProperties{
+			Kernel_prebuilt: proptools.StringPtr(":" + kernelFilegroupName),
+			Dtb_prebuilt:    dtbPrebuilt,
+			Cmdline:         cmdline,
+			Stem:            proptools.StringPtr("boot.img"),
+		},
+		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("boot"),
-			Kernel_prebuilt:             proptools.StringPtr(":" + kernelFilegroupName),
 			Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
 			Partition_size:              partitionSize,
 			Use_avb:                     avbInfo.avbEnable,
@@ -80,9 +85,6 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 			Avb_rollback_index_location: avbInfo.avbRollbackIndexLocation,
 			Avb_algorithm:               avbInfo.avbAlgorithm,
 			Security_patch:              securityPatch,
-			Dtb_prebuilt:                dtbPrebuilt,
-			Cmdline:                     cmdline,
-			Stem:                        proptools.StringPtr("boot.img"),
 		},
 		&struct {
 			Name       *string
@@ -127,8 +129,14 @@ func createVendorBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 	ctx.CreateModule(
 		filesystem.BootimgFactory,
 		&filesystem.BootimgProperties{
+			Ramdisk_module: proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk")),
+			Dtb_prebuilt:   dtbPrebuilt,
+			Cmdline:        cmdline,
+			Bootconfig:     vendorBootConfigImg,
+			Stem:           proptools.StringPtr("vendor_boot.img"),
+		},
+		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("vendor_boot"),
-			Ramdisk_module:              proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk")),
 			Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
 			Partition_size:              partitionSize,
 			Use_avb:                     avbInfo.avbEnable,
@@ -136,11 +144,8 @@ func createVendorBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 			Avb_private_key:             avbInfo.avbkeyFilegroup,
 			Avb_rollback_index:          avbInfo.avbRollbackIndex,
 			Avb_rollback_index_location: avbInfo.avbRollbackIndexLocation,
-			Dtb_prebuilt:                dtbPrebuilt,
-			Cmdline:                     cmdline,
-			Bootconfig:                  vendorBootConfigImg,
-			Stem:                        proptools.StringPtr("vendor_boot.img"),
 		},
+
 		&struct {
 			Name       *string
 			Visibility []string
@@ -179,10 +184,12 @@ func createInitBootImage(ctx android.LoadHookContext) bool {
 	ctx.CreateModule(
 		filesystem.BootimgFactory,
 		&filesystem.BootimgProperties{
+			Ramdisk_module: proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "ramdisk")),
+			Stem:           proptools.StringPtr("init_boot.img"),
+		},
+		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("init_boot"),
-			Ramdisk_module:              proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "ramdisk")),
 			Header_version:              proptools.StringPtr(partitionVariables.BoardInitBootHeaderVersion),
-			Security_patch:              securityPatch,
 			Partition_size:              partitionSize,
 			Use_avb:                     avbInfo.avbEnable,
 			Avb_mode:                    avbInfo.avbMode,
@@ -190,7 +197,7 @@ func createInitBootImage(ctx android.LoadHookContext) bool {
 			Avb_rollback_index:          avbInfo.avbRollbackIndex,
 			Avb_rollback_index_location: avbInfo.avbRollbackIndexLocation,
 			Avb_algorithm:               avbInfo.avbAlgorithm,
-			Stem:                        proptools.StringPtr("init_boot.img"),
+			Security_patch:              securityPatch,
 		},
 		&struct {
 			Name       *string
