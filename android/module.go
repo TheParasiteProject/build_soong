@@ -2035,6 +2035,10 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		phonies:           make(map[string]Paths),
 	}
 
+	moduleInfoJSON := ctx.ModuleInfoJSON()
+	moduleInfoJSON.Class = []string{"ETC"}
+	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+
 	blueprintCtx.RegisterConfigurableEvaluator(ctx)
 
 	if ctx.config.captureBuild {
