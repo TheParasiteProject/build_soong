@@ -74,9 +74,8 @@ def get_local_file_sha256_fields(zip_filepath: os.PathLike) -> dict[str, bytes]:
         infolist = zip_ref.infolist()
 
         for member_info in infolist:
-            # Skip if the entry is a directory or does not contain the sha256 value, which
-            # is included in the extra field.
-            if member_info.is_dir() or len(member_info.extra) == 0:
+            # Skip if the entry is a directory.
+            if member_info.is_dir():
                 continue
 
             local_extra_data = member_info.extra
