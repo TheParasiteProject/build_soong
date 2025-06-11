@@ -226,7 +226,6 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"fs_config_dirs_odm_dlkm":  defaultDepCandidateProps(ctx.Config()),
 					"fs_config_files_odm_dlkm": defaultDepCandidateProps(ctx.Config()),
 					"notice_xml_odm_dlkm":      defaultDepCandidateProps(ctx.Config()),
-					"odm_dlkm-build.prop":      defaultDepCandidateProps(ctx.Config()),
 				},
 				"ramdisk":        {},
 				"vendor_ramdisk": {},
@@ -280,6 +279,13 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 			for _, vndkVersion := range ctx.DeviceConfig().ExtraVndkVersions() {
 				(*fsGenState.fsDeps["system_ext"])["com.android.vndk.v"+vndkVersion] = defaultDepCandidateProps(ctx.Config())
 			}
+		}
+
+		if ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BuildingOdmDlkmImage {
+			(*fsGenState.fsDeps["odm_dlkm"])["odm_dlkm-build.prop"] = defaultDepCandidateProps(ctx.Config())
+		} else {
+			// odm_dlkm build.prop is installed in vendor partition if odm_dlkm.img is not available
+			(*fsGenState.fsDeps["vendor"])["odm_dlkm-build.prop"] = defaultDepCandidateProps(ctx.Config())
 		}
 
 		return &fsGenState
