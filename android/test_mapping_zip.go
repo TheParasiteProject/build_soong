@@ -15,7 +15,7 @@
 package android
 
 func init() {
-	InitRegistrationContext.RegisterSingletonType("test_mapping_zip_singleton", testMappingZipSingletonFactory)
+	InitRegistrationContext.RegisterParallelSingletonType("test_mapping_zip_singleton", testMappingZipSingletonFactory)
 }
 
 func testMappingZipSingletonFactory() Singleton {
