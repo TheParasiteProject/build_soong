@@ -17,6 +17,7 @@ package config
 import (
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 
 	"android/soong/android"
@@ -464,6 +465,10 @@ func init() {
 
 	pctx.VariableFunc("NoOverrideGlobalCflags", func(ctx android.PackageVarContext) string {
 		flags := noOverrideGlobalCflags
+		if ClangVersionAtLeast(ctx, 563880) {
+			flags = append(flags, "-Wno-nontrivial-memcall")
+			flags = append(flags, "-Wno-invalid-specialization")
+		}
 		if ctx.Config().IsEnvTrue("LLVM_NEXT") {
 			flags = append(noOverrideGlobalCflags, llvmNextExtraCommonGlobalCflags...)
 			IllegalFlags = []string{} // Don't fail build while testing a new compiler.
@@ -576,4 +581,17 @@ func ClangVersion(ctx android.PathContext) string {
 
 func ClangShortVersion(ctx android.PathContext) string {
 	return ctx.Config().ReleaseBuildClangShortVersion(ClangDefaultShortVersion)
+}
+
+// Check if the Clang revision is greater or equal to minRev. Returns false if failed to parse.
+func ClangVersionAtLeast(ctx android.PathContext, minRev int) bool {
+	curRevStr := ClangVersion(ctx)
+	if !strings.HasPrefix(curRevStr, "clang-r") {
+		return false
+	}
+	curRev, err := strconv.Atoi(curRevStr[7:])
+	if err != nil {
+		return false
+	}
+	return curRev >= minRev
 }

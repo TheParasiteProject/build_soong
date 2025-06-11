@@ -163,6 +163,7 @@ SHA_DIFF_ALLOWLIST = {
     "IMAGES/system_ext.img", # TODO: b/406045340 - Remove from the allowlist once it's fixed
     "IMAGES/userdata.img",
     "IMAGES/vbmeta_system.img",
+    "META/apkcerts.txt",
     "META/misc_info.txt",
     "META/vbmeta_digest.txt",
     "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: b/406045340 - Remove from the allowlist once it's fixed
@@ -172,7 +173,7 @@ SHA_DIFF_ALLOWLIST = {
 def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict[str, bytes]) -> bool:
     """Compares two sha maps and reports any missing or different entries."""
 
-    all_keys = list(soong_only_map.keys() | soong_plus_make_map.keys())
+    all_keys = sorted(list(soong_only_map.keys() | soong_plus_make_map.keys()))
     all_identical = True
     for key in all_keys:
         allowlisted = key in SHA_DIFF_ALLOWLIST

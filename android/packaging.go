@@ -213,6 +213,10 @@ type PackagingBase struct {
 	// If this is set to try by a module type inheriting PackagingBase, the module type is
 	// allowed to utilize High_priority_deps.
 	AllowHighPriorityDeps bool
+
+	// Vintf_fragments of dependencies included in the filesystem.
+	// Contains unique entries.
+	UniqueVintfFragmentsPaths Paths
 }
 
 type DepsProperty struct {
@@ -455,6 +459,7 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 }
 
 // See PackageModule.GatherPackagingSpecs
+// Registers transitive UniqueVintfFragmentsPaths as a side-effect.
 func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleContext, filter func(PackagingSpec) bool, modifier func(*PackagingSpec)) map[string]PackagingSpec {
 	// packaging specs gathered from the dep that are not high priorities.
 	var regularPriorities []PackagingSpec
@@ -527,6 +532,7 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 		}
 	})
 
+	modulesToVintfFragmentsPaths := make(map[string]Paths)
 	// gather modules to install, skipping overridden modules
 	ctx.WalkDepsProxy(func(child, parent ModuleProxy) bool {
 		owner := OtherModuleNameWithPossibleOverride(ctx, child)
@@ -539,6 +545,7 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 				return false
 			}
 		}
+		modulesToVintfFragmentsPaths[owner] = getVintFragmentsPaths(ctx, child)
 		modulesToInstall[owner] = true
 		return true
 	})
@@ -583,7 +590,27 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 		m[dstPath] = ps
 	}
 
+	var uniqueVintfFragmentsPaths Paths
+	for module, vintfFragmentsPaths := range modulesToVintfFragmentsPaths {
+		if !modulesToInstall[module] {
+			continue
+		}
+		uniqueVintfFragmentsPaths = append(uniqueVintfFragmentsPaths, vintfFragmentsPaths...)
+	}
+	p.UniqueVintfFragmentsPaths = SortedUniquePaths(uniqueVintfFragmentsPaths)
+
 	return m
+}
+
+// Returns `Vintf_fragments` of the module. This will be collected by the top-level filesystem.
+// `Vintf_fragment_modules` are ignored.
+func getVintFragmentsPaths(ctx ModuleContext, m ModuleProxy) Paths {
+	info := OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider)
+	commonInfo := OtherModulePointerProviderOrDefault(ctx, m, CommonModuleInfoProvider)
+	if !commonInfo.HideFromMake && !commonInfo.SkipInstall {
+		return info.VintfFragmentsPaths
+	}
+	return nil
 }
 
 // See PackageModule.GatherPackagingSpecs
