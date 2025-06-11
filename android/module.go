@@ -2862,6 +2862,8 @@ func (e configurationEvalutor) EvaluateConfiguration(condition proptools.Configu
 			return proptools.ConfigurableValueBool(ctx.Config().UseDebugArt())
 		case "selinux_ignore_neverallows":
 			return proptools.ConfigurableValueBool(ctx.Config().SelinuxIgnoreNeverallows())
+		case "unbundled_build":
+			return proptools.ConfigurableValueBool(ctx.Config().UnbundledBuild())
 		case "always_use_prebuilt_sdks":
 			return proptools.ConfigurableValueBool(ctx.Config().AlwaysUsePrebuiltSdks())
 		default:
