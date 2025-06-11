@@ -317,6 +317,15 @@ func (c coverageTransitionMutator) IncomingTransition(ctx android.IncomingTransi
 		return ""
 	}
 
+	// Required deps should always use coverage variants if it's available. Not only because
+	// we want coverage binaries on the device, but also the non-coverage variants get
+	// PreventInstall = true, so the required deps would do nothing if they depended on the
+	// non-coverage variant. This is compounded by the fact that required deps use a far variation
+	// dependency, so incomingVariation is never "cov" for required deps.
+	if ctx.Device() && ctx.DepTag() == android.RequiredDepTag {
+		return "cov"
+	}
+
 	return incomingVariation
 }
 
