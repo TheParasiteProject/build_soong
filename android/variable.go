@@ -276,6 +276,7 @@ type ProductVariables struct {
 	AAPTPrebuiltDPI     []string `json:",omitempty"`
 
 	DefaultAppCertificate                    *string  `json:",omitempty"`
+	DefaultSystemDevCertificate              *string  `json:",omitempty"`
 	ExtraOtaKeys                             []string `json:",omitempty"`
 	ExtraOtaRecoveryKeys                     []string `json:",omitempty"`
 	MainlineSepolicyDevCertificates          *string  `json:",omitempty"`

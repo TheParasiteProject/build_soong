@@ -23,6 +23,7 @@ bootstrap_go_package {
         "avb_gen_vbmeta_image.go",
         "bootimg.go",
         "bootconfig.go",
+        "boot_otas_16k.go",
         "dtboimg.go",
         "filesystem.go",
         "fsverity_metadata.go",

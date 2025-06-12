@@ -1375,6 +1375,11 @@ func (c *config) DefaultAppCertificate(ctx PathContext) (pem, key SourcePath) {
 	return defaultDir.Join(ctx, "testkey.x509.pem"), defaultDir.Join(ctx, "testkey.pk8")
 }
 
+func (c *config) DefaultSystemDevCertificate(ctx PathContext) (pem, key SourcePath) {
+	dir := String(c.productVariables.DefaultSystemDevCertificate)
+	return PathForSource(ctx, dir+".x509.pem"), PathForSource(ctx, dir+".pk8")
+}
+
 func (c *config) ExtraOtaKeys(ctx PathContext, recovery bool) []SourcePath {
 	var otaKeys []string
 	if recovery {
