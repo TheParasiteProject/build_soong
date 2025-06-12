@@ -15,7 +15,7 @@
 package android
 
 func init() {
-	InitRegistrationContext.RegisterSingletonType("owners_zip_singleton", ownersZipSingletonFactory)
+	InitRegistrationContext.RegisterParallelSingletonType("owners_zip_singleton", ownersZipSingletonFactory)
 }
 
 func ownersZipSingletonFactory() Singleton {
