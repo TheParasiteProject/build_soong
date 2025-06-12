@@ -460,7 +460,28 @@ type Objects struct {
 	tidyDepFiles  android.Paths // link dependent .tidy files
 	coverageFiles android.Paths
 	sAbiDumpFiles android.Paths
-	kytheFiles    android.Paths
+	kytheFiles    KytheFilePairs
+}
+
+// @auto-generate: gob
+type KytheFilePair struct {
+	SrcFile  android.Path
+	KzipFile android.Path
+}
+
+type KytheFilePairs []KytheFilePair
+
+// Dedups by srcfile
+func (kf KytheFilePairs) dedup() KytheFilePairs {
+	var ret KytheFilePairs
+	seen := make(map[android.Path]bool)
+	for _, pair := range kf {
+		if _, exists := seen[pair.SrcFile]; !exists {
+			ret = append(ret, pair)
+			seen[pair.SrcFile] = true
+		}
+	}
+	return ret
 }
 
 func (a Objects) Copy() Objects {
@@ -470,7 +491,7 @@ func (a Objects) Copy() Objects {
 		tidyDepFiles:  append(android.Paths{}, a.tidyDepFiles...),
 		coverageFiles: append(android.Paths{}, a.coverageFiles...),
 		sAbiDumpFiles: append(android.Paths{}, a.sAbiDumpFiles...),
-		kytheFiles:    append(android.Paths{}, a.kytheFiles...),
+		kytheFiles:    append(KytheFilePairs{}, a.kytheFiles...),
 	}
 }
 
@@ -492,8 +513,15 @@ func (a Objects) Dedup() Objects {
 		tidyDepFiles:  android.FirstUniquePaths(a.tidyDepFiles),
 		coverageFiles: android.FirstUniquePaths(a.coverageFiles),
 		sAbiDumpFiles: android.FirstUniquePaths(a.sAbiDumpFiles),
-		kytheFiles:    android.FirstUniquePaths(a.kytheFiles),
+		kytheFiles:    a.dedupKytheFiles(a.kytheFiles),
 	}
+}
+
+func (a Objects) dedupKytheFiles(kf KytheFilePairs) KytheFilePairs {
+	if kf == nil {
+		return nil
+	}
+	return kf.dedup()
 }
 
 // Generate rules for compiling multiple .c, .cpp, or .S files to individual .o files
@@ -532,9 +560,9 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 	if flags.gcovCoverage {
 		coverageFiles = make(android.Paths, 0, len(srcObjFiles))
 	}
-	var kytheFiles android.Paths
-	if flags.emitXrefs && ctx.IsPrimaryModule(ctx.Module()) {
-		kytheFiles = make(android.Paths, 0, len(srcObjFiles))
+	var kytheFiles KytheFilePairs
+	if flags.emitXrefs {
+		kytheFiles = make(KytheFilePairs, 0, len(srcObjFiles))
 	}
 
 	// Produce fully expanded flags for use by C tools, C compiles, C++ tools, C++ compiles, and asm compiles
@@ -710,7 +738,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 		})
 
 		// Register post-process build statements (such as for tidy or kythe).
-		if emitXref && ctx.IsPrimaryModule(ctx.Module()) {
+		if emitXref {
 			kytheFile := android.ObjPathWithExt(ctx, subdir, srcFile, "kzip")
 			ctx.Build(pctx, android.BuildParams{
 				Rule:        kytheExtract,
@@ -723,7 +751,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 					"cFlags": shareFlags("cFlags", moduleFlags),
 				},
 			})
-			kytheFiles = append(kytheFiles, kytheFile)
+			kytheFiles = append(kytheFiles, KytheFilePair{SrcFile: srcFile, KzipFile: kytheFile})
 		}
 
 		//  Even with tidy, some src file could be skipped by noTidySrcsMap.

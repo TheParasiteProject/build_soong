@@ -51,7 +51,7 @@ var CcMakeVarsInfoProvider = blueprint.NewProvider[*CcMakeVarsInfo]()
 type CcObjectInfo struct {
 	ObjFiles   android.Paths
 	TidyFiles  android.Paths
-	KytheFiles android.Paths
+	KytheFiles KytheFilePairs
 }
 
 var CcObjectInfoProvider = blueprint.NewProvider[CcObjectInfo]()
@@ -2559,7 +2559,6 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		}
 	}
 	android.SetProvider(ctx, LinkableInfoProvider, linkableInfo)
-
 	ccInfo := CcInfo{
 		IsPrebuilt:             c.IsPrebuilt(),
 		CmakeSnapshotSupported: proptools.Bool(c.Properties.Cmake_snapshot_supported),
@@ -4699,16 +4698,15 @@ type kytheExtractAllSingleton struct {
 }
 
 func (ks *kytheExtractAllSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	var xrefTargets android.Paths
+	var kytheFilePairs KytheFilePairs
 	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
 		files := android.OtherModuleProviderOrDefault(ctx, module, CcObjectInfoProvider).KytheFiles
 		if len(files) > 0 {
-			xrefTargets = append(xrefTargets, files...)
+			kytheFilePairs = append(kytheFilePairs, files...)
 		}
 	})
-	// TODO(asmundak): Perhaps emit a rule to output a warning if there were no xrefTargets
-	if len(xrefTargets) > 0 {
-		ctx.Phony("xref_cxx", xrefTargets...)
+	for _, kytheFilePair := range kytheFilePairs.dedup() {
+		ctx.Phony("xref_cxx", kytheFilePair.KzipFile)
 	}
 }
 
