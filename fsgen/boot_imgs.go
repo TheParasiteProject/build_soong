@@ -11,7 +11,8 @@ import (
 	"github.com/google/blueprint/proptools"
 )
 
-func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
+// helper function to create boot.img and boot_16k.img
+func createBootImageCommon(ctx android.LoadHookContext, kernelPath string, prebuiltBootImagePath string, dtbImg dtbImg, stem *string) bool {
 	getPartitionSize := func(partitionVariables android.PartitionVariables) *int64 {
 		var partitionSize *int64
 		if partitionVariables.BoardBootimagePartitionSize != "" {
@@ -26,13 +27,13 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 	}
 	partitionVariables := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
 	avbInfo := getAvbInfo(ctx.Config(), "boot")
-	bootImageName := generatedModuleNameForPartition(ctx.Config(), "boot")
+	bootImageName := generatedModuleNameForPartition(ctx.Config(), strings.TrimSuffix(*stem, ".img"))
 	var securityPatch *string
 	if partitionVariables.BootSecurityPatch != "" {
 		securityPatch = &partitionVariables.BootSecurityPatch
 	}
 
-	if partitionVariables.BoardPrebuiltBootImage != "" {
+	if prebuiltBootImagePath != "" {
 		// prebuilt bootimg
 		ctx.CreateModuleInDirectory(
 			filesystem.PrebuiltBootimgFactory,
@@ -42,7 +43,7 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 				Src  *string
 			}{
 				Name: proptools.StringPtr(bootImageName),
-				Src:  proptools.StringPtr(partitionVariables.BoardPrebuiltBootImage),
+				Src:  proptools.StringPtr(prebuiltBootImagePath),
 			},
 			&filesystem.CommonBootimgProperties{
 				Boot_image_type:             proptools.StringPtr("boot"),
@@ -61,14 +62,14 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 		return true
 	}
 
-	if partitionVariables.TargetKernelPath == "" {
+	if kernelPath == "" {
 		// There are potentially code paths that don't set TARGET_KERNEL_PATH
 		return false
 	}
 
-	kernelDir := filepath.Dir(partitionVariables.TargetKernelPath)
-	kernelBase := filepath.Base(partitionVariables.TargetKernelPath)
-	kernelFilegroupName := generatedModuleName(ctx.Config(), "kernel")
+	kernelDir := filepath.Dir(kernelPath)
+	kernelBase := filepath.Base(kernelPath)
+	kernelFilegroupName := generatedModuleName(ctx.Config(), "kernel"+*stem) // to prevent name collisions.
 
 	ctx.CreateModuleInDirectory(
 		android.FileGroupFactory,
@@ -100,7 +101,7 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 			Kernel_prebuilt: proptools.StringPtr(":" + kernelFilegroupName),
 			Dtb_prebuilt:    dtbPrebuilt,
 			Cmdline:         cmdline,
-			Stem:            proptools.StringPtr("boot.img"),
+			Stem:            stem,
 		},
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("boot"),
@@ -123,6 +124,17 @@ func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 		},
 	)
 	return true
+}
+
+func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
+	partitionVariables := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	return createBootImageCommon(ctx, partitionVariables.TargetKernelPath, partitionVariables.BoardPrebuiltBootImage, dtbImg, proptools.StringPtr("boot.img"))
+}
+
+func createBootImage16k(ctx android.LoadHookContext) bool {
+	partitionVariables := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	// TODO: prebuilt boot_16k.img and dtb is currently not supported in fsgen.
+	return createBootImageCommon(ctx, partitionVariables.BoardKernelPath16k, "", dtbImg{include: false}, proptools.StringPtr("boot_16k.img"))
 }
 
 func createVendorBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
