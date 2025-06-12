@@ -557,6 +557,8 @@ type ProductVariables struct {
 	EnforceSELinuxTrebleLabeling *bool `json:",omitempty"`
 
 	SELinuxTrebleLabelingTrackingListFile *string `json:",omitempty"`
+
+	BuildOTAPackage *bool `json:",omitempty"`
 }
 
 type CompatibilityTestcaseJSON struct {
@@ -659,6 +661,7 @@ type PartitionVariables struct {
 	InternalBootconfig                []string `json:",omitempty"`
 	InternalBootconfigFile            string   `json:",omitempty"`
 	BoardPrebuiltBootImage            string   `json:",omitempty"`
+	BoardKernelPath16k                string   `json:",omitempty"`
 
 	// Super image stuff
 	ProductUseDynamicPartitions       bool                                     `json:",omitempty"`

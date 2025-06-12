@@ -127,6 +127,7 @@ type filesystemCreatorProps struct {
 	Vbmeta_partition_names []string `blueprint:"mutated"`
 
 	Boot_image        string `blueprint:"mutated" android:"path_device_first"`
+	Boot_16k_image    string `blueprint:"mutated" android:"path_device_first"`
 	Vendor_boot_image string `blueprint:"mutated" android:"path_device_first"`
 	Init_boot_image   string `blueprint:"mutated" android:"path_device_first"`
 	Super_image       string `blueprint:"mutated" android:"path_device_first"`
@@ -266,6 +267,13 @@ func (f *filesystemCreator) createInternalModules(ctx android.LoadHookContext) {
 			f.properties.Init_boot_image = ":" + generatedModuleNameForPartition(ctx.Config(), "init_boot")
 		} else {
 			f.properties.Unsupported_partition_types = append(f.properties.Unsupported_partition_types, "init_boot")
+		}
+	}
+	if partitionVars.BoardKernelPath16k != "" {
+		if createBootImage16k(ctx) {
+			f.properties.Boot_16k_image = ":" + generatedModuleNameForPartition(ctx.Config(), "boot_16k")
+		} else {
+			f.properties.Unsupported_partition_types = append(f.properties.Unsupported_partition_types, "boot_16k")
 		}
 	}
 
@@ -429,6 +437,9 @@ func (f *filesystemCreator) createDeviceModule(
 	}
 	if f.properties.Boot_image != "" {
 		partitionProps.Boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "boot"))
+	}
+	if f.properties.Boot_16k_image != "" {
+		partitionProps.Boot_16k_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "boot_16k"))
 	}
 	if f.properties.Vendor_boot_image != "" {
 		partitionProps.Vendor_boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_boot"))

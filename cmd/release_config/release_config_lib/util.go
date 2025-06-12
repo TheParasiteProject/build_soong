@@ -31,9 +31,10 @@ import (
 )
 
 var (
-	disableWarnings        bool
-	containerRegexp, _     = regexp.Compile("^[a-z][a-z0-9]*([._][a-z][a-z0-9]*)*$")
-	releaseConfigRegexp, _ = regexp.Compile("^[a-z][a-z0-9]*([._][a-z0-9]*)*$")
+	disableWarnings          bool
+	containerRegexp, _       = regexp.Compile("^[a-z][a-z0-9]*([._][a-z][a-z0-9]*)*$")
+	releaseConfigRegexp, _   = regexp.Compile("^[a-z][a-z0-9]*([._][a-z0-9]*)*$")
+	productReleaseConfigMaps *string
 )
 
 type StringList []string
@@ -235,7 +236,9 @@ func GetDefaultMapPaths(queryMaps bool) (defaultMapPaths StringList, err error) 
 	}
 
 	var prodMaps string
-	if queryMaps {
+	if productReleaseConfigMaps != nil {
+		prodMaps = *productReleaseConfigMaps
+	} else if queryMaps {
 		getBuildVar := exec.Command("build/soong/soong_ui.bash", "--dumpvar-mode", "PRODUCT_RELEASE_CONFIG_MAPS")
 		var stdout strings.Builder
 		getBuildVar.Stdin = strings.NewReader("")
@@ -250,6 +253,7 @@ func GetDefaultMapPaths(queryMaps bool) (defaultMapPaths StringList, err error) 
 		prodMaps = os.Getenv("PRODUCT_RELEASE_CONFIG_MAPS")
 	}
 	prodMaps = strings.TrimSpace(prodMaps)
+	productReleaseConfigMaps = &prodMaps
 	if len(prodMaps) > 0 {
 		defaultMapPaths = append(defaultMapPaths, strings.Split(prodMaps, " ")...)
 	}

@@ -669,7 +669,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 		r8Flags = append(r8Flags, "--ignore-library-extends-program")
 	}
 
-	if BoolDefault(opt.Keep_runtime_invisible_annotations, false) {
+	if !ctx.Config().UseR8OnlyRuntimeVisibleAnnotations() && BoolDefault(opt.Keep_runtime_invisible_annotations, false) {
 		r8Flags = append(r8Flags, "--keep-runtime-invisible-annotations")
 	}
 
@@ -741,8 +741,9 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 	}
 
 	if opt.Exclude != nil {
-		r8Flags = append(r8Flags, "--exclude", *opt.Exclude)
-		r8Deps = append(r8Deps, android.PathForModuleSrc(ctx, *opt.Exclude))
+		excludeFile := android.PathForModuleSrc(ctx, *opt.Exclude)
+		r8Flags = append(r8Flags, "--exclude", excludeFile.String())
+		r8Deps = append(r8Deps, excludeFile)
 	}
 
 	return r8Flags, r8Deps, artProfileOutput

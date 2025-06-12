@@ -102,7 +102,7 @@ func (nx *NoticeXmlModule) GenerateAndroidBuildActions(ctx android.ModuleContext
 
 	nx.outputFile = output.OutputPath
 
-	if android.Bool(ctx.Config().ProductVariables().UseSoongNoticeXML) {
+	if android.Bool(ctx.Config().ProductVariables().UseSoongNoticeXML) || !ctx.Config().KatiEnabled() {
 		installPath := android.PathForModuleInPartitionInstall(ctx, nx.props.Partition_name, "etc")
 		ctx.InstallFile(installPath, "NOTICE.xml.gz", nx.outputFile)
 	}
