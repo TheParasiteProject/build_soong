@@ -1,0 +1,79 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package filesystem
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
+)
+
+type prebuiltDtboImg struct {
+	android.ModuleBase
+	properties prebuiltDtboImgProperties
+}
+
+type prebuiltDtboImgProperties struct {
+	Src            *string `android:"path"`
+	Partition_size *int64
+	Stem           *string
+	Use_avb        *bool
+}
+
+func PrebuiltDtboImgFactory() android.Module {
+	module := &prebuiltDtboImg{}
+	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
+	module.AddProperties(&module.properties)
+	return module
+}
+
+func (p *prebuiltDtboImg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	input := android.PathForModuleSrc(ctx, proptools.String(p.properties.Src))
+	output := p.avbAddHash(ctx, input)
+	ctx.SetOutputFiles(android.Paths{output}, "")
+}
+
+func (p *prebuiltDtboImg) avbAddHash(ctx android.ModuleContext, input android.Path) android.Path {
+	if p.properties.Use_avb != nil && !*p.properties.Use_avb {
+		// Do not sign if Use_avb is explicitly turned off.
+		return input
+	}
+	builder := android.NewRuleBuilder(pctx, ctx)
+	filename := proptools.StringDefault(p.properties.Stem, input.Base())
+	output := android.PathForModuleOut(ctx, filename)
+	builder.Command().Text("cp").Input(input).Output(output)
+	builder.Command().Text("chmod").FlagWithArg("+w ", output.String())
+
+	cmd := builder.Command().
+		BuiltTool("avbtool").
+		Text("add_hash_footer").
+		FlagWithArg("--image ", output.String()).
+		Flag("--partition_name dtbo").
+		Textf(`--salt $(sha256sum "%s" "%s" | cut -d " " -f 1 | tr -d '\n')`, ctx.Config().BuildNumberFile(ctx), ctx.Config().Getenv("BUILD_DATETIME_FILE"))
+
+	if p.properties.Partition_size == nil {
+		cmd.Flag("--dynamic_partition_size")
+	} else {
+		cmd.FlagWithArg("--partition_size ", strconv.FormatInt(*p.properties.Partition_size, 10))
+	}
+	cmd.FlagWithArg("--prop ", fmt.Sprintf("com.android.build.dtbo.fingerprint:$(cat %s)", ctx.Config().BuildFingerprintFile(ctx).String()))
+
+	builder.Build("add_hash_footer", "add_hash_footer")
+
+	return output
+}
