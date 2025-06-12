@@ -471,6 +471,7 @@ type javaBuilderFlags struct {
 	composeEmbeddablePluginFlag string
 	kotlincClasspath            classpath
 	kotlincDeps                 android.Paths
+	kSnapshotFiles              map[string]android.Path
 
 	proto android.ProtoFlags
 }

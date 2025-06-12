@@ -462,7 +462,7 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 
 	// Api surfaces are not independent of each other, but have subset relationships,
 	// and so does the api files. To generate from-text stubs for api surfaces other than public,
-	// all subset api domains' api_contriubtions must be added as well.
+	// all subset api domains' api_contributions must be added as well.
 	scope := apiScope
 	for scope != nil {
 		apiContributions = append(apiContributions, module.droidstubsModuleName(scope)+".api.contribution")

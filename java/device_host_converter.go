@@ -17,6 +17,7 @@ package java
 import (
 	"fmt"
 	"io"
+	"maps"
 
 	"android/soong/android"
 	"android/soong/dexpreopt"
@@ -34,6 +35,7 @@ type DeviceHostConverter struct {
 	implementationJars            android.Paths
 	implementationAndResourceJars android.Paths
 	resourceJars                  android.Paths
+	kSnapshotFiles                map[string]android.Path
 
 	srcJarArgs []string
 	srcJarDeps android.Paths
@@ -97,6 +99,7 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 	if len(d.properties.Libs) < 1 {
 		ctx.PropertyErrorf("libs", "at least one dependency is required")
 	}
+	d.kSnapshotFiles = make(map[string]android.Path)
 
 	var transitiveHeaderJars []depset.DepSet[android.Path]
 	var transitiveImplementationJars []depset.DepSet[android.Path]
@@ -115,6 +118,7 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 			transitiveHeaderJars = append(transitiveHeaderJars, dep.TransitiveStaticLibsHeaderJars)
 			transitiveImplementationJars = append(transitiveImplementationJars, dep.TransitiveStaticLibsImplementationJars)
 			transitiveResourceJars = append(transitiveResourceJars, dep.TransitiveStaticLibsResourceJars)
+			maps.Copy(d.kSnapshotFiles, dep.KSnapshotFiles)
 		} else {
 			ctx.PropertyErrorf("libs", "module %q cannot be used as a dependency", ctx.OtherModuleName(m))
 		}
@@ -127,6 +131,7 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 		TransformJarsToJar(ctx, outputFile, "combine", d.implementationAndResourceJars,
 			android.OptionalPath{}, false, nil, nil)
 		d.combinedImplementationJar = outputFile
+		d.addKSnapshot(ctx, outputFile)
 	} else if len(d.implementationAndResourceJars) == 1 {
 		d.combinedImplementationJar = d.implementationAndResourceJars[0]
 	}
@@ -146,6 +151,7 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 		TransitiveStaticLibsHeaderJars:         depset.New(depset.PREORDER, nil, transitiveHeaderJars),
 		TransitiveStaticLibsImplementationJars: depset.New(depset.PREORDER, nil, transitiveImplementationJars),
 		TransitiveStaticLibsResourceJars:       depset.New(depset.PREORDER, nil, transitiveResourceJars),
+		KSnapshotFiles:                         d.kSnapshotFiles,
 		ImplementationAndResourcesJars:         d.implementationAndResourceJars,
 		ImplementationJars:                     d.implementationJars,
 		ResourceJars:                           d.resourceJars,
@@ -173,6 +179,16 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 		moduleInfoJSON.ClassesJar = []string{d.combinedImplementationJar.String()}
 	}
 	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+}
+
+func (d *DeviceHostConverter) addKSnapshot(ctx android.ModuleContext, jarFile android.Path) {
+	if jarFile == nil {
+		return
+	}
+	if _, exists := d.kSnapshotFiles[jarFile.String()]; !exists {
+		snapshot := SnapshotJarForKotlin(ctx, jarFile.(android.WritablePath))
+		d.kSnapshotFiles[jarFile.String()] = snapshot
+	}
 }
 
 func (d *DeviceHostConverter) HeaderJars() android.Paths {
