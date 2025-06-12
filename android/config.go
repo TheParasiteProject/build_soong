@@ -946,6 +946,7 @@ func (c *config) mockFileSystem(bp string, fs map[string][]byte) {
 
 func (c *config) SetAllowMissingDependencies() {
 	c.productVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
+	c.genericConfigField.productVariables.Allow_missing_dependencies = proptools.BoolPtr(true)
 }
 
 // BlueprintToolLocation returns the directory containing build system tools
