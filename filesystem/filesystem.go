@@ -1124,10 +1124,10 @@ func (f *filesystem) verifyGenericConfig(ctx android.ModuleContext) {
 		// However, some targets install system_ext or product modules in the system partition.
 		// Allow those subpartition modules to use non-generic configuration.
 		if !moduleInfo.UseGenericConfig {
-			if installedInSubpartition() {
-				return false
+			if !installedInSubpartition() {
+				nonGenericModules[moduleName] = parent.Name()
 			}
-			nonGenericModules[moduleName] = parent.Name()
+			return false
 		}
 		return true
 	})
