@@ -1626,6 +1626,7 @@ func (f *filesystem) assembleVintfs(
 		})
 		soongAssembledVintfInStagingDir := vintfInStagingDir.Join(ctx, vintf.Base())
 		builder.Command().Text("cp").Input(soongAssembledVintf).Output(soongAssembledVintfInStagingDir)
+		f.appendToEntry(ctx, soongAssembledVintfInStagingDir)
 
 		installPath := android.PathForModuleInPartitionInstall(ctx, f.PartitionType(), pathPrefix, "etc", "vintf", "manifest", vintf.Base())
 		*fullInstallPaths = append(*fullInstallPaths, FullInstallPathInfo{
