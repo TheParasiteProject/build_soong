@@ -389,9 +389,10 @@ func createVendorBootConfigImg(ctx android.LoadHookContext) (string, bool) {
 func createPrebuiltDtboImages(ctx android.LoadHookContext) (string, string) {
 	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
 
-	dtboModuleName, dtbo16kModuleName := "", ""
-	if partitionVars.BoardPrebuiltDtboImage != "" {
-		dtboModuleName = generatedModuleNameForPartition(ctx.Config(), "dtbo")
+	dtboModuleName := getDtboModuleName(ctx)
+	dtbo16kModuleName := getDtbo16kModuleName(ctx)
+
+	if dtboModuleName != "" {
 		size, _ := strconv.ParseInt(partitionVars.BoardDtboPartitionSize, 0, 64)
 		ctx.CreateModuleInDirectory(
 			filesystem.PrebuiltDtboImgFactory,
@@ -408,8 +409,7 @@ func createPrebuiltDtboImages(ctx android.LoadHookContext) (string, string) {
 		)
 	}
 
-	if partitionVars.BoardPrebuiltDtboImage16kb != "" {
-		dtbo16kModuleName = generatedModuleNameForPartition(ctx.Config(), "dtbo_16k")
+	if dtbo16kModuleName != "" {
 		size, _ := strconv.ParseInt(partitionVars.BoardDtboPartitionSize, 0, 64)
 		ctx.CreateModuleInDirectory(
 			filesystem.PrebuiltDtboImgFactory,
@@ -429,6 +429,22 @@ func createPrebuiltDtboImages(ctx android.LoadHookContext) (string, string) {
 	}
 
 	return dtboModuleName, dtbo16kModuleName
+}
+
+func getDtboModuleName(ctx android.LoadHookContext) string {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	if partitionVars.BoardPrebuiltDtboImage != "" {
+		return generatedModuleNameForPartition(ctx.Config(), "dtbo")
+	}
+	return ""
+}
+
+func getDtbo16kModuleName(ctx android.LoadHookContext) string {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	if partitionVars.BoardPrebuiltDtboImage16kb != "" {
+		return generatedModuleNameForPartition(ctx.Config(), "dtbo_16k")
+	}
+	return ""
 }
 
 func createBootOtas16kModules(ctx android.LoadHookContext, dtboModuleName, dtbo16kModuleName string) string {
