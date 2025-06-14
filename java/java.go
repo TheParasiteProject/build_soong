@@ -20,6 +20,7 @@ package java
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -343,6 +344,8 @@ type JavaInfo struct {
 
 	// SrcJarDeps is a list of paths to depend on when packaging the sources of this module.
 	SrcJarDeps android.Paths
+
+	KSnapshotFiles map[string]android.Path
 
 	// The source files of this module and all its transitive static dependencies.
 	TransitiveSrcFiles depset.DepSet[android.Path]
@@ -766,6 +769,7 @@ type deps struct {
 	aidlPreprocess          android.OptionalPath
 	composeEmbeddablePlugin android.OptionalPath
 	composePlugin           android.OptionalPath
+	kSnapshotFiles          map[string]android.Path
 	kotlinPlugins           android.Paths
 	aconfigProtoFiles       android.Paths
 
@@ -2452,7 +2456,15 @@ type ApiLibrary struct {
 	stubsType StubsType
 
 	aconfigProtoFiles android.Paths
+
+	kSnapshotFiles map[string]android.Path
 }
+
+func (al ApiLibrary) JarToSnapshotMap() map[string]android.Path {
+	return al.kSnapshotFiles
+}
+
+var _ KSnapshotContainer = ApiLibrary{}
 
 type JavaApiLibraryProperties struct {
 	// name of the API surface
@@ -2706,6 +2718,8 @@ func (al *ApiLibrary) validateProperties(ctx android.ModuleContext) {
 func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	al.validateProperties(ctx)
 
+	al.kSnapshotFiles = make(map[string]android.Path)
+
 	rule := android.NewRuleBuilder(pctx, ctx)
 
 	rule.Sbox(android.PathForModuleOut(ctx, "metalava"),
@@ -2736,16 +2750,19 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			if provider, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
 				classPaths = append(classPaths, provider.HeaderJars...)
 				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.AconfigIntermediateCacheOutputPaths...)
+				maps.Copy(al.kSnapshotFiles, provider.KSnapshotFiles)
 			}
 		case bootClasspathTag:
 			if provider, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
 				bootclassPaths = append(bootclassPaths, provider.HeaderJars...)
 				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.AconfigIntermediateCacheOutputPaths...)
+				maps.Copy(al.kSnapshotFiles, provider.KSnapshotFiles)
 			}
 		case staticLibTag:
 			if provider, ok := android.OtherModuleProvider(ctx, dep, JavaInfoProvider); ok {
 				staticLibs = append(staticLibs, provider.HeaderJars...)
 				al.aconfigProtoFiles = append(al.aconfigProtoFiles, provider.AconfigIntermediateCacheOutputPaths...)
+				maps.Copy(al.kSnapshotFiles, provider.KSnapshotFiles)
 			}
 		case systemModulesTag:
 			if sm, ok := android.OtherModuleProvider(ctx, dep, SystemModulesProvider); ok {
@@ -2840,6 +2857,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Inputs(android.Paths{al.stubsJarWithoutStaticLibs}).
 		Inputs(staticLibs)
 	builder.Build("merge_zips", "merge jar files")
+	al.addKSnapshot(ctx, al.stubsJar)
 
 	// compile stubs to .dex for hiddenapi processing
 	dexParams := &compileDexParams{
@@ -2856,6 +2874,8 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	al.dexJarFile = makeDexJarPathFromPath(dexOutputFile)
 
 	ctx.Phony(ctx.ModuleName(), al.stubsJar)
+
+	al.addKSnapshot(ctx, al.stubsJar)
 
 	javaInfo := &JavaInfo{
 		HeaderJars:                             android.PathsIfNonNil(al.stubsJar),
@@ -2877,6 +2897,16 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		moduleInfoJSON.ClassesJar = []string{al.stubsJar.String()}
 	}
 	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+}
+
+func (al *ApiLibrary) addKSnapshot(ctx android.ModuleContext, jarFile android.Path) {
+	if jarFile == nil {
+		return
+	}
+	if _, exists := al.kSnapshotFiles[jarFile.String()]; !exists {
+		snapshot := SnapshotJarForKotlin(ctx, jarFile.(android.WritablePath))
+		al.kSnapshotFiles[jarFile.String()] = snapshot
+	}
 }
 
 func (al *ApiLibrary) DexJarBuildPath(ctx android.ModuleErrorfContext) OptionalDexJarPath {
@@ -3029,6 +3059,8 @@ type Import struct {
 	classLoaderContexts        dexpreopt.ClassLoaderContextMap
 	exportAidlIncludeDirs      android.Paths
 
+	kSnapshotFiles map[string]android.Path
+
 	hideApexVariantFromMake bool
 
 	sdkVersion    android.SdkSpec
@@ -3130,6 +3162,8 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	j.classLoaderContexts = make(dexpreopt.ClassLoaderContextMap)
 
+	j.kSnapshotFiles = make(map[string]android.Path)
+
 	var flags javaBuilderFlags
 
 	var transitiveClasspathHeaderJars []depset.DepSet[android.Path]
@@ -3145,6 +3179,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.VisitDirectDepsProxy(func(module android.ModuleProxy) {
 		tag := ctx.OtherModuleDependencyTag(module)
 		if dep, ok := android.OtherModuleProvider(ctx, module, JavaInfoProvider); ok {
+			maps.Copy(j.kSnapshotFiles, dep.KSnapshotFiles)
 			switch tag {
 			case libTag, sdkLibTag:
 				flags.classpath = append(flags.classpath, dep.HeaderJars...)
@@ -3185,6 +3220,8 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	TransformJarsToJar(ctx, localCombinedHeaderJar, "combine local prebuilt implementation jars", localJars, android.OptionalPath{},
 		false, j.properties.Exclude_files, j.properties.Exclude_dirs)
 	localStrippedJars := android.Paths{localCombinedHeaderJar}
+
+	j.addKSnapshot(ctx, localCombinedHeaderJar)
 
 	completeStaticLibsHeaderJars := depset.New(depset.PREORDER, localStrippedJars, transitiveStaticLibsHeaderJars)
 	completeStaticLibsImplementationJars := depset.New(depset.PREORDER, localStrippedJars, transitiveStaticLibsImplementationJars)
@@ -3228,11 +3265,12 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		jetifierOutputFile := android.PathForModuleOut(ctx, "jetifier", jarName)
 		TransformJetifier(ctx, jetifierOutputFile, outputFile)
 		outputFile = jetifierOutputFile
-
+		j.addKSnapshot(ctx, jetifierOutputFile)
 		if !reuseImplementationJarAsHeaderJar {
 			jetifierHeaderJar := android.PathForModuleOut(ctx, "jetifier-headers", jarName)
 			TransformJetifier(ctx, jetifierHeaderJar, headerJar)
 			headerJar = jetifierHeaderJar
+			j.addKSnapshot(ctx, jetifierHeaderJar)
 		} else {
 			headerJar = outputFile
 		}
@@ -3348,6 +3386,7 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		ResourceJars:                           android.PathsIfNonNil(resourceJarFile),
 		AidlIncludeDirs:                        j.exportAidlIncludeDirs,
 		StubsLinkType:                          j.stubsLinkType,
+		KSnapshotFiles:                         j.kSnapshotFiles,
 		// TODO(b/289117800): LOCAL_ACONFIG_FILES for prebuilts
 	}
 	setExtraJavaInfo(ctx, j, javaInfo)
@@ -3369,6 +3408,16 @@ func (j *Import) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		moduleInfoJSON.ClassesJar = []string{j.combinedImplementationFile.String()}
 	}
 	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+}
+
+func (j *Import) addKSnapshot(ctx android.ModuleContext, jarFile android.Path) {
+	if jarFile == nil {
+		return
+	}
+	if _, exists := j.kSnapshotFiles[jarFile.String()]; !exists {
+		snapshot := SnapshotJarForKotlin(ctx, jarFile.(android.WritablePath))
+		j.kSnapshotFiles[jarFile.String()] = snapshot
+	}
 }
 
 func (j *Import) maybeInstall(ctx android.ModuleContext, jarName string, outputFile android.Path) {
@@ -3978,5 +4027,12 @@ func setExtraJavaInfo(ctx android.ModuleContext, module android.Module, javaInfo
 			HeaderJars:                     ap.HeaderJars(),
 			ImplementationAndResourcesJars: ap.ImplementationAndResourcesJars(),
 		}
+	}
+
+	if ksc, ok := module.(KSnapshotContainer); ok {
+		if javaInfo.KSnapshotFiles == nil {
+			javaInfo.KSnapshotFiles = make(map[string]android.Path)
+		}
+		maps.Copy(javaInfo.KSnapshotFiles, ksc.JarToSnapshotMap())
 	}
 }

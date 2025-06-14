@@ -204,6 +204,7 @@ build_prop {
         "//packages/modules/Virtualization/build/microdroid",
         "//frameworks/base/ravenwood",
         "//visibility:any_system_partition",
+        "//bootable/recovery/tests/ota",
     ],
 }
 

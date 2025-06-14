@@ -51,6 +51,12 @@ private val ARGUMENT_PARSERS =
         SourcesArgument(), // must come last
     )
 
+val USAGE_TEXT =
+    """
+        Usage: kotlin-incremental-client -root-dir=<dir> [options] [kotlinc options] [-- <source files>]
+    """
+        .trimIndent()
+
 val ADDITIONAL_HELP =
     """
     EXAMPLES
@@ -68,7 +74,17 @@ fun main(args: Array<String>) {
     val opts = ClientOptions()
     ARGUMENT_PARSERS.forEach { it.setupDefault(opts) }
 
-    if (!parseArgs(args, opts, ARGUMENT_PARSERS, System.out, System.err, ADDITIONAL_HELP)) {
+    if (
+        !parseArgs(
+            args,
+            opts,
+            ARGUMENT_PARSERS,
+            System.out,
+            System.err,
+            USAGE_TEXT,
+            ADDITIONAL_HELP,
+        )
+    ) {
         exitProcess(-1)
     }
 
