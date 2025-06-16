@@ -412,8 +412,9 @@ var testSuiteConfigs = []testSuiteConfig{
 		name: "automotive-tests",
 	},
 	{
-		name:          "automotive-general-tests",
-		hostJavaTools: []string{"compatibility-host-util", "cts-tradefed", "vts-tradefed"},
+		name:                   "automotive-general-tests",
+		hostJavaTools:          []string{"compatibility-host-util", "cts-tradefed", "vts-tradefed"},
+		buildHostSharedLibsZip: true,
 	},
 	{
 		name: "automotive-sdv-tests",
