@@ -257,18 +257,18 @@ func abfsBuildFinished(ctx Context, config Config, finished bool) {
 // the build to run.
 func Build(ctx Context, config Config) {
 	done := false
+	ctx.Verboseln("Starting build with args:", config.Arguments())
+	ctx.Verboseln("Environment:", config.Environment().Environ())
+
+	ctx.BeginTrace(metrics.Total, "total")
+	defer ctx.EndTrace()
+
 	if config.UseABFS() {
 		abfsBuildStarted(ctx, config)
 		defer func() {
 			abfsBuildFinished(ctx, config, done)
 		}()
 	}
-
-	ctx.Verboseln("Starting build with args:", config.Arguments())
-	ctx.Verboseln("Environment:", config.Environment().Environ())
-
-	ctx.BeginTrace(metrics.Total, "total")
-	defer ctx.EndTrace()
 
 	if inList("help", config.Arguments()) {
 		help(ctx, config)
@@ -311,6 +311,7 @@ func Build(ctx Context, config Config) {
 	checkCaseSensitivity(ctx, config)
 
 	SetupPath(ctx, config)
+	SetProductReleaseConfigMaps(ctx, config)
 
 	what := evaluateWhatToRun(config, ctx.Verboseln)
 
