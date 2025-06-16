@@ -17,7 +17,9 @@ package filesystem
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -42,10 +44,23 @@ func PrebuiltDtboImgFactory() android.Module {
 	return module
 }
 
+type DtboImgInfo struct {
+	PropFileForMiscInfo android.Path
+}
+
+var DtboImgInfoProvider = blueprint.NewProvider[DtboImgInfo]()
+
 func (p *prebuiltDtboImg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	input := android.PathForModuleSrc(ctx, proptools.String(p.properties.Src))
 	output := p.avbAddHash(ctx, input)
 	ctx.SetOutputFiles(android.Paths{output}, "")
+	android.SetProvider(
+		ctx,
+		DtboImgInfoProvider,
+		DtboImgInfo{
+			PropFileForMiscInfo: p.buildPropFileForMiscInfo(ctx),
+		},
+	)
 }
 
 func (p *prebuiltDtboImg) avbAddHash(ctx android.ModuleContext, input android.Path) android.Path {
@@ -76,4 +91,28 @@ func (p *prebuiltDtboImg) avbAddHash(ctx android.ModuleContext, input android.Pa
 	builder.Build("add_hash_footer", "add_hash_footer")
 
 	return output
+}
+
+func (p *prebuiltDtboImg) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Path {
+	var sb strings.Builder
+	addStr := func(name string, value string) {
+		fmt.Fprintf(&sb, "%s=%s\n", name, value)
+	}
+
+	addStr("has_dtbo", "true")
+	if p.properties.Partition_size != nil {
+		addStr("dtbo_size", strconv.FormatInt(*p.properties.Partition_size, 10))
+	}
+	addStr("avb_dtbo_add_hash_footer_args", "--prop "+fmt.Sprintf("com.android.build.dtbo.fingerprint:{CONTENTS_OF:%s}", ctx.Config().BuildFingerprintFile(ctx).String()))
+
+	propFilePreProcessing := android.PathForModuleOut(ctx, "prop_for_misc_info_pre_processing")
+	android.WriteFileRuleVerbatim(ctx, propFilePreProcessing, sb.String())
+	propFile := android.PathForModuleOut(ctx, "prop_file_for_misc_info")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   textFileProcessorRule,
+		Input:  propFilePreProcessing,
+		Output: propFile,
+	})
+
+	return propFile
 }

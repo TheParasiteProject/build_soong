@@ -101,6 +101,10 @@ type DeviceProperties struct {
 
 	// Precompiled sepolicy only with system + system_ext + product. Used for SELinux tests.
 	Precompiled_sepolicy_without_vendor *string `android:"path"`
+
+	// Name of the DTBO partitions
+	Dtbo_image     *string
+	Dtbo_image_16k *string
 }
 
 type androidDevice struct {
@@ -151,11 +155,15 @@ type targetFilesMetadataDepTagType struct {
 type fileContextsDepTagType struct {
 	blueprint.BaseDependencyTag
 }
+type dtboDepTagType struct {
+	blueprint.BaseDependencyTag
+}
 
 var superPartitionDepTag superPartitionDepTagType
 var filesystemDepTag partitionDepTagType
 var targetFilesMetadataDepTag targetFilesMetadataDepTagType
 var fileContextsDepTag fileContextsDepTagType
+var dtboDepTag dtboDepTagType
 
 func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined := func(dep *string) {
@@ -185,6 +193,12 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddDependency(ctx.Module(), filesystemDepTag, vbmetaPartition)
 	}
 	a.addDepsForTargetFilesMetadata(ctx)
+	if a.deviceProps.Dtbo_image != nil {
+		ctx.AddDependency(ctx.Module(), dtboDepTag, *a.deviceProps.Dtbo_image)
+	}
+	if a.deviceProps.Dtbo_image_16k != nil {
+		ctx.AddDependency(ctx.Module(), dtboDepTag, *a.deviceProps.Dtbo_image_16k)
+	}
 }
 
 func (a *androidDevice) addDepsForTargetFilesMetadata(ctx android.BottomUpMutatorContext) {
@@ -708,7 +722,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	}
 }
 
-// TODO: dtbo, pvmfw, ...
+// TODO: pvmfw, ...
 func (a *androidDevice) copyPrebuiltImages(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.Path) {
 	if a.partitionProps.Boot_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_partition_name), filesystemDepTag)
@@ -716,6 +730,24 @@ func (a *androidDevice) copyPrebuiltImages(ctx android.ModuleContext, builder *a
 			builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/", targetFilesDir)
 			builder.Command().Text("cp").Input(bootImgInfo.Output).Textf(" %s/PREBUILT_IMAGES/", targetFilesDir)
 		}
+	}
+	// Copy dtbo.img.
+	// All products with dtbo.img use a prebuilt.
+	if a.deviceProps.Dtbo_image != nil {
+		dtbo := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Dtbo_image, dtboDepTag)
+		img := android.OutputFilesForModule(ctx, dtbo, "")[0]
+		// Copy to PREBUILT_IMAGES/
+		// add_img_to_target_files.py will create another copy in IMAGES/
+		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES && cp", targetFilesDir).Input(img).Textf(" %s/PREBUILT_IMAGES/", targetFilesDir)
+	}
+	// Copy dtbo_16k.img.
+	// All products with dtbo.img use a prebuilt.
+	if a.deviceProps.Dtbo_image_16k != nil {
+		dtbo := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Dtbo_image_16k, dtboDepTag)
+		img := android.OutputFilesForModule(ctx, dtbo, "")[0]
+		// Copy directly to IMAGES/
+		// add_img_to_target_files.py does not support dtbo_16k
+		builder.Command().Text("cp").Input(img).Textf(" %s/IMAGES/", targetFilesDir)
 	}
 }
 
@@ -1018,6 +1050,14 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	}
 	if len(a.deviceProps.Partial_ota_update_partitions) > 0 {
 		builder.Command().Textf("echo partial_ota_update_partitions_list=%s >> %s", strings.Join(a.deviceProps.Partial_ota_update_partitions, " "), miscInfo)
+	}
+	if a.deviceProps.Dtbo_image != nil {
+		dtbo := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Dtbo_image, dtboDepTag)
+		if info, ok := android.OtherModuleProvider(ctx, dtbo, DtboImgInfoProvider); ok {
+			builder.Command().Text("cat").Input(info.PropFileForMiscInfo).Textf(" >> %s", miscInfo)
+		} else {
+			ctx.ModuleErrorf("Could not write dtbo properties in misc_info.txt")
+		}
 	}
 
 	// Sort and dedup

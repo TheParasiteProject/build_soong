@@ -472,6 +472,12 @@ func (f *filesystemCreator) createDeviceModule(
 	if fastbootInfo, ok := f.createFastbootInfoFilegroup(ctx); ok {
 		deviceProps.FastbootInfo = proptools.StringPtr(":" + fastbootInfo)
 	}
+	if dtboModuleName := getDtboModuleName(ctx); dtboModuleName != "" {
+		deviceProps.Dtbo_image = proptools.StringPtr(dtboModuleName)
+	}
+	if dtbo16kModuleName := getDtbo16kModuleName(ctx); dtbo16kModuleName != "" {
+		deviceProps.Dtbo_image_16k = proptools.StringPtr(dtbo16kModuleName)
+	}
 
 	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
 }
