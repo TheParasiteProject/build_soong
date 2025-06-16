@@ -243,6 +243,11 @@ func (p partialCompileFlags) updateEnableIncKotlinJavaDep(value bool) partialCom
 	return p
 }
 
+func (p partialCompileFlags) updateEnableIncD8OutsidePlatform(value bool) partialCompileFlags {
+	p.Enable_inc_d8_outside_platform = value
+	return p
+}
+
 func TestPartialCompile(t *testing.T) {
 	mockConfig := func(value string) *config {
 		c := &config{
@@ -261,7 +266,7 @@ func TestPartialCompile(t *testing.T) {
 		{"false", true, partialCompileFlags{}},
 		{"true", true, enabledPartialCompileFlags},
 		{"true", false, partialCompileFlags{}},
-		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(false).updateEnableIncD8(true).updateEnableIncKotlinJavaDep(false)},
+		{"all", true, partialCompileFlags{}.updateUseD8(true).updateDisableStubValidation(true).updateEnableIncJavac(true).updateEnableIncKotlin(false).updateEnableIncD8(true).updateEnableIncKotlinJavaDep(false).updateEnableIncD8OutsidePlatform(true)},
 
 		// This verifies both use_d8 and the processing order.
 		{"true,use_d8", true, enabledPartialCompileFlags.updateUseD8(true)},
@@ -308,6 +313,14 @@ func TestPartialCompile(t *testing.T) {
 		{"false,+inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(true)},
 		{"false,+enable_inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(true)},
 		{"false,-disable_inc_kotlin_java_dep", true, partialCompileFlags{}.updateEnableIncKotlinJavaDep(true)},
+
+		// enable_inc_d8_outside_platform can be specified with any of 3 options.
+		{"false,-inc_d8_outside_platform", true, partialCompileFlags{}.updateEnableIncD8OutsidePlatform(false)},
+		{"false,-enable_inc_d8_outside_platform", true, partialCompileFlags{}.updateEnableIncD8OutsidePlatform(false)},
+		{"false,+disable_inc_d8_outside_platform", true, partialCompileFlags{}.updateEnableIncD8OutsidePlatform(false)},
+		{"false,+inc_d8_outside_platform", true, partialCompileFlags{}.updateEnableIncD8OutsidePlatform(true)},
+		{"false,+enable_inc_d8_outside_platform", true, partialCompileFlags{}.updateEnableIncD8OutsidePlatform(true)},
+		{"false,-disable_inc_d8_outside_platform", true, partialCompileFlags{}.updateEnableIncD8OutsidePlatform(true)},
 	}
 
 	for _, test := range tests {

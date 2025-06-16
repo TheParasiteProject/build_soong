@@ -538,11 +538,12 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 	}
 	flags = append(flags, "--min-api "+strconv.Itoa(minApiFlagValue))
 
-	incD8Compatible = false
-	// Incremental d8 does not have libraries passed to it for speed, so any
-	// desugaring with library classes is not possible.
-	// To cater for this we only enable incD8 when platform build flag is passed
-	// as it automatically disables desugaring.
+	if ctx.Config().PartialCompileFlags().Enable_inc_d8_outside_platform {
+		incD8Compatible = true
+	} else {
+		incD8Compatible = false
+	}
+
 	if addAndroidPlatformBuildFlag {
 		flags = append(flags, "--android-platform-build")
 		incD8Compatible = true
