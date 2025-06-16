@@ -385,3 +385,82 @@ func createVendorBootConfigImg(ctx android.LoadHookContext) (string, bool) {
 
 	return vendorBootconfigImgModuleName, true
 }
+
+func createPrebuiltDtboImages(ctx android.LoadHookContext) (string, string) {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+
+	dtboModuleName, dtbo16kModuleName := "", ""
+	if partitionVars.BoardPrebuiltDtboImage != "" {
+		dtboModuleName = generatedModuleNameForPartition(ctx.Config(), "dtbo")
+		size, _ := strconv.ParseInt(partitionVars.BoardDtboPartitionSize, 0, 64)
+		ctx.CreateModuleInDirectory(
+			filesystem.PrebuiltDtboImgFactory,
+			".",
+			&struct {
+				Name           *string
+				Src            *string
+				Partition_size *int64
+			}{
+				Name:           proptools.StringPtr(dtboModuleName),
+				Src:            proptools.StringPtr(partitionVars.BoardPrebuiltDtboImage),
+				Partition_size: proptools.Int64Ptr(size),
+			},
+		)
+	}
+
+	if partitionVars.BoardPrebuiltDtboImage16kb != "" {
+		dtbo16kModuleName = generatedModuleNameForPartition(ctx.Config(), "dtbo_16k")
+		size, _ := strconv.ParseInt(partitionVars.BoardDtboPartitionSize, 0, 64)
+		ctx.CreateModuleInDirectory(
+			filesystem.PrebuiltDtboImgFactory,
+			".",
+			&struct {
+				Name           *string
+				Src            *string
+				Partition_size *int64
+				Stem           *string
+			}{
+				Name:           proptools.StringPtr(dtbo16kModuleName),
+				Src:            proptools.StringPtr(partitionVars.BoardPrebuiltDtboImage16kb),
+				Partition_size: proptools.Int64Ptr(size),
+				Stem:           proptools.StringPtr("dtbo_16k.img"),
+			},
+		)
+	}
+
+	return dtboModuleName, dtbo16kModuleName
+}
+
+func createBootOtas16kModules(ctx android.LoadHookContext, dtboModuleName, dtbo16kModuleName string) string {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	if partitionVars.BoardKernelPath16k == "" {
+		return ""
+	}
+
+	name := generatedModuleName(ctx.Config(), "boot_otas_16k")
+	props := filesystem.BootOtas16kProperties{
+		Boot_image:          proptools.StringPtr(":" + generatedModuleName(ctx.Config(), "boot_image")),
+		Boot_image_16k:      proptools.StringPtr(":" + generatedModuleName(ctx.Config(), "boot_16k_image")),
+		Use_ota_incremental: proptools.BoolPtr(partitionVars.Board16kOtaUseIncremental),
+	}
+	if dtboModuleName != "" {
+		props.Dtbo_image = proptools.StringPtr(":" + dtboModuleName)
+	}
+	if dtbo16kModuleName != "" {
+		props.Dtbo_image_16k = proptools.StringPtr(":" + dtbo16kModuleName)
+
+	}
+	ctx.CreateModuleInDirectory(
+		filesystem.BootOtas16kFactory,
+		".",
+		&struct {
+			Name   *string
+			Vendor *bool
+		}{
+			Name:   proptools.StringPtr(name),
+			Vendor: proptools.BoolPtr(true),
+		},
+		&props,
+	)
+	return name
+}
