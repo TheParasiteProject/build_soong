@@ -288,6 +288,11 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 			(*fsGenState.fsDeps["vendor"])["odm_dlkm-build.prop"] = defaultDepCandidateProps(ctx.Config())
 		}
 
+		dtbo, dtbo16k := createPrebuiltDtboImages(ctx)
+		if bootOtas := createBootOtas16kModules(ctx, dtbo, dtbo16k); bootOtas != "" {
+			(*fsGenState.fsDeps["vendor"])[bootOtas] = defaultDepCandidateProps(ctx.Config())
+		}
+
 		return &fsGenState
 	}).(*FsGenState)
 }
