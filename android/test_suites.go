@@ -31,22 +31,7 @@ import (
 
 func init() {
 	RegisterParallelSingletonType("testsuites", testSuiteFilesFactory)
-}
-
-type compatibilitySuite struct {
-	name     string
-	tradefed string
-	readme   string
-	tools    []string
-}
-
-var all_compatibility_suites = []compatibilitySuite{
-	{
-		name:     "catbox",
-		tradefed: "catbox-tradefed",
-		readme:   "test/catbox/tools/catbox-tradefed/README",
-		tools:    []string{"catbox-report-lib.jar"},
-	},
+	RegisterModuleType("compatibility_test_suite_package", compatibilityTestSuitePackageFactory)
 }
 
 func testSuiteFilesFactory() Singleton {
@@ -145,6 +130,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	allTestSuiteInstalls := make(map[string]Paths)
 	var toInstall []filePair
 	var oneVariantInstalls []filePair
+	var allCompatibilitySuitePackages []compatibilitySuitePackageInfo
 
 	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
 		commonInfo := OtherModuleProviderOrDefault(ctx, m, CommonModuleInfoProvider)
@@ -193,6 +179,10 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 					}
 				}
 			}
+		}
+
+		if info, ok := OtherModuleProvider(ctx, m, compatibilitySuitePackageProvider); ok {
+			allCompatibilitySuitePackages = append(allCompatibilitySuitePackages, info)
 		}
 	})
 
@@ -330,13 +320,13 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 		packageTestSuite(ctx, files, sharedLibs, testSuiteConfig)
 	}
 
-	for _, suite := range all_compatibility_suites {
-		modules := slices.Collect(maps.Keys(files[suite.name]))
+	for _, suite := range allCompatibilitySuitePackages {
+		modules := slices.Collect(maps.Keys(files[suite.Name]))
 		sort.Slice(modules, func(i, j int) bool {
 			return modules[i].String() < modules[j].String()
 		})
 
-		suite.build(ctx, slices.Clone(allTestSuiteInstalls[suite.name]), modules)
+		buildCompatibilitySuitePackage(ctx, suite, slices.Clone(allTestSuiteInstalls[suite.Name]), modules)
 	}
 }
 
@@ -636,21 +626,18 @@ func packageTestSuite(ctx SingletonContext, files, sharedLibs Paths, suiteConfig
 	ctx.Phony("tests", PathForPhony(ctx, suiteConfig.name))
 }
 
-func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, testSuiteModules []ModuleProxy) {
-	testSuiteName := m.name
-	testSuiteTradefed := m.tradefed
-	if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", testSuiteName); err != nil || !matched {
-		ctx.Errorf("Invalid test suite name, must match [a-zA-Z0-9_-]+, got %q", testSuiteName)
-		return
-	}
-	if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", testSuiteTradefed); err != nil || !matched {
-		ctx.Errorf("Invalid test suite tradefed, must match [a-zA-Z0-9_-]+, got %q", testSuiteTradefed)
-		return
-	}
+func buildCompatibilitySuitePackage(
+	ctx SingletonContext,
+	suite compatibilitySuitePackageInfo,
+	testSuiteFiles Paths,
+	testSuiteModules []ModuleProxy,
+) {
+	testSuiteName := suite.Name
+	testSuiteTradefed := suite.Tradefed
 	subdir := fmt.Sprintf("android-%s", testSuiteName)
 
-	hostOutSuite := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, m.name)
-	hostOutTestCases := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, m.name, subdir, "testcases")
+	hostOutSuite := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, testSuiteName)
+	hostOutTestCases := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, testSuiteName, subdir, "testcases")
 	testSuiteFiles = slices.DeleteFunc(testSuiteFiles, func(f Path) bool {
 		return !strings.HasPrefix(f.String(), hostOutTestCases.String()+"/")
 	})
@@ -666,7 +653,8 @@ func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, t
 		ctx.Config().HostToolPath(ctx, "test-utils-script"),
 	}
 
-	out := PathForOutput(ctx, "compatibility_test_suites", testSuiteName, fmt.Sprintf("android-%s.zip", testSuiteName))
+	// Some make rules still rely on the zip being at this location
+	out := hostOutSuite.Join(ctx, fmt.Sprintf("android-%s.zip", testSuiteName))
 	builder := NewRuleBuilder(pctx, ctx)
 	cmd := builder.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", out).
@@ -679,7 +667,7 @@ func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, t
 			FlagWithInput("-f ", hostTool)
 	}
 
-	for _, tool := range m.tools {
+	for _, tool := range suite.Tools {
 		if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", tool); err != nil || !matched {
 			ctx.Errorf("Invalid test suite tool, must match [a-zA-Z0-9_-]+, got %q", tool)
 			continue
@@ -689,19 +677,19 @@ func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, t
 			FlagWithInput("-f ", ctx.Config().HostJavaToolPath(ctx, tool))
 	}
 
-	if m.readme != "" {
-		readme := ExistentPathForSource(ctx, m.readme)
-		if readme.Valid() {
-			cmd.
-				FlagWithArg("-e ", subdir+"/tools/"+readme.Path().Base()).
-				FlagWithInput("-f ", readme.Path())
-		} else {
-			// Defer error to execution time, as make historically did.
-			builder.Command().Textf("echo Not found: %s && exit 1", proptools.ShellEscapeIncludingSpaces(m.readme))
-		}
+	if suite.Readme != nil {
+		cmd.
+			FlagWithArg("-e ", subdir+"/tools/"+suite.Readme.Base()).
+			FlagWithInput("-f ", suite.Readme)
 	}
 
-	hostToolModules, err := m.getModulesForHostTools(ctx, hostTools)
+	if suite.DynamicConfig != nil {
+		cmd.
+			FlagWithArg("-e ", subdir+"/testcases/"+testSuiteName+".dynamic").
+			FlagWithInput("-f ", suite.DynamicConfig)
+	}
+
+	hostToolModules, err := getModulesForHostTools(ctx, hostTools)
 	// Defer error to execution time, as make historically did.
 	if err != nil {
 		builder.Command().Textf("echo %s && exit 1", proptools.ShellEscapeIncludingSpaces(err.Error()))
@@ -709,7 +697,7 @@ func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, t
 	modulesForLicense := slices.Concat(testSuiteModules, hostToolModules)
 	if len(modulesForLicense) > 0 {
 		notice := PathForOutput(ctx, "compatibility_test_suites", testSuiteName, "NOTICE.txt")
-		BuildNoticeTextOutputFromLicenseMetadata(ctx, notice, "notice", "Test suites",
+		BuildNoticeTextOutputFromLicenseMetadata(ctx, notice, "compatibility_"+testSuiteName, "Test suites",
 			BuildNoticeFromLicenseDataArgs{
 				Title:       "Notices for files contained in the test suites filesystem image:",
 				StripPrefix: []string{hostOutSuite.String()},
@@ -737,15 +725,15 @@ func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, t
 		cmd.FlagWithInput("-f ", f)
 	}
 
-	m.addJdk(ctx, cmd, subdir)
+	addJdkToZip(ctx, cmd, subdir)
 
 	builder.Build("compatibility_zip_"+testSuiteName, fmt.Sprintf("Compatibility test suite zip %q", testSuiteName))
 
-	ctx.Phony(m.name, out)
-	ctx.DistForGoal(m.name, out)
+	ctx.Phony(testSuiteName, out)
+	ctx.DistForGoal(testSuiteName, out)
 }
 
-func (m *compatibilitySuite) addJdk(ctx SingletonContext, command *RuleBuilderCommand, subdir string) {
+func addJdkToZip(ctx SingletonContext, command *RuleBuilderCommand, subdir string) {
 	jdkHome := filepath.Dir(ctx.Config().Getenv("ANDROID_JAVA_HOME")) + "/linux-x86"
 	glob := jdkHome + "/**/*"
 	files, err := ctx.GlobWithDeps(glob, nil)
@@ -762,7 +750,10 @@ func (m *compatibilitySuite) addJdk(ctx SingletonContext, command *RuleBuilderCo
 		Flag("-sha256").Implicits(paths)
 }
 
-func (m *compatibilitySuite) getModulesForHostTools(ctx SingletonContext, paths Paths) ([]ModuleProxy, error) {
+func getModulesForHostTools(ctx SingletonContext, paths Paths) ([]ModuleProxy, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
 	foundInstalledFiles := make(map[string]struct{})
 	var modules []ModuleProxy
 	pathStrings := paths.Strings()
@@ -790,4 +781,69 @@ func (m *compatibilitySuite) getModulesForHostTools(ctx SingletonContext, paths 
 	}
 
 	return modules, nil
+}
+
+// compatibility_test_suite_package builds a zip file of all the tests tagged with this suite's
+// name. It's the equivalent of compatibility.mk from the make build system.
+//
+// In soong, the module does nothing. But a singleton finds all the compatibility_test_suite_package
+// modules in the tree and emits build rules for them. This is because they need to search
+// all the modules in the tree for ones tagged with the appropriate test suite, but this could
+// maybe be replaced with reverse dependencies.
+func compatibilityTestSuitePackageFactory() Module {
+	m := &compatibilityTestSuitePackage{}
+	InitAndroidModule(m)
+	m.AddProperties(&m.properties)
+	return m
+}
+
+type compatibilityTestSuitePackageProperties struct {
+	Tradefed       *string
+	Readme         *string `android:"path"`
+	Tools          []string
+	Dynamic_config *string `android:"path"`
+}
+
+type compatibilityTestSuitePackage struct {
+	ModuleBase
+	properties compatibilityTestSuitePackageProperties
+}
+
+type compatibilitySuitePackageInfo struct {
+	Name          string
+	Tradefed      string
+	Readme        Path
+	Tools         []string
+	DynamicConfig Path
+}
+
+var compatibilitySuitePackageProvider = blueprint.NewProvider[compatibilitySuitePackageInfo]()
+
+func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx ModuleContext) {
+	if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", m.Name()); err != nil || !matched {
+		ctx.ModuleErrorf("Invalid test suite name, must match [a-zA-Z0-9_-]+, got %q", m.Name())
+		return
+	}
+	if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", proptools.String(m.properties.Tradefed)); err != nil || !matched {
+		ctx.PropertyErrorf("tradefed", "Invalid test suite tradefed, must match [a-zA-Z0-9_-]+, got %q", proptools.String(m.properties.Tradefed))
+		return
+	}
+
+	var readme Path
+	if m.properties.Readme != nil {
+		readme = PathForModuleSrc(ctx, *m.properties.Readme)
+	}
+
+	var dynamicConfig Path
+	if m.properties.Dynamic_config != nil {
+		dynamicConfig = PathForModuleSrc(ctx, *m.properties.Dynamic_config)
+	}
+
+	SetProvider(ctx, compatibilitySuitePackageProvider, compatibilitySuitePackageInfo{
+		Name:          m.Name(),
+		Tradefed:      proptools.String(m.properties.Tradefed),
+		Readme:        readme,
+		Tools:         m.properties.Tools,
+		DynamicConfig: dynamicConfig,
+	})
 }
