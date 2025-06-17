@@ -154,6 +154,9 @@ type CommonProperties struct {
 	// The number of Java source entries each Javac instance can process
 	Javac_shard_size *int64
 
+	// The number of shards to be used for processing srcJars
+	Javac_srcjar_shards *int64
+
 	// Add host jdk tools.jar to bootclasspath
 	Use_tools_jar *bool
 
@@ -1627,12 +1630,31 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 					localImplementationJars = append(localImplementationJars, classes)
 				}
 			}
-			// Assume approximately 5 sources per srcjar.
-			// For framework-minus-apex in AOSP at the time this was written, there are 266 srcjars, with a mean
-			// of 5.8 sources per srcjar, but a median of 1, a standard deviation of 10, and a max of 48 source files.
 			if len(srcJars) > 0 {
-				startIdx := len(shardSrcs)
+				// Assume approximately 5 sources per srcjar.
+				// For framework-minus-apex in AOSP at the time this was written, there are 266 srcjars, with a mean
+				// of 5.8 sources per srcjar, but a median of 1, a standard deviation of 10, and a max of 48 source files.
 				shardSrcJarsList := android.ShardPaths(srcJars, shardSize/5)
+				startIdx := len(shardSrcs)
+				if j.properties.Javac_srcjar_shards != nil && *(j.properties.Javac_srcjar_shards) > 0 && ctx.Config().GetBuildFlagBool("RELEASE_BALANCE_JAVAC_SRCJAR_SHARDS") {
+					srcJarShards := int(*(j.properties.Javac_srcjar_shards))
+					shardSrcJarsList = []android.Paths{}
+					var srcJarSplits android.WritablePaths
+					for idx := 0; idx < srcJarShards; idx++ {
+						srcJarSplit := android.PathForModuleOut(ctx, "javac", "srcjars"+strconv.Itoa(startIdx+idx)+".jar")
+						srcJarSplits = append(srcJarSplits, srcJarSplit)
+						shardSrcJarsList = append(shardSrcJarsList, android.Paths{srcJarSplit})
+					}
+					ctx.Build(pctx, android.BuildParams{
+						Rule:        splitSrcJars,
+						Description: "javacSplitSrcJars",
+						Inputs:      srcJars,
+						Outputs:     srcJarSplits,
+						Args: map[string]string{
+							"rspFile": android.PathForModuleOut(ctx, "javac", "srcjars.rsp").String(),
+						},
+					})
+				}
 				for idx, shardSrcJars := range shardSrcJarsList {
 					classes := j.compileJavaClasses(ctx, jarName, startIdx+idx,
 						nil, shardSrcJars, nil, crossModuleHeaderJars, flags, extraJarDeps, nil)
