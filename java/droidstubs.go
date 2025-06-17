@@ -736,6 +736,11 @@ func (d *Droidstubs) apiCompatibilityFlags(ctx android.ModuleContext, cmd *andro
 		ctx.PropertyErrorf("out", "out property may not be combined with check_api")
 	}
 
+	// Disable compatibility checks if required.
+	if !BoolDefault(d.properties.Check_api.Last_released.Enabled, true) {
+		cmd.Flag("--check-compatibility disabled")
+	}
+
 	apiFiles := android.PathsForModuleSrc(ctx, []string{String(d.properties.Check_api.Last_released.Api_file)})
 	removedApiFiles := android.PathsForModuleSrc(ctx, []string{String(d.properties.Check_api.Last_released.Removed_api_file)})
 

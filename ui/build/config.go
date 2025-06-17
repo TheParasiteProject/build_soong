@@ -604,30 +604,27 @@ func NewBuildActionConfig(action BuildAction, dir string, ctx Context, args ...s
 // TODO: when converting product config to a declarative language, make sure
 // that PRODUCT_RELEASE_CONFIG_MAPS is properly handled as a separate step in
 // that process.
-func SetProductReleaseConfigMaps(ctx Context, config Config) bool {
+func SetProductReleaseConfigMaps(ctx Context, config Config) {
 	ctx.BeginTrace(metrics.RunKati, "SetProductReleaseConfigMaps")
 	defer ctx.EndTrace()
 
 	if config.SkipConfig() {
 		// This duplicates the logic from Build to skip product config
 		// if the user has explicitly said to.
-		return false
+		return
 	}
 
 	releaseConfigVars := []string{
 		"PRODUCT_RELEASE_CONFIG_MAPS",
 	}
 
-	origValue, _ := config.environ.Get("PRODUCT_RELEASE_CONFIG_MAPS")
 	// Get the PRODUCT_RELEASE_CONFIG_MAPS for this product, to avoid polluting the environment
 	// when we run product config to get the rest of the make vars.
 	releaseMapVars, err := dumpMakeVars(ctx, config, nil, releaseConfigVars, false, "")
 	if err != nil {
 		ctx.Fatalln("Error getting PRODUCT_RELEASE_CONFIG_MAPS:", err)
 	}
-	productReleaseConfigMaps := releaseMapVars["PRODUCT_RELEASE_CONFIG_MAPS"]
-	os.Setenv("PRODUCT_RELEASE_CONFIG_MAPS", productReleaseConfigMaps)
-	return origValue != productReleaseConfigMaps
+	config.Environment().Set("PRODUCT_RELEASE_CONFIG_MAPS", releaseMapVars["PRODUCT_RELEASE_CONFIG_MAPS"])
 }
 
 // storeConfigMetrics selects a set of configuration information and store in

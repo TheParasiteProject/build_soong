@@ -183,12 +183,8 @@ func main() {
 		CriticalPath:     criticalPath,
 	}}
 
-	freshConfig := func() build.Config {
-		config := c.config(buildCtx, args...)
-		config.SetLogsPrefix(c.logsPrefix)
-		return config
-	}
-	config := freshConfig()
+	config := c.config(buildCtx, args...)
+	config.SetLogsPrefix(c.logsPrefix)
 	logsDir := config.LogsDir()
 	buildStarted = config.BuildStartedTimeOrDefault(buildStarted)
 
@@ -241,10 +237,6 @@ func main() {
 	// PRODUCT_CONFIG_RELEASE_MAPS set for the final product config for the build.
 	// When product config uses a declarative language, we won't need to rerun product config.
 	preProductConfigSetup(buildCtx, config)
-	if build.SetProductReleaseConfigMaps(buildCtx, config) {
-		log.Verbose("Product release config maps found\n")
-		config = freshConfig()
-	}
 
 	c.run(buildCtx, config, args)
 }

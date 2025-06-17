@@ -230,7 +230,7 @@ func GetDefaultMapPaths(queryMaps bool) (defaultMapPaths StringList, err error) 
 		"vendor/google/release/release_config_map.textproto",
 	}
 	for _, path := range defaultLocations {
-		if _, err = os.Stat(path); err == nil {
+		if _, missing := os.Stat(path); missing == nil {
 			defaultMapPaths = append(defaultMapPaths, path)
 		}
 	}

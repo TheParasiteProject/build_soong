@@ -102,6 +102,11 @@ type JavadocProperties struct {
 }
 
 type ApiToCheck struct {
+	// If set to `false` this will prevent `api_file` and `removed_api_file` from
+	// being used in compatibility checks, but they will continue to provide the
+	// previously released API to which flagged APIs can be reverted.
+	Enabled *bool
+
 	// path to the API txt file that the new API extracted from source code is checked
 	// against. The path can be local to the module or from other module (via :module syntax).
 	Api_file *string `android:"path"`

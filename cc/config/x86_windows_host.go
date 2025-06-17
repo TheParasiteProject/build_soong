@@ -74,7 +74,6 @@ var (
 
 		// Additional libraries required for generated static rustlibs
 		"-lssp",
-		"-lgcc_s",
 		"-ladvapi32",
 		"-lntdll",
 	}
