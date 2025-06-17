@@ -52,7 +52,10 @@ func shouldRunCIPDProxy(config Config) bool {
 func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	ctx.Status.Status("Starting CIPD proxy server...")
 
-	cipdArgs := []string{"proxy", "-proxy-policy", cipdProxyPolicyPath}
+	cipdArgs := []string{
+		"proxy", "-proxy-policy", cipdProxyPolicyPath,
+		"-log-level", "warning",
+	}
 	adcFlagAdded := false
 
 	// Determine RBE authentication mechanism and propagate to CIPD flags.
@@ -100,7 +103,7 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	}
 
 	cipdCmd := fmt.Sprintf("cipd %s", strings.Join(cipdArgs, " "))
-	ctx.Printf("Starting CIPD proxy server with: %s", cipdCmd)
+	ctx.Verbosef("Starting CIPD proxy server with: %s", cipdCmd)
 
 	cmd := Command(ctx, config, "cipd", cipdPath(config), cipdArgs...)
 	stdout, err := cmd.StdoutPipe()
@@ -153,7 +156,7 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 		if strings.HasPrefix(l, cipdProxyUrlKey) {
 			proxyUrl := strings.TrimSpace(l[len(cipdProxyUrlKey)+1:])
 			config.environ.Set(cipdProxyUrlKey, proxyUrl)
-			ctx.Println("Started CIPD proxy listening on", proxyUrl)
+			ctx.Verbosef("Started CIPD proxy listening on", proxyUrl)
 			break
 		}
 	}
