@@ -432,6 +432,9 @@ var testSuiteConfigs = []testSuiteConfig{
 	{
 		name: "automotive-sdv-tests",
 	},
+	{
+		name: "al-tests",
+	},
 }
 
 func buildTestSuite(ctx SingletonContext, suiteName string, files testModulesInstallsMap) (Path, Path) {
