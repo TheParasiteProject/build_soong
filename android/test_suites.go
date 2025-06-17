@@ -34,11 +34,10 @@ func init() {
 }
 
 type compatibilitySuite struct {
-	name          string
-	tradefed      string
-	readme        string
-	tools         []string
-	dynamicConfig string
+	name     string
+	tradefed string
+	readme   string
+	tools    []string
 }
 
 var all_compatibility_suites = []compatibilitySuite{
@@ -47,12 +46,6 @@ var all_compatibility_suites = []compatibilitySuite{
 		tradefed: "catbox-tradefed",
 		readme:   "test/catbox/tools/catbox-tradefed/README",
 		tools:    []string{"catbox-report-lib.jar"},
-	},
-	{
-		name:          "ats",
-		tradefed:      "ats-tradefed",
-		readme:        "vendor/google_testing/ats/tools/ats-tradefed/README",
-		dynamicConfig: "vendor/google_testing/ats/tools/ats-tradefed/DynamicConfig.xml",
 	},
 }
 
@@ -673,9 +666,7 @@ func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, t
 		ctx.Config().HostToolPath(ctx, "test-utils-script"),
 	}
 
-	// Some make rules still rely on the zip being at this location
-	out := hostOutSuite.Join(ctx, fmt.Sprintf("android-%s.zip", testSuiteName))
-
+	out := PathForOutput(ctx, "compatibility_test_suites", testSuiteName, fmt.Sprintf("android-%s.zip", testSuiteName))
 	builder := NewRuleBuilder(pctx, ctx)
 	cmd := builder.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", out).
@@ -710,18 +701,6 @@ func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, t
 		}
 	}
 
-	if m.dynamicConfig != "" {
-		dc := ExistentPathForSource(ctx, m.dynamicConfig)
-		if dc.Valid() {
-			cmd.
-				FlagWithArg("-e ", subdir+"/testcases/"+testSuiteName+".dynamic").
-				FlagWithInput("-f ", dc.Path())
-		} else {
-			// Defer error to execution time, as make historically did.
-			builder.Command().Textf("echo Not found: %s && exit 1", proptools.ShellEscapeIncludingSpaces(m.dynamicConfig))
-		}
-	}
-
 	hostToolModules, err := m.getModulesForHostTools(ctx, hostTools)
 	// Defer error to execution time, as make historically did.
 	if err != nil {
@@ -730,7 +709,7 @@ func (m *compatibilitySuite) build(ctx SingletonContext, testSuiteFiles Paths, t
 	modulesForLicense := slices.Concat(testSuiteModules, hostToolModules)
 	if len(modulesForLicense) > 0 {
 		notice := PathForOutput(ctx, "compatibility_test_suites", testSuiteName, "NOTICE.txt")
-		BuildNoticeTextOutputFromLicenseMetadata(ctx, notice, "compatibility_"+testSuiteName, "Test suites",
+		BuildNoticeTextOutputFromLicenseMetadata(ctx, notice, "notice", "Test suites",
 			BuildNoticeFromLicenseDataArgs{
 				Title:       "Notices for files contained in the test suites filesystem image:",
 				StripPrefix: []string{hostOutSuite.String()},
@@ -784,9 +763,6 @@ func (m *compatibilitySuite) addJdk(ctx SingletonContext, command *RuleBuilderCo
 }
 
 func (m *compatibilitySuite) getModulesForHostTools(ctx SingletonContext, paths Paths) ([]ModuleProxy, error) {
-	if len(paths) == 0 {
-		return nil, nil
-	}
 	foundInstalledFiles := make(map[string]struct{})
 	var modules []ModuleProxy
 	pathStrings := paths.Strings()
