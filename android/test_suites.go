@@ -637,7 +637,8 @@ func buildCompatibilitySuitePackage(
 	subdir := fmt.Sprintf("android-%s", testSuiteName)
 
 	hostOutSuite := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, testSuiteName)
-	hostOutTestCases := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, testSuiteName, subdir, "testcases")
+	hostOutTestCases := hostOutSuite.Join(ctx, subdir, "testcases")
+	hostOutTools := hostOutSuite.Join(ctx, subdir, "tools")
 	testSuiteFiles = slices.DeleteFunc(testSuiteFiles, func(f Path) bool {
 		return !strings.HasPrefix(f.String(), hostOutTestCases.String()+"/")
 	})
@@ -661,10 +662,17 @@ func buildCompatibilitySuitePackage(
 		FlagWithArg("-e ", subdir+"/tools/version.txt").
 		FlagWithInput("-f ", ctx.Config().BuildNumberFile(ctx))
 
+	// Tools need to be copied to the test suite folder for other tools to use, like
+	// <suite>-tradefed run commandAndExit
+	copyTool := func(tool Path) {
+		builder.Command().Text("cp").Input(tool).Output(hostOutTools.Join(ctx, tool.Base()))
+	}
+
 	for _, hostTool := range hostTools {
 		cmd.
 			FlagWithArg("-e ", subdir+"/tools/"+hostTool.Base()).
 			FlagWithInput("-f ", hostTool)
+		copyTool(hostTool)
 	}
 
 	for _, tool := range suite.Tools {
@@ -672,21 +680,25 @@ func buildCompatibilitySuitePackage(
 			ctx.Errorf("Invalid test suite tool, must match [a-zA-Z0-9_-]+, got %q", tool)
 			continue
 		}
+		toolPath := ctx.Config().HostJavaToolPath(ctx, tool)
 		cmd.
 			FlagWithArg("-e ", subdir+"/tools/"+tool).
-			FlagWithInput("-f ", ctx.Config().HostJavaToolPath(ctx, tool))
+			FlagWithInput("-f ", toolPath)
+		copyTool(toolPath)
 	}
 
 	if suite.Readme != nil {
 		cmd.
 			FlagWithArg("-e ", subdir+"/tools/"+suite.Readme.Base()).
 			FlagWithInput("-f ", suite.Readme)
+		copyTool(suite.Readme)
 	}
 
 	if suite.DynamicConfig != nil {
 		cmd.
 			FlagWithArg("-e ", subdir+"/testcases/"+testSuiteName+".dynamic").
 			FlagWithInput("-f ", suite.DynamicConfig)
+		builder.Command().Text("cp").Input(suite.DynamicConfig).Output(hostOutTestCases.Join(ctx, testSuiteName+".dynamic"))
 	}
 
 	hostToolModules, err := getModulesForHostTools(ctx, hostTools)
