@@ -303,41 +303,42 @@ func (module *SdkLibrary) createDroidstubs(mctx android.DefaultableHookContext, 
 	props.Check_api.Current.Api_file = proptools.StringPtr(currentApiFileName)
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
 
-	if module.compareAgainstLatestApi(apiScope) {
-		// The latest API may be unsafe, i.e. not a real previously released API.
-		unsafeLatestApi := module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api
+	// Although a latest API is always provided it may not be a suitable one for
+	// comparing against, e.g. because the API surface does not require backwards
+	// compatibility or the latest API is a fake that is added simply to satisfy
+	// Metalava's requirement to provide one when working with flagged APIs.
+	compareAgainstLatestApi := module.compareAgainstLatestApi(apiScope)
 
-		// check against the latest released API
-		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
-		props.Previous_api = latestApiFilegroupName
+	// check against the latest released API
+	latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
+	props.Previous_api = latestApiFilegroupName
 
-		// Disable compatibility checks if the latest API is unsafe.
-		props.Check_api.Last_released.Enabled = proptools.BoolPtr(!unsafeLatestApi)
+	// Only perform compatibility checks if latest API is suitable.
+	props.Check_api.Last_released.Enabled = proptools.BoolPtr(compareAgainstLatestApi)
 
-		props.Check_api.Last_released.Api_file = latestApiFilegroupName
-		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
-			module.latestRemovedApiFilegroupName(apiScope))
-		props.Check_api.Last_released.Baseline_file = proptools.StringPtr(
-			module.latestIncompatibilitiesFilegroupName(apiScope))
+	props.Check_api.Last_released.Api_file = latestApiFilegroupName
+	props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
+		module.latestRemovedApiFilegroupName(apiScope))
+	props.Check_api.Last_released.Baseline_file = proptools.StringPtr(
+		module.latestIncompatibilitiesFilegroupName(apiScope))
 
-		// Only perform the API lint check if the latest API is not unsafe.
-		if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) && !unsafeLatestApi {
-			// Enable api lint.
-			props.Check_api.Api_lint.Enabled = proptools.BoolPtr(true)
-			props.Check_api.Api_lint.New_since = latestApiFilegroupName
+	// Only perform the API lint check if the latest API is suitable.
+	if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) && compareAgainstLatestApi {
+		// Enable api lint.
+		props.Check_api.Api_lint.Enabled = proptools.BoolPtr(true)
+		props.Check_api.Api_lint.New_since = latestApiFilegroupName
 
-			// If it exists then pass a lint-baseline.txt through to droidstubs.
-			baselinePath := path.Join(apiDir, apiScope.apiFilePrefix+"lint-baseline.txt")
-			baselinePathRelativeToRoot := path.Join(mctx.ModuleDir(), baselinePath)
-			paths, err := mctx.GlobWithDeps(baselinePathRelativeToRoot, nil)
-			if err != nil {
-				mctx.ModuleErrorf("error checking for presence of %s: %s", baselinePathRelativeToRoot, err)
-			}
-			if len(paths) == 1 {
-				props.Check_api.Api_lint.Baseline_file = proptools.StringPtr(baselinePath)
-			} else if len(paths) != 0 {
-				mctx.ModuleErrorf("error checking for presence of %s: expected one path, found: %v", baselinePathRelativeToRoot, paths)
-			}
+		// If it exists then pass a lint-baseline.txt through to droidstubs.
+		baselinePath := path.Join(apiDir, apiScope.apiFilePrefix+"lint-baseline.txt")
+		baselinePathRelativeToRoot := path.Join(mctx.ModuleDir(), baselinePath)
+		paths, err := mctx.GlobWithDeps(baselinePathRelativeToRoot, nil)
+		if err != nil {
+			mctx.ModuleErrorf("error checking for presence of %s: %s", baselinePathRelativeToRoot, err)
+		}
+		if len(paths) == 1 {
+			props.Check_api.Api_lint.Baseline_file = proptools.StringPtr(baselinePath)
+		} else if len(paths) != 0 {
+			mctx.ModuleErrorf("error checking for presence of %s: expected one path, found: %v", baselinePathRelativeToRoot, paths)
 		}
 	}
 
@@ -502,11 +503,9 @@ func (module *SdkLibrary) createApiLibrary(mctx android.DefaultableHookContext, 
 		props.Sdk_version = module.deviceProperties.Sdk_version
 	}
 
-	if module.compareAgainstLatestApi(apiScope) {
-		// check against the latest released API
-		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
-		props.Previous_api = latestApiFilegroupName
-	}
+	// check against the latest released API
+	latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
+	props.Previous_api = latestApiFilegroupName
 
 	mctx.CreateModule(ApiLibraryFactory, &props, module.sdkComponentPropertiesForChildLibrary())
 }
