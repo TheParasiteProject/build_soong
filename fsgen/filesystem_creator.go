@@ -479,39 +479,7 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Dtbo_image_16k = proptools.StringPtr(dtbo16kModuleName)
 	}
 
-	if radioImgModuleName := createRadioImg(ctx); radioImgModuleName != "" {
-		deviceProps.Radio_partition_name = &radioImgModuleName
-	}
-
 	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
-}
-
-func createRadioImg(ctx android.LoadHookContext) string {
-	radioFilePath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.RadioFilePath
-	if radioFilePath == "" {
-		return ""
-	}
-	name := generatedModuleNameForPartition(ctx.Config(), "radio")
-	ctx.CreateModuleInDirectory(
-		filesystem.PrebuiltRadioImgFactory,
-		".",
-		&struct {
-			Name *string
-		}{
-			Name: &name,
-		},
-		&filesystem.PrebuiltRadioImgProperties{
-			Src:               proptools.StringPtr(radioFilePath + "/radio.img"),
-			Ab_ota_partitions: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaRadioPartitions,
-			Unpack_tool:       proptools.StringPtr(fmt.Sprintf("vendor/google_devices/%s/prebuilts/misc_bins/unpack.py", proptools.String(ctx.Config().ProductVariables().BoardPlatform))),
-			Bootloader: filesystem.PrebuiltBootloaderProperties{
-				Src:               proptools.StringPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BootloaderFilePath + "/bootloader.img"),
-				Ab_ota_partitions: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaBootloaderPartitions,
-				Unpack_tool:       proptools.StringPtr(fmt.Sprintf("vendor/google_devices/%s/prebuilts/misc_bins/fbimg/fbpacktool.py", proptools.String(ctx.Config().ProductVariables().BoardPlatform))),
-			},
-		},
-	)
-	return name
 }
 
 func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGeneratedPartitionData, fsProps *filesystem.FilesystemProperties, partitionType string) {

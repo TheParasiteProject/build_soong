@@ -669,12 +669,6 @@ type PartitionVariables struct {
 	BoardDtboPartitionSize            string   `json:",omitempty"`
 	Board16kOtaUseIncremental         bool     `json:",omitempty"`
 
-	// Radio stuff
-	RadioFilePath             string   `json:",omitempty"`
-	AbOtaRadioPartitions      []string `json:",omitempty"`
-	BootloaderFilePath        string   `json:",omitempty"`
-	AbOtaBootloaderPartitions []string `json:",omitempty"`
-
 	// Super image stuff
 	ProductUseDynamicPartitions       bool                                     `json:",omitempty"`
 	ProductRetrofitDynamicPartitions  bool                                     `json:",omitempty"`
