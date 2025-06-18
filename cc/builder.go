@@ -383,6 +383,8 @@ func init() {
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 
 	pctx.HostBinToolVariable("symbols_map", "symbols_map")
+
+	pctx.HostBinToolVariable("checkElfFileCmd", "check_elf_file")
 }
 
 // builderFlags contains various types of command line flags (and settings) for use in building

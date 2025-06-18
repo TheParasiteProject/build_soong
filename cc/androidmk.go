@@ -438,14 +438,16 @@ func (c *vndkPrebuiltLibraryDecorator) prepareAndroidMKProviderInfo(config andro
 }
 
 func (p *prebuiltLinker) prepareAndroidMKProviderInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {
-	if p.properties.Check_elf_files != nil {
-		entries.SetBool("LOCAL_CHECK_ELF_FILES", *p.properties.Check_elf_files)
-	} else {
-		// soong_cc_rust_prebuilt.mk does not include check_elf_file.mk by default
-		// because cc_library_shared and cc_binary use soong_cc_rust_prebuilt.mk as well.
-		// In order to turn on prebuilt ABI checker, set `LOCAL_CHECK_ELF_FILES` to
-		// true if `p.properties.Check_elf_files` is not specified.
-		entries.SetBool("LOCAL_CHECK_ELF_FILES", true)
+	if !config.GetBuildFlagBool("RELEASE_SOONG_CHECK_ELF_FILES") {
+		if p.properties.Check_elf_files != nil {
+			entries.SetBool("LOCAL_CHECK_ELF_FILES", *p.properties.Check_elf_files)
+		} else {
+			// soong_cc_rust_prebuilt.mk does not include check_elf_file.mk by default
+			// because cc_library_shared and cc_binary use soong_cc_rust_prebuilt.mk as well.
+			// In order to turn on prebuilt ABI checker, set `LOCAL_CHECK_ELF_FILES` to
+			// true if `p.properties.Check_elf_files` is not specified.
+			entries.SetBool("LOCAL_CHECK_ELF_FILES", true)
+		}
 	}
 }
 
@@ -453,23 +455,25 @@ func (p *prebuiltLibraryLinker) prepareAndroidMKProviderInfo(config android.Conf
 	ctx.subAndroidMk(config, entries, p.libraryDecorator)
 	if p.shared() {
 		ctx.subAndroidMk(config, entries, &p.prebuiltLinker)
-		androidMkWritePrebuiltOptions(p.baseLinker, entries)
+		androidMkWritePrebuiltOptions(config, p.baseLinker, entries)
 	}
 }
 
 func (p *prebuiltBinaryLinker) prepareAndroidMKProviderInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {
 	ctx.subAndroidMk(config, entries, p.binaryDecorator)
 	ctx.subAndroidMk(config, entries, &p.prebuiltLinker)
-	androidMkWritePrebuiltOptions(p.baseLinker, entries)
+	androidMkWritePrebuiltOptions(config, p.baseLinker, entries)
 }
 
-func androidMkWritePrebuiltOptions(linker *baseLinker, entries *android.AndroidMkInfo) {
-	allow := linker.Properties.Allow_undefined_symbols
-	if allow != nil {
-		entries.SetBool("LOCAL_ALLOW_UNDEFINED_SYMBOLS", *allow)
-	}
-	ignore := linker.Properties.Ignore_max_page_size
-	if ignore != nil {
-		entries.SetBool("LOCAL_IGNORE_MAX_PAGE_SIZE", *ignore)
+func androidMkWritePrebuiltOptions(config android.Config, linker *baseLinker, entries *android.AndroidMkInfo) {
+	if !config.GetBuildFlagBool("RELEASE_SOONG_CHECK_ELF_FILES") {
+		allow := linker.Properties.Allow_undefined_symbols
+		if allow != nil {
+			entries.SetBool("LOCAL_ALLOW_UNDEFINED_SYMBOLS", *allow)
+		}
+		ignore := linker.Properties.Ignore_max_page_size
+		if ignore != nil {
+			entries.SetBool("LOCAL_IGNORE_MAX_PAGE_SIZE", *ignore)
+		}
 	}
 }
