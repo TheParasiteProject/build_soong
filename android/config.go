@@ -483,7 +483,7 @@ var allPartialCompileFlags = partialCompileFlags{
 	Enable_inc_javac:               true,
 	Enable_inc_kotlin:              false,
 	Enable_inc_d8:                  true,
-	Enable_inc_kotlin_java_dep:     false,
+	Enable_inc_kotlin_java_dep:     true,
 	Enable_inc_d8_outside_platform: true,
 }
 
