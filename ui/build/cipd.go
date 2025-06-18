@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,6 +45,11 @@ func cipdPath(config Config) string {
 }
 
 func shouldRunCIPDProxy(config Config) bool {
+	if runtime.GOOS == "darwin" {
+		// Disable CIPD proxy on Mac until we have it working, see b/425932171.
+		return false
+	}
+
 	cipdPath := cipdPath(config)
 	_, err := os.Stat(cipdPath)
 	return err == nil
