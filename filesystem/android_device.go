@@ -105,6 +105,9 @@ type DeviceProperties struct {
 	// Name of the DTBO partitions
 	Dtbo_image     *string
 	Dtbo_image_16k *string
+
+	// Name of the radio partition
+	Radio_partition_name *string
 }
 
 type androidDevice struct {
@@ -158,12 +161,16 @@ type fileContextsDepTagType struct {
 type dtboDepTagType struct {
 	blueprint.BaseDependencyTag
 }
+type radioDepTagType struct {
+	blueprint.BaseDependencyTag
+}
 
 var superPartitionDepTag superPartitionDepTagType
 var filesystemDepTag partitionDepTagType
 var targetFilesMetadataDepTag targetFilesMetadataDepTagType
 var fileContextsDepTag fileContextsDepTagType
 var dtboDepTag dtboDepTagType
+var radioDepTag dtboDepTagType
 
 func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined := func(dep *string) {
@@ -198,6 +205,9 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	if a.deviceProps.Dtbo_image_16k != nil {
 		ctx.AddDependency(ctx.Module(), dtboDepTag, *a.deviceProps.Dtbo_image_16k)
+	}
+	if a.deviceProps.Radio_partition_name != nil {
+		ctx.AddDependency(ctx.Module(), radioDepTag, *a.deviceProps.Radio_partition_name)
 	}
 }
 
@@ -666,6 +676,13 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 				Textf("mkdir -p %s/PREBUILT_IMAGES && cp", targetFilesDir).
 				Input(bootImgInfo.Kernel).Textf(" %s/PREBUILT_IMAGES/kernel_16k", targetFilesDir)
 		}
+	}
+	if a.deviceProps.Radio_partition_name != nil {
+		radio := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Radio_partition_name, radioDepTag)
+		files := android.OutputFilesForModule(ctx, radio, "")
+		builder.Command().
+			Textf("mkdir -p %s/RADIO && cp -t %s/RADIO ", targetFilesDir, targetFilesDir).
+			Inputs(files)
 	}
 
 	a.copyPrebuiltImages(ctx, builder, targetFilesDir)
