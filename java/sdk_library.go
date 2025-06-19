@@ -1731,7 +1731,14 @@ func (module *SdkLibrary) latestApiFilegroupName(apiScope *apiScope) string {
 }
 
 func (module *SdkLibrary) latestApiModuleName(apiScope *apiScope) string {
-	return latestPrebuiltApiCombinedModuleName(module.distStem(), apiScope)
+	// If there is no latest API to check against then use a default module as
+	// Metalava always requires a previously released API to be provided to
+	// support reverting flagged APIs.
+	if module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api {
+		return "default-unsafe-ignore-missing-latest-api"
+	} else {
+		return latestPrebuiltApiCombinedModuleName(module.distStem(), apiScope)
+	}
 }
 
 func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) string {
@@ -1739,7 +1746,14 @@ func (module *SdkLibrary) latestRemovedApiFilegroupName(apiScope *apiScope) stri
 }
 
 func (module *SdkLibrary) latestRemovedApiModuleName(apiScope *apiScope) string {
-	return latestPrebuiltApiCombinedModuleName(module.distStem()+"-removed", apiScope)
+	// If there is no latest API to check against then use a default module as
+	// Metalava always requires a previously released API to be provided to
+	// support reverting flagged APIs.
+	if module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api {
+		return "default-unsafe-ignore-missing-latest-api"
+	} else {
+		return latestPrebuiltApiCombinedModuleName(module.distStem()+"-removed", apiScope)
+	}
 }
 
 func (module *SdkLibrary) latestIncompatibilitiesFilegroupName(apiScope *apiScope) string {
@@ -1747,7 +1761,14 @@ func (module *SdkLibrary) latestIncompatibilitiesFilegroupName(apiScope *apiScop
 }
 
 func (module *SdkLibrary) latestIncompatibilitiesModuleName(apiScope *apiScope) string {
-	return latestPrebuiltApiModuleName(module.distStem()+"-incompatibilities", apiScope)
+	// If there is no latest API to check against then use a default module as
+	// Metalava always requires a previously released API to be provided to
+	// support reverting flagged APIs.
+	if module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api {
+		return "default-unsafe-ignore-missing-latest-api"
+	} else {
+		return latestPrebuiltApiModuleName(module.distStem()+"-incompatibilities", apiScope)
+	}
 }
 
 // The listed modules' stubs contents do not match the corresponding txt files,
@@ -1775,7 +1796,7 @@ func childModuleVisibility(childVisibility []string) []string {
 }
 
 func (module *SdkLibrary) compareAgainstLatestApi(apiScope *apiScope) bool {
-	return !(apiScope.unstable || module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api)
+	return !apiScope.unstable
 }
 
 // Implements android.ApexModule

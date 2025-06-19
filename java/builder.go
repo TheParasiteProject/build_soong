@@ -34,6 +34,19 @@ import (
 var (
 	pctx = android.NewPackageContext("android/soong/java")
 
+	// Splits jars into a number of jars, with equal files in each output jar.
+	splitSrcJars = pctx.AndroidStaticRule("javac-split-srcJars",
+		blueprint.RuleParams{
+			Command: `${config.SplitZipCmd} -i "$rspFile" -f "*.java" $out`,
+			CommandDeps: []string{
+				"${config.SplitZipCmd}",
+			},
+			Restat:         true,
+			Rspfile:        "$rspFile",
+			RspfileContent: "$in",
+		}, "rspFile",
+	)
+
 	// Unzips java src files from supplied jars into a directory provided.
 	extractSrcJars = pctx.AndroidStaticRule("javac-extract-srcJars",
 		blueprint.RuleParams{

@@ -456,6 +456,9 @@ type partialCompileFlags struct {
 
 	// Whether to enable passing dependencies incrementally from kotlin to java.
 	Enable_inc_kotlin_java_dep bool
+	// Whether to enable incremental d8 when outside platform builds.
+	Enable_inc_d8_outside_platform bool
+
 	// Add others as needed.
 }
 
@@ -464,22 +467,24 @@ var defaultPartialCompileFlags = partialCompileFlags{}
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=true`.
 var enabledPartialCompileFlags = partialCompileFlags{
-	Use_d8:                     true,
-	Disable_stub_validation:    true,
-	Enable_inc_kotlin:          false,
-	Enable_inc_javac:           true,
-	Enable_inc_d8:              true,
-	Enable_inc_kotlin_java_dep: false,
+	Use_d8:                         true,
+	Disable_stub_validation:        true,
+	Enable_inc_kotlin:              true,
+	Enable_inc_javac:               true,
+	Enable_inc_d8:                  true,
+	Enable_inc_kotlin_java_dep:     false,
+	Enable_inc_d8_outside_platform: false,
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=all`.
 var allPartialCompileFlags = partialCompileFlags{
-	Use_d8:                     true,
-	Disable_stub_validation:    true,
-	Enable_inc_javac:           true,
-	Enable_inc_kotlin:          false,
-	Enable_inc_d8:              true,
-	Enable_inc_kotlin_java_dep: true,
+	Use_d8:                         true,
+	Disable_stub_validation:        true,
+	Enable_inc_javac:               true,
+	Enable_inc_kotlin:              true,
+	Enable_inc_d8:                  true,
+	Enable_inc_kotlin_java_dep:     true,
+	Enable_inc_d8_outside_platform: true,
 }
 
 type deviceConfig struct {
@@ -563,6 +568,11 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 			ret = allPartialCompileFlags
 
 		// Individual flags.
+		case "inc_d8_outside_platform", "enable_inc_d8_outside_platform":
+			ret.Enable_inc_d8_outside_platform = makeVal(state, !defaultPartialCompileFlags.Enable_inc_d8_outside_platform)
+		case "disable_inc_d8_outside_platform":
+			ret.Enable_inc_d8_outside_platform = !makeVal(state, defaultPartialCompileFlags.Enable_inc_d8_outside_platform)
+
 		case "inc_d8", "enable_inc_d8":
 			ret.Enable_inc_d8 = makeVal(state, !defaultPartialCompileFlags.Enable_inc_d8)
 		case "disable_inc_d8":

@@ -112,6 +112,9 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 	if fileExists(crossModuleJarRsp) {
 		crossModuleDepsList := readRspFile(crossModuleJarRsp)
 		addCM, delCM, chCM = findInputContentsDelta(crossModuleDepsList, crossModuleDepsPcState, javacTarget)
+		addCM = filterClassFiles(addCM)
+		delCM = filterClassFiles(delCM)
+		chCM = filterClassFiles(chCM)
 	}
 
 	// use revDepsMap to find all usages, add them to output, alongside [add + ch] files
@@ -131,6 +134,18 @@ func GenerateIncrementalInput(classDir, srcs, deps, javacTarget, srcDeps, localH
 
 	// write the output to output path(s)
 	return writeOutput(incInputPath, removedClassesPath, incInputList, classesForRemoval)
+}
+
+// Returns strings ending in .class
+func filterClassFiles(filenames []string) []string {
+	var classFiles []string
+	for _, filename := range filenames {
+		// Convert the filename to lowercase for case-insensitive comparison
+		if strings.HasSuffix(filename, ".class") {
+			classFiles = append(classFiles, filename)
+		}
+	}
+	return classFiles
 }
 
 // Checks if Full Compile is enabled or not

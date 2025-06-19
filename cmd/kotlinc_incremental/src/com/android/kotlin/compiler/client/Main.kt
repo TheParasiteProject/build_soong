@@ -176,7 +176,9 @@ fun doBtaCompilation(
     val incJvmCompilationConfig =
         compilationConfig.makeClasspathSnapshotBasedIncrementalCompilationConfiguration()
     var sourceChanges: SourcesChanges = SourcesChanges.Unknown
-    if (sourceDeltaFile != null) {
+    if (!outputDirectory.exists()) {
+        incJvmCompilationConfig.forceNonIncrementalMode(true)
+    } else if (sourceDeltaFile != null) {
         sourceChanges = parseSourceChanges(sourceDeltaFile)
     }
     compilationConfig.useIncrementalCompilation(

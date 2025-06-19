@@ -434,7 +434,10 @@ func createPrebuiltDtboImages(ctx android.LoadHookContext) (string, string) {
 func getDtboModuleName(ctx android.LoadHookContext) string {
 	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
 	if partitionVars.BoardPrebuiltDtboImage != "" {
-		return generatedModuleNameForPartition(ctx.Config(), "dtbo")
+		file := android.ExistentPathForSource(ctx, partitionVars.BoardPrebuiltDtboImage)
+		if file.Valid() {
+			return generatedModuleNameForPartition(ctx.Config(), "dtbo")
+		}
 	}
 	return ""
 }

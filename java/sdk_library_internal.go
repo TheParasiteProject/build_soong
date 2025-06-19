@@ -304,16 +304,24 @@ func (module *SdkLibrary) createDroidstubs(mctx android.DefaultableHookContext, 
 	props.Check_api.Current.Removed_api_file = proptools.StringPtr(removedApiFileName)
 
 	if module.compareAgainstLatestApi(apiScope) {
+		// The latest API may be unsafe, i.e. not a real previously released API.
+		unsafeLatestApi := module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api
+
 		// check against the latest released API
 		latestApiFilegroupName := proptools.StringPtr(module.latestApiFilegroupName(apiScope))
 		props.Previous_api = latestApiFilegroupName
+
+		// Disable compatibility checks if the latest API is unsafe.
+		props.Check_api.Last_released.Enabled = proptools.BoolPtr(!unsafeLatestApi)
+
 		props.Check_api.Last_released.Api_file = latestApiFilegroupName
 		props.Check_api.Last_released.Removed_api_file = proptools.StringPtr(
 			module.latestRemovedApiFilegroupName(apiScope))
 		props.Check_api.Last_released.Baseline_file = proptools.StringPtr(
 			module.latestIncompatibilitiesFilegroupName(apiScope))
 
-		if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) {
+		// Only perform the API lint check if the latest API is not unsafe.
+		if proptools.Bool(module.sdkLibraryProperties.Api_lint.Enabled) && !unsafeLatestApi {
 			// Enable api lint.
 			props.Check_api.Api_lint.Enabled = proptools.BoolPtr(true)
 			props.Check_api.Api_lint.New_since = latestApiFilegroupName

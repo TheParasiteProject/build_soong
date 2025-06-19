@@ -24,7 +24,8 @@ import (
 )
 
 type ReleaseConfigContributionsProviderData struct {
-	ContributionDir android.SourcePath
+	ContributionDir   android.SourcePath
+	ContributionPaths android.Paths
 }
 
 var ReleaseConfigContributionsProviderKey = blueprint.NewProvider[ReleaseConfigContributionsProviderData]()
@@ -79,7 +80,8 @@ func (module *ReleaseConfigContributionsModule) GenerateAndroidBuildActions(ctx 
 		}
 	}
 	android.SetProvider(ctx, ReleaseConfigContributionsProviderKey, ReleaseConfigContributionsProviderData{
-		ContributionDir: android.PathForSource(ctx, contributionDir),
+		ContributionDir:   android.PathForSource(ctx, contributionDir),
+		ContributionPaths: srcs,
 	})
 
 }
