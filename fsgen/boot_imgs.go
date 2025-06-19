@@ -3,6 +3,7 @@ package fsgen
 import (
 	"android/soong/android"
 	"android/soong/filesystem"
+	"android/soong/genrule"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -332,13 +333,36 @@ func createDtbImgFilegroup(ctx android.LoadHookContext) dtbImg {
 	if !partitionVars.BoardIncludeDtbInBootimg {
 		return dtbImg{include: false}
 	}
+	moduleName := generatedModuleName(ctx.Config(), "dtb_img_filegroup")
+	imgType := "vendor_boot"
+	if !buildingVendorBootImage(partitionVars) {
+		imgType = "boot"
+	}
+	if partitionVars.BoardPrebuiltDtbDir != "" {
+		// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=1019-1022?q=BOARD_PREBUILT_DTBIMAGE_DIR&ss=android%2Fplatform%2Fsuperproject%2Fmaini
+		ctx.CreateModuleInDirectory(
+			genrule.GenRuleFactory,
+			".",
+			&struct {
+				Name *string
+				Srcs []string
+				Out  []string
+				Cmd  *string
+			}{
+				Name: proptools.StringPtr(moduleName),
+				Srcs: []string{fmt.Sprintf("%s/*.dtb", partitionVars.BoardPrebuiltDtbDir)},
+				Out:  []string{"dtb.img"},
+				Cmd:  proptools.StringPtr("cat $(in) > $(out)"),
+			},
+		)
+		return dtbImg{include: true, name: moduleName, imgType: imgType}
+	}
 	for _, copyFilePair := range partitionVars.ProductCopyFiles {
 		srcDestList := strings.Split(copyFilePair, ":")
 		if len(srcDestList) < 2 {
 			ctx.ModuleErrorf("PRODUCT_COPY_FILES must follow the format \"src:dest\", got: %s", copyFilePair)
 		}
 		if srcDestList[1] == "dtb.img" {
-			moduleName := generatedModuleName(ctx.Config(), "dtb_img_filegroup")
 			ctx.CreateModuleInDirectory(
 				android.FileGroupFactory,
 				filepath.Dir(srcDestList[0]),
@@ -350,10 +374,6 @@ func createDtbImgFilegroup(ctx android.LoadHookContext) dtbImg {
 					Srcs: []string{filepath.Base(srcDestList[1])},
 				},
 			)
-			imgType := "vendor_boot"
-			if !buildingVendorBootImage(partitionVars) {
-				imgType = "boot"
-			}
 			return dtbImg{include: true, name: moduleName, imgType: imgType}
 		}
 	}
