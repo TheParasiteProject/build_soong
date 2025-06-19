@@ -1456,6 +1456,12 @@ func (d dependencyTag) PropagateAconfigValidation() bool {
 	return d == rlibDepTag || d == sourceDepTag
 }
 
+func (d dependencyTag) IsNativeCoverageNeededDepTag(ctx cc.IsNativeCoverageNeededContext) bool {
+	return d.dynamic
+}
+
+var _ cc.UseCoverageDeptag = dependencyTag{}
+
 var _ android.PropagateAconfigValidationDependencyTag = dependencyTag{}
 
 var _ android.LicenseAnnotationsDependencyTag = dependencyTag{}
