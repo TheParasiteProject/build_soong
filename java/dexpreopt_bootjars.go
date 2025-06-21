@@ -705,6 +705,8 @@ func (d *dexpreoptBootJars) buildBootZip(ctx android.ModuleContext) {
 	bootZipMetadata := android.PathForModuleOut(ctx, "boot_zip", "METADATA.txt")
 	newlineFile := android.PathForModuleOut(ctx, "boot_zip", "newline.txt")
 	android.WriteFileRule(ctx, newlineFile, "")
+	spaceFile := android.PathForModuleOut(ctx, "boot_zip", "space.txt")
+	android.WriteFileRuleVerbatim(ctx, spaceFile, " ")
 
 	dexPreoptRootDir := filepath.Dir(filepath.Dir(bootclasspathDexFiles[0].String()))
 
@@ -767,6 +769,7 @@ func (d *dexpreoptBootJars) buildBootZip(ctx android.ModuleContext) {
 		Inputs: []android.Path{
 			bootZipMetadataTmp,
 			globalSoong.UffdGcFlag,
+			spaceFile,
 			globalSoong.AssumeValueFlags,
 			newlineFile,
 		},
