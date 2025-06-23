@@ -197,6 +197,7 @@ func (libbpf *libbpfProg) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		} else if depTag == cc.HeaderDepTag() {
 			depExporterInfo, _ := android.OtherModuleProvider(ctx, dep, cc.FlagExporterInfoProvider)
 			for _, dir := range depExporterInfo.IncludeDirs {
+				cFlagsDeps = append(cFlagsDeps, depExporterInfo.Deps...)
 				cflags = append(cflags, "-I "+dir.String())
 			}
 		}
