@@ -7738,6 +7738,8 @@ var filesForSdkLibrary = android.MockFS{
 	"100/public/api/foo-removed.txt": nil,
 	"100/system/api/foo.txt":         nil,
 	"100/system/api/foo-removed.txt": nil,
+	"100/test/api/foo.txt":           nil,
+	"100/test/api/foo-removed.txt":   nil,
 
 	// For java_sdk_library_import
 	"a.jar": nil,

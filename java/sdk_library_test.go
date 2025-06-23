@@ -133,8 +133,10 @@ func TestJavaSdkLibrary(t *testing.T) {
 	expectedFooExportedComponents := []string{
 		"foo-removed.api.combined.public.latest",
 		"foo-removed.api.combined.system.latest",
+		"foo-removed.api.combined.test.latest",
 		"foo.api.combined.public.latest",
 		"foo.api.combined.system.latest",
+		"foo.api.combined.test.latest",
 		"foo.stubs",
 		"foo.stubs.exportable",
 		"foo.stubs.exportable.system",
