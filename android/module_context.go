@@ -181,6 +181,7 @@ type ModuleContext interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
+	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
@@ -522,6 +523,10 @@ func (m *moduleContext) InstallInRamdisk() bool {
 
 func (m *moduleContext) InstallInVendorRamdisk() bool {
 	return m.module.InstallInVendorRamdisk()
+}
+
+func (m *moduleContext) InstallInVendorKernelRamdisk() bool {
+	return m.module.InstallInVendorKernelRamdisk()
 }
 
 func (m *moduleContext) InstallInDebugRamdisk() bool {

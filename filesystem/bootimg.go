@@ -70,7 +70,7 @@ type CommonBootimgProperties struct {
 	Header_version *string
 
 	// Determines the specific type of boot image this module is building. Can be boot,
-	// vendor_boot or init_boot. Defaults to boot.
+	// vendor_boot, vendor_kernel_boot or init_boot. Defaults to boot.
 	// Refer to https://source.android.com/devices/bootloader/partitions/vendor-boot-partitions
 	// for vendor_boot.
 	// Refer to https://source.android.com/docs/core/architecture/partitions/generic-boot for
@@ -118,6 +118,7 @@ const (
 	boot
 	vendorBoot
 	initBoot
+	vendorKernelBoot
 )
 
 func toBootImageType(ctx android.ModuleContext, bootImageType string) bootImageType {
@@ -128,8 +129,10 @@ func toBootImageType(ctx android.ModuleContext, bootImageType string) bootImageT
 		return vendorBoot
 	case "init_boot":
 		return initBoot
+	case "vendor_kernel_boot":
+		return vendorKernelBoot
 	default:
-		ctx.ModuleErrorf("Unknown boot_image_type %s. Must be one of \"boot\", \"vendor_boot\", or \"init_boot\"", bootImageType)
+		ctx.ModuleErrorf("Unknown boot_image_type %s. Must be one of \"boot\", \"vendor_boot\", \"vendor_kernel_boot\", or \"init_boot\"", bootImageType)
 	}
 	return unsupported
 }
@@ -142,6 +145,8 @@ func (b bootImageType) String() string {
 		return "vendor_boot"
 	case initBoot:
 		return "init_boot"
+	case vendorKernelBoot:
+		return "vendor_kernel_boot"
 	default:
 		panic("unknown boot image type")
 	}
@@ -153,6 +158,10 @@ func (b bootImageType) isBoot() bool {
 
 func (b bootImageType) isVendorBoot() bool {
 	return b == vendorBoot
+}
+
+func (b bootImageType) isVendorKernelBoot() bool {
+	return b == vendorKernelBoot
 }
 
 func (b bootImageType) isInitBoot() bool {
@@ -384,7 +393,7 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, kernel android.Path)
 		ramdisk := ctx.GetDirectDepWithTag(ramdiskName, bootimgRamdiskDep)
 		if fsInfo, ok := android.OtherModuleProvider(ctx, ramdisk, FilesystemProvider); ok {
 			flag := "--ramdisk "
-			if b.bootImageType.isVendorBoot() {
+			if b.bootImageType.isVendorBoot() || b.bootImageType.isVendorKernelBoot() {
 				flag = "--vendor_ramdisk "
 			}
 			cmd.FlagWithInput(flag, fsInfo.Output)
@@ -409,7 +418,7 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, kernel android.Path)
 
 	// Output flag for boot.img and init_boot.img
 	flag := "--output "
-	if b.bootImageType.isVendorBoot() {
+	if b.bootImageType.isVendorBoot() || b.bootImageType.isVendorKernelBoot() {
 		flag = "--vendor_boot "
 	}
 	cmd.FlagWithOutput(flag, output)
@@ -460,7 +469,7 @@ func (b *bootimg) addAvbFooter(ctx android.ModuleContext, unsignedImage android.
 		cmd.FlagWithInput("--key ", key)
 	}
 
-	if !b.bootImageType.isVendorBoot() {
+	if !b.bootImageType.isVendorBoot() && !b.bootImageType.isVendorKernelBoot() {
 		cmd.FlagWithArg("--prop ", proptools.NinjaAndShellEscape(fmt.Sprintf(
 			"com.android.build.%s.os_version:%s", b.bootImageType.String(), ctx.Config().PlatformVersionLastStable())))
 	}
@@ -525,7 +534,7 @@ func (b *bootimg) buildPropFile(ctx android.ModuleContext) (android.Path, androi
 
 func (b *bootimg) getAvbHashFooterArgs(ctx android.ModuleContext) string {
 	ret := ""
-	if !b.bootImageType.isVendorBoot() {
+	if !b.bootImageType.isVendorBoot() && !b.bootImageType.isVendorKernelBoot() {
 		ret += "--prop " + fmt.Sprintf("com.android.build.%s.os_version:%s", b.bootImageType.String(), ctx.Config().PlatformVersionLastStable())
 	}
 
@@ -733,7 +742,7 @@ func (b *prebuiltBootImg) signWithAvb(ctx android.ModuleContext, src android.Pat
 		cmd.FlagWithInput("--key ", key)
 	}
 
-	if !b.bootImageType.isVendorBoot() {
+	if !b.bootImageType.isVendorBoot() && !b.bootImageType.isVendorKernelBoot() {
 		cmd.FlagWithArg("--prop ", proptools.NinjaAndShellEscape(fmt.Sprintf(
 			"com.android.build.%s.os_version:%s", b.bootImageType.String(), ctx.Config().PlatformVersionLastStable())))
 	}

@@ -716,6 +716,8 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		partitionNameForInstalledFiles = ""
 	case "vendor_ramdisk":
 		partitionNameForInstalledFiles = "vendor-ramdisk"
+	case "vendor_kernel_ramdisk":
+		partitionNameForInstalledFiles = "vendor-kernel-ramdisk"
 	default:
 		partitionNameForInstalledFiles = f.partitionName()
 	}
@@ -1541,6 +1543,7 @@ var validPartitions = []string{
 	"ramdisk",
 	"vendor_ramdisk",
 	"recovery",
+	"vendor_kernel_ramdisk",
 }
 
 func (f *filesystem) buildEventLogtagsFile(

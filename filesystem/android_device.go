@@ -41,6 +41,8 @@ type PartitionNameProperties struct {
 	Boot_16k_partition_name *string
 	// Name of the vendor boot partition filesystem module
 	Vendor_boot_partition_name *string
+	// Name of the vendor kernel boot partition filesystem module
+	Vendor_kernel_boot_partition_name *string
 	// Name of the init boot partition filesystem module
 	Init_boot_partition_name *string
 	// Name of the system partition filesystem module
@@ -195,6 +197,7 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined(a.partitionProps.Boot_16k_partition_name)
 	addDependencyIfDefined(a.partitionProps.Init_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.Vendor_boot_partition_name)
+	addDependencyIfDefined(a.partitionProps.Vendor_kernel_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.System_partition_name)
 	addDependencyIfDefined(a.partitionProps.System_ext_partition_name)
 	addDependencyIfDefined(a.partitionProps.Product_partition_name)
@@ -572,6 +575,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		targetFilesZipCopy{a.partitionProps.Init_boot_partition_name, "BOOT/RAMDISK"},
 		targetFilesZipCopy{a.partitionProps.Init_boot_partition_name, "INIT_BOOT/RAMDISK"},
 		targetFilesZipCopy{a.partitionProps.Vendor_boot_partition_name, "VENDOR_BOOT/RAMDISK"},
+		targetFilesZipCopy{a.partitionProps.Vendor_kernel_boot_partition_name, "VENDOR_KERNEL_BOOT/RAMDISK"},
 	}
 
 	filesystemsToCopy := []targetFilesystemZipCopy{}
@@ -645,6 +649,19 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 			builder.Command().Textf("cp ").Input(bootImgInfo.Bootconfig).Textf(" %s/VENDOR_BOOT/vendor_bootconfig", targetFilesDir)
 		}
 	}
+	if a.partitionProps.Vendor_kernel_boot_partition_name != nil {
+		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_kernel_boot_partition_name), filesystemDepTag)
+		bootImgInfo, _ := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		if bootImgInfo.Dtb != nil {
+			builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/VENDOR_KERNEL_BOOT/dtb", targetFilesDir)
+			// Make packaging copies dtb to recovery subdir.
+			// https://source.corp.google.com/h/googleplex-android/platform/build/+/06d7d8ca0c4fd1e90c7b0aa64c4107ce3f3b1126:core/Makefile;l=6663-6665;bpv=1;bpt=0;drc=9d8019e0c19db397f4ce03ba5abdb9df614adc7d
+			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
+				builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/VENDOR_BOOT/dtb", targetFilesDir)
+			}
+		}
+	}
+
 	if a.partitionProps.Boot_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_partition_name), filesystemDepTag)
 		bootImgInfo, ok := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
@@ -1068,6 +1085,7 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		a.partitionProps.Boot_partition_name,
 		a.partitionProps.Init_boot_partition_name,
 		a.partitionProps.Vendor_boot_partition_name,
+		a.partitionProps.Vendor_kernel_boot_partition_name,
 	}
 	for _, bootImgName := range bootImgNames {
 		if bootImgName == nil {
