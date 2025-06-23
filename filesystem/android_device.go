@@ -1354,8 +1354,8 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 
 	platformSeappContextsPaths := map[string]string{
 		"system":     "system/etc/selinux/plat_seapp_contexts",
-		"system_ext": "system_ext/etc/selinux/plat_seapp_contexts",
-		"product":    "product/etc/selinux/plat_seapp_contexts",
+		"system_ext": "system_ext/etc/selinux/system_ext_seapp_contexts",
+		"product":    "product/etc/selinux/product_seapp_contexts",
 	}
 	platformSeappContexts := findFilesInPartitions(platformSeappContextsPaths, fsInfos)
 
