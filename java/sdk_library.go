@@ -1405,15 +1405,13 @@ func (module *SdkLibrary) ComponentDepsMutator(ctx android.BottomUpMutatorContex
 		// Add a dependency on the stubs source in order to access both stubs source and api information.
 		ctx.AddVariationDependencies(nil, apiScope.stubsSourceAndApiTag, module.droidstubsModuleName(apiScope))
 
-		if module.compareAgainstLatestApi(apiScope) {
-			// Add dependencies on the latest finalized version of the API .txt file.
-			latestApiModuleName := module.latestApiModuleName(apiScope)
-			ctx.AddDependency(module, apiScope.latestApiModuleTag, latestApiModuleName)
+		// Add dependencies on the latest finalized version of the API .txt file.
+		latestApiModuleName := module.latestApiModuleName(apiScope)
+		ctx.AddDependency(module, apiScope.latestApiModuleTag, latestApiModuleName)
 
-			// Add dependencies on the latest finalized version of the remove API .txt file.
-			latestRemovedApiModuleName := module.latestRemovedApiModuleName(apiScope)
-			ctx.AddDependency(module, apiScope.latestRemovedApiModuleTag, latestRemovedApiModuleName)
-		}
+		// Add dependencies on the latest finalized version of the remove API .txt file.
+		latestRemovedApiModuleName := module.latestRemovedApiModuleName(apiScope)
+		ctx.AddDependency(module, apiScope.latestRemovedApiModuleTag, latestRemovedApiModuleName)
 	}
 
 	if module.requiresRuntimeImplementationLibrary() {
@@ -1438,9 +1436,6 @@ func (module *SdkLibrary) DepsMutator(ctx android.BottomUpMutatorContext) {
 
 	var missingApiModules []string
 	for _, apiScope := range module.getGeneratedApiScopes(ctx) {
-		if apiScope.unstable {
-			continue
-		}
 		if m := module.latestApiModuleName(apiScope); !ctx.OtherModuleExists(m) {
 			missingApiModules = append(missingApiModules, m)
 		}
@@ -1795,8 +1790,11 @@ func childModuleVisibility(childVisibility []string) []string {
 	return visibility
 }
 
+// compareAgainstLatestApi determines whether the current API should be checked
+// against the latest API surface (as provided by [latestApiModuleName]) or not
+// for the purposes of ensuring backwards compatibility and API linting.
 func (module *SdkLibrary) compareAgainstLatestApi(apiScope *apiScope) bool {
-	return !apiScope.unstable
+	return !(apiScope.unstable || module.sdkLibraryProperties.Unsafe_ignore_missing_latest_api)
 }
 
 // Implements android.ApexModule

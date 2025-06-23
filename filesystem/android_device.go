@@ -108,6 +108,15 @@ type DeviceProperties struct {
 
 	// Name of the radio partition
 	Radio_partition_name *string
+
+	Pvmfw PvmfwProperties
+}
+
+type PvmfwProperties struct {
+	Image          *string `android:"path"`
+	Binary         *string `android:"path"`
+	Avbkey         *string `android:"path"`
+	Partition_size *int64
 }
 
 type androidDevice struct {
@@ -684,6 +693,18 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 			Textf("mkdir -p %s/RADIO && cp -t %s/RADIO ", targetFilesDir, targetFilesDir).
 			Inputs(files)
 	}
+	if a.deviceProps.Pvmfw.Image != nil {
+		pvmfwImg := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Image))
+		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(pvmfwImg).Textf(" %s/PREBUILT_IMAGES/pvmfw.img", targetFilesDir.String())
+	}
+	if a.deviceProps.Pvmfw.Binary != nil {
+		pvmfwBin := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Binary))
+		builder.Command().Textf("mkdir -p %s/PVMFW/ && cp", targetFilesDir.String()).Input(pvmfwBin).Textf(" %s/PVMFW/pvmfw_bin", targetFilesDir.String())
+	}
+	if a.deviceProps.Pvmfw.Avbkey != nil {
+		pvbmfwAvbkey := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Avbkey))
+		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(pvbmfwAvbkey).Textf(" %s/PREBUILT_IMAGES/pvmfw_embedded.avbpubkey", targetFilesDir.String())
+	}
 
 	a.copyPrebuiltImages(ctx, builder, targetFilesDir)
 
@@ -1075,6 +1096,15 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		} else {
 			ctx.ModuleErrorf("Could not write dtbo properties in misc_info.txt")
 		}
+	}
+	if a.deviceProps.Pvmfw.Image != nil {
+		builder.Command().Textf("echo has_pvmfw=true >> %s", miscInfo)
+		if a.deviceProps.Pvmfw.Partition_size != nil {
+			builder.Command().Textf("echo pvmfw_size=%d >> %s", *a.deviceProps.Pvmfw.Partition_size, miscInfo)
+		} else {
+			builder.Command().Textf("echo pvmfw_size= >> %s", miscInfo)
+		}
+		builder.Command().Textf("echo avb_pvmfw_add_hash_footer_args=--prop com.android.build.pvmfw.fingerprint:$(cat %s) >> %s", ctx.Config().BuildFingerprintFile(ctx).String(), miscInfo)
 	}
 
 	// Sort and dedup

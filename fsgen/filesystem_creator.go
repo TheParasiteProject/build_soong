@@ -483,6 +483,24 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Radio_partition_name = &radioImgModuleName
 	}
 
+	if ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardUsesPvmfwImage {
+		var partitionSize *int64
+		boardPvmfwPartitionSize := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardPvmfwPartitionSize
+		if boardPvmfwPartitionSize != "" {
+			size, err := strconv.ParseInt(boardPvmfwPartitionSize, 0, 64)
+			if err != nil {
+				ctx.ModuleErrorf("Error parsing BoardPvmfwPartitionSize %s", err)
+			}
+			partitionSize = proptools.Int64Ptr(size)
+		}
+		deviceProps.Pvmfw = filesystem.PvmfwProperties{
+			Image:          proptools.StringPtr(":pvmfw_img"),
+			Binary:         proptools.StringPtr(":pvmfw_bin"),
+			Avbkey:         proptools.StringPtr(":pvmfw_embedded_key_pub_bin"),
+			Partition_size: partitionSize,
+		}
+	}
+
 	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
 }
 
