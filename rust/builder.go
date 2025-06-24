@@ -15,7 +15,6 @@
 package rust
 
 import (
-	"path/filepath"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -32,7 +31,7 @@ var (
 
 	rustc, rustcRbe = pctx.RemoteStaticRules("rustc",
 		blueprint.RuleParams{
-			Command: "$relPwd $reTemplate/usr/bin/env $envVars ${rustcCmd} " +
+			Command: "$relPwd $reTemplate/usr/bin/env $envVars ${RustcWrapper} ${rustcCmd} " +
 				"-C linker=${RustcLinkerCmd} -C link-args=\"--android-clang-bin=${config.ClangCmd} ${linkerScriptFlags}\" " +
 				"-C link-args=@${out}.clang.rsp " +
 				"--emit ${emitType} -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
@@ -42,7 +41,7 @@ var (
 				//     "warning: depfile has multiple output paths"
 				// For ninja, we keep/grep only the dependency rule for the rust $out file.
 				" && grep ^$out: $out.d.raw > $out.d",
-			CommandDeps:    []string{"$rustcCmd", "${RustcLinkerCmd}", "${config.ClangCmd}"},
+			CommandDeps:    []string{"$rustcCmd", "${RustcLinkerCmd}", "${config.ClangCmd}", "${RustcWrapper}"},
 			Rspfile:        "${out}.clang.rsp",
 			RspfileContent: "${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}",
 			Deps:           blueprint.DepsGCC,
@@ -60,6 +59,7 @@ var (
 				"${RustcLinkerCmd}",
 				"${config.ClangCmd}",
 				"${config.LlvmDlltool}",
+				"${RustcWrapper}",
 			},
 			Platform: map[string]string{remoteexec.PoolKey: "${config.RERustPool}"},
 		},
@@ -78,13 +78,13 @@ var (
 	_            = pctx.SourcePathVariable("clippyCmd", "${config.RustBin}/clippy-driver")
 	clippyDriver = pctx.AndroidStaticRule("clippy",
 		blueprint.RuleParams{
-			Command: "$envVars $clippyCmd " +
+			Command: "$envVars ${RustcWrapper} $clippyCmd " +
 				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
 				// Use the metadata output as it has the smallest footprint.
 				"--emit metadata -o $out --emit dep-info=$out.d.raw $in ${libFlags} " +
 				"$rustcFlags $clippyFlags" +
 				" && grep ^$out: $out.d.raw > $out.d",
-			CommandDeps: []string{"$clippyCmd"},
+			CommandDeps: []string{"$clippyCmd", "${RustcWrapper}"},
 			Deps:        blueprint.DepsGCC,
 			Depfile:     "$out.d",
 		},
@@ -115,6 +115,7 @@ type buildOutput struct {
 func init() {
 	pctx.HostBinToolVariable("SoongZipCmd", "soong_zip")
 	pctx.HostBinToolVariable("RustcLinkerCmd", "rustc_linker")
+	pctx.HostBinToolVariable("RustcWrapper", "rustc_wrapper")
 	pctx.StaticVariable("relPwd", cc.PwdPrefix())
 
 	cc.TransformRlibstoStaticlib = TransformRlibstoStaticlib
@@ -305,20 +306,7 @@ func rustEnvVars(ctx android.ModuleContext, deps PathDeps, crateName string, car
 
 	if len(deps.SrcDeps) > 0 && cargoOutDir.Valid() {
 		moduleGenDir := cargoOutDir
-		// We must calculate an absolute path for OUT_DIR since Rust's include! macro (which normally consumes this)
-		// assumes that paths are relative to the source file.
-		var outDirPrefix string
-		if !filepath.IsAbs(moduleGenDir.String()) {
-			// If OUT_DIR is not absolute, we use $$PWD to generate an absolute path (os.Getwd() returns '/')
-			outDirPrefix = "$$PWD/"
-		} else {
-			// If OUT_DIR is absolute, then moduleGenDir will be an absolute path, so we don't need to set this to anything.
-			outDirPrefix = ""
-		}
-		envVars["OUT_DIR"] = filepath.Join(outDirPrefix, moduleGenDir.String())
-	} else {
-		// TODO(pcc): Change this to "OUT_DIR=" after fixing crates to not rely on this value.
-		envVars["OUT_DIR"] = "out"
+		envVars["SOONG_RUST_GEN_DIR"] = moduleGenDir.String()
 	}
 	envVars["ANDROID_RUST_VERSION"] = config.GetRustVersion(ctx)
 
