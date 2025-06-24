@@ -86,6 +86,7 @@ type Module interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
+	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
@@ -410,6 +411,9 @@ type commonProperties struct {
 
 	// Whether this module is installed to vendor ramdisk
 	Vendor_ramdisk *bool
+
+	// Whether this module is installed to vendor kernel ramdisk
+	Vendor_kernel_ramdisk *bool
 
 	// Whether this module is installed to debug ramdisk
 	Debug_ramdisk *bool
@@ -1565,6 +1569,10 @@ func (m *ModuleBase) InstallInRamdisk() bool {
 
 func (m *ModuleBase) InstallInVendorRamdisk() bool {
 	return Bool(m.commonProperties.Vendor_ramdisk)
+}
+
+func (m *ModuleBase) InstallInVendorKernelRamdisk() bool {
+	return Bool(m.commonProperties.Vendor_kernel_ramdisk)
 }
 
 func (m *ModuleBase) InstallInDebugRamdisk() bool {

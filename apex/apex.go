@@ -172,12 +172,8 @@ type apexBundleProperties struct {
 	// overridden base module.
 	ApexVariationName string `blueprint:"mutated"`
 
-	IsCoverageVariant bool `blueprint:"mutated"`
-
 	// List of sanitizer names that this APEX is enabled for
 	SanitizerNames []string `blueprint:"mutated"`
-
-	PreventInstall bool `blueprint:"mutated"`
 
 	HideFromMake bool `blueprint:"mutated"`
 
@@ -1257,17 +1253,12 @@ func (a *apexBundle) TaggedOutputs() map[string]android.Paths {
 	return ret
 }
 
-var _ cc.Coverage = (*apexBundle)(nil)
-
-// Implements cc.Coverage
+// Implements cc.UseCoverage
 func (a *apexBundle) IsNativeCoverageNeeded(ctx cc.IsNativeCoverageNeededContext) bool {
 	return ctx.DeviceConfig().NativeCoverageEnabled()
 }
 
-// Implements cc.Coverage
-func (a *apexBundle) SetPreventInstall() {
-	a.properties.PreventInstall = true
-}
+var _ cc.UseCoverage = &apexBundle{}
 
 // Implements cc.Coverage
 func (a *apexBundle) HideFromMake() {
@@ -1276,14 +1267,6 @@ func (a *apexBundle) HideFromMake() {
 	// TODO(ccross): untangle these
 	a.ModuleBase.HideFromMake()
 }
-
-// Implements cc.Coverage
-func (a *apexBundle) MarkAsCoverageVariant(coverage bool) {
-	a.properties.IsCoverageVariant = coverage
-}
-
-// Implements cc.Coverage
-func (a *apexBundle) EnableCoverageIfNeeded() {}
 
 var _ android.ApexBundleDepsInfoIntf = (*apexBundle)(nil)
 
@@ -1336,7 +1319,7 @@ func (a *apexBundle) getCertString(ctx android.BaseModuleContext) string {
 
 // See the installable property
 func (a *apexBundle) installable() bool {
-	return !a.properties.PreventInstall && (a.properties.Installable == nil || proptools.Bool(a.properties.Installable))
+	return proptools.BoolDefault(a.properties.Installable, true)
 }
 
 // See the test_only_unsigned_payload property
@@ -2159,14 +2142,7 @@ func (a *apexBundle) depVisitor(vctx *visitorContext, ctx android.ModuleContext,
 }
 
 func (a *apexBundle) shouldCheckDuplicate(ctx android.ModuleContext) bool {
-	// TODO(b/263308293) remove this
-	if a.properties.IsCoverageVariant {
-		return false
-	}
-	if ctx.DeviceConfig().DeviceArch() == "" {
-		return false
-	}
-	return true
+	return ctx.DeviceConfig().DeviceArch() != ""
 }
 
 // Creates build rules for an APEX. It consists of the following major steps:
@@ -2851,10 +2827,6 @@ func rBcpPackages() map[string][]string {
 func (a *apexBundle) verifyNativeImplementationLibs(ctx android.ModuleContext) {
 	var directImplementationLibs android.Paths
 	var transitiveImplementationLibs []depset.DepSet[android.Path]
-
-	if a.properties.IsCoverageVariant {
-		return
-	}
 
 	if a.testApex {
 		return

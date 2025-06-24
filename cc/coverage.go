@@ -274,6 +274,10 @@ type Coverage interface {
 	EnableCoverageIfNeeded()
 }
 
+type UseCoverageDeptag interface {
+	IsNativeCoverageNeededDepTag(ctx IsNativeCoverageNeededContext) bool
+}
+
 type coverageTransitionMutator struct{}
 
 func (c coverageTransitionMutator) Split(ctx android.BaseModuleContext) []string {
@@ -317,13 +321,13 @@ func (c coverageTransitionMutator) IncomingTransition(ctx android.IncomingTransi
 		return ""
 	}
 
-	// Required deps should always use coverage variants if it's available. Not only because
-	// we want coverage binaries on the device, but also the non-coverage variants get
-	// PreventInstall = true, so the required deps would do nothing if they depended on the
-	// non-coverage variant. This is compounded by the fact that required deps use a far variation
-	// dependency, so incomingVariation is never "cov" for required deps.
-	if ctx.Device() && ctx.DepTag() == android.RequiredDepTag {
-		return "cov"
+	// non-coverage variants have PreventInstall = true, so we need certain deptags that are
+	// used for installation to use the coverage variant so that filesystem modules will package
+	// them correctly.
+	if ctx.Device() {
+		if x, ok := ctx.DepTag().(UseCoverageDeptag); (ok && x.IsNativeCoverageNeededDepTag(ctx)) || ctx.DepTag() == android.RequiredDepTag {
+			return "cov"
+		}
 	}
 
 	return incomingVariation

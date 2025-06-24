@@ -676,10 +676,6 @@ type PartitionVariables struct {
 	BootloaderFilePath        string   `json:",omitempty"`
 	AbOtaBootloaderPartitions []string `json:",omitempty"`
 
-	// pvmfw stuff
-	BoardUsesPvmfwImage     bool   `json:",omitempty"`
-	BoardPvmfwPartitionSize string `json:",omitempty"`
-
 	// Super image stuff
 	ProductUseDynamicPartitions       bool                                     `json:",omitempty"`
 	ProductRetrofitDynamicPartitions  bool                                     `json:",omitempty"`
@@ -744,6 +740,9 @@ type PartitionVariables struct {
 	VendorRamdiskKernelOptionsFile   string   `json:",omitempty"`
 	DoNotStripVendorRamdiskModules   bool     `json:",omitempty"`
 	DoNotStripVendorModules          bool     `json:",omitempty"`
+
+	VendorKernelRamdiskKernelModules              []string `json:",omitempty"`
+	VendorKernelRamdiskKernelModulesBlocklistFile string   `json:",omitempty"`
 
 	ProductFsverityGenerateMetadata bool `json:",omitempty"`
 

@@ -41,6 +41,8 @@ type PartitionNameProperties struct {
 	Boot_16k_partition_name *string
 	// Name of the vendor boot partition filesystem module
 	Vendor_boot_partition_name *string
+	// Name of the vendor kernel boot partition filesystem module
+	Vendor_kernel_boot_partition_name *string
 	// Name of the init boot partition filesystem module
 	Init_boot_partition_name *string
 	// Name of the system partition filesystem module
@@ -108,15 +110,6 @@ type DeviceProperties struct {
 
 	// Name of the radio partition
 	Radio_partition_name *string
-
-	Pvmfw PvmfwProperties
-}
-
-type PvmfwProperties struct {
-	Image          *string `android:"path"`
-	Binary         *string `android:"path"`
-	Avbkey         *string `android:"path"`
-	Partition_size *int64
 }
 
 type androidDevice struct {
@@ -195,6 +188,7 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined(a.partitionProps.Boot_16k_partition_name)
 	addDependencyIfDefined(a.partitionProps.Init_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.Vendor_boot_partition_name)
+	addDependencyIfDefined(a.partitionProps.Vendor_kernel_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.System_partition_name)
 	addDependencyIfDefined(a.partitionProps.System_ext_partition_name)
 	addDependencyIfDefined(a.partitionProps.Product_partition_name)
@@ -572,6 +566,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		targetFilesZipCopy{a.partitionProps.Init_boot_partition_name, "BOOT/RAMDISK"},
 		targetFilesZipCopy{a.partitionProps.Init_boot_partition_name, "INIT_BOOT/RAMDISK"},
 		targetFilesZipCopy{a.partitionProps.Vendor_boot_partition_name, "VENDOR_BOOT/RAMDISK"},
+		targetFilesZipCopy{a.partitionProps.Vendor_kernel_boot_partition_name, "VENDOR_KERNEL_BOOT/RAMDISK"},
 	}
 
 	filesystemsToCopy := []targetFilesystemZipCopy{}
@@ -645,6 +640,19 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 			builder.Command().Textf("cp ").Input(bootImgInfo.Bootconfig).Textf(" %s/VENDOR_BOOT/vendor_bootconfig", targetFilesDir)
 		}
 	}
+	if a.partitionProps.Vendor_kernel_boot_partition_name != nil {
+		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_kernel_boot_partition_name), filesystemDepTag)
+		bootImgInfo, _ := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		if bootImgInfo.Dtb != nil {
+			builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/VENDOR_KERNEL_BOOT/dtb", targetFilesDir)
+			// Make packaging copies dtb to recovery subdir.
+			// https://source.corp.google.com/h/googleplex-android/platform/build/+/06d7d8ca0c4fd1e90c7b0aa64c4107ce3f3b1126:core/Makefile;l=6663-6665;bpv=1;bpt=0;drc=9d8019e0c19db397f4ce03ba5abdb9df614adc7d
+			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
+				builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/VENDOR_BOOT/dtb", targetFilesDir)
+			}
+		}
+	}
+
 	if a.partitionProps.Boot_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_partition_name), filesystemDepTag)
 		bootImgInfo, ok := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
@@ -692,18 +700,6 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		builder.Command().
 			Textf("mkdir -p %s/RADIO && cp -t %s/RADIO ", targetFilesDir, targetFilesDir).
 			Inputs(files)
-	}
-	if a.deviceProps.Pvmfw.Image != nil {
-		pvmfwImg := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Image))
-		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(pvmfwImg).Textf(" %s/PREBUILT_IMAGES/pvmfw.img", targetFilesDir.String())
-	}
-	if a.deviceProps.Pvmfw.Binary != nil {
-		pvmfwBin := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Binary))
-		builder.Command().Textf("mkdir -p %s/PVMFW/ && cp", targetFilesDir.String()).Input(pvmfwBin).Textf(" %s/PVMFW/pvmfw_bin", targetFilesDir.String())
-	}
-	if a.deviceProps.Pvmfw.Avbkey != nil {
-		pvbmfwAvbkey := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Avbkey))
-		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(pvbmfwAvbkey).Textf(" %s/PREBUILT_IMAGES/pvmfw_embedded.avbpubkey", targetFilesDir.String())
 	}
 
 	a.copyPrebuiltImages(ctx, builder, targetFilesDir)
@@ -1068,6 +1064,7 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		a.partitionProps.Boot_partition_name,
 		a.partitionProps.Init_boot_partition_name,
 		a.partitionProps.Vendor_boot_partition_name,
+		a.partitionProps.Vendor_kernel_boot_partition_name,
 	}
 	for _, bootImgName := range bootImgNames {
 		if bootImgName == nil {
@@ -1096,15 +1093,6 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		} else {
 			ctx.ModuleErrorf("Could not write dtbo properties in misc_info.txt")
 		}
-	}
-	if a.deviceProps.Pvmfw.Image != nil {
-		builder.Command().Textf("echo has_pvmfw=true >> %s", miscInfo)
-		if a.deviceProps.Pvmfw.Partition_size != nil {
-			builder.Command().Textf("echo pvmfw_size=%d >> %s", *a.deviceProps.Pvmfw.Partition_size, miscInfo)
-		} else {
-			builder.Command().Textf("echo pvmfw_size= >> %s", miscInfo)
-		}
-		builder.Command().Textf("echo avb_pvmfw_add_hash_footer_args=--prop com.android.build.pvmfw.fingerprint:$(cat %s) >> %s", ctx.Config().BuildFingerprintFile(ctx).String(), miscInfo)
 	}
 
 	// Sort and dedup
@@ -1384,8 +1372,8 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 
 	platformSeappContextsPaths := map[string]string{
 		"system":     "system/etc/selinux/plat_seapp_contexts",
-		"system_ext": "system_ext/etc/selinux/plat_seapp_contexts",
-		"product":    "product/etc/selinux/plat_seapp_contexts",
+		"system_ext": "system_ext/etc/selinux/system_ext_seapp_contexts",
+		"product":    "product/etc/selinux/product_seapp_contexts",
 	}
 	platformSeappContexts := findFilesInPartitions(platformSeappContextsPaths, fsInfos)
 

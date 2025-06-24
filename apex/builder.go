@@ -1092,12 +1092,6 @@ func (a *apexBundle) getOverrideManifestPackageName(ctx android.ModuleContext) s
 }
 
 func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
-	if a.properties.IsCoverageVariant {
-		// Otherwise, we will have duplicated rules for coverage and
-		// non-coverage variants of the same APEX
-		return
-	}
-
 	depInfos := android.DepNameToDepInfoMap{}
 	a.WalkPayloadDeps(ctx, func(ctx android.BaseModuleContext, from, to android.ModuleProxy, externalDep bool) bool {
 		if from.Name() == to.Name() {
@@ -1144,14 +1138,7 @@ func (a *apexBundle) buildApexDependencyInfo(ctx android.ModuleContext) {
 
 	a.ApexBundleDepsInfo.BuildDepsInfoLists(ctx, a.MinSdkVersion(ctx).String(), depInfos)
 
-	ctx.Build(pctx, android.BuildParams{
-		Rule:   android.Phony,
-		Output: android.PathForPhony(ctx, a.Name()+"-deps-info"),
-		Inputs: []android.Path{
-			a.ApexBundleDepsInfo.FullListPath(),
-			a.ApexBundleDepsInfo.FlatListPath(),
-		},
-	})
+	ctx.Phony(a.Name()+"-deps-info", a.ApexBundleDepsInfo.FullListPath(), a.ApexBundleDepsInfo.FlatListPath())
 }
 
 func (a *apexBundle) buildLintReports(ctx android.ModuleContext) {
