@@ -119,6 +119,8 @@ func (pkm *prebuiltKernelModules) GenerateAndroidBuildActions(ctx android.Module
 	// installed in `vendor_ramdisk/first_stage_ramdisk`.
 	if pkm.InstallInVendorRamdisk() {
 		installDir = android.PathForModuleInPartitionInstall(ctx, "vendor_ramdisk", "lib", "modules")
+	} else if pkm.InstallInVendorKernelRamdisk() {
+		installDir = android.PathForModuleInPartitionInstall(ctx, "vendor_kernel_ramdisk", "lib", "modules")
 	}
 
 	if pkm.KernelVersion() != "" {
@@ -283,7 +285,7 @@ func modulesDirForAndroidDlkm(ctx android.ModuleContext, modulesDir android.Outp
 		return modulesDir.Join(ctx, "vendor", "lib", "modules")
 	} else if ctx.InstallInOdmDlkm() {
 		return modulesDir.Join(ctx, "odm", "lib", "modules")
-	} else if ctx.InstallInVendorRamdisk() {
+	} else if ctx.InstallInVendorRamdisk() || ctx.InstallInVendorKernelRamdisk() {
 		return modulesDir.Join(ctx, "lib", "modules")
 	} else {
 		// not an android dlkm module.
@@ -348,7 +350,7 @@ func (pkm *prebuiltKernelModules) runDepmod(ctx android.ModuleContext, modules a
 
 	finalModulesDep := modulesDep
 	// Add a leading slash to paths in modules.dep of android dlkm and vendor ramdisk
-	if ctx.InstallInSystemDlkm() || ctx.InstallInVendorDlkm() || ctx.InstallInOdmDlkm() || ctx.InstallInVendorRamdisk() {
+	if ctx.InstallInSystemDlkm() || ctx.InstallInVendorDlkm() || ctx.InstallInOdmDlkm() || ctx.InstallInVendorRamdisk() || ctx.InstallInVendorKernelRamdisk() {
 		finalModulesDep = modulesDep.ReplaceExtension(ctx, "intermediates")
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   addLeadingSlashToPaths,

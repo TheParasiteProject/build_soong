@@ -985,6 +985,7 @@ func (f *filesystemCreator) createPrebuiltKernelModules(ctx android.LoadHookCont
 	case "vendor_kernel_ramdisk":
 		props.Srcs = android.ExistentPathsForSources(ctx, partitionVars.VendorKernelRamdiskKernelModules).Strings()
 		props.Vendor_kernel_ramdisk = proptools.BoolPtr(true)
+		props.Strip_debug_symbols = proptools.BoolPtr(false)
 	default:
 		ctx.ModuleErrorf("DLKM is not supported for %s\n", partitionType)
 	}
