@@ -73,14 +73,6 @@ var testPackageZipDepTag testPackageZipDepTagType
 
 var (
 	pctx = android.NewPackageContext("android/soong/ci_tests")
-	// test_package module type should only be used for the following modules.
-	moduleNamesAllowed = []string{
-		"continuous_instrumentation_tests",
-		"continuous_instrumentation_metric_tests",
-		"continuous_native_tests",
-		"continuous_native_metric_tests",
-		"platform_tests",
-	}
 )
 
 func (p *testPackageZip) DepsMutator(ctx android.BottomUpMutatorContext) {
@@ -174,10 +166,6 @@ var _ cc.UseCoverage = (*testPackageZip)(nil)
 func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// Never install this test package, it's for disting only
 	p.SkipInstall()
-
-	if !android.InList(ctx.ModuleName(), moduleNamesAllowed) {
-		ctx.ModuleErrorf("%s is not allowed to use module type test_package", ctx.ModuleName())
-	}
 
 	p.output = createOutput(ctx, pctx)
 
