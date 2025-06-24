@@ -500,6 +500,38 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Radio_partition_name = &radioImgModuleName
 	}
 
+	if ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardUsesPvmfwImage {
+		var partitionSize *int64
+		partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+		boardPvmfwPartitionSize := partitionVars.BoardPvmfwPartitionSize
+		if boardPvmfwPartitionSize != "" {
+			size, err := strconv.ParseInt(boardPvmfwPartitionSize, 0, 64)
+			if err != nil {
+				ctx.ModuleErrorf("Error parsing BoardPvmfwPartitionSize %s", err)
+			}
+			partitionSize = proptools.Int64Ptr(size)
+		}
+		image := "pvmfw_img"
+		if partitionVars.BoardPvmfwImagePrebuilt != "" {
+			image = partitionVars.BoardPvmfwImagePrebuilt
+		}
+		bin := "pvmfw_bin"
+		if partitionVars.BoardPvmfwBinPrebuilt != "" {
+			bin = partitionVars.BoardPvmfwBinPrebuilt
+		}
+		avbkey := "pvmfw_embedded_key_pub_bin"
+		if partitionVars.BoardPvmfwEmbeddedAvbkeyPrebuilt != "" {
+			avbkey = partitionVars.BoardPvmfwEmbeddedAvbkeyPrebuilt
+		}
+
+		deviceProps.Pvmfw = filesystem.PvmfwProperties{
+			Image:          proptools.StringPtr(":" + image),
+			Binary:         proptools.StringPtr(":" + bin),
+			Avbkey:         proptools.StringPtr(":" + avbkey),
+			Partition_size: partitionSize,
+		}
+	}
+
 	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
 }
 
