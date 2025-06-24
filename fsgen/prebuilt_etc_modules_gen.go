@@ -421,8 +421,14 @@ func createPrebuiltEtcModules(ctx android.LoadHookContext) (ret []string) {
 	return ret
 }
 
-func createAvbpubkeyModule(ctx android.LoadHookContext) {
-	avbKeyPath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardAvbKeyPath
+func createAvbpubkeyModule(ctx android.LoadHookContext) bool {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	if !(partitionVars.BuildingSystemOtherImage && partitionVars.BoardAvbEnable) {
+		// https://cs.android.com/android/platform/superproject/+/android-latest-release:build/make/core/Makefile;l=835;drc=8ab87941b1b9a3fc990cb1986e6245cf0af10a70
+		return false
+	}
+
+	avbKeyPath := partitionVars.BoardAvbKeyPath
 	if avbKeyPath == "" {
 		// Use default
 		// https://cs.android.com/android/_/android/platform/build/+/045a3d6a3e359633a14853a5a5e1e4f2a11cbdae:core/Makefile;l=4548;bpv=1;bpt=0;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b
@@ -447,4 +453,6 @@ func createAvbpubkeyModule(ctx android.LoadHookContext) {
 			Licenses:         []string{"Android-Apache-2.0"},
 		},
 	)
+
+	return true
 }
