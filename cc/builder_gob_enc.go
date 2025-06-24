@@ -10,6 +10,7 @@ import (
 
 func init() {
 	ObjectsGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(Objects) })
+	KytheFilePairGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(KytheFilePair) })
 }
 
 func (r Objects) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
@@ -64,7 +65,7 @@ func (r Objects) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 		return err
 	}
 	for val6 := 0; val6 < len(r.kytheFiles); val6++ {
-		if err = gobtools.EncodeInterface(ctx, buf, r.kytheFiles[val6]); err != nil {
+		if err = r.kytheFiles[val6].Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
@@ -170,14 +171,10 @@ func (r *Objects) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 		return err
 	}
 	if val33 > 0 {
-		r.kytheFiles = make([]android.Path, val33)
+		r.kytheFiles = make([]KytheFilePair, val33)
 		for val34 := 0; val34 < int(val33); val34++ {
-			if val36, err := gobtools.DecodeInterface(ctx, buf); err != nil {
+			if err = r.kytheFiles[val34].Decode(ctx, buf); err != nil {
 				return err
-			} else if val36 == nil {
-				r.kytheFiles[val34] = nil
-			} else {
-				r.kytheFiles[val34] = val36.(android.Path)
 			}
 		}
 	}
@@ -189,4 +186,45 @@ var ObjectsGobRegId int16
 
 func (r Objects) GetTypeId() int16 {
 	return ObjectsGobRegId
+}
+
+func (r KytheFilePair) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeInterface(ctx, buf, r.SrcFile); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeInterface(ctx, buf, r.KzipFile); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *KytheFilePair) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+	var err error
+
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
+		return err
+	} else if val2 == nil {
+		r.SrcFile = nil
+	} else {
+		r.SrcFile = val2.(android.Path)
+	}
+
+	if val4, err := gobtools.DecodeInterface(ctx, buf); err != nil {
+		return err
+	} else if val4 == nil {
+		r.KzipFile = nil
+	} else {
+		r.KzipFile = val4.(android.Path)
+	}
+
+	return err
+}
+
+var KytheFilePairGobRegId int16
+
+func (r KytheFilePair) GetTypeId() int16 {
+	return KytheFilePairGobRegId
 }
