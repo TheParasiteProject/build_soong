@@ -131,6 +131,7 @@ type androidDevice struct {
 	allImagesZip android.Path
 
 	proguardZips                java.ProguardZips
+	jacocoZip                   android.Path
 	kernelConfig                android.Path
 	kernelVersion               android.Path
 	miscInfo                    android.Path
@@ -254,6 +255,12 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.proguardZips = java.BuildProguardZips(ctx, allInstalledModules)
 	a.buildSymbolsZip(ctx, allInstalledModules)
 	a.buildUpdatePackage(ctx)
+
+	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
+		jacocoZip := android.PathForModuleOut(ctx, "jacoco-report-classes-all.jar")
+		java.BuildJacocoZip(ctx, allInstalledModules, jacocoZip)
+		a.jacocoZip = jacocoZip
+	}
 
 	var deps []android.Path
 	if proptools.String(a.partitionProps.Super_partition_name) != "" {
@@ -529,6 +536,9 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		if a.partialOtaFilesZip != nil {
 			ctx.Phony("partialotapackage", a.partialOtaFilesZip)
 			ctx.DistForGoalWithFilenameTag("droidcore-unbundled", a.partialOtaFilesZip, namePrefix+a.partialOtaFilesZip.Base())
+		}
+		if a.jacocoZip != nil {
+			ctx.DistForGoal("dist_files", a.jacocoZip)
 		}
 	}
 }
