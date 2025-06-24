@@ -2251,6 +2251,12 @@ type Binary struct {
 	androidMkNamesOfJniLibs []string
 }
 
+func (a *Binary) IsNativeCoverageNeeded(ctx cc.IsNativeCoverageNeededContext) bool {
+	return ctx.Device() && ctx.DeviceConfig().NativeCoverageEnabled()
+}
+
+var _ cc.UseCoverage = &Binary{}
+
 func (j *Binary) HostToolPath() android.OptionalPath {
 	return android.OptionalPathForPath(j.binaryFile)
 }

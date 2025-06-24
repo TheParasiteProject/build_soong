@@ -1009,6 +1009,12 @@ func (d libraryDependencyTag) PropagateAconfigValidation() bool {
 
 var _ android.PropagateAconfigValidationDependencyTag = libraryDependencyTag{}
 
+func (d libraryDependencyTag) IsNativeCoverageNeededDepTag(ctx IsNativeCoverageNeededContext) bool {
+	return d.shared()
+}
+
+var _ UseCoverageDeptag = libraryDependencyTag{}
+
 // dependencyTag is used for tagging miscellaneous dependency types that don't fit into
 // libraryDependencyTag.  Each tag object is created globally and reused for multiple
 // dependencies (although since the object contains no references, assigning a tag to a

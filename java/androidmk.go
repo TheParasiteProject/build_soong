@@ -317,7 +317,6 @@ func (app *AndroidApp) AndroidMkEntries() []android.AndroidMkEntries {
 			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 				// App module names can be overridden.
 				entries.SetString("LOCAL_MODULE", app.installApkName)
-				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", app.appProperties.PreventInstall)
 				if app.headerJarFile != nil {
 					entries.SetPath("LOCAL_SOONG_HEADER_JAR", app.headerJarFile)
 				}
