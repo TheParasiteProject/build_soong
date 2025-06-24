@@ -160,7 +160,7 @@ func productInstalledModules(ctx android.LoadHookContext) []string {
 	return allInstalledModules
 }
 
-func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string) *FsGenState {
+func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string, avbpubkeyGenerated bool) *FsGenState {
 	return ctx.Config().Once(fsGenStateOnceKey, func() interface{} {
 		allInstalledModules := slices.Concat(
 			productInstalledModules(ctx),
@@ -255,7 +255,9 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 			nativeBridgeModules:             map[string]bool{},
 		}
 
-		(*fsGenState.fsDeps["product"])["system_other_avbpubkey"] = defaultDepCandidateProps(ctx.Config())
+		if avbpubkeyGenerated {
+			(*fsGenState.fsDeps["product"])["system_other_avbpubkey"] = defaultDepCandidateProps(ctx.Config())
+		}
 
 		if len(ctx.Config().DeviceManifestFiles()) > 0 {
 			(*fsGenState.fsDeps["vendor"])["vendor_manifest.xml"] = defaultDepCandidateProps(ctx.Config())

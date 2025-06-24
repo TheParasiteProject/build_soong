@@ -150,8 +150,8 @@ func filesystemCreatorFactory() android.Module {
 			return
 		}
 		generatedPrebuiltEtcModuleNames := createPrebuiltEtcModules(ctx)
-		createAvbpubkeyModule(ctx)
-		createFsGenState(ctx, generatedPrebuiltEtcModuleNames)
+		avbpubkeyGenerated := createAvbpubkeyModule(ctx)
+		createFsGenState(ctx, generatedPrebuiltEtcModuleNames, avbpubkeyGenerated)
 		module.createAvbKeyFilegroups(ctx)
 		module.createMiscFilegroups(ctx)
 		module.createInternalModules(ctx)
