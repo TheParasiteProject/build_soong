@@ -745,6 +745,9 @@ type PartitionVariables struct {
 	DoNotStripVendorRamdiskModules   bool     `json:",omitempty"`
 	DoNotStripVendorModules          bool     `json:",omitempty"`
 
+	VendorKernelRamdiskKernelModules              []string `json:",omitempty"`
+	VendorKernelRamdiskKernelModulesBlocklistFile string   `json:",omitempty"`
+
 	ProductFsverityGenerateMetadata bool `json:",omitempty"`
 
 	TargetScreenDensity string `json:",omitempty"`

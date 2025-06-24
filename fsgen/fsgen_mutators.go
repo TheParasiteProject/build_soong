@@ -227,8 +227,9 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"fs_config_files_odm_dlkm": defaultDepCandidateProps(ctx.Config()),
 					"notice_xml_odm_dlkm":      defaultDepCandidateProps(ctx.Config()),
 				},
-				"ramdisk":        {},
-				"vendor_ramdisk": {},
+				"ramdisk":               {},
+				"vendor_ramdisk":        {},
+				"vendor_kernel_ramdisk": {},
 				"recovery": {
 					"sepolicy.recovery":                     defaultDepCandidateProps(ctx.Config()),
 					"plat_file_contexts.recovery":           defaultDepCandidateProps(ctx.Config()),

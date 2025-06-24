@@ -114,6 +114,7 @@ type ModuleInstallPathContext interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
+	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
@@ -150,6 +151,10 @@ func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRamdisk() bool 
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendorRamdisk() bool {
 	return ctx.Module().InstallInVendorRamdisk()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendorKernelRamdisk() bool {
+	return ctx.Module().InstallInVendorKernelRamdisk()
 }
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInDebugRamdisk() bool {
@@ -2071,6 +2076,8 @@ func modulePartition(ctx ModuleInstallPathContext, device bool) string {
 			partition = ctx.DeviceConfig().VendorDlkmPath()
 		} else if ctx.InstallInOdmDlkm() {
 			partition = ctx.DeviceConfig().OdmDlkmPath()
+		} else if ctx.InstallInVendorKernelRamdisk() {
+			partition = "vendor_kernel_ramdisk"
 		} else {
 			partition = "system"
 		}
@@ -2307,6 +2314,10 @@ func (m testModuleInstallPathContext) InstallInRamdisk() bool {
 
 func (m testModuleInstallPathContext) InstallInVendorRamdisk() bool {
 	return m.inVendorRamdisk
+}
+
+func (m testModuleInstallPathContext) InstallInVendorKernelRamdisk() bool {
+	return false
 }
 
 func (m testModuleInstallPathContext) InstallInDebugRamdisk() bool {
