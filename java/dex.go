@@ -83,7 +83,7 @@ type DexProperties struct {
 
 		// If true, optimize for size by removing unused code.  Defaults to true for apps,
 		// false for libraries and tests.
-		Shrink *bool
+		Shrink proptools.Configurable[bool] `android:"replace_instead_of_append"`
 
 		// If true, optimize bytecode.  Defaults to false.
 		Optimize proptools.Configurable[bool] `android:"replace_instead_of_append"`
@@ -704,7 +704,7 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 	}
 
 	// TODO(ccross): Don't shrink app instrumentation tests by default.
-	if !Bool(opt.Shrink) {
+	if !opt.Shrink.GetOrDefault(ctx, false) {
 		r8Flags = append(r8Flags, "-dontshrink")
 	}
 
