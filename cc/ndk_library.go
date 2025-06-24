@@ -121,12 +121,11 @@ type stubDecorator struct {
 
 	properties libraryProperties
 
-	versionScriptPath     android.ModuleGenPath
-	parsedCoverageXmlPath android.ModuleOutPath
-	installPath           android.Path
-	abiDumpPath           android.OutputPath
-	hasAbiDump            bool
-	abiDiffPaths          android.Paths
+	versionScriptPath android.ModuleGenPath
+	installPath       android.Path
+	abiDumpPath       android.OutputPath
+	hasAbiDump        bool
+	abiDiffPaths      android.Paths
 
 	apiLevel         android.ApiLevel
 	firstVersion     android.ApiLevel
@@ -510,7 +509,11 @@ func (c *stubDecorator) compile(ctx ModuleContext, flags Flags, deps PathDeps) O
 		}
 	}
 	if c.apiLevel.IsCurrent() && ctx.PrimaryArch() {
-		c.parsedCoverageXmlPath = ParseSymbolFileForAPICoverage(ctx, symbolFile)
+		parsedCoverageXmlPath := ParseSymbolFileForAPICoverage(ctx, symbolFile)
+
+		if ctx.DeviceConfig().ClangCoverageEnabled() && !android.ShouldSkipAndroidMkProcessing(ctx, ctx.Module()) {
+			ctx.DistForGoalWithFilename("droidcore", parsedCoverageXmlPath, "ndk_apis/"+parsedCoverageXmlPath.Base())
+		}
 	}
 	return objs
 }
