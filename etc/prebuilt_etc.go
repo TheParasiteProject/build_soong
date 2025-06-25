@@ -302,16 +302,17 @@ var _ android.ImageInterface = (*PrebuiltEtc)(nil)
 func (p *PrebuiltEtc) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
 
 func (p *PrebuiltEtc) VendorVariantNeeded(ctx android.ImageInterfaceContext) bool {
-	return false
+	return p.ModuleBase.InstallInVendor()
 }
 
 func (p *PrebuiltEtc) ProductVariantNeeded(ctx android.ImageInterfaceContext) bool {
-	return false
+	return p.ModuleBase.InstallInProduct()
 }
 
 func (p *PrebuiltEtc) CoreVariantNeeded(ctx android.ImageInterfaceContext) bool {
 	return !p.ModuleBase.InstallInRecovery() && !p.ModuleBase.InstallInRamdisk() &&
-		!p.ModuleBase.InstallInVendorRamdisk() && !p.ModuleBase.InstallInDebugRamdisk()
+		!p.ModuleBase.InstallInVendorRamdisk() && !p.ModuleBase.InstallInDebugRamdisk() &&
+		!p.ModuleBase.InstallInVendor() && !p.ModuleBase.InstallInProduct()
 }
 
 func (p *PrebuiltEtc) RamdiskVariantNeeded(ctx android.ImageInterfaceContext) bool {
