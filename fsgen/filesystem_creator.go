@@ -1204,6 +1204,13 @@ func generateFsProps(ctx android.EarlyModuleContext, partitions allGeneratedPart
 		if partitionVars.BoardErofsCompressorHints != "" {
 			fsProps.Erofs.Compress_hints = proptools.StringPtr(":soong_generated_board_erofs_compress_hints_filegroup")
 		}
+		if s, err := strconv.ParseBool(partitionVars.BoardErofsShareDupBlocks); err == nil {
+			fsProps.Share_dup_blocks = proptools.BoolPtr(s)
+		}
+	} else if *fsProps.Type == "ext4" {
+		if s, err := strconv.ParseBool(partitionVars.BoardExt4ShareDupBlocks); err == nil {
+			fsProps.Share_dup_blocks = proptools.BoolPtr(s)
+		}
 	}
 
 	// Don't build this module on checkbuilds, the soong-built partitions are still in-progress

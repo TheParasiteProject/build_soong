@@ -266,6 +266,9 @@ type FilesystemProperties struct {
 
 	// Run checkvintf on the vintf manifests of the filesystem
 	Check_vintf *bool
+
+	// Used by build_image
+	Share_dup_blocks *bool
 }
 
 type AndroidFilesystemDeps struct {
@@ -1310,6 +1313,13 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 		addStr("needs_compress", "1")
 	}
 
+	if proptools.Bool(f.properties.Share_dup_blocks) {
+		if f.fsType(ctx) != erofsType && f.fsType(ctx) != ext4Type {
+			ctx.ModuleErrorf("Share_dup_blocks is not supprorted for fs type: %s\n", f.fsType(ctx))
+		}
+		addStr(f.fsType(ctx).String()+"_share_dup_blocks", "true")
+	}
+
 	sort.Strings(lines)
 
 	propFilePreProcessing := android.PathForModuleOut(ctx, "prop_pre_processing")
@@ -1335,6 +1345,10 @@ func (f *filesystem) buildPropFileForMiscInfo(ctx android.ModuleContext) android
 
 	addStr("building_"+f.partitionName()+"_image", "true")
 	addStr(f.partitionName()+"_fs_type", f.fsType(ctx).String())
+
+	if proptools.Bool(f.properties.Share_dup_blocks) {
+		addStr(f.fsType(ctx).String()+"_share_dup_blocks", "true")
+	}
 
 	if proptools.Bool(f.properties.Use_avb) {
 		addStr("avb_"+f.partitionName()+"_hashtree_enable", "true")
