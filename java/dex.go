@@ -128,6 +128,17 @@ type DexProperties struct {
 		// By default all classes are compiled using R8 when Optimize.Enabled is set.
 		Exclude *string `android:"path"`
 
+		// Path to a file containing a list of class names that should be compiled using R8.
+		// A class is only compiled through R8 if and only if it's part of the includes and not
+		// part of the excludes. Otherwise D8 will be used.
+		//
+		// If this attribute is not specified then '**' is used instead, which includes every single
+		// class that is not excluded.
+		//
+		// The file is expected to contain fully-qualified classes name and package names ending
+		// in `.*` or `.**`, separated by newline.
+		Include *string `android:"path"`
+
 		// Optional list of downstream (Java) libraries from which to trace and preserve references
 		// when optimizing. Note that this requires that the source reference does *not* have
 		// a strict lib dependency on this target; dependencies should be on intermediate targets
@@ -745,6 +756,12 @@ func (d *dexer) r8Flags(ctx android.ModuleContext, dexParams *compileDexParams, 
 		excludeFile := android.PathForModuleSrc(ctx, *opt.Exclude)
 		r8Flags = append(r8Flags, "--exclude", excludeFile.String())
 		r8Deps = append(r8Deps, excludeFile)
+	}
+
+	if opt.Include != nil {
+		includeFile := android.PathForModuleSrc(ctx, *opt.Include)
+		r8Flags = append(r8Flags, "--include", includeFile.String())
+		r8Deps = append(r8Deps, includeFile)
 	}
 
 	return r8Flags, r8Deps, artProfileOutput
