@@ -360,6 +360,11 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 		if m.Enabled(mctx) && m.ExportedToMake() {
 			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeEnabled, mctx.ModuleName())
 		}
+	} else if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()+".vendor_ramdisk"]; ok && mctx.Module().InstallInVendorRamdisk() {
+		installPartition := "vendor_ramdisk"
+		if m.Enabled(mctx) && m.ExportedToMake() {
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeDisabled, mctx.ModuleName())
+		}
 	}
 
 	// store the map of module to (required,overrides) even if the module is not in PRODUCT_PACKAGES.
