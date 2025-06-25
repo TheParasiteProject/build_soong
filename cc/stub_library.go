@@ -15,7 +15,6 @@
 package cc
 
 import (
-	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -33,8 +32,6 @@ func stubLibrariesSingleton() android.Singleton {
 type stubLibraries struct {
 	stubLibraries       []string
 	vendorStubLibraries []string
-
-	apiListCoverageXmlPaths []string
 }
 
 // Check if the module defines stub, or itself is stub
@@ -67,9 +64,14 @@ func (s *stubLibraries) GenerateBuildActions(ctx android.SingletonContext) {
 					}
 				}
 			}
-			if linkableInfo.CcLibraryInterface && android.IsModulePreferredProxy(ctx, module) {
-				if p := linkableInfo.APIListCoverageXMLPath.String(); p != "" {
-					s.apiListCoverageXmlPaths = append(s.apiListCoverageXmlPaths, p)
+
+			if ctx.DeviceConfig().ClangCoverageEnabled() &&
+				linkableInfo.CcLibraryInterface &&
+				android.IsModulePreferredProxy(ctx, module) {
+
+				f := linkableInfo.APIListCoverageXMLPath
+				if f.String() != "" {
+					ctx.DistForGoalWithFilename("droidcore", f, "cc_apis/"+f.Base())
 				}
 			}
 		}
@@ -88,8 +90,4 @@ func (s *stubLibraries) MakeVars(ctx android.MakeVarsContext) {
 	// Convert stub library file names into Makefile variable.
 	ctx.Strict("STUB_LIBRARIES", strings.Join(s.stubLibraries, " "))
 	ctx.Strict("SOONG_STUB_VENDOR_LIBRARIES", strings.Join(s.vendorStubLibraries, " "))
-
-	// Export the list of API XML files to Make.
-	sort.Strings(s.apiListCoverageXmlPaths)
-	ctx.Strict("SOONG_CC_API_XML", strings.Join(s.apiListCoverageXmlPaths, " "))
 }
