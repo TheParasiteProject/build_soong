@@ -542,5 +542,4 @@ func distFile(ctx Context, config Config, src string, subDirs ...string) {
 // Be careful, anything added here slows down EVERY CI build
 func runDistActions(ctx Context, config Config) {
 	runStagingSnapshot(ctx, config)
-	runSourceInputs(ctx, config)
 }

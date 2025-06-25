@@ -56,7 +56,6 @@ bootstrap_go_package {
         "config.go",
         "context.go",
         "staging_snapshot.go",
-        "source_inputs.go",
         "dumpvars.go",
         "environment.go",
         "exec.go",
