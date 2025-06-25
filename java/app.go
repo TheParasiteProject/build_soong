@@ -1101,6 +1101,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 					a.outputFile.String(),
 				},
 			},
+			ctx.ModuleProxy(),
 		)
 		builder := android.NewRuleBuilder(pctx, ctx)
 		builder.Command().Text("cp").

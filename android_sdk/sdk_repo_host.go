@@ -134,7 +134,7 @@ func (s *sdkRepoHost) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				android.PathForModuleInstall(ctx, "sdk-repo").String() + "/",
 				outputZipFile.String(),
 			},
-		})
+		}, ctx.ModuleProxy())
 	builder.Command().Text("cp").
 		Input(noticeFile).
 		Text(filepath.Join(dir.String(), "NOTICE.txt"))
