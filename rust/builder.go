@@ -69,9 +69,9 @@ var (
 	_       = pctx.SourcePathVariable("rustdocCmd", "${config.RustBin}/rustdoc")
 	rustdoc = pctx.AndroidStaticRule("rustdoc",
 		blueprint.RuleParams{
-			Command: "$envVars $rustdocCmd $rustdocFlags $in -o $outDir && " +
+			Command: "$envVars ${RustcWrapper} $rustdocCmd $rustdocFlags $in -o $outDir && " +
 				"touch $out",
-			CommandDeps: []string{"$rustdocCmd"},
+			CommandDeps: []string{"$rustdocCmd", "${RustcWrapper}"},
 		},
 		"rustdocFlags", "outDir", "envVars")
 

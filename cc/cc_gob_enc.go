@@ -101,7 +101,7 @@ func (r CcObjectInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 		return err
 	}
 	for val3 := 0; val3 < len(r.KytheFiles); val3++ {
-		if err = gobtools.EncodeInterface(ctx, buf, r.KytheFiles[val3]); err != nil {
+		if err = r.KytheFiles[val3].Encode(ctx, buf); err != nil {
 			return err
 		}
 	}
@@ -153,14 +153,10 @@ func (r *CcObjectInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error 
 		return err
 	}
 	if val15 > 0 {
-		r.KytheFiles = make([]android.Path, val15)
+		r.KytheFiles = make([]KytheFilePair, val15)
 		for val16 := 0; val16 < int(val15); val16++ {
-			if val18, err := gobtools.DecodeInterface(ctx, buf); err != nil {
+			if err = r.KytheFiles[val16].Decode(ctx, buf); err != nil {
 				return err
-			} else if val18 == nil {
-				r.KytheFiles[val16] = nil
-			} else {
-				r.KytheFiles[val16] = val18.(android.Path)
 			}
 		}
 	}

@@ -320,7 +320,10 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 	if config.ReleaseConfigType == rc_proto.ReleaseConfigType_RELEASE_CONFIG {
 		inheritBuildVariant := func() error {
 			build_variant := os.Getenv("TARGET_BUILD_VARIANT")
-			if build_variant == "" || config.Name == build_variant {
+			if build_variant == "" {
+				build_variant = "eng"
+			}
+			if config.Name == build_variant {
 				return nil
 			}
 			variant, err := configs.GetReleaseConfigStrict(build_variant)

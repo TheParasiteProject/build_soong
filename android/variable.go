@@ -676,6 +676,13 @@ type PartitionVariables struct {
 	BootloaderFilePath        string   `json:",omitempty"`
 	AbOtaBootloaderPartitions []string `json:",omitempty"`
 
+	// pvmfw stuff
+	BoardUsesPvmfwImage              bool   `json:",omitempty"`
+	BoardPvmfwPartitionSize          string `json:",omitempty"`
+	BoardPvmfwImagePrebuilt          string `json:",omitempty"`
+	BoardPvmfwBinPrebuilt            string `json:",omitempty"`
+	BoardPvmfwEmbeddedAvbkeyPrebuilt string `json:",omitempty"`
+
 	// Super image stuff
 	ProductUseDynamicPartitions       bool                                     `json:",omitempty"`
 	ProductRetrofitDynamicPartitions  bool                                     `json:",omitempty"`

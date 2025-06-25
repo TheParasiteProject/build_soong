@@ -633,6 +633,7 @@ func (p *PrebuiltEtc) AndroidMkEntries() []android.AndroidMkEntries {
 					entries.AddStrings("LOCAL_MODULE_SYMLINKS", p.properties.Symlinks...)
 				}
 				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", !p.Installable())
+				entries.AddStrings("LOCAL_OVERRIDES_MODULES", p.Overrides()...)
 			},
 		},
 	}}

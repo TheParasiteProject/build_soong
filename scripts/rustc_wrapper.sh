@@ -22,7 +22,7 @@
 # The first argument should be the path to rustc/clippy
 
 # Check if $SOONG_RUST_GEN_DIR is set, otherwise don't do anything.
-if [ -v SOONG_RUST_GEN_DIR ]; then
+if [ ! -z "${SOONG_RUST_GEN_DIR}" ]; then
   if [[ $SOONG_RUST_GEN_DIR =~ ^/ ]]; then
     export OUT_DIR=$SOONG_RUST_GEN_DIR
   else

@@ -150,8 +150,8 @@ func filesystemCreatorFactory() android.Module {
 			return
 		}
 		generatedPrebuiltEtcModuleNames := createPrebuiltEtcModules(ctx)
-		createAvbpubkeyModule(ctx)
-		createFsGenState(ctx, generatedPrebuiltEtcModuleNames)
+		avbpubkeyGenerated := createAvbpubkeyModule(ctx)
+		createFsGenState(ctx, generatedPrebuiltEtcModuleNames, avbpubkeyGenerated)
 		module.createAvbKeyFilegroups(ctx)
 		module.createMiscFilegroups(ctx)
 		module.createInternalModules(ctx)
@@ -498,6 +498,38 @@ func (f *filesystemCreator) createDeviceModule(
 
 	if radioImgModuleName := createRadioImg(ctx); radioImgModuleName != "" {
 		deviceProps.Radio_partition_name = &radioImgModuleName
+	}
+
+	if ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardUsesPvmfwImage {
+		var partitionSize *int64
+		partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+		boardPvmfwPartitionSize := partitionVars.BoardPvmfwPartitionSize
+		if boardPvmfwPartitionSize != "" {
+			size, err := strconv.ParseInt(boardPvmfwPartitionSize, 0, 64)
+			if err != nil {
+				ctx.ModuleErrorf("Error parsing BoardPvmfwPartitionSize %s", err)
+			}
+			partitionSize = proptools.Int64Ptr(size)
+		}
+		image := "pvmfw_img"
+		if partitionVars.BoardPvmfwImagePrebuilt != "" {
+			image = partitionVars.BoardPvmfwImagePrebuilt
+		}
+		bin := "pvmfw_bin"
+		if partitionVars.BoardPvmfwBinPrebuilt != "" {
+			bin = partitionVars.BoardPvmfwBinPrebuilt
+		}
+		avbkey := "pvmfw_embedded_key_pub_bin"
+		if partitionVars.BoardPvmfwEmbeddedAvbkeyPrebuilt != "" {
+			avbkey = partitionVars.BoardPvmfwEmbeddedAvbkeyPrebuilt
+		}
+
+		deviceProps.Pvmfw = filesystem.PvmfwProperties{
+			Image:          proptools.StringPtr(":" + image),
+			Binary:         proptools.StringPtr(":" + bin),
+			Avbkey:         proptools.StringPtr(":" + avbkey),
+			Partition_size: partitionSize,
+		}
 	}
 
 	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
@@ -1171,6 +1203,13 @@ func generateFsProps(ctx android.EarlyModuleContext, partitions allGeneratedPart
 		}
 		if partitionVars.BoardErofsCompressorHints != "" {
 			fsProps.Erofs.Compress_hints = proptools.StringPtr(":soong_generated_board_erofs_compress_hints_filegroup")
+		}
+		if s, err := strconv.ParseBool(partitionVars.BoardErofsShareDupBlocks); err == nil {
+			fsProps.Share_dup_blocks = proptools.BoolPtr(s)
+		}
+	} else if *fsProps.Type == "ext4" {
+		if s, err := strconv.ParseBool(partitionVars.BoardExt4ShareDupBlocks); err == nil {
+			fsProps.Share_dup_blocks = proptools.BoolPtr(s)
 		}
 	}
 
