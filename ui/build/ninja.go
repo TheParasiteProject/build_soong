@@ -17,7 +17,6 @@ package build
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -359,47 +358,4 @@ func (c *ninjaStucknessChecker) check(ctx Context, config Config) {
 		ctx.Verbosef("done\n")
 	}
 	c.prevModTime = newModTime
-}
-
-// Constructs and runs the Ninja command line to get the inputs of a goal.
-// For n2 and siso, this will always run ninja, because they don't have the
-// `-t inputs` command.  This command will use the inputs command's -d option,
-// to use the dep file iff ninja was the executor. For other executors, the
-// results will be wrong.
-func runNinjaInputs(ctx Context, config Config, goal string) ([]string, error) {
-	var executable string
-	switch config.ninjaCommand {
-	case NINJA_N2, NINJA_SISO:
-		executable = config.PrebuiltBuildTool("ninja")
-	default:
-		executable = config.NinjaBin()
-	}
-
-	args := []string{
-		"-f",
-		config.CombinedNinjaFile(),
-		"-t",
-		"inputs",
-	}
-	// Add deps file arg for ninja
-	// TODO: Update as inputs command is implemented
-	if config.ninjaCommand == NINJA_NINJA && !config.UseABFS() {
-		args = append(args, "-d")
-	}
-	args = append(args, goal)
-
-	// This is just ninja -t inputs, so we won't bother running it in the sandbox,
-	// so use exec.Command, not soong_ui's command.
-	cmd := exec.Command(executable, args...)
-
-	cmd.Stdin = os.Stdin
-	cmd.Stderr = os.Stderr
-
-	out, err := cmd.Output()
-	if err != nil {
-		fmt.Printf("Error getting goal inputs for %s: %s\n", goal, err)
-		return nil, err
-	}
-
-	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
 }
