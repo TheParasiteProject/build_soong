@@ -11,6 +11,7 @@ bootstrap_go_package {
         "soong-android",
         "soong-filesystem",
         "soong-kernel",
+        "soong-rust",
     ],
     srcs: [
         "boot_imgs.go",
