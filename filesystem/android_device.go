@@ -682,7 +682,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		if bootImgInfo.Dtb != nil {
 			builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/BOOT/dtb", targetFilesDir)
 		}
-		if bootImgInfo.Kernel != nil {
+		if bootImgInfo.Kernel != nil && !bootImgInfo.IsPrebuilt {
 			builder.Command().Textf("cp ").Input(bootImgInfo.Kernel).Textf(" %s/BOOT/kernel", targetFilesDir)
 			// Even though kernel is not used to build vendor_boot, copy the kernel to VENDOR_BOOT to match the behavior of make packaging.
 			builder.Command().Textf("cp ").Input(bootImgInfo.Kernel).Textf(" %s/VENDOR_BOOT/kernel", targetFilesDir)
