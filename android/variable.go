@@ -669,6 +669,8 @@ type PartitionVariables struct {
 	BoardDtboPartitionSize            string   `json:",omitempty"`
 	Board16kOtaUseIncremental         bool     `json:",omitempty"`
 	BoardPrebuiltDtbDir               string   `json:",omitempty"`
+	BoardKernelModules16K             []string `json:",omitempty"`
+	BoardKernelModulesLoad16K         []string `json:",omitempty"`
 
 	// Radio stuff
 	RadioFilePath             string   `json:",omitempty"`

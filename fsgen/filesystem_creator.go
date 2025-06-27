@@ -500,6 +500,10 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Radio_partition_name = &radioImgModuleName
 	}
 
+	if ramdisk16kModuleName := createRamdisk16k(ctx); ramdisk16kModuleName != "" {
+		deviceProps.Ramdisk_16k = &ramdisk16kModuleName
+	}
+
 	if ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardUsesPvmfwImage {
 		var partitionSize *int64
 		partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
@@ -566,6 +570,32 @@ func createRadioImg(ctx android.LoadHookContext) string {
 			Name: &name,
 		},
 		&radioImgProps,
+	)
+	return name
+}
+
+func createRamdisk16k(ctx android.LoadHookContext) string {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	kernelPath := partitionVars.BoardKernelPath16k
+	if kernelPath == "" {
+		return ""
+	}
+	name := generatedModuleNameForPartition(ctx.Config(), "ramdisk_16k")
+	props := filesystem.Ramdisk16kImgProperties{
+		Srcs:   partitionVars.BoardKernelModules16K,
+		Load:   partitionVars.BoardKernelModulesLoad16K,
+		Kernel: proptools.StringPtr(kernelPath),
+	}
+
+	ctx.CreateModuleInDirectory(
+		filesystem.Ramdisk16kImgFactory,
+		".",
+		&struct {
+			Name *string
+		}{
+			Name: &name,
+		},
+		&props,
 	)
 	return name
 }
