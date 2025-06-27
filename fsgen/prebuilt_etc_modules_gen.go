@@ -32,22 +32,24 @@ type srcBaseFileInstallBaseFileTuple struct {
 // prebuilt src files grouped by the install partitions.
 // Each groups are a mapping of the relative install path to the name of the files
 type prebuiltSrcGroupByInstallPartition struct {
-	system      map[string][]srcBaseFileInstallBaseFileTuple
-	system_ext  map[string][]srcBaseFileInstallBaseFileTuple
-	product     map[string][]srcBaseFileInstallBaseFileTuple
-	vendor      map[string][]srcBaseFileInstallBaseFileTuple
-	recovery    map[string][]srcBaseFileInstallBaseFileTuple
-	vendor_dlkm map[string][]srcBaseFileInstallBaseFileTuple
+	system         map[string][]srcBaseFileInstallBaseFileTuple
+	system_ext     map[string][]srcBaseFileInstallBaseFileTuple
+	product        map[string][]srcBaseFileInstallBaseFileTuple
+	vendor         map[string][]srcBaseFileInstallBaseFileTuple
+	recovery       map[string][]srcBaseFileInstallBaseFileTuple
+	vendor_dlkm    map[string][]srcBaseFileInstallBaseFileTuple
+	vendor_ramdisk map[string][]srcBaseFileInstallBaseFileTuple
 }
 
 func newPrebuiltSrcGroupByInstallPartition() *prebuiltSrcGroupByInstallPartition {
 	return &prebuiltSrcGroupByInstallPartition{
-		system:      map[string][]srcBaseFileInstallBaseFileTuple{},
-		system_ext:  map[string][]srcBaseFileInstallBaseFileTuple{},
-		product:     map[string][]srcBaseFileInstallBaseFileTuple{},
-		vendor:      map[string][]srcBaseFileInstallBaseFileTuple{},
-		recovery:    map[string][]srcBaseFileInstallBaseFileTuple{},
-		vendor_dlkm: map[string][]srcBaseFileInstallBaseFileTuple{},
+		system:         map[string][]srcBaseFileInstallBaseFileTuple{},
+		system_ext:     map[string][]srcBaseFileInstallBaseFileTuple{},
+		product:        map[string][]srcBaseFileInstallBaseFileTuple{},
+		vendor:         map[string][]srcBaseFileInstallBaseFileTuple{},
+		recovery:       map[string][]srcBaseFileInstallBaseFileTuple{},
+		vendor_dlkm:    map[string][]srcBaseFileInstallBaseFileTuple{},
+		vendor_ramdisk: map[string][]srcBaseFileInstallBaseFileTuple{},
 	}
 }
 
@@ -81,6 +83,8 @@ func appendIfCorrectInstallPartition(partitionToInstallPathList []partitionToIns
 				srcMap = srcGroup.recovery
 			case "vendor_dlkm":
 				srcMap = srcGroup.vendor_dlkm
+			case "vendor_ramdisk":
+				srcMap = srcGroup.vendor_ramdisk
 			}
 			if srcMap != nil {
 				srcMap[relativeInstallDir] = append(srcMap[relativeInstallDir], srcBaseFileInstallBaseFileTuple{
@@ -133,12 +137,17 @@ func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSr
 	// Filter out duplicate dest entries and non existing src entries
 	productCopyFileMap := uniqueExistingProductCopyFileMap(ctx)
 
+	vendorRamdiskPartition := "vendor_ramdisk"
+	if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
+		vendorRamdiskPartition = "vendor_ramdisk/first_stage_ramdisk"
+	}
 	// System is intentionally added at the last to consider the scenarios where
 	// non-system partitions are installed as part of the system partition
 	partitionToInstallPathList := []partitionToInstallPath{
 		{name: "recovery", installPath: "recovery/root"},
 		{name: "vendor", installPath: ctx.DeviceConfig().VendorPath()},
 		{name: "vendor_dlkm", installPath: ctx.DeviceConfig().VendorDlkmPath()},
+		{name: "vendor_ramdisk", installPath: vendorRamdiskPartition},
 		{name: "product", installPath: ctx.DeviceConfig().ProductPath()},
 		{name: "system_ext", installPath: ctx.DeviceConfig().SystemExtPath()},
 		{name: "system", installPath: "system"},
@@ -170,6 +179,8 @@ type prebuiltModuleProperties struct {
 	Vendor_dlkm_specific *bool
 	Recovery             *bool
 	Ramdisk              *bool
+	Vendor_ramdisk       *bool
+	Install_in_root      *bool
 
 	Srcs []string
 
@@ -284,6 +295,14 @@ func prebuiltEtcModuleProps(ctx android.LoadHookContext, moduleName, partition, 
 		moduleProps.Soc_specific = proptools.BoolPtr(true)
 	case "vendor_dlkm":
 		moduleProps.Vendor_dlkm_specific = proptools.BoolPtr(true)
+	case "vendor_ramdisk":
+		moduleProps.Vendor_ramdisk = proptools.BoolPtr(true)
+		if destDir == "." {
+			moduleProps.Install_in_root = proptools.BoolPtr(true)
+		} else {
+			// TODO: handle PRODUCT_COPY_FILES which install file
+			// to a location that is _not_ vendor_ramdisk/first_stage_ramdisk.
+		}
 	case "recovery":
 		// To match the logic in modulePartition() in android/paths.go
 		if ctx.DeviceConfig().BoardUsesRecoveryAsBoot() && strings.HasPrefix(destDir, "first_stage_ramdisk") {
@@ -416,6 +435,7 @@ func createPrebuiltEtcModules(ctx android.LoadHookContext) (ret []string) {
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "vendor", srcDir, groupedSource.vendor)...)
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "recovery", srcDir, groupedSource.recovery)...)
 		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "vendor_dlkm", srcDir, groupedSource.vendor_dlkm)...)
+		ret = append(ret, createPrebuiltEtcModulesForPartition(ctx, "vendor_ramdisk", srcDir, groupedSource.vendor_ramdisk)...)
 	}
 
 	return ret
