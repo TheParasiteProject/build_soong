@@ -646,7 +646,6 @@ func buildCompatibilitySuitePackage(
 	testSuiteModules []ModuleProxy,
 ) {
 	testSuiteName := suite.Name
-	testSuiteTradefed := suite.Tradefed
 	subdir := fmt.Sprintf("android-%s", testSuiteName)
 
 	hostOutSuite := pathForInstall(ctx, ctx.Config().BuildOSTarget.Os, ctx.Config().BuildOSTarget.Arch.ArchType, testSuiteName)
@@ -655,17 +654,6 @@ func buildCompatibilitySuitePackage(
 	testSuiteFiles = slices.DeleteFunc(testSuiteFiles, func(f Path) bool {
 		return !strings.HasPrefix(f.String(), hostOutTestCases.String()+"/")
 	})
-
-	hostTools := Paths{
-		ctx.Config().HostJavaToolPath(ctx, "tradefed.jar"),
-		ctx.Config().HostJavaToolPath(ctx, "loganalysis.jar"),
-		ctx.Config().HostJavaToolPath(ctx, "compatibility-host-util.jar"),
-		ctx.Config().HostJavaToolPath(ctx, "compatibility-tradefed.jar"),
-		ctx.Config().HostJavaToolPath(ctx, testSuiteTradefed+".jar"),
-		ctx.Config().HostJavaToolPath(ctx, testSuiteTradefed+"-tests.jar"),
-		ctx.Config().HostToolPath(ctx, testSuiteTradefed),
-		ctx.Config().HostToolPath(ctx, "test-utils-script"),
-	}
 
 	// Some make rules still rely on the zip being at this location
 	out := hostOutSuite.Join(ctx, fmt.Sprintf("android-%s.zip", testSuiteName))
@@ -681,6 +669,7 @@ func buildCompatibilitySuitePackage(
 		builder.Command().Text("cp").Input(tool).Output(hostOutTools.Join(ctx, tool.Base()))
 	}
 
+	hostTools := suite.ToolFiles
 	for _, hostTool := range hostTools {
 		cmd.
 			FlagWithArg("-e ", subdir+"/tools/"+hostTool.Base()).
@@ -714,15 +703,10 @@ func buildCompatibilitySuitePackage(
 		builder.Command().Text("cp").Input(suite.DynamicConfig).Output(hostOutTestCases.Join(ctx, testSuiteName+".dynamic"))
 	}
 
-	hostToolModules, err := getModulesForHostTools(ctx, hostTools)
-	// Defer error to execution time, as make historically did.
-	if err != nil {
-		builder.Command().Textf("echo %s && exit 1", proptools.ShellEscapeIncludingSpaces(err.Error()))
-	}
-	modulesForLicense := slices.Concat(testSuiteModules, hostToolModules)
-	if len(modulesForLicense) > 0 {
+	licenceInfos := slices.Concat(GetNoticeModuleInfos(ctx, testSuiteModules), suite.ToolNoticeInfo)
+	if len(licenceInfos) > 0 {
 		notice := PathForOutput(ctx, "compatibility_test_suites", testSuiteName, "NOTICE.txt")
-		BuildNoticeTextOutputFromLicenseMetadata(ctx, notice, "compatibility_"+testSuiteName, "Test suites",
+		BuildNoticeTextOutputFromNoticeModuleInfos(ctx, notice, "compatibility_"+testSuiteName, "Test suites",
 			BuildNoticeFromLicenseDataArgs{
 				Title:       "Notices for files contained in the test suites filesystem image:",
 				StripPrefix: []string{hostOutSuite.String()},
@@ -738,7 +722,7 @@ func buildCompatibilitySuitePackage(
 					},
 				},
 			},
-			modulesForLicense...)
+			licenceInfos)
 
 		cmd.
 			FlagWithArg("-e ", subdir+"/NOTICE.txt").
@@ -775,39 +759,6 @@ func addJdkToZip(ctx SingletonContext, command *RuleBuilderCommand, subdir strin
 		Flag("-sha256").Implicits(paths)
 }
 
-func getModulesForHostTools(ctx SingletonContext, paths Paths) ([]ModuleProxy, error) {
-	if len(paths) == 0 {
-		return nil, nil
-	}
-	foundInstalledFiles := make(map[string]struct{})
-	var modules []ModuleProxy
-	pathStrings := paths.Strings()
-	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
-		installFilesProvider := OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider)
-
-		found := false
-		for _, installed := range installFilesProvider.InstallFiles {
-			if slices.Contains(pathStrings, installed.String()) {
-				if !found {
-					modules = append(modules, m)
-				}
-				if _, ok := foundInstalledFiles[installed.String()]; ok {
-					ctx.Errorf(fmt.Sprintf("File %q found by two different modules, one of them is %s(%s)", installed.String(), ctx.ModuleName(m), ctx.ModuleSubDir(m)))
-					continue
-				}
-				foundInstalledFiles[installed.String()] = struct{}{}
-				found = true
-			}
-		}
-	})
-
-	if len(foundInstalledFiles) != len(paths) {
-		return nil, fmt.Errorf("Could not find modules for all compatibility files")
-	}
-
-	return modules, nil
-}
-
 // compatibility_test_suite_package builds a zip file of all the tests tagged with this suite's
 // name. It's the equivalent of compatibility.mk from the make build system.
 //
@@ -835,24 +786,100 @@ type compatibilityTestSuitePackage struct {
 }
 
 type compatibilitySuitePackageInfo struct {
-	Name          string
-	Tradefed      string
-	Readme        Path
-	Tools         []string
-	DynamicConfig Path
+	Name           string
+	Readme         Path
+	Tools          []string
+	DynamicConfig  Path
+	ToolFiles      Paths
+	ToolNoticeInfo NoticeModuleInfos
 }
 
 var compatibilitySuitePackageProvider = blueprint.NewProvider[compatibilitySuitePackageInfo]()
+
+type ctspTradefedDeptagType struct {
+	blueprint.BaseDependencyTag
+}
+
+var ctspTradefedDeptag = ctspTradefedDeptagType{}
+
+type ctspHostJavaToolDeptagType struct {
+	blueprint.BaseDependencyTag
+}
+
+var ctspHostJavaToolDeptag = ctspHostJavaToolDeptagType{}
+
+type ctspHostToolDeptagType struct {
+	blueprint.BaseDependencyTag
+}
+
+var ctspHostToolDeptag = ctspHostToolDeptagType{}
+
+func (m *compatibilityTestSuitePackage) DepsMutator(ctx BottomUpMutatorContext) {
+	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspTradefedDeptag, proptools.String(m.properties.Tradefed))
+	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, proptools.String(m.properties.Tradefed)+"-tests")
+	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "tradefed")
+	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "loganalysis")
+	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "compatibility-host-util")
+	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "compatibility-tradefed")
+	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostToolDeptag, "test-utils-script")
+}
 
 func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx ModuleContext) {
 	if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", m.Name()); err != nil || !matched {
 		ctx.ModuleErrorf("Invalid test suite name, must match [a-zA-Z0-9_-]+, got %q", m.Name())
 		return
 	}
-	if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", proptools.String(m.properties.Tradefed)); err != nil || !matched {
-		ctx.PropertyErrorf("tradefed", "Invalid test suite tradefed, must match [a-zA-Z0-9_-]+, got %q", proptools.String(m.properties.Tradefed))
-		return
+
+	tradefedName := proptools.String(m.properties.Tradefed)
+	tradefed := ctx.GetDirectDepProxyWithTag(tradefedName, ctspTradefedDeptag)
+
+	tradefedFiles := OtherModuleProviderOrDefault(ctx, tradefed, InstallFilesProvider).InstallFiles
+
+	if len(tradefedFiles) != 2 || tradefedFiles[0].Base() != tradefedName || tradefedFiles[1].Base() != tradefedName+".jar" {
+		ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected files, produced: %s", tradefedName, tradefedFiles.Strings())
 	}
+
+	toolFiles := slices.Clone(tradefedFiles)
+	toolNoticeinfo := NoticeModuleInfos{GetNoticeModuleInfo(ctx, tradefed)}
+
+	hostJavaToolPath := ctx.Config().HostJavaToolPath(ctx, "").String()
+	ctx.VisitDirectDepsProxyWithTag(ctspHostJavaToolDeptag, func(dep ModuleProxy) {
+		files := OtherModuleProviderOrDefault(ctx, dep, InstallFilesProvider).InstallFiles
+		if len(files) == 2 {
+			// tradefed_java_library_host installs the same file in another location, ignore
+			// the second file. Only the second to last component is different, ensure everything
+			// else is the same. We use the file under HostJavaToolPath because the licensing
+			// logic expects that later.
+			// TODO: Consider switching to `JavaInfo.InstallFile` to get just the file we want
+			base1 := files[0].Base()
+			base2 := files[1].Base()
+			prefix1 := filepath.Dir(filepath.Dir(files[0].String()))
+			prefix2 := filepath.Dir(filepath.Dir(files[1].String()))
+			if base1 == base2 && prefix1 == prefix2 {
+				if strings.HasPrefix(files[0].String(), hostJavaToolPath) {
+					files = InstallPaths{files[0]}
+				} else if strings.HasPrefix(files[1].String(), hostJavaToolPath) {
+					files = InstallPaths{files[1]}
+				} else {
+					// leave files unchanged, fall through to error below.
+				}
+			}
+		}
+		if len(files) != 1 || !strings.HasSuffix(files[0].String(), ".jar") {
+			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected single .jar file, got: %s", ctx.OtherModuleName(dep), files.Strings())
+		}
+		toolFiles = append(toolFiles, files...)
+		toolNoticeinfo = append(toolNoticeinfo, GetNoticeModuleInfo(ctx, dep))
+	})
+
+	ctx.VisitDirectDepsProxyWithTag(ctspHostToolDeptag, func(dep ModuleProxy) {
+		files := OtherModuleProviderOrDefault(ctx, dep, InstallFilesProvider).InstallFiles
+		if len(files) != 1 {
+			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected single file", ctx.OtherModuleName(dep))
+		}
+		toolFiles = append(toolFiles, files...)
+		toolNoticeinfo = append(toolNoticeinfo, GetNoticeModuleInfo(ctx, dep))
+	})
 
 	var readme Path
 	if m.properties.Readme != nil {
@@ -865,11 +892,12 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx ModuleCo
 	}
 
 	SetProvider(ctx, compatibilitySuitePackageProvider, compatibilitySuitePackageInfo{
-		Name:          m.Name(),
-		Tradefed:      proptools.String(m.properties.Tradefed),
-		Readme:        readme,
-		Tools:         m.properties.Tools,
-		DynamicConfig: dynamicConfig,
+		Name:           m.Name(),
+		Readme:         readme,
+		Tools:          m.properties.Tools,
+		DynamicConfig:  dynamicConfig,
+		ToolFiles:      toolFiles.Paths(),
+		ToolNoticeInfo: toolNoticeinfo,
 	})
 }
 
