@@ -814,6 +814,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 				android.PathForModuleInPartitionInstall(ctx, "apex").String() + "/",
 			},
 		},
+		ctx.ModuleProxy(),
 	)
 	noticeAssetPath := android.PathForModuleOut(ctx, "NOTICE", "NOTICE.html.gz")
 	builder := android.NewRuleBuilder(pctx, ctx)
