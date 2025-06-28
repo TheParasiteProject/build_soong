@@ -682,7 +682,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		if bootImgInfo.Dtb != nil {
 			builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/BOOT/dtb", targetFilesDir)
 		}
-		if bootImgInfo.Kernel != nil {
+		if bootImgInfo.Kernel != nil && !bootImgInfo.IsPrebuilt {
 			builder.Command().Textf("cp ").Input(bootImgInfo.Kernel).Textf(" %s/BOOT/kernel", targetFilesDir)
 			// Even though kernel is not used to build vendor_boot, copy the kernel to VENDOR_BOOT to match the behavior of make packaging.
 			builder.Command().Textf("cp ").Input(bootImgInfo.Kernel).Textf(" %s/VENDOR_BOOT/kernel", targetFilesDir)
@@ -923,12 +923,14 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	builder.Command().Textf("cp").Input(a.apkCertsInfo).Textf(" %s/META/", targetFilesDir.String())
 
 	// Copy fastboot-info.txt
+	var fastbootInfo android.Path
 	if proptools.String(a.deviceProps.FastbootInfo) != "" {
-		fastbootInfo := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.FastbootInfo))
-		// TODO (b/399788523): Autogenerate fastboot-info.txt if there is no source fastboot-info.txt
-		// https://cs.android.com/android/_/android/platform/build/+/80b9546f8f69e78b8fe1870e0e745d70fc18dfcd:core/Makefile;l=5831-5893;drc=077490384423dff9eac954da5c001c6f0be3fa6e;bpv=0;bpt=0
-		builder.Command().Textf("cp").Input(fastbootInfo).Textf(" %s/META/fastboot-info.txt", targetFilesDir.String())
+		fastbootInfo = android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.FastbootInfo))
+	} else {
+		// Autogenerate fastboot-info.txt if there is no source fastboot-info.txt
+		fastbootInfo = a.createFastbootInfo(ctx)
 	}
+	builder.Command().Textf("cp").Input(fastbootInfo).Textf(" %s/META/fastboot-info.txt", targetFilesDir.String())
 
 	// kernel_configs.txt and kernel_version.txt
 	if a.kernelConfig != nil {
@@ -960,6 +962,92 @@ var (
 	// https://cs.android.com/android/_/android/platform/build/+/30f05352c3e6f4333c77d4af66c253572d3ea6c9:core/Makefile;l=2111-2120;drc=519f75666431ee2926e0ec8991c682b28a4c9521;bpv=1;bpt=0
 	defaultTargetRecoveryFstypeMountOptions = "ext4=max_batch_time=0,commit=1,data=ordered,barrier=1,errors=panic,nodelalloc"
 )
+
+// https://cs.android.com/android/_/android/platform/build/+/80b9546f8f69e78b8fe1870e0e745d70fc18dfcd:core/Makefile;l=5831-5893;drc=077490384423dff9eac954da5c001c6f0be3fa6e;bpv=0;bpt=0
+func (a *androidDevice) createFastbootInfo(ctx android.ModuleContext) android.Path {
+	fastbootInfo := android.PathForModuleOut(ctx, "fastboot-info.txt")
+	var fastbootInfoString strings.Builder
+	fastbootInfoString.WriteString(fmt.Sprintf("# fastboot-info for %s\n", ctx.Config().DeviceProduct()))
+	fastbootInfoString.WriteString(fmt.Sprintf("version 1\n"))
+	if a.partitionProps.Boot_partition_name != nil {
+		fastbootInfoString.WriteString(fmt.Sprintf("flash boot\n"))
+	}
+	if a.partitionProps.Init_boot_partition_name != nil {
+		fastbootInfoString.WriteString(fmt.Sprintf("flash init_boot\n"))
+	}
+	if a.deviceProps.Dtbo_image != nil {
+		fastbootInfoString.WriteString(fmt.Sprintf("flash dtbo\n"))
+	}
+	if a.partitionProps.Vendor_kernel_boot_partition_name != nil {
+		fastbootInfoString.WriteString(fmt.Sprintf("flash vendor_kernel_boot\n"))
+	}
+	if a.deviceProps.Pvmfw.Image != nil {
+		fastbootInfoString.WriteString(fmt.Sprintf("flash pvmfw\n"))
+	}
+	if a.partitionProps.Vendor_boot_partition_name != nil {
+		fastbootInfoString.WriteString(fmt.Sprintf("flash vendor_boot\n"))
+	}
+	// vbmeta
+	if len(a.partitionProps.Vbmeta_partitions) > 0 {
+		fastbootInfoString.WriteString(fmt.Sprintf("flash --apply-vbmeta vbmeta\n"))
+	}
+	var allChainedVbmetaPartitionTypes []string
+	for _, vbmetaPartitionName := range a.partitionProps.Vbmeta_partitions {
+		img := ctx.GetDirectDepProxyWithTag(vbmetaPartitionName, filesystemDepTag)
+		if provider, ok := android.OtherModuleProvider(ctx, img, vbmetaPartitionProvider); ok {
+			if provider.FilesystemPartitionType != "" { // the top-level vbmeta.img
+				allChainedVbmetaPartitionTypes = append(allChainedVbmetaPartitionTypes, provider.FilesystemPartitionType)
+			}
+		} else {
+			ctx.ModuleErrorf("vbmeta dep %s does not set vbmetaPartitionProvider\n", vbmetaPartitionName)
+		}
+	}
+	for _, chainedVbmetaPartitionType := range []string{"system", "vendor"} {
+		if android.InList(chainedVbmetaPartitionType, allChainedVbmetaPartitionTypes) {
+			fastbootInfoString.WriteString(fmt.Sprintf("flash vbmeta_%s\n", chainedVbmetaPartitionType))
+		}
+	}
+
+	fastbootInfoString.WriteString(fmt.Sprintf("reboot fastboot\n"))
+	fastbootInfoString.WriteString(fmt.Sprintf("update-super\n"))
+
+	var partitionsInSuper map[string]FilesystemInfo
+	if a.partitionProps.Super_partition_name != nil {
+		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
+		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
+			partitionsInSuper = info.SubImageInfo
+		} else {
+			ctx.ModuleErrorf("Super partition %s does not set SuperImageProvider\n", superPartition.Name())
+		}
+	}
+	for _, partition := range []string{
+		"system",
+		"system_dlkm",
+		"system_ext",
+		"product",
+		"vendor",
+		"vendor_dlkm",
+	} {
+		if _, exists := partitionsInSuper[partition]; exists {
+			fastbootInfoString.WriteString(fmt.Sprintf("flash %s\n", partition))
+		}
+	}
+
+	if _, exists := partitionsInSuper["system_other"]; exists {
+		fastbootInfoString.WriteString(fmt.Sprintf("flash --slot-other system system_other.img\n"))
+	}
+
+	fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase userdata\n"))
+
+	// TODO: handle products with cache (PRODUCT_BUILD_CACHE_IMAGE=true)
+	// fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase cache\n"))
+
+	// TODO: Remove this hardcoding
+	fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase metadata\n"))
+
+	android.WriteFileRuleVerbatim(ctx, fastbootInfo, fastbootInfoString.String())
+	return fastbootInfo
+}
 
 // A partial implementation of make's $PRODUCT_OUT/misc_info.txt
 // https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=5894?q=misc_info.txt%20f:build%2Fmake%2Fcore%2FMakefile&ss=android%2Fplatform%2Fsuperproject%2Fmain

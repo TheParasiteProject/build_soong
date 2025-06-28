@@ -183,6 +183,27 @@ func (imageTransitionMutator) Split(ctx BaseModuleContext) []string {
 }
 
 func (imageTransitionMutator) OutgoingTransition(ctx OutgoingTransitionContext, sourceVariation string) string {
+	// Request the appropriate image variation of a dependency from `filesystem`.
+	// imageMutator currently does not split ImageInterface modules for every
+	// android partition (e.g. there is no system_dlkm variation).
+	// For such cases, the default "" variation will be requested.
+	if partition, ok := ctx.Module().(PartitionTypeInterface); ok {
+		if partition.PartitionType() == VendorVariation {
+			return VendorVariation
+		} else if partition.PartitionType() == ProductVariation {
+			return ProductVariation
+		} else if partition.PartitionType() == RecoveryVariation {
+			return RecoveryVariation
+		} else if partition.PartitionType() == RamdiskVariation {
+			return RamdiskVariation
+		} else if partition.PartitionType() == VendorRamdiskVariation {
+			return VendorRamdiskVariation
+		} else if partition.PartitionType() == DebugRamdiskVariation {
+			return DebugRamdiskVariation
+		} else {
+			return CoreVariation // default "" variation
+		}
+	}
 	return sourceVariation
 }
 

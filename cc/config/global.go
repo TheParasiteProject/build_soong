@@ -167,7 +167,7 @@ var (
 		"-funwind-tables",
 		"-fstack-protector-strong",
 		"-Wa,--noexecstack",
-		"-D_FORTIFY_SOURCE=2",
+		"-D_FORTIFY_SOURCE=3",
 
 		"-Wstrict-aliasing=2",
 
@@ -385,10 +385,10 @@ var (
 	ClangDefaultBase = "prebuilts/clang/host"
 	// The Clang version used in the trunk branch.
 	// NOTE: This is deprecated and will be removed in a future version, use the getter function instead.
-	ClangDefaultVersion = "clang-r547379"
+	ClangDefaultVersion = "clang-r563880"
 	// The Clang short version used in the trunk branch.
 	// NOTE: This is deprecated and will be removed in a future version, use the getter function instead.
-	ClangDefaultShortVersion = "20"
+	ClangDefaultShortVersion = "21"
 
 	// Directories with warnings from Android.bp files.
 	WarningAllowedProjects = []string{

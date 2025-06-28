@@ -32,6 +32,7 @@ import (
 func init() {
 	RegisterParallelSingletonType("testsuites", testSuiteFilesFactory)
 	RegisterModuleType("compatibility_test_suite_package", compatibilityTestSuitePackageFactory)
+	RegisterModuleType("test_suite_package", testSuitePackageFactory)
 }
 
 func testSuiteFilesFactory() Singleton {
@@ -132,6 +133,20 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	var oneVariantInstalls []filePair
 	var allCompatibilitySuitePackages []compatibilitySuitePackageInfo
 
+	allTestSuiteConfigs := testSuiteConfigs
+	allTestSuitesWithHostSharedLibs := []string{
+		"general-tests",
+		"device-tests",
+		"vts",
+		"tvts",
+		"art-host-tests",
+		"host-unit-tests",
+		"camera-hal-tests",
+		"automotive-tests",
+		"automotive-general-tests",
+		"automotive-sdv-tests",
+	}
+
 	ctx.VisitAllModuleProxies(func(m ModuleProxy) {
 		commonInfo := OtherModuleProviderOrDefault(ctx, m, CommonModuleInfoProvider)
 		testSuiteSharedLibsInfo := OtherModuleProviderOrDefault(ctx, m, TestSuiteSharedLibsInfoProvider)
@@ -184,6 +199,12 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 		if info, ok := OtherModuleProvider(ctx, m, compatibilitySuitePackageProvider); ok {
 			allCompatibilitySuitePackages = append(allCompatibilitySuitePackages, info)
 		}
+		if info, ok := OtherModuleProvider(ctx, m, testSuitePackageProvider); ok {
+			allTestSuiteConfigs = append(allTestSuiteConfigs, info)
+			if info.buildHostSharedLibsZip || info.includeHostSharedLibsInMainZip {
+				allTestSuitesWithHostSharedLibs = append(allTestSuitesWithHostSharedLibs, info.name)
+			}
+		}
 	})
 
 	for suite, suiteInstalls := range allTestSuiteInstalls {
@@ -214,18 +235,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	for _, install := range toInstall {
 		testInstalledSharedLibsDeduper[install.dst.String()] = true
 	}
-	for _, suite := range []string{
-		"general-tests",
-		"device-tests",
-		"vts",
-		"tvts",
-		"art-host-tests",
-		"host-unit-tests",
-		"camera-hal-tests",
-		"automotive-tests",
-		"automotive-general-tests",
-		"automotive-sdv-tests",
-	} {
+	for _, suite := range allTestSuitesWithHostSharedLibs {
 		var myTestCases WritablePath = hostOutTestCases
 		switch suite {
 		case "vts", "tvts":
@@ -314,7 +324,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	ctx.Phony("mobly-tests", moblyZip, moblyListZip)
 	ctx.DistForGoal("mobly-tests", moblyZip, moblyListZip)
 
-	for _, testSuiteConfig := range testSuiteConfigs {
+	for _, testSuiteConfig := range allTestSuiteConfigs {
 		files := allTestSuiteInstalls[testSuiteConfig.name]
 		sharedLibs := testInstalledSharedLibs[testSuiteConfig.name]
 		packageTestSuite(ctx, files, sharedLibs, testSuiteConfig)
@@ -860,5 +870,35 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx ModuleCo
 		Readme:        readme,
 		Tools:         m.properties.Tools,
 		DynamicConfig: dynamicConfig,
+	})
+}
+
+func testSuitePackageFactory() Module {
+	m := &testSuitePackage{}
+	InitAndroidModule(m)
+	m.AddProperties(&m.properties)
+	return m
+}
+
+type testSuitePackageProperties struct {
+	Build_host_shared_libs_zip           *bool
+	Include_host_shared_libs_in_main_zip *bool
+}
+
+type testSuitePackage struct {
+	ModuleBase
+	properties testSuitePackageProperties
+}
+
+var testSuitePackageProvider = blueprint.NewProvider[testSuiteConfig]()
+
+// testSuitePackage does not have build actions of its own.
+// It sets a provider with info about its packaging config.
+// A singleton will create the build rules to create the .zip files.
+func (t *testSuitePackage) GenerateAndroidBuildActions(ctx ModuleContext) {
+	SetProvider(ctx, testSuitePackageProvider, testSuiteConfig{
+		name:                           t.Name(),
+		buildHostSharedLibsZip:         proptools.Bool(t.properties.Build_host_shared_libs_zip),
+		includeHostSharedLibsInMainZip: proptools.Bool(t.properties.Include_host_shared_libs_in_main_zip),
 	})
 }
