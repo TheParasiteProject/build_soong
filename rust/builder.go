@@ -34,13 +34,7 @@ var (
 			Command: "$relPwd $reTemplate/usr/bin/env $envVars ${RustcWrapper} ${rustcCmd} " +
 				"-C linker=${RustcLinkerCmd} -C link-args=\"--android-clang-bin=${config.ClangCmd} ${linkerScriptFlags}\" " +
 				"-C link-args=@${out}.clang.rsp " +
-				"--emit ${emitType} -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags" +
-				// Rustc deps-info writes out make compatible dep files: https://github.com/rust-lang/rust/issues/7633
-				// Rustc emits unneeded dependency lines for the .d and input .rs files.
-				// Those extra lines cause ninja warning:
-				//     "warning: depfile has multiple output paths"
-				// For ninja, we keep/grep only the dependency rule for the rust $out file.
-				" && grep ^$out: $out.d.raw > $out.d",
+				"--emit ${emitType} -o $out --emit dep-info=$out.d.raw $in ${libFlags} $rustcFlags",
 			CommandDeps:    []string{"$rustcCmd", "${RustcLinkerCmd}", "${config.ClangCmd}", "${RustcWrapper}"},
 			Rspfile:        "${out}.clang.rsp",
 			RspfileContent: "${crtBegin} ${earlyLinkFlags} ${linkFlags} ${crtEnd}",
@@ -82,8 +76,7 @@ var (
 				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
 				// Use the metadata output as it has the smallest footprint.
 				"--emit metadata -o $out --emit dep-info=$out.d.raw $in ${libFlags} " +
-				"$rustcFlags $clippyFlags" +
-				" && grep ^$out: $out.d.raw > $out.d",
+				"$rustcFlags $clippyFlags",
 			CommandDeps: []string{"$clippyCmd", "${RustcWrapper}"},
 			Deps:        blueprint.DepsGCC,
 			Depfile:     "$out.d",
