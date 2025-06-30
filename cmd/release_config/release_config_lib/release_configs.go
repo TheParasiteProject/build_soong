@@ -86,6 +86,9 @@ type ReleaseConfigs struct {
 	// case, we will substitute `trunk_staging` values, but the release
 	// config will not be in ALL_RELEASE_CONFIGS_FOR_PRODUCT.
 	allowMissing bool
+
+	// Hash of all the paths used and their contents.
+	FilesUsedHash []byte
 }
 
 func (configs *ReleaseConfigs) WriteInheritanceGraph(outFile string) error {
@@ -318,7 +321,7 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(path string, ConfigDirIndex 
 	// more from entering the tree while we work to clean up the duplicates
 	// that already exist.
 	dupFlagFile := filepath.Join(dir, "duplicate_allowlist.txt")
-	data, err := os.ReadFile(dupFlagFile)
+	data, err := ReadTrackedFile(dupFlagFile)
 	if err == nil {
 		for _, flag := range strings.Split(string(data), "\n") {
 			flag = strings.TrimSpace(flag)
@@ -568,6 +571,7 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 
 	configs := ReleaseConfigsFactory()
 	configs.allowMissing = allowMissing
+	startFileRecord()
 	mapsRead := make(map[string]bool)
 	var idx int
 	var loadErrors []error
@@ -588,6 +592,7 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		}
 		idx += 1
 	}
+	configs.FilesUsedHash = finishFileRecord()
 	if len(loadErrors) > 0 {
 		return nil, errors.Join(loadErrors...)
 	}
@@ -595,4 +600,9 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 	// Now that we have all of the release config maps, can meld them and generate the artifacts.
 	err = configs.GenerateReleaseConfigs(targetRelease)
 	return configs, err
+}
+
+// Write the depfile for this release config run.
+func (configs *ReleaseConfigs) WriteHashFile(hashFilePath string) error {
+	return os.WriteFile(hashFilePath, configs.FilesUsedHash, 0644)
 }
