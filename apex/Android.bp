@@ -25,6 +25,7 @@ bootstrap_go_package {
         "androidmk.go",
         "apex.go",
         "apex_sdk_member.go",
+        "apex_sdk_member_gob_enc.go",
         "apex_singleton.go",
         "builder.go",
         "deapexer.go",

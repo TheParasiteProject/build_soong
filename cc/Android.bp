@@ -69,10 +69,13 @@ bootstrap_go_package {
         "binary_sdk_member_gob_enc.go",
         "fuzz.go",
         "image_sdk_traits.go",
+        "image_sdk_traits_gob_enc.go",
         "library.go",
         "library_headers.go",
         "library_sdk_member.go",
+        "library_sdk_member_gob_enc.go",
         "native_bridge_sdk_trait.go",
+        "native_bridge_sdk_trait_gob_enc.go",
         "object.go",
         "test.go",
 
