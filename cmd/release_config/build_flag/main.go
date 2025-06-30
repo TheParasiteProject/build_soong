@@ -120,6 +120,7 @@ func GetReleaseArgs(configs *rc_lib.ReleaseConfigs, commonFlags Flags) ([]*rc_li
 			"-default": 100,
 		}
 
+		configs.GenerateAllReleaseConfigs(commonFlags.targetReleases[0])
 		for _, config := range configs.ReleaseConfigs {
 			ret = append(ret, config)
 		}
