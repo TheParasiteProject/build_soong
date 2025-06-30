@@ -183,6 +183,10 @@ func (c Config) MaxPageSizeSupported() string {
 	return String(c.config.productVariables.DeviceMaxPageSizeSupported)
 }
 
+func (c Config) DeviceCheckPrebuiltMaxPageSize() bool {
+	return Bool(c.config.productVariables.DeviceCheckPrebuiltMaxPageSize)
+}
+
 // NoBionicPageSizeMacro returns true when AOSP is page size agnostic.
 // This means that the bionic's macro PAGE_SIZE won't be defined.
 // Returns false when AOSP is NOT page size agnostic.
@@ -2309,6 +2313,10 @@ func (c *deviceConfig) BuildBrokenDontCheckSystemSdk() bool {
 
 func (c *deviceConfig) BuildBrokenDupSysprop() bool {
 	return c.config.productVariables.BuildBrokenDupSysprop
+}
+
+func (c *deviceConfig) BuildBrokenPrebuiltELFFiles() bool {
+	return c.config.productVariables.BuildBrokenPrebuiltELFFiles
 }
 
 func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {

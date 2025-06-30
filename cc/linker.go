@@ -17,6 +17,7 @@ package cc
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"android/soong/android"
 	"android/soong/cc/config"
@@ -694,4 +695,58 @@ func (linker *baseLinker) injectVersionSymbol(ctx ModuleContext, in android.Path
 			"buildNumberFile": buildNumberFile.String(),
 		},
 	})
+}
+
+var checkElfFileRule = pctx.AndroidStaticRule("checkElfFile",
+	blueprint.RuleParams{
+		Command: "${checkElfFileCmd} --skip-bad-elf-magic --skip-unknown-elf-machine $args" +
+			" --llvm-readobj=${config.ClangBin}/llvm-readobj $in" +
+			" && touch $out",
+		CommandDeps: []string{"$checkElfFileCmd", "${config.ClangBin}/llvm-readobj"},
+	}, "args")
+
+// checkElfFile creates a rule that runs a prebuilt ELF file (shared library or binary) through the check_elf_file
+// command to verify that the DT_NEEDED entries in the prebuilt match the shared_libs listed in the Android.bp file,
+// the DT_SONAME matches the module name, that symbols can be resolved and that the alignment matches the page size.
+// The output file should be used as a validation dependency of the rule that copies the prebuilt.
+func (linker *baseLinker) checkElfFile(ctx ModuleContext, sharedLibStem string, deps PathDeps, elfFile android.Path) android.Path {
+	var args []string
+	var implicits android.Paths
+	if !Bool(linker.Properties.Ignore_max_page_size) && ctx.Config().DeviceCheckPrebuiltMaxPageSize() {
+		args = append(args, "--max-page-size "+ctx.Config().MaxPageSizeSupported())
+	}
+	if Bool(linker.Properties.Allow_undefined_symbols) {
+		args = append(args, "--allow-undefined-symbols")
+	}
+	if sharedLibStem != "" {
+		args = append(args, "--soname "+sharedLibStem)
+	}
+	for _, sharedLib := range deps.EarlySharedLibs {
+		args = append(args, "--shared-lib "+sharedLib.String())
+		implicits = append(implicits, sharedLib)
+	}
+	for _, sharedLib := range deps.SharedLibs {
+		args = append(args, "--shared-lib "+sharedLib.String())
+		implicits = append(implicits, sharedLib)
+	}
+	for _, sharedLib := range deps.LateSharedLibs {
+		args = append(args, "--shared-lib "+sharedLib.String())
+		args = append(args, "--system-shared-lib "+sharedLib.Base())
+		implicits = append(implicits, sharedLib)
+	}
+
+	outputFile := android.PathForModuleOut(ctx, elfFile.Base()+".check_elf_file")
+
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        checkElfFileRule,
+		Description: "check elf file",
+		Output:      outputFile,
+		Input:       elfFile,
+		Implicits:   implicits,
+		Args: map[string]string{
+			"args": strings.Join(args, " "),
+		},
+	})
+
+	return outputFile
 }
