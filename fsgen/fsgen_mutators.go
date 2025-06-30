@@ -365,6 +365,11 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 		if m.Enabled(mctx) && m.ExportedToMake() {
 			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeDisabled, mctx.ModuleName())
 		}
+	} else if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()+".recovery"]; ok && mctx.Module().InstallInRecovery() {
+		installPartition := "recovery"
+		if m.Enabled(mctx) && m.ExportedToMake() {
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeDisabled, mctx.ModuleName())
+		}
 	}
 
 	// store the map of module to (required,overrides) even if the module is not in PRODUCT_PACKAGES.
