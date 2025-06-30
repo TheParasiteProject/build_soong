@@ -691,6 +691,8 @@ type PartitionVariables struct {
 	ProductBuildSuperPartition        bool                                     `json:",omitempty"`
 	BuildingSuperEmptyImage           bool                                     `json:",omitempty"`
 	BoardSuperPartitionSize           string                                   `json:",omitempty"`
+	BoardSuperPartitionWarnLimit      string                                   `json:",omitempty"`
+	BoardSuperPartitionErrorLimit     string                                   `json:",omitempty"`
 	BoardSuperPartitionMetadataDevice string                                   `json:",omitempty"`
 	BoardSuperPartitionBlockDevices   []string                                 `json:",omitempty"`
 	BoardSuperPartitionGroups         map[string]BoardSuperPartitionGroupProps `json:",omitempty"`
