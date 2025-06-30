@@ -327,6 +327,17 @@ func rustEnvVars(ctx android.ModuleContext, deps PathDeps, crateName string, car
 		}
 	}
 
+	if rustModule, ok := ctx.Module().(*Module); ok {
+		if _, ok := rustModule.compiler.(*toolchainLibraryDecorator); ok {
+			// some toolchain libraries rely on sources which are pregenerated
+			// during the toolchain build. This ensures that `include!` macros
+			// work.
+			// Note this may be overwritten by rustc_wrapper.sh if SOONG_RUST_GEN_DIR
+			// is set.
+			envVars["OUT_DIR"] = "out/"
+		}
+	}
+
 	if ctx.Darwin() {
 		envVars["ANDROID_RUST_DARWIN"] = "true"
 	}
