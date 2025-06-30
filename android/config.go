@@ -2427,7 +2427,7 @@ var (
 		"RELEASE_APEX_CONTRIBUTIONS_SWCODEC":                 "com.android.media.swcodec",
 		"RELEASE_APEX_CONTRIBUTIONS_STATSD":                  "com.android.os.statsd",
 		"RELEASE_APEX_CONTRIBUTIONS_TELEMETRY_TVP":           "",
-		"RELEASE_APEX_CONTRIBUTIONS_TELEMETRY_TELEPHONY2":    "com.android.telephony2",
+		"RELEASE_APEX_CONTRIBUTIONS_TELEPHONY2":              "com.android.telephony2",
 		"RELEASE_APEX_CONTRIBUTIONS_TZDATA":                  "com.android.tzdata",
 		"RELEASE_APEX_CONTRIBUTIONS_UPROBESTATS":             "com.android.uprobestats",
 		"RELEASE_APEX_CONTRIBUTIONS_UWB":                     "com.android.uwb",
