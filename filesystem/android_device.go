@@ -148,6 +148,8 @@ type androidDevice struct {
 
 	symbolsZipFile     android.ModuleOutPath
 	symbolsMappingFile android.ModuleOutPath
+
+	fastbootInfoFile android.Path
 }
 
 func AndroidDeviceFactory() android.Module {
@@ -549,6 +551,16 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		if a.jacocoZip != nil {
 			ctx.DistForGoal("dist_files", a.jacocoZip)
 		}
+		// radio
+		if a.deviceProps.Radio_partition_name != nil {
+			radio := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Radio_partition_name, radioDepTag)
+			files := android.OutputFilesForModule(ctx, radio, "")
+			for _, file := range files {
+				// The radio files are disted stanadlone, outside img.zip
+				ctx.DistForGoal("droidcore-unbundled", file)
+			}
+		}
+
 	}
 }
 
@@ -961,14 +973,13 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	builder.Command().Textf("cp").Input(a.apkCertsInfo).Textf(" %s/META/", targetFilesDir.String())
 
 	// Copy fastboot-info.txt
-	var fastbootInfo android.Path
 	if proptools.String(a.deviceProps.FastbootInfo) != "" {
-		fastbootInfo = android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.FastbootInfo))
+		a.fastbootInfoFile = android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.FastbootInfo))
 	} else {
 		// Autogenerate fastboot-info.txt if there is no source fastboot-info.txt
-		fastbootInfo = a.createFastbootInfo(ctx)
+		a.fastbootInfoFile = a.createFastbootInfo(ctx)
 	}
-	builder.Command().Textf("cp").Input(fastbootInfo).Textf(" %s/META/fastboot-info.txt", targetFilesDir.String())
+	builder.Command().Textf("cp").Input(a.fastbootInfoFile).Textf(" %s/META/fastboot-info.txt", targetFilesDir.String())
 
 	// kernel_configs.txt and kernel_version.txt
 	if a.kernelConfig != nil {

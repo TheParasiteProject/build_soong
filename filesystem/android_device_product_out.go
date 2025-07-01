@@ -135,6 +135,43 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 	copyBootImg(a.partitionProps.Init_boot_partition_name, "init_boot")
 	copyBootImg(a.partitionProps.Boot_partition_name, "boot")
 	copyBootImg(a.partitionProps.Vendor_boot_partition_name, "vendor_boot")
+	copyBootImg(a.partitionProps.Vendor_boot_partition_name, "vendor_kernel_boot")
+
+	// pvmfw
+	if a.deviceProps.Pvmfw.Image != nil {
+		pvmfwImg := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Image))
+		installPath := android.PathForModuleInPartitionInstall(ctx, "", "pvmfw.img")
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Cp,
+			Input:  pvmfwImg,
+			Output: installPath,
+		})
+		deps = append(deps, installPath)
+	}
+
+	// dtbo
+	for _, dtbo := range []*string{a.deviceProps.Dtbo_image, a.deviceProps.Dtbo_image_16k} {
+		if dtbo != nil {
+			dtboModule := ctx.GetDirectDepProxyWithTag(*dtbo, dtboDepTag)
+			img := android.OutputFilesForModule(ctx, dtboModule, "")[0]
+			installPath := android.PathForModuleInPartitionInstall(ctx, "", img.Base())
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Input:  img,
+				Output: installPath,
+			})
+			deps = append(deps, installPath)
+		}
+	}
+
+	// Fastboot-info.txt
+	fastbootInstallpath := android.PathForModuleInPartitionInstall(ctx, "", "fastboot-info.txt")
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  a.fastbootInfoFile,
+		Output: fastbootInstallpath,
+	})
+	deps = append(deps, fastbootInstallpath)
 
 	for _, vbmetaModName := range a.partitionProps.Vbmeta_partitions {
 		partition := ctx.GetDirectDepProxyWithTag(vbmetaModName, filesystemDepTag)
@@ -161,6 +198,16 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 				Output: installPath,
 			})
 			deps = append(deps, installPath)
+			if info.SuperEmptyImage != nil {
+				installPath := android.PathForModuleInPartitionInstall(ctx, "", "super_empty.img")
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.Cp,
+					Input:  info.SuperEmptyImage,
+					Output: installPath,
+				})
+				deps = append(deps, installPath)
+			}
+
 		} else {
 			ctx.ModuleErrorf("%s does not set SuperImageProvider\n", *a.partitionProps.Super_partition_name)
 		}
