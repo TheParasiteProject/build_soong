@@ -74,6 +74,14 @@ func createSuperImage(
 	superImageProps.Size = proptools.Int64Ptr(size)
 	sparse := !partitionVars.TargetUserimagesSparseExtDisabled && !partitionVars.TargetUserimagesSparseF2fsDisabled
 	superImageProps.Sparse = proptools.BoolPtr(sparse)
+	if partitionVars.BoardSuperPartitionWarnLimit != "" {
+		limit, _ := strconv.ParseInt(partitionVars.BoardSuperPartitionWarnLimit, 10, 64)
+		superImageProps.Size_warn_limit = proptools.Int64Ptr(limit)
+	}
+	if partitionVars.BoardSuperPartitionErrorLimit != "" {
+		limit, _ := strconv.ParseInt(partitionVars.BoardSuperPartitionErrorLimit, 10, 64)
+		superImageProps.Size_error_limit = proptools.Int64Ptr(limit)
+	}
 
 	var partitionGroupsInfo []filesystem.PartitionGroupsInfo
 	for _, groupName := range android.SortedKeys(partitionVars.BoardSuperPartitionGroups) {
