@@ -30,6 +30,7 @@ bootstrap_go_package {
         "logical_partition.go",
         "raw_binary.go",
         "radio.go",
+        "ramdisk_16k.go",
         "recovery_background_pictures.go",
         "super_image.go",
         "system_image.go",

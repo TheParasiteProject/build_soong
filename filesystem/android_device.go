@@ -112,6 +112,8 @@ type DeviceProperties struct {
 	Radio_partition_name *string
 
 	Pvmfw PvmfwProperties
+
+	Ramdisk_16k *string
 }
 
 type PvmfwProperties struct {
@@ -176,6 +178,9 @@ type dtboDepTagType struct {
 type radioDepTagType struct {
 	blueprint.BaseDependencyTag
 }
+type ramdisk16kDepTagType struct {
+	blueprint.BaseDependencyTag
+}
 
 var superPartitionDepTag superPartitionDepTagType
 var filesystemDepTag partitionDepTagType
@@ -183,6 +188,7 @@ var targetFilesMetadataDepTag targetFilesMetadataDepTagType
 var fileContextsDepTag fileContextsDepTagType
 var dtboDepTag dtboDepTagType
 var radioDepTag dtboDepTagType
+var ramdisk16kDepTag ramdisk16kDepTagType
 
 func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined := func(dep *string) {
@@ -221,6 +227,9 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	if a.deviceProps.Radio_partition_name != nil {
 		ctx.AddDependency(ctx.Module(), radioDepTag, *a.deviceProps.Radio_partition_name)
+	}
+	if a.deviceProps.Ramdisk_16k != nil {
+		ctx.AddDependency(ctx.Module(), ramdisk16kDepTag, *a.deviceProps.Ramdisk_16k)
 	}
 }
 
@@ -732,8 +741,15 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		pvbmfwAvbkey := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Avbkey))
 		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(pvbmfwAvbkey).Textf(" %s/PREBUILT_IMAGES/pvmfw_embedded.avbpubkey", targetFilesDir.String())
 	}
+	if a.deviceProps.Ramdisk_16k != nil {
+		ramdisk16k := ctx.GetDirectDepProxyWithTag(proptools.String(a.deviceProps.Ramdisk_16k), ramdisk16kDepTag)
+		info := android.OtherModuleProviderOrDefault(ctx, ramdisk16k, FilesystemProvider)
+		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(info.Output).Textf(" %s/PREBUILT_IMAGES/ramdisk_16k.img", targetFilesDir.String())
+	}
 
 	a.copyPrebuiltImages(ctx, builder, targetFilesDir)
+
+	a.copyVendorRamdiskFragments(ctx, builder, targetFilesDir)
 
 	a.copyMetadataToTargetZip(ctx, builder, targetFilesDir, allInstalledModules)
 
@@ -813,6 +829,28 @@ func (a *androidDevice) copyPrebuiltImages(ctx android.ModuleContext, builder *a
 		// Copy directly to IMAGES/
 		// add_img_to_target_files.py does not support dtbo_16k
 		builder.Command().Text("cp").Input(img).Textf(" %s/IMAGES/", targetFilesDir)
+	}
+}
+
+// partial implementation of vendor ramdisk fragments in target_files.zip
+func (a *androidDevice) copyVendorRamdiskFragments(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.Path) {
+	var vendorRamdiskFragments []string
+	if a.deviceProps.Ramdisk_16k != nil {
+		vendorRamdiskFragments = append(vendorRamdiskFragments, "16K")
+		ramdisk16k := ctx.GetDirectDepProxyWithTag(proptools.String(a.deviceProps.Ramdisk_16k), ramdisk16kDepTag)
+		info := android.OtherModuleProviderOrDefault(ctx, ramdisk16k, FilesystemProvider)
+		builder.Command().
+			Textf("mkdir -p %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/16K/", targetFilesDir.String()).
+			Text(" && cp").
+			Input(info.Output).
+			Textf(" %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/16K/prebuilt_ramdisk", targetFilesDir.String())
+
+		builder.Command().
+			Textf("echo --ramdisk_name 16K > %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/16K/mkbootimg_args", targetFilesDir)
+	}
+
+	if len(vendorRamdiskFragments) > 0 {
+		builder.Command().Textf("echo %s > %s/VENDOR_BOOT/vendor_ramdisk_fragments", strings.Join(vendorRamdiskFragments, ""), targetFilesDir)
 	}
 }
 
