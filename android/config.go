@@ -1777,6 +1777,10 @@ func (c *config) DisableNoticeXmlGeneration() bool {
 	return c.IsEnvTrue("DISABLE_NOTICE_XML_GENERATION")
 }
 
+func (c *config) CompatibilityTestcases() map[string]CompatibilityTestcaseJSON {
+	return c.productVariables.CompatibilityTestcases
+}
+
 func (c *deviceConfig) Arches() []Arch {
 	var arches []Arch
 	for _, target := range c.config.Targets[Android] {

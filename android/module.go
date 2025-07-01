@@ -1687,7 +1687,7 @@ func (m *ModuleBase) VintfFragments(ctx ConfigurableEvaluatorContext) []string {
 // generateModuleTarget generates phony targets so that you can do `m <module-name>`.
 // It will be run on every variant of the module, so it relies on the fact that phony targets
 // are deduped to merge all the deps from different variants together.
-func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls []filePair) {
+func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls []FilePair) {
 	var namespacePrefix string
 	nameSpace := ctx.Namespace().Path
 	if nameSpace != "." {
@@ -1754,7 +1754,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	}
 
 	for _, p := range testSuiteInstalls {
-		deps = append(deps, p.dst)
+		deps = append(deps, p.Dst)
 	}
 
 	if len(deps) > 0 {
@@ -2237,7 +2237,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		SetProvider(ctx, InstallFilesProvider, installFiles)
 	}
 
-	var testSuiteInstalls []filePair
+	var testSuiteInstalls []FilePair
 	if ctx.testSuiteInfoSet {
 		testSuiteInstalls = m.setupTestSuites(ctx, ctx.testSuiteInfo)
 	}
@@ -2478,7 +2478,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 func (m *ModuleBase) CleanupAfterBuildActions() {}
 
-func (m *ModuleBase) setupTestSuites(ctx ModuleContext, info TestSuiteInfo) []filePair {
+func (m *ModuleBase) setupTestSuites(ctx ModuleContext, info TestSuiteInfo) []FilePair {
 	// We skip test suites when using the ndk or aml abis, as the extra archs (x86_64 + arm64)
 	// both try to install to the same test file. This could be fixed by always using a per-module
 	// folder and an arch folder, but as you see later in this function we only conditionally use
@@ -2523,7 +2523,7 @@ func (m *ModuleBase) setupTestSuites(ctx ModuleContext, info TestSuiteInfo) []fi
 		includeModuleFolder: true,
 	}}
 	for _, suite := range info.TestSuites {
-		if suiteInfo, ok := ctx.Config().productVariables.CompatibilityTestcases[suite]; ok {
+		if suiteInfo, ok := ctx.Config().CompatibilityTestcases()[suite]; ok {
 			rel, err := filepath.Rel(ctx.Config().OutDir(), suiteInfo.OutDir)
 			if err != nil {
 				panic(fmt.Sprintf("Could not make COMPATIBILITY_TESTCASES_OUT_%s (%s) relative to the out dir (%s)", suite, suiteInfo.OutDir, ctx.Config().OutDir()))
@@ -2550,8 +2550,8 @@ func (m *ModuleBase) setupTestSuites(ctx ModuleContext, info TestSuiteInfo) []fi
 		}
 	}
 
-	var installs []filePair
-	var oneVariantInstalls []filePair
+	var installs []FilePair
+	var oneVariantInstalls []FilePair
 
 	for _, suite := range suites {
 		mainFileName := name
@@ -2559,83 +2559,83 @@ func (m *ModuleBase) setupTestSuites(ctx ModuleContext, info TestSuiteInfo) []fi
 			mainFileName = info.MainFileStem
 		}
 		mainFileName += info.MainFileExt
-		mainFileInstall := joinWriteablePath(ctx, suite.dir, archDir, mainFileName)
+		mainFileInstall := JoinWriteablePath(ctx, suite.dir, archDir, mainFileName)
 		if !suite.includeModuleFolder {
-			mainFileInstall = joinWriteablePath(ctx, suite.dir, mainFileName)
+			mainFileInstall = JoinWriteablePath(ctx, suite.dir, mainFileName)
 		}
 		if info.MainFile == nil {
 			panic("mainfile was nil")
 		}
 
-		installs = append(installs, filePair{
-			src: info.MainFile,
-			dst: mainFileInstall,
+		installs = append(installs, FilePair{
+			Src: info.MainFile,
+			Dst: mainFileInstall,
 		})
 
 		for _, data := range info.Data {
-			dataOut := joinWriteablePath(ctx, suite.dir, archDir, data.ToRelativeInstallPath())
+			dataOut := JoinWriteablePath(ctx, suite.dir, archDir, data.ToRelativeInstallPath())
 			if !suite.includeModuleFolder {
-				dataOut = joinWriteablePath(ctx, suite.dir, data.ToRelativeInstallPath())
+				dataOut = JoinWriteablePath(ctx, suite.dir, data.ToRelativeInstallPath())
 			}
-			installs = append(installs, filePair{
-				src: data.SrcPath,
-				dst: dataOut,
+			installs = append(installs, FilePair{
+				Src: data.SrcPath,
+				Dst: dataOut,
 			})
 		}
 		for _, data := range info.NonArchData {
-			dataOut := joinWriteablePath(ctx, suite.dir, data.ToRelativeInstallPath())
-			installs = append(installs, filePair{
-				src: data.SrcPath,
-				dst: dataOut,
+			dataOut := JoinWriteablePath(ctx, suite.dir, data.ToRelativeInstallPath())
+			installs = append(installs, FilePair{
+				Src: data.SrcPath,
+				Dst: dataOut,
 			})
 		}
 		for _, data := range info.CompatibilitySupportFiles {
-			dataOut := joinWriteablePath(ctx, suite.dir, data.Rel())
-			installs = append(installs, filePair{
-				src: data,
-				dst: dataOut,
+			dataOut := JoinWriteablePath(ctx, suite.dir, data.Rel())
+			installs = append(installs, FilePair{
+				Src: data,
+				Dst: dataOut,
 			})
 		}
 
 		if !info.DisableTestConfig {
 			if info.ConfigFile != nil {
-				oneVariantInstalls = append(oneVariantInstalls, filePair{
-					src: info.ConfigFile,
-					dst: joinWriteablePath(ctx, suite.dir, name+".config"+info.ConfigFileSuffix),
+				oneVariantInstalls = append(oneVariantInstalls, FilePair{
+					Src: info.ConfigFile,
+					Dst: JoinWriteablePath(ctx, suite.dir, name+".config"+info.ConfigFileSuffix),
 				})
 			} else if config := ExistentPathForSource(ctx, ctx.ModuleDir(), "AndroidTest.xml"); config.Valid() {
-				oneVariantInstalls = append(oneVariantInstalls, filePair{
-					src: config.Path(),
-					dst: joinWriteablePath(ctx, suite.dir, name+".config"),
+				oneVariantInstalls = append(oneVariantInstalls, FilePair{
+					Src: config.Path(),
+					Dst: JoinWriteablePath(ctx, suite.dir, name+".config"),
 				})
 			}
 		}
 
 		dynamicConfig := ExistentPathForSource(ctx, ctx.ModuleDir(), "DynamicConfig.xml")
 		if dynamicConfig.Valid() {
-			oneVariantInstalls = append(oneVariantInstalls, filePair{
-				src: dynamicConfig.Path(),
-				dst: joinWriteablePath(ctx, suite.dir, name+".dynamic"),
+			oneVariantInstalls = append(oneVariantInstalls, FilePair{
+				Src: dynamicConfig.Path(),
+				Dst: JoinWriteablePath(ctx, suite.dir, name+".dynamic"),
 			})
 		}
 		for _, extraTestConfig := range info.ExtraConfigs {
 			if extraTestConfig == nil {
 				panic("ExtraTestConfig was nil")
 			}
-			oneVariantInstalls = append(oneVariantInstalls, filePair{
-				src: extraTestConfig,
-				dst: joinWriteablePath(ctx, suite.dir, pathtools.ReplaceExtension(extraTestConfig.Base(), "config")),
+			oneVariantInstalls = append(oneVariantInstalls, FilePair{
+				Src: extraTestConfig,
+				Dst: JoinWriteablePath(ctx, suite.dir, pathtools.ReplaceExtension(extraTestConfig.Base(), "config")),
 			})
 		}
 	}
 
 	SetProvider(ctx, TestSuiteInfoProvider, info)
-	SetProvider(ctx, testSuiteInstallsInfoProvider, testSuiteInstallsInfo{installs, oneVariantInstalls})
+	SetProvider(ctx, TestSuiteInstallsInfoProvider, TestSuiteInstallsInfo{installs, oneVariantInstalls})
 
 	return slices.Concat(installs, oneVariantInstalls)
 }
 
-func joinWriteablePath(ctx PathContext, path WritablePath, toJoin ...string) WritablePath {
+func JoinWriteablePath(ctx PathContext, path WritablePath, toJoin ...string) WritablePath {
 	switch p := path.(type) {
 	case InstallPath:
 		return p.Join(ctx, toJoin...)
