@@ -284,8 +284,7 @@ var (
 		"-Wno-error=unused-but-set-variable",  // http://b/197240255
 		"-Wno-error=unused-but-set-parameter", // http://b/197240255
 		// New warnings to be fixed after clang-r468909
-		"-Wno-error=deprecated-builtins", // http://b/241601211
-		"-Wno-error=deprecated",          // in external/googletest/googletest
+		"-Wno-error=deprecated", // in external/googletest/googletest
 		// New warnings to be fixed after clang-r522817
 		"-Wno-error=invalid-offsetof",
 
