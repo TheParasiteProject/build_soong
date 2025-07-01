@@ -247,3 +247,5 @@ func (mod *Module) ImageMutatorBegin(mctx android.ImageInterfaceContext) {
 		}
 	}
 }
+
+func (mod *Module) ImageMutatorSupported() bool { return true }

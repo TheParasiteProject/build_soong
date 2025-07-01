@@ -301,6 +301,8 @@ var _ android.ImageInterface = (*PrebuiltEtc)(nil)
 
 func (p *PrebuiltEtc) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
 
+func (p *PrebuiltEtc) ImageMutatorSupported() bool { return true }
+
 func (p *PrebuiltEtc) VendorVariantNeeded(ctx android.ImageInterfaceContext) bool {
 	return p.ModuleBase.InstallInVendor()
 }
