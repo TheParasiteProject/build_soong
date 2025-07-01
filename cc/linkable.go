@@ -82,8 +82,10 @@ type VersionedLinkableInterface interface {
 
 	// SetStl sets the stl property for CC modules. Does not panic if for other module types.
 	SetStl(string)
-	SetSdkVersion(string)
+	SetSdkVersion(*string)
 	SetMinSdkVersion(version string)
+	SetSdkAndPlatformVariantVisibleToMake()
+	SetSdkVariant()
 	ApexSdkVersion() android.ApiLevel
 	ImplementationModuleNameForMake() string
 
@@ -321,6 +323,11 @@ func SharedDepTag() blueprint.DependencyTag {
 // StaticDepTag returns the dependency tag for any C++ static libraries.
 func StaticDepTag(wholeStatic bool) blueprint.DependencyTag {
 	return libraryDependencyTag{Kind: staticLibraryDependency, wholeStatic: wholeStatic}
+}
+
+// NdkSharedLibDepTag returns the dependency tag for NDK sharedlibs
+func NdkSharedLibDepTag(version string) blueprint.DependencyTag {
+	return libraryDependencyTag{Kind: sharedLibraryDependency, ndk: true, makeSuffix: "." + version}
 }
 
 // IsWholeStaticLib whether a dependency tag is a whole static library dependency.

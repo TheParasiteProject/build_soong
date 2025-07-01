@@ -191,6 +191,9 @@ type BaseProperties struct {
 	// and one for apps.
 	Sdk_version *string
 
+	// If true, always create an sdk variant and don't create a platform variant.
+	Sdk_variant_only *bool
+
 	// Minimum OS API level supported by this C or C++ module. This property becomes the value
 	// of the __ANDROID_API__ macro. When the C or C++ module is included in an APEX or an APK,
 	// this property is also used to ensure that the min_sdk_version of the containing module is
@@ -202,6 +205,9 @@ type BaseProperties struct {
 
 	// Variant is an SDK variant created by sdkMutator
 	IsSdkVariant bool `blueprint:"mutated"`
+	// Set when both SDK and platform variants are exported to Make to trigger renaming the SDK
+	// variant to have a ".sdk" suffix.
+	SdkAndPlatformVariantVisibleToMake bool `blueprint:"mutated"`
 
 	// Set by factories of module types that can only be referenced from variants compiled against
 	// the SDK.
@@ -391,6 +397,9 @@ func (mod *Module) Toc() android.OptionalPath {
 }
 
 func (mod *Module) UseSdk() bool {
+	if cc.CanUseSdk(mod) {
+		return String(mod.Properties.Sdk_version) != ""
+	}
 	return false
 }
 
@@ -424,8 +433,7 @@ func (mod *Module) IsVendorPublicLibrary() bool {
 }
 
 func (mod *Module) SdkAndPlatformVariantVisibleToMake() bool {
-	// Rust modules to not provide Sdk variants
-	return false
+	return mod.Properties.SdkAndPlatformVariantVisibleToMake
 }
 
 func (c *Module) IsVndkPrivate() bool {
@@ -462,7 +470,7 @@ func (mod *Module) SdkVersion() string {
 }
 
 func (mod *Module) AlwaysSdk() bool {
-	return mod.Properties.AlwaysSdk
+	return mod.Properties.AlwaysSdk || Bool(mod.Properties.Sdk_variant_only)
 }
 
 func (mod *Module) IsSdkVariant() bool {
@@ -887,7 +895,9 @@ func (mod *Module) installable(apexInfo android.ApexInfo) bool {
 	if !proptools.BoolDefault(mod.Installable(), mod.EverInstallable()) {
 		return false
 	}
-
+	if mod.PreventInstall() {
+		return false
+	}
 	// The apex variant is not installable because it is included in the APEX and won't appear
 	// in the system partition as a standalone file.
 	if !apexInfo.IsForPlatform() {
@@ -1018,8 +1028,16 @@ func (mod *Module) SetStl(s string) {
 	// STL is a CC concept; do nothing for Rust
 }
 
-func (mod *Module) SetSdkVersion(s string) {
-	mod.Properties.Sdk_version = StringPtr(s)
+func (mod *Module) SetSdkVersion(s *string) {
+	mod.Properties.Sdk_version = s
+}
+
+func (mod *Module) SetSdkAndPlatformVariantVisibleToMake() {
+	mod.Properties.SdkAndPlatformVariantVisibleToMake = true
+}
+
+func (mod *Module) SetSdkVariant() {
+	mod.Properties.IsSdkVariant = true
 }
 
 func (mod *Module) SetMinSdkVersion(s string) {
@@ -2101,8 +2119,9 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	deps := mod.deps(ctx)
 	var commonDepVariations []blueprint.Variation
 
+	variantNdkLibs := []string{}
 	if ctx.Os() == android.Android {
-		deps.SharedLibs, _ = cc.FilterNdkLibs(mod, ctx.Config(), deps.SharedLibs)
+		deps.SharedLibs, variantNdkLibs = cc.FilterNdkLibs(mod, ctx.Config(), deps.SharedLibs)
 	}
 
 	// rlibs
@@ -2202,6 +2221,17 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	actx.AddVariationDependencies([]blueprint.Variation{
 		{Mutator: "link", Variation: "shared"},
 	}, dataLibDepTag, deps.DataLibs...)
+
+	version := ""
+	if ctx.Device() {
+		version = String(mod.Properties.Sdk_version)
+	}
+
+	ndkStubDepTag := cc.NdkSharedLibDepTag(version)
+	actx.AddVariationDependencies([]blueprint.Variation{
+		{Mutator: "version", Variation: version},
+		{Mutator: "link", Variation: "shared"},
+	}, ndkStubDepTag, variantNdkLibs...)
 
 	actx.AddVariationDependencies(nil, dataBinDepTag, deps.DataBins...)
 

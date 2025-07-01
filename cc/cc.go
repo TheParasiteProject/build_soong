@@ -1316,8 +1316,16 @@ func (c *Module) MinSdkVersion() string {
 	return String(c.Properties.Min_sdk_version)
 }
 
-func (c *Module) SetSdkVersion(s string) {
-	c.Properties.Sdk_version = StringPtr(s)
+func (c *Module) SetSdkVersion(s *string) {
+	c.Properties.Sdk_version = s
+}
+
+func (c *Module) SetSdkAndPlatformVariantVisibleToMake() {
+	c.Properties.SdkAndPlatformVariantVisibleToMake = true
+}
+
+func (c *Module) SetSdkVariant() {
+	c.Properties.IsSdkVariant = true
 }
 
 func (c *Module) SetMinSdkVersion(s string) {
