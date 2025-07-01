@@ -44,6 +44,12 @@ type superImage struct {
 type SuperImageProperties struct {
 	// the size of the super partition
 	Size *int64
+	// Maximum allowed sum of logical partition sizes.
+	// Can be set by OEMs to cause a build failure when the sum
+	// of sizes of logical partitions exceeds the same.
+	Size_error_limit *int64
+	Size_warn_limit  *int64
+
 	// the block device where metadata for dynamic partitions is stored
 	Metadata_device *string
 	// the super partition block device list
@@ -365,6 +371,12 @@ func (s *superImage) dumpDynamicPartitionInfo(ctx android.ModuleContext, sb *str
 		addStr("super_image_in_update_package", "true")
 	}
 	addStr("super_partition_size", strconv.Itoa(proptools.Int(s.properties.Size)))
+	if s.properties.Size_warn_limit != nil {
+		addStr("super_partition_warn_limit", strconv.Itoa(proptools.Int(s.properties.Size_warn_limit)))
+	}
+	if s.properties.Size_error_limit != nil {
+		addStr("super_partition_error_limit", strconv.Itoa(proptools.Int(s.properties.Size_error_limit)))
+	}
 
 	if proptools.Bool(s.properties.Virtual_ab.Enable) {
 		addStr("virtual_ab", "true")

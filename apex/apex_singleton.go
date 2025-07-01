@@ -76,7 +76,6 @@ var (
 				echo "in the commit message if you are adding a new dependency:";
 				echo "Apex-Size-Increase: Expected binary size increase for affected APEXes (or the size of the .jar / .so file of the new library)";
 				echo "Previous-Platform-Support: Are the maintainers of the new dependency committed to supporting previous platform releases?";
-				echo "Aosp-First: Is the new dependency being developed AOSP-first or internal?";
 				echo "Test-Info: What’s the testing strategy for the new dependency? Does it have its own tests, and are you adding integration tests? How/when are the tests run?";
 				echo "You do not need OWNERS approval to submit the change, but mainline-modularization@";
 				echo "will periodically review additions and may require changes.";

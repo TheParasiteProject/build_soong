@@ -183,6 +183,10 @@ func (c Config) MaxPageSizeSupported() string {
 	return String(c.config.productVariables.DeviceMaxPageSizeSupported)
 }
 
+func (c Config) DeviceCheckPrebuiltMaxPageSize() bool {
+	return Bool(c.config.productVariables.DeviceCheckPrebuiltMaxPageSize)
+}
+
 // NoBionicPageSizeMacro returns true when AOSP is page size agnostic.
 // This means that the bionic's macro PAGE_SIZE won't be defined.
 // Returns false when AOSP is NOT page size agnostic.
@@ -2311,6 +2315,10 @@ func (c *deviceConfig) BuildBrokenDupSysprop() bool {
 	return c.config.productVariables.BuildBrokenDupSysprop
 }
 
+func (c *deviceConfig) BuildBrokenPrebuiltELFFiles() bool {
+	return c.config.productVariables.BuildBrokenPrebuiltELFFiles
+}
+
 func (c *deviceConfig) RequiresInsecureExecmemForSwiftshader() bool {
 	return c.config.productVariables.RequiresInsecureExecmemForSwiftshader
 }
@@ -2460,7 +2468,7 @@ var (
 		"RELEASE_APEX_CONTRIBUTIONS_SWCODEC":                 "com.android.media.swcodec",
 		"RELEASE_APEX_CONTRIBUTIONS_STATSD":                  "com.android.os.statsd",
 		"RELEASE_APEX_CONTRIBUTIONS_TELEMETRY_TVP":           "",
-		"RELEASE_APEX_CONTRIBUTIONS_TELEMETRY_TELEPHONY2":    "com.android.telephony2",
+		"RELEASE_APEX_CONTRIBUTIONS_TELEPHONY2":              "com.android.telephony2",
 		"RELEASE_APEX_CONTRIBUTIONS_TZDATA":                  "com.android.tzdata",
 		"RELEASE_APEX_CONTRIBUTIONS_UPROBESTATS":             "com.android.uprobestats",
 		"RELEASE_APEX_CONTRIBUTIONS_UWB":                     "com.android.uwb",
