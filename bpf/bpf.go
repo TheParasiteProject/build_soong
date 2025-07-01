@@ -48,8 +48,7 @@ var (
 
 	stripRule = pctx.AndroidStaticRule("stripRule",
 		blueprint.RuleParams{
-			Command: `$stripCmd --strip-unneeded --remove-section=.rel.BTF ` +
-				`--remove-section=.rel.BTF.ext --remove-section=.BTF.ext $in -o $out`,
+			Command:     `$stripCmd -g $in -o $out`,
 			CommandDeps: []string{"$stripCmd"},
 		},
 		"stripCmd")
