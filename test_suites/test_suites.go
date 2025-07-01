@@ -602,18 +602,6 @@ func buildCompatibilitySuitePackage(
 		copyTool(hostTool)
 	}
 
-	for _, tool := range suite.Tools {
-		if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", tool); err != nil || !matched {
-			ctx.Errorf("Invalid test suite tool, must match [a-zA-Z0-9_-]+, got %q", tool)
-			continue
-		}
-		toolPath := ctx.Config().HostJavaToolPath(ctx, tool)
-		cmd.
-			FlagWithArg("-e ", subdir+"/tools/"+tool).
-			FlagWithInput("-f ", toolPath)
-		copyTool(toolPath)
-	}
-
 	if suite.Readme != nil {
 		cmd.
 			FlagWithArg("-e ", subdir+"/tools/"+suite.Readme.Base()).
@@ -713,7 +701,6 @@ type compatibilityTestSuitePackage struct {
 type compatibilitySuitePackageInfo struct {
 	Name           string
 	Readme         android.Path
-	Tools          []string
 	DynamicConfig  android.Path
 	ToolFiles      android.Paths
 	ToolNoticeInfo android.NoticeModuleInfos
@@ -740,13 +727,20 @@ type ctspHostToolDeptagType struct {
 var ctspHostToolDeptag = ctspHostToolDeptagType{}
 
 func (m *compatibilityTestSuitePackage) DepsMutator(ctx android.BottomUpMutatorContext) {
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspTradefedDeptag, proptools.String(m.properties.Tradefed))
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, proptools.String(m.properties.Tradefed)+"-tests")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "tradefed")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "loganalysis")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "compatibility-host-util")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "compatibility-tradefed")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostToolDeptag, "test-utils-script")
+	variations := ctx.Config().BuildOSTarget.Variations()
+	ctx.AddVariationDependencies(variations, ctspTradefedDeptag, proptools.String(m.properties.Tradefed))
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, proptools.String(m.properties.Tradefed)+"-tests")
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "tradefed")
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "loganalysis")
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "compatibility-host-util")
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "compatibility-tradefed")
+	ctx.AddVariationDependencies(variations, ctspHostToolDeptag, "test-utils-script")
+	for _, tool := range m.properties.Tools {
+		// TODO update bp files to not have .jar and remove this
+		tool := strings.TrimSuffix(tool, ".jar")
+
+		ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, tool)
+	}
 }
 
 func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -803,7 +797,6 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 	android.SetProvider(ctx, compatibilitySuitePackageProvider, compatibilitySuitePackageInfo{
 		Name:           m.Name(),
 		Readme:         readme,
-		Tools:          m.properties.Tools,
 		DynamicConfig:  dynamicConfig,
 		ToolFiles:      toolFiles,
 		ToolNoticeInfo: toolNoticeinfo,
