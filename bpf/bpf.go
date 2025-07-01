@@ -115,6 +115,8 @@ type bpf struct {
 
 var _ android.ImageInterface = (*bpf)(nil)
 
+func (bpf *bpf) ImageMutatorSupported() bool { return true }
+
 func (bpf *bpf) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
 
 func (bpf *bpf) VendorVariantNeeded(ctx android.ImageInterfaceContext) bool {

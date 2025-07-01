@@ -36,6 +36,9 @@ type ImageInterface interface {
 	// ImageMutatorBegin is called before any other method in the ImageInterface.
 	ImageMutatorBegin(ctx ImageInterfaceContext)
 
+	// If ImageMutatorSupported returns false then no image variants will be created.
+	ImageMutatorSupported() bool
+
 	// VendorVariantNeeded should return true if the module needs a vendor variant (installed on the vendor image).
 	VendorVariantNeeded(ctx ImageInterfaceContext) bool
 
@@ -144,35 +147,42 @@ type imageTransitionMutator struct{}
 func getImageVariations(ctx ImageInterfaceContext) []string {
 	var variations []string
 
-	if m, ok := ctx.Module().(ImageInterface); ctx.Os() == Android && ok {
-		if m.CoreVariantNeeded(ctx) {
-			variations = append(variations, CoreVariation)
-		}
-		if m.RamdiskVariantNeeded(ctx) {
-			variations = append(variations, RamdiskVariation)
-		}
-		if m.VendorRamdiskVariantNeeded(ctx) {
-			variations = append(variations, VendorRamdiskVariation)
-		}
-		if m.DebugRamdiskVariantNeeded(ctx) {
-			variations = append(variations, DebugRamdiskVariation)
-		}
-		if m.RecoveryVariantNeeded(ctx) {
-			variations = append(variations, RecoveryVariation)
-		}
-		if m.VendorVariantNeeded(ctx) {
-			variations = append(variations, VendorVariation)
-		}
-		if m.ProductVariantNeeded(ctx) {
-			variations = append(variations, ProductVariation)
-		}
+	if ctx.Os() != Android {
+		return []string{""}
+	}
+	m, ok := ctx.Module().(ImageInterface)
 
-		extraVariations := m.ExtraImageVariations(ctx)
-		variations = append(variations, extraVariations...)
+	if !ok || !m.ImageMutatorSupported() {
+		return []string{""}
 	}
 
+	if m.CoreVariantNeeded(ctx) {
+		variations = append(variations, CoreVariation)
+	}
+	if m.RamdiskVariantNeeded(ctx) {
+		variations = append(variations, RamdiskVariation)
+	}
+	if m.VendorRamdiskVariantNeeded(ctx) {
+		variations = append(variations, VendorRamdiskVariation)
+	}
+	if m.DebugRamdiskVariantNeeded(ctx) {
+		variations = append(variations, DebugRamdiskVariation)
+	}
+	if m.RecoveryVariantNeeded(ctx) {
+		variations = append(variations, RecoveryVariation)
+	}
+	if m.VendorVariantNeeded(ctx) {
+		variations = append(variations, VendorVariation)
+	}
+	if m.ProductVariantNeeded(ctx) {
+		variations = append(variations, ProductVariation)
+	}
+
+	extraVariations := m.ExtraImageVariations(ctx)
+	variations = append(variations, extraVariations...)
+
 	if len(variations) == 0 {
-		variations = append(variations, "")
+		return []string{""}
 	}
 
 	return variations
@@ -208,7 +218,12 @@ func (imageTransitionMutator) OutgoingTransition(ctx OutgoingTransitionContext, 
 }
 
 func (imageTransitionMutator) IncomingTransition(ctx IncomingTransitionContext, incomingVariation string) string {
-	if _, ok := ctx.Module().(ImageInterface); ctx.Os() != Android || !ok {
+	if ctx.Os() != Android {
+		return CoreVariation
+	}
+
+	m, ok := ctx.Module().(ImageInterface)
+	if !ok || !m.ImageMutatorSupported() {
 		return CoreVariation
 	}
 	variations := getImageVariations(&imageInterfaceContextAdapter{
