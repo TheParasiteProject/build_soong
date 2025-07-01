@@ -77,9 +77,6 @@ type ReleaseConfig struct {
 	// Unmarshalled flag artifacts
 	FlagArtifacts FlagArtifacts
 
-	// The files used by this release config
-	FilesUsedMap map[string]bool
-
 	// Generated release config
 	ReleaseConfigArtifact *rc_proto.ReleaseConfigArtifact
 
@@ -152,7 +149,6 @@ func ReleaseConfigFactory(name string, index int) (c *ReleaseConfig) {
 	return &ReleaseConfig{
 		Name:             name,
 		DeclarationIndex: index,
-		FilesUsedMap:     make(map[string]bool),
 		PriorStagesMap:   make(map[string]bool),
 		inheritNamesMap:  make(map[string]bool),
 	}
@@ -162,9 +158,6 @@ func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
 	if config.ReleaseConfigType != iConfig.ReleaseConfigType && ReleaseConfigInheritanceDenyMap[config.ReleaseConfigType] {
 		return fmt.Errorf("Release config %s (type '%s') cannot inherit from %s (type '%s')",
 			config.Name, config.ReleaseConfigType, iConfig.Name, iConfig.ReleaseConfigType)
-	}
-	for f := range iConfig.FilesUsedMap {
-		config.FilesUsedMap[f] = true
 	}
 	for _, fa := range iConfig.FlagArtifacts {
 		name := *fa.FlagDeclaration.Name
@@ -194,10 +187,6 @@ func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
 		}
 	}
 	return nil
-}
-
-func (config *ReleaseConfig) GetSortedFileList() []string {
-	return SortedMapKeys(config.FilesUsedMap)
 }
 
 func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) error {
@@ -261,14 +250,6 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		err = config.InheritConfig(iConfig)
 		if err != nil {
 			return err
-		}
-	}
-
-	// If we inherited nothing, then we need to mark the global files as used for this
-	// config.  If we inherited, then we already marked them as part of inheritance.
-	if len(config.InheritNames) == 0 {
-		for f := range configs.FilesUsedMap {
-			config.FilesUsedMap[f] = true
 		}
 	}
 
@@ -557,7 +538,6 @@ func (config *ReleaseConfig) WriteMakefile(outFile, targetRelease string, config
 	if config.DisallowLunchUse {
 		data += fmt.Sprintf("_disallow_lunch_use :=$= true\n")
 	}
-	data += fmt.Sprintf("_used_files := %s\n", strings.Join(config.GetSortedFileList(), " "))
 	data += fmt.Sprintf("_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
 	for _, pName := range pNames {
 		data += fmt.Sprintf("_ALL_RELEASE_FLAGS.PARTITIONS.%s :=$= %s\n", pName, strings.Join(partitions[pName], " "))
@@ -580,7 +560,7 @@ func (config *ReleaseConfig) WritePartitionBuildFlags(product string, outDir str
 		})
 		// The json file name must not be modified as this is read from
 		// build_flags_json module
-		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags_%s-%s.json", product, partition)), flags); err != nil {
+		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags-%s-%s.json", product, partition)), flags); err != nil {
 			return err
 		}
 	}
