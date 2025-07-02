@@ -11,8 +11,8 @@ func init() {
 	TestSuiteInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(TestSuiteInfo) })
 	TestSuiteSharedLibsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(TestSuiteSharedLibsInfo) })
 	MakeNameInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(MakeNameInfo) })
-	FilePairGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(FilePair) })
-	TestSuiteInstallsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(TestSuiteInstallsInfo) })
+	filePairGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(filePair) })
+	testSuiteInstallsInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(testSuiteInstallsInfo) })
 }
 
 func (r TestSuiteInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
@@ -310,48 +310,48 @@ func (r MakeNameInfo) GetTypeId() int16 {
 	return MakeNameInfoGobRegId
 }
 
-func (r FilePair) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+func (r filePair) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeInterface(ctx, buf, r.Src); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.src); err != nil {
 		return err
 	}
 
-	if err = gobtools.EncodeInterface(ctx, buf, r.Dst); err != nil {
+	if err = gobtools.EncodeInterface(ctx, buf, r.dst); err != nil {
 		return err
 	}
 	return err
 }
 
-func (r *FilePair) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+func (r *filePair) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val2 == nil {
-		r.Src = nil
+		r.src = nil
 	} else {
-		r.Src = val2.(Path)
+		r.src = val2.(Path)
 	}
 
 	if val4, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val4 == nil {
-		r.Dst = nil
+		r.dst = nil
 	} else {
-		r.Dst = val4.(WritablePath)
+		r.dst = val4.(WritablePath)
 	}
 
 	return err
 }
 
-var FilePairGobRegId int16
+var filePairGobRegId int16
 
-func (r FilePair) GetTypeId() int16 {
-	return FilePairGobRegId
+func (r filePair) GetTypeId() int16 {
+	return filePairGobRegId
 }
 
-func (r TestSuiteInstallsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+func (r testSuiteInstallsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if err = gobtools.EncodeSimple(buf, int32(len(r.Files))); err != nil {
@@ -374,7 +374,7 @@ func (r TestSuiteInstallsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer
 	return err
 }
 
-func (r *TestSuiteInstallsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+func (r *testSuiteInstallsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val2 int32
@@ -383,7 +383,7 @@ func (r *TestSuiteInstallsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reade
 		return err
 	}
 	if val2 > 0 {
-		r.Files = make([]FilePair, val2)
+		r.Files = make([]filePair, val2)
 		for val3 := 0; val3 < int(val2); val3++ {
 			if err = r.Files[val3].Decode(ctx, buf); err != nil {
 				return err
@@ -397,7 +397,7 @@ func (r *TestSuiteInstallsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reade
 		return err
 	}
 	if val6 > 0 {
-		r.OneVariantInstalls = make([]FilePair, val6)
+		r.OneVariantInstalls = make([]filePair, val6)
 		for val7 := 0; val7 < int(val6); val7++ {
 			if err = r.OneVariantInstalls[val7].Decode(ctx, buf); err != nil {
 				return err
@@ -408,8 +408,8 @@ func (r *TestSuiteInstallsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reade
 	return err
 }
 
-var TestSuiteInstallsInfoGobRegId int16
+var testSuiteInstallsInfoGobRegId int16
 
-func (r TestSuiteInstallsInfo) GetTypeId() int16 {
-	return TestSuiteInstallsInfoGobRegId
+func (r testSuiteInstallsInfo) GetTypeId() int16 {
+	return testSuiteInstallsInfoGobRegId
 }

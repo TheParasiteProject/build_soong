@@ -1922,25 +1922,13 @@ func PathForModuleInstall(ctx ModuleInstallPathContext, pathComponents ...string
 // PathForHostDexInstall returns an InstallPath representing the install path for the
 // module appended with paths...
 func PathForHostDexInstall(ctx ModuleInstallPathContext, pathComponents ...string) InstallPath {
-	return PathForHostInstall(ctx, pathComponents...)
+	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", pathComponents...)
 }
 
 // PathForModuleInPartitionInstall is similar to PathForModuleInstall but partition is provided by the caller
 func PathForModuleInPartitionInstall(ctx ModuleInstallPathContext, partition string, pathComponents ...string) InstallPath {
 	os, arch := osAndArch(ctx)
 	return pathForInstall(ctx, os, arch, partition, pathComponents...)
-}
-
-// PathForHostInstall returns an InstallPath representing the install path for a host file.
-// Equivalent to $(HOST_OUT) from make.
-func PathForHostInstall(ctx PathContext, pathComponents ...string) InstallPath {
-	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", pathComponents...)
-}
-
-// PathForDeviceFirstInstall returns an InstallPath representing the install path for a device file
-// in the first arch folder. Equivalent to $(TARGET_OUT) from make.
-func PathForDeviceFirstInstall(ctx PathContext, pathComponents ...string) InstallPath {
-	return pathForInstall(ctx, ctx.Config().BuildOS, ctx.Config().BuildArch, "", pathComponents...)
 }
 
 func osAndArch(ctx ModuleInstallPathContext) (OsType, ArchType) {
