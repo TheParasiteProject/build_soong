@@ -48,8 +48,7 @@ var (
 
 	stripRule = pctx.AndroidStaticRule("stripRule",
 		blueprint.RuleParams{
-			Command: `$stripCmd --strip-unneeded --remove-section=.rel.BTF ` +
-				`--remove-section=.rel.BTF.ext --remove-section=.BTF.ext $in -o $out`,
+			Command:     `$stripCmd -g $in -o $out`,
 			CommandDeps: []string{"$stripCmd"},
 		},
 		"stripCmd")
@@ -114,6 +113,8 @@ type bpf struct {
 }
 
 var _ android.ImageInterface = (*bpf)(nil)
+
+func (bpf *bpf) ImageMutatorSupported() bool { return true }
 
 func (bpf *bpf) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
 

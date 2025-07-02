@@ -113,6 +113,8 @@ var _ android.ImageInterface = (*libbpfProg)(nil)
 
 func (libbpf *libbpfProg) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
 
+func (libbpf *libbpfProg) ImageMutatorSupported() bool { return true }
+
 func (libbpf *libbpfProg) VendorVariantNeeded(ctx android.ImageInterfaceContext) bool {
 	return proptools.Bool(libbpf.properties.Vendor)
 }

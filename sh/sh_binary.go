@@ -240,6 +240,8 @@ var _ android.ImageInterface = (*ShBinary)(nil)
 
 func (s *ShBinary) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
 
+func (s *ShBinary) ImageMutatorSupported() bool { return true }
+
 func (s *ShBinary) VendorVariantNeeded(ctx android.ImageInterfaceContext) bool {
 	return s.InstallInVendor()
 }

@@ -297,22 +297,28 @@ func (p *PrebuiltEtc) InstallInRecovery() bool {
 	return p.InRecovery()
 }
 
+func (p *PrebuiltEtc) InstallInOdm() bool {
+	return p.ModuleBase.DeviceSpecific()
+}
+
 var _ android.ImageInterface = (*PrebuiltEtc)(nil)
 
 func (p *PrebuiltEtc) ImageMutatorBegin(ctx android.ImageInterfaceContext) {}
 
+func (p *PrebuiltEtc) ImageMutatorSupported() bool { return true }
+
 func (p *PrebuiltEtc) VendorVariantNeeded(ctx android.ImageInterfaceContext) bool {
-	return p.ModuleBase.InstallInVendor()
+	return p.InstallInVendor() || p.InstallInOdm()
 }
 
 func (p *PrebuiltEtc) ProductVariantNeeded(ctx android.ImageInterfaceContext) bool {
-	return p.ModuleBase.InstallInProduct()
+	return p.InstallInProduct()
 }
 
 func (p *PrebuiltEtc) CoreVariantNeeded(ctx android.ImageInterfaceContext) bool {
-	return !p.ModuleBase.InstallInRecovery() && !p.ModuleBase.InstallInRamdisk() &&
-		!p.ModuleBase.InstallInVendorRamdisk() && !p.ModuleBase.InstallInDebugRamdisk() &&
-		!p.ModuleBase.InstallInVendor() && !p.ModuleBase.InstallInProduct()
+	return !p.InstallInRecovery() && !p.InstallInRamdisk() &&
+		!p.InstallInVendorRamdisk() && !p.InstallInDebugRamdisk() &&
+		!p.InstallInVendor() && !p.InstallInProduct() && !p.InstallInOdm()
 }
 
 func (p *PrebuiltEtc) RamdiskVariantNeeded(ctx android.ImageInterfaceContext) bool {

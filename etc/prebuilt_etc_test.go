@@ -60,6 +60,11 @@ func TestPrebuiltEtcVariants(t *testing.T) {
 			src: "vendor.conf",
 			vendor: true,
 		}
+		prebuilt_etc {
+			name: "odm.conf",
+			src: "odm.conf",
+			device_specific: true,
+		}
 	`)
 
 	fooVariants := result.ModuleVariantsForTests("foo.conf")
@@ -80,6 +85,11 @@ func TestPrebuiltEtcVariants(t *testing.T) {
 	vendorVariants := result.ModuleVariantsForTests("vendor.conf")
 	if g, w := vendorVariants, []string{"android_vendor_arm64_armv8-a"}; !slices.Equal(g, w) {
 		t.Errorf("expected vendor.conf variants %q, got %q", w, g)
+	}
+
+	odmVariants := result.ModuleVariantsForTests("odm.conf")
+	if g, w := odmVariants, []string{"android_vendor_arm64_armv8-a"}; !slices.Equal(g, w) {
+		t.Errorf("expected odm.conf variants %q, got %q", w, g)
 	}
 }
 
