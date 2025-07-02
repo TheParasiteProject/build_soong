@@ -36,7 +36,7 @@ var (
 	}, "args")
 )
 
-func buildLicenseMetadata(ctx *moduleContext, licenseMetadataFile WritablePath, testSuiteInstalls []filePair) {
+func buildLicenseMetadata(ctx *moduleContext, licenseMetadataFile WritablePath, testSuiteInstalls []FilePair) {
 	base := ctx.Module().base()
 
 	if !base.Enabled(ctx) {
@@ -165,7 +165,7 @@ func buildLicenseMetadata(ctx *moduleContext, licenseMetadataFile WritablePath, 
 
 	// Test suite files
 	for _, f := range testSuiteInstalls {
-		args = append(args, "-i "+proptools.NinjaAndShellEscapeIncludingSpaces(f.dst.String()))
+		args = append(args, "-i "+proptools.NinjaAndShellEscapeIncludingSpaces(f.Dst.String()))
 	}
 
 	if isContainer {
