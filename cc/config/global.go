@@ -232,12 +232,10 @@ var (
 		"-Werror=bool-operation",
 		"-Werror=dangling",
 		"-Werror=format-insufficient-args",
-		"-Werror=implicit-int-float-conversion",
 		"-Werror=int-in-bool-context",
 		"-Werror=int-to-pointer-cast",
 		"-Werror=pointer-to-int-cast",
 		"-Werror=xor-used-as-pow",
-		"-Wimplicit-int-float-conversion",
 		// http://b/161386391 for -Wno-void-pointer-to-enum-cast
 		"-Wno-void-pointer-to-enum-cast",
 		// http://b/161386391 for -Wno-void-pointer-to-int-cast
