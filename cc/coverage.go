@@ -324,10 +324,8 @@ func (c coverageTransitionMutator) IncomingTransition(ctx android.IncomingTransi
 	// non-coverage variants have PreventInstall = true, so we need certain deptags that are
 	// used for installation to use the coverage variant so that filesystem modules will package
 	// them correctly.
-	if ctx.Device() {
-		if x, ok := ctx.DepTag().(UseCoverageDeptag); (ok && x.IsNativeCoverageNeededDepTag(ctx)) || ctx.DepTag() == android.RequiredDepTag {
-			return "cov"
-		}
+	if x, ok := ctx.DepTag().(UseCoverageDeptag); (ok && x.IsNativeCoverageNeededDepTag(ctx)) || ctx.DepTag() == android.RequiredDepTag {
+		return "cov"
 	}
 
 	return incomingVariation

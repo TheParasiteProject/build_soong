@@ -311,19 +311,6 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx SingletonContext) {
 	ctx.Phony("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 	ctx.DistForGoal("ravenwood-tests", ravenwoodZip, ravenwoodListZip)
 
-	moblyTests := make(testModulesInstallsMap)
-	pathForTestCasesString := pathForTestCases(ctx).String()
-	for module, installedPaths := range files["mobly-tests"] {
-		for _, installedPath := range installedPaths {
-			if strings.HasPrefix(installedPath.String(), pathForTestCasesString) {
-				moblyTests[module] = append(moblyTests[module], installedPath)
-			}
-		}
-	}
-	moblyZip, moblyListZip := buildTestSuite(ctx, "mobly-tests", moblyTests)
-	ctx.Phony("mobly-tests", moblyZip, moblyListZip)
-	ctx.DistForGoal("mobly-tests", moblyZip, moblyListZip)
-
 	for _, testSuiteConfig := range allTestSuiteConfigs {
 		files := allTestSuiteInstalls[testSuiteConfig.name]
 		sharedLibs := testInstalledSharedLibs[testSuiteConfig.name]
