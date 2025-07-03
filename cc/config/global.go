@@ -234,13 +234,10 @@ var (
 		"-Werror=format-insufficient-args",
 		"-Werror=int-in-bool-context",
 		"-Werror=int-to-pointer-cast",
-		"-Werror=pointer-to-int-cast",
 		"-Werror=xor-used-as-pow",
-		// http://b/161386391 for -Wno-void-pointer-to-enum-cast
-		"-Wno-void-pointer-to-enum-cast",
-		// http://b/161386391 for -Wno-void-pointer-to-int-cast
-		"-Wno-void-pointer-to-int-cast",
-		// http://b/161386391 for -Wno-pointer-to-int-cast
+		// http://b/161386391 adding -Werror=pointer-to-int-cast, which
+		// also controls -Wvoid-pointer-to-int-cast, -Wpointer-to-enum-cast
+		// and -Wvoid-pointer-to-enum-cast
 		"-Wno-pointer-to-int-cast",
 		"-Werror=fortify-source",
 		// http://b/315246135 temporarily disabled
