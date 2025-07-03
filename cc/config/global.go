@@ -37,7 +37,6 @@ var (
 		// https://clang.llvm.org/docs/DiagnosticsReference.html
 		"-Wall",
 		"-Wextra",
-		"-Winit-self",
 		"-Wpointer-arith",
 		"-Wunguarded-availability",
 
