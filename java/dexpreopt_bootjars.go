@@ -1334,6 +1334,8 @@ func buildBootImageVariant(ctx android.ModuleContext, image *bootImageVariant, p
 
 	cmd.Text("$(cat").Input(globalSoong.AssumeValueFlags).Text(")")
 
+	cmd.Text("$(cat").Input(globalSoong.ProfileCodeFlag).Text(")")
+
 	if extraFlags != "" {
 		cmd.Flag(extraFlags)
 	}
