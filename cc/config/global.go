@@ -45,8 +45,6 @@ var (
 		// See also noOverrideGlobalCflags for errors that cannot be disabled
 		// from Android.bp files.
 
-		// Detects usage of bitwise operators on Boolean values.
-		"-Werror=bool-operation",
 		// Using __DATE__/__TIME__ causes build nondeterminism.
 		"-Werror=date-time",
 		// Detects forgotten */& that usually cause a crash
@@ -235,6 +233,7 @@ var (
 	// should be the last resort, because it prevents all code in Android from
 	// opting into the warning.
 	noOverrideGlobalCflags = []string{
+		"-Werror=bool-operation",
 		"-Werror=dangling",
 		"-Werror=format-insufficient-args",
 		"-Werror=implicit-int-float-conversion",
@@ -348,6 +347,9 @@ var (
 		// Introduced in response to a critical security vulnerability and
 		// should be a hard error - it requires only whitespace changes to fix.
 		"-Wno-misleading-indentation",
+		// Triggered by old LLVM code in external/llvm. Likely not worth
+		// enabling since it's a cosmetic issue.
+		"-Wno-bitwise-instead-of-logical",
 
 		"-Wno-unused",
 		"-Wno-unused-parameter",
