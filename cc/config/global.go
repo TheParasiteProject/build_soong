@@ -287,9 +287,6 @@ var (
 		"-Wno-error=deprecated", // in external/googletest/googletest
 		// New warnings to be fixed after clang-r522817
 		"-Wno-error=invalid-offsetof",
-		// New warnings to be fixed after clang-r563880
-		"-Wno-nontrivial-memcall",
-		"-Wno-invalid-specialization",
 
 		// Allow using VLA CXX extension.
 		"-Wno-vla-cxx-extension",
@@ -467,6 +464,10 @@ func init() {
 
 	pctx.VariableFunc("NoOverrideGlobalCflags", func(ctx android.PackageVarContext) string {
 		flags := noOverrideGlobalCflags
+		if ClangVersionAtLeast(ctx, 563880) {
+			flags = append(flags, "-Wno-nontrivial-memcall")
+			flags = append(flags, "-Wno-invalid-specialization")
+		}
 		if ctx.Config().IsEnvTrue("LLVM_NEXT") {
 			flags = append(noOverrideGlobalCflags, llvmNextExtraCommonGlobalCflags...)
 			IllegalFlags = []string{} // Don't fail build while testing a new compiler.
