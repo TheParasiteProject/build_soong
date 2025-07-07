@@ -16,6 +16,7 @@ package testsuites
 
 import (
 	"android/soong/android"
+	"android/soong/java"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -750,36 +751,18 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected files, produced: %s", tradefedName, tradefedFiles.Strings())
 	}
 
-	toolFiles := slices.Clone(tradefedFiles)
+	var toolFiles android.Paths
+	for _, f := range tradefedFiles {
+		toolFiles = append(toolFiles, f)
+	}
 	toolNoticeinfo := android.NoticeModuleInfos{android.GetNoticeModuleInfo(ctx, tradefed)}
 
-	hostJavaToolPath := ctx.Config().HostJavaToolPath(ctx, "").String()
 	ctx.VisitDirectDepsProxyWithTag(ctspHostJavaToolDeptag, func(dep android.ModuleProxy) {
-		files := android.OtherModuleProviderOrDefault(ctx, dep, android.InstallFilesProvider).InstallFiles
-		if len(files) == 2 {
-			// tradefed_java_library_host installs the same file in another location, ignore
-			// the second file. Only the second to last component is different, ensure everything
-			// else is the same. We use the file under HostJavaToolPath because the licensing
-			// logic expects that later.
-			// TODO: Consider switching to `JavaInfo.InstallFile` to get just the file we want
-			base1 := files[0].Base()
-			base2 := files[1].Base()
-			prefix1 := filepath.Dir(filepath.Dir(files[0].String()))
-			prefix2 := filepath.Dir(filepath.Dir(files[1].String()))
-			if base1 == base2 && prefix1 == prefix2 {
-				if strings.HasPrefix(files[0].String(), hostJavaToolPath) {
-					files = android.InstallPaths{files[0]}
-				} else if strings.HasPrefix(files[1].String(), hostJavaToolPath) {
-					files = android.InstallPaths{files[1]}
-				} else {
-					// leave files unchanged, fall through to error below.
-				}
-			}
+		file := android.OtherModuleProviderOrDefault(ctx, dep, java.JavaInfoProvider).InstallFile
+		if file == nil {
+			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide java installfile, is it a java module?", ctx.OtherModuleName(dep))
 		}
-		if len(files) != 1 || !strings.HasSuffix(files[0].String(), ".jar") {
-			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected single .jar file, got: %s", ctx.OtherModuleName(dep), files.Strings())
-		}
-		toolFiles = append(toolFiles, files...)
+		toolFiles = append(toolFiles, file)
 		toolNoticeinfo = append(toolNoticeinfo, android.GetNoticeModuleInfo(ctx, dep))
 	})
 
@@ -788,7 +771,9 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		if len(files) != 1 {
 			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected single file", ctx.OtherModuleName(dep))
 		}
-		toolFiles = append(toolFiles, files...)
+		for _, f := range files {
+			toolFiles = append(toolFiles, f)
+		}
 		toolNoticeinfo = append(toolNoticeinfo, android.GetNoticeModuleInfo(ctx, dep))
 	})
 
@@ -807,7 +792,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		Readme:         readme,
 		Tools:          m.properties.Tools,
 		DynamicConfig:  dynamicConfig,
-		ToolFiles:      toolFiles.Paths(),
+		ToolFiles:      toolFiles,
 		ToolNoticeInfo: toolNoticeinfo,
 	})
 }
