@@ -61,6 +61,7 @@ func initTestConfig(buildDir string, env map[string]string) *config {
 			moduleGroups: make(map[string]*moduleGroupForTests),
 		},
 		env:     envCopy,
+		envDeps: &envDeps{},
 		OncePer: &OncePer{},
 
 		// Set testAllowNonExistentPaths so that test contexts don't need to specify every path

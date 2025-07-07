@@ -254,6 +254,7 @@ func TestPartialCompile(t *testing.T) {
 			env: map[string]string{
 				"SOONG_PARTIAL_COMPILE": value,
 			},
+			envDeps: &envDeps{},
 		}
 		return c
 	}
