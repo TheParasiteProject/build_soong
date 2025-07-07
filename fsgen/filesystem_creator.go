@@ -967,6 +967,7 @@ func (f *filesystemCreator) createPrebuiltKernelModules(ctx android.LoadHookCont
 	props := &struct {
 		Name                  *string
 		Srcs                  []string
+		Src_filenames_to_load []string
 		Srcs_16k              []string
 		System_deps           []string
 		System_dlkm_specific  *bool
@@ -996,6 +997,7 @@ func (f *filesystemCreator) createPrebuiltKernelModules(ctx android.LoadHookCont
 		props.Strip_debug_symbols = proptools.BoolPtr(false)
 	case "vendor_dlkm":
 		props.Srcs = android.ExistentPathsForSources(ctx, partitionVars.VendorKernelModules).Strings()
+		props.Src_filenames_to_load = partitionVars.VendorKernelModulesLoad
 		props.Srcs_16k = android.ExistentPathsForSources(ctx, partitionVars.VendorKernelModules2ndStage16kbMode).Strings()
 		if len(partitionVars.SystemKernelModules) > 0 {
 			props.System_deps = []string{":" + generatedModuleName(ctx.Config(), "system_dlkm-kernel-modules") + "{.modules}"}

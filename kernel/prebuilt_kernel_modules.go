@@ -47,6 +47,12 @@ type prebuiltKernelModulesProperties struct {
 	// List or filegroup of prebuilt kernel module files. Should have .ko suffix.
 	Srcs []string `android:"path,arch_variant"`
 
+	// List of kernel module filenames that will be loaded via modules.load.
+	// Should have .ko suffix.
+	// If empty, this will default to filenames of Srcs.
+	// If no sources should be loaded, set `Load_by_default` to false instead.
+	Src_filenames_to_load []string `android:"path,arch_variant"`
+
 	// List or filegroup of prebuilt kernel module files for 16k. Should have .ko suffix.
 	// These files will be installed in lib/modules/16k-mode/
 	// These files are ONLY loaded during the Second Boot Stage when the device is in 16k mode.
@@ -293,6 +299,22 @@ func modulesDirForAndroidDlkm(ctx android.ModuleContext, modulesDir android.Outp
 	}
 }
 
+// Validates that each entry in Src_filenames_to_load is present in Srcs
+func (pkm *prebuiltKernelModules) validateSrcFilenamesToLoad(ctx android.ModuleContext) {
+	if len(pkm.properties.Src_filenames_to_load) == 0 {
+		return
+	}
+	filenames := make(map[string]bool)
+	for _, module := range android.PathsForModuleSrc(ctx, pkm.properties.Srcs) {
+		filenames[module.Base()] = true
+	}
+	for _, filenameToLoad := range pkm.properties.Src_filenames_to_load {
+		if _, exists := filenames[filenameToLoad]; !exists {
+			ctx.PropertyErrorf("Src_filenames_to_load", "%s in Src_filenames_to_load not present in Srcs", filenameToLoad)
+		}
+	}
+}
+
 func (pkm *prebuiltKernelModules) runDepmod(ctx android.ModuleContext, modules android.Paths, systemModules android.Paths) depmodOutputs {
 	baseDir := android.PathForModuleOut(ctx, "depmod").OutputPath
 	fakeVer := "0.0" // depmod demands this anyway
@@ -324,8 +346,13 @@ func (pkm *prebuiltKernelModules) runDepmod(ctx android.ModuleContext, modules a
 		builder.Command().Text("touch").Output(modulesLoad)
 	} else {
 		var basenames []string
-		for _, m := range modules {
-			basenames = append(basenames, filepath.Base(m.String()))
+		if len(pkm.properties.Src_filenames_to_load) > 0 {
+			pkm.validateSrcFilenamesToLoad(ctx)
+			basenames = append(basenames, pkm.properties.Src_filenames_to_load...)
+		} else {
+			for _, m := range modules {
+				basenames = append(basenames, filepath.Base(m.String()))
+			}
 		}
 		builder.Command().
 			Text("echo").Flag("\"" + strings.Join(basenames, " ") + "\"").
