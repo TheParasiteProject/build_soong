@@ -168,8 +168,6 @@ var (
 		"-Wa,--noexecstack",
 		"-D_FORTIFY_SOURCE=3",
 
-		"-Wstrict-aliasing=2",
-
 		"-Werror=return-type",
 		"-Werror=non-virtual-dtor",
 		"-Werror=address",
