@@ -55,7 +55,7 @@ type prebuiltLinkerProperties struct {
 
 	// Check the prebuilt ELF files (e.g. DT_SONAME, DT_NEEDED, resolution of undefined
 	// symbols, etc), default true.
-	Check_elf_files *bool
+	Check_elf_files *bool `android:"arch_variant"`
 
 	// if set, add an extra objcopy --prefix-symbols= step
 	Prefix_symbols *string
