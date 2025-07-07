@@ -38,19 +38,8 @@ type prebuiltSystemImageProperties struct {
 
 type prebuiltSystemImage struct {
 	systemImage
-	prebuilt android.Prebuilt
 
 	prebuiltProperties prebuiltSystemImageProperties
-}
-
-func (p *prebuiltSystemImage) Name() string {
-	return p.prebuilt.Name(p.systemImage.Name())
-}
-
-var _ android.PrebuiltInterface = (*prebuiltSystemImage)(nil)
-
-func (p *prebuiltSystemImage) Prebuilt() *android.Prebuilt {
-	return &p.prebuilt
 }
 
 func (p *prebuiltSystemImage) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -84,7 +73,6 @@ func PrebuiltSystemImageFactory() android.Module {
 	module := &prebuiltSystemImage{}
 	module.filesystemBuilder = module
 	module.AddProperties(&module.prebuiltProperties)
-	android.InitSingleSourcePrebuiltModule(module, &module.prebuiltProperties, "Src")
 	initBaseFilesystemModule(module, &module.systemImage.filesystem)
 	return module
 }
