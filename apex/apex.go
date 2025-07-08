@@ -1763,6 +1763,10 @@ func (vctx *visitorContext) normalizeFileInfo(mctx android.ModuleContext) {
 			vctx.unwantedTransitiveFilesInfo = append(vctx.unwantedTransitiveFilesInfo, f)
 			continue
 		}
+		if f.builtFile == nil {
+			mctx.ModuleErrorf("Dependency %q had nil builtFile. Make sure the module has an output file. (the installable and compile_dex properties can affect this)", f.androidMkModuleName)
+			continue
+		}
 		dest := filepath.Join(f.installDir, f.builtFile.Base())
 		if e, ok := encountered[dest]; !ok {
 			encountered[dest] = f
