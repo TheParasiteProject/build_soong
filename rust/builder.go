@@ -395,6 +395,8 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 		rustcFlags = append(rustcFlags, "-Zallow-features=\"\"")
 	}
 
+	rustcFlags = append(rustcFlags, "-Zforce-unstable-if-unmarked")
+
 	// Collect linker flags
 	if !ctx.Darwin() {
 		earlyLinkFlags = "-Wl,--as-needed"
