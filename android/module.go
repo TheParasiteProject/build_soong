@@ -1693,38 +1693,40 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	if nameSpace != "." {
 		namespacePrefix = strings.ReplaceAll(nameSpace, "/", ".") + "-"
 	}
-	shouldSkipAndroidMk := shouldSkipAndroidMkProcessing(ctx, m)
+	namespaceExportedToMake := m.ExportedToMake()
 
 	phony := func(suffix string, deps Paths) string {
 		if ctx.Config().KatiEnabled() {
 			suffix += "-soong"
 		}
-		var ret string
-		// Create a target without the namespace prefix if it's exported to make. One of the
-		// conditions for being exported to make is that the namespace is in
-		// PRODUCT_SOONG_NAMESPACES, so historically that would mean that make would create the
-		// phonies for those modules as if they weren't in any namespace.
-		if !shouldSkipAndroidMk {
-			ret = ctx.module.base().BaseModuleName() + suffix
-			ctx.Phony(ret, deps...)
-		}
-		// Create another phony for building with the namespace specified. This can be used
+
+		// Create a phony for building with the namespace specified. This can be used
 		// regardless of if the namespace is in PRODUCT_SOONG_NAMESPACES or not.
+		var phonyName string
 		if nameSpace != "." {
-			ctx.Phony(namespacePrefix+ctx.module.base().BaseModuleName()+suffix, deps...)
+			phonyName = namespacePrefix + ctx.module.base().BaseModuleName() + suffix
+			ctx.Phony(phonyName, deps...)
 		}
-		return ret
+
+		if namespaceExportedToMake {
+			// Create a target without the namespace prefix if it's exported to make. One of the
+			// conditions for being exported to make is that the namespace is in
+			// PRODUCT_SOONG_NAMESPACES, so historically that would mean that make would create the
+			// phonies for those modules as if they weren't in any namespace.
+			phonyName = ctx.module.base().BaseModuleName() + suffix
+			ctx.Phony(phonyName, deps...)
+		}
+
+		return phonyName
 	}
 
 	var deps Paths
 	var info ModuleBuildTargetsInfo
 
-	if len(ctx.installFiles) > 0 && !shouldSkipAndroidMk {
+	if len(ctx.installFiles) > 0 {
 		installFiles := ctx.installFiles.Paths()
 		name := phony("-install", installFiles)
-		if name != "" {
-			info.InstallTarget = PathForPhony(ctx, name)
-		}
+		info.InstallTarget = PathForPhony(ctx, name)
 		deps = append(deps, installFiles...)
 	}
 
@@ -1732,16 +1734,14 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	// not be created if the module is not exported to make.
 	// Those could depend on the build target and fail to compile
 	// for the current build target.
-	if !shouldSkipAndroidMk && !ctx.uncheckedModule {
+	if !ctx.uncheckedModule {
 		phony("-checkbuild", ctx.checkbuildFiles)
 		checkbuildTarget := phony("-"+ctx.ModuleSubDir()+"-checkbuild", ctx.checkbuildFiles)
-		if checkbuildTarget != "" {
-			info.CheckbuildTarget = PathForPhony(ctx, checkbuildTarget)
-		}
+		info.CheckbuildTarget = PathForPhony(ctx, checkbuildTarget)
 		deps = append(deps, ctx.checkbuildFiles...)
 	}
 
-	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 && !shouldSkipAndroidMk {
+	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 {
 		phony("-outputs", outputFiles)
 		deps = append(deps, outputFiles...)
 	}
@@ -1773,6 +1773,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 
 		info.BlueprintDir = ctx.ModuleDir()
 		info.AllDeps = deps
+		info.NamespaceExportedToMake = namespaceExportedToMake
 		SetProvider(ctx, ModuleBuildTargetsProvider, info)
 	}
 }
@@ -1932,10 +1933,11 @@ var SourceFilesInfoProvider = blueprint.NewProvider[SourceFilesInfo]()
 // per-directory build targets.
 // @auto-generate: gob
 type ModuleBuildTargetsInfo struct {
-	InstallTarget    WritablePath
-	CheckbuildTarget WritablePath
-	BlueprintDir     string
-	AllDeps          Paths
+	InstallTarget           Path
+	CheckbuildTarget        Path
+	NamespaceExportedToMake bool
+	BlueprintDir            string
+	AllDeps                 Paths
 }
 
 var ModuleBuildTargetsProvider = blueprint.NewProvider[ModuleBuildTargetsInfo]()
@@ -2244,7 +2246,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 
 	buildLicenseMetadata(ctx, ctx.licenseMetadataFile, testSuiteInstalls)
 
-	if m.Enabled(ctx) {
+	if shouldGeneratePhonyTargets(ctx, m) {
 		m.generateModuleTarget(ctx, testSuiteInstalls)
 	}
 	if ctx.Failed() {
@@ -3333,6 +3335,9 @@ func (c *buildTargetSingleton) GenerateBuildActions(ctx SingletonContext) {
 
 	ctx.VisitAllModuleProxies(func(module ModuleProxy) {
 		info := OtherModuleProviderOrDefault(ctx, module, ModuleBuildTargetsProvider)
+		if !info.NamespaceExportedToMake {
+			return
+		}
 
 		if info.CheckbuildTarget != nil {
 			checkbuildDeps = append(checkbuildDeps, info.CheckbuildTarget)
