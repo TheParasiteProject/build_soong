@@ -22,7 +22,8 @@ import (
 
 type prebuiltRadioImg struct {
 	android.ModuleBase
-	properties PrebuiltRadioImgProperties
+	properties       PrebuiltRadioImgProperties
+	vbmetaPartitions vbmetaPartitionInfos
 }
 
 type PrebuiltRadioImgProperties struct {
@@ -64,6 +65,7 @@ func (p *prebuiltRadioImg) GenerateAndroidBuildActions(ctx android.ModuleContext
 	radioFiles = append(radioFiles, p.partitionFilesBootloader(ctx)...)
 
 	ctx.SetOutputFiles(radioFiles, "")
+	android.SetProvider(ctx, vbmetaPartitionsProvider, p.vbmetaPartitions)
 }
 
 // Unpack a partition from a radio.img image and add them to
@@ -126,7 +128,13 @@ func (p *prebuiltRadioImg) partitionFilesBootloader(ctx android.ModuleContext) a
 
 		files = append(files, unpackedImg)
 		// avb signed
-		files = append(files, p.avbAddHash(ctx, builder, partition, unpackedImg))
+		signed := p.avbAddHash(ctx, builder, partition, unpackedImg)
+		files = append(files, signed)
+		p.vbmetaPartitions = append(p.vbmetaPartitions, vbmetaPartitionInfo{
+			Name:                     partition,
+			Output:                   signed,
+			AbOtaBootloaderPartition: true,
+		})
 	}
 	builder.Build("unpack_bootloader", "unpack_bootloader")
 	return files
