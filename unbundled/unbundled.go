@@ -192,25 +192,7 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// Dist jacoco report jar
 	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
 		jacocoZip := android.PathForModuleOut(ctx, "jacoco-report-classes-all.jar")
-		jacocoZipWithoutDeviceTests := android.PathForModuleOut(ctx, "jacoco-report-classes-all-without-device-tests.jar")
-		java.BuildJacocoZip(ctx, appModules, jacocoZipWithoutDeviceTests)
-		if ctx.Config().IsEnvTrue("JACOCO_PACKAGING_INCLUDE_DEVICE_TESTS") {
-			deviceTestsJacocoZip := java.DeviceTestsJacocoReportZip(ctx)
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.MergeZips,
-				Output: jacocoZip,
-				Inputs: []android.Path{
-					jacocoZipWithoutDeviceTests,
-					deviceTestsJacocoZip,
-				},
-			})
-		} else {
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.Cp,
-				Output: jacocoZip,
-				Input:  jacocoZipWithoutDeviceTests,
-			})
-		}
+		java.BuildJacocoZipWithPotentialDeviceTests(ctx, appModules, jacocoZip)
 		ctx.DistForGoal("apps_only", jacocoZip)
 	}
 
