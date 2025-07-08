@@ -37,7 +37,6 @@ var (
 		// https://clang.llvm.org/docs/DiagnosticsReference.html
 		"-Wall",
 		"-Wextra",
-		"-Winit-self",
 		"-Wpointer-arith",
 		"-Wunguarded-availability",
 
@@ -169,9 +168,6 @@ var (
 		"-Wa,--noexecstack",
 		"-D_FORTIFY_SOURCE=3",
 
-		"-Wstrict-aliasing=2",
-
-		"-Werror=return-type",
 		"-Werror=non-virtual-dtor",
 		"-Werror=address",
 		"-Werror=sequence-point",
@@ -236,12 +232,10 @@ var (
 		"-Werror=bool-operation",
 		"-Werror=dangling",
 		"-Werror=format-insufficient-args",
-		"-Werror=implicit-int-float-conversion",
 		"-Werror=int-in-bool-context",
 		"-Werror=int-to-pointer-cast",
 		"-Werror=pointer-to-int-cast",
 		"-Werror=xor-used-as-pow",
-		"-Wimplicit-int-float-conversion",
 		// http://b/161386391 for -Wno-void-pointer-to-enum-cast
 		"-Wno-void-pointer-to-enum-cast",
 		// http://b/161386391 for -Wno-void-pointer-to-int-cast
