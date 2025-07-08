@@ -1724,17 +1724,38 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	var checkbuildDeps Paths
 	var info ModuleBuildTargetsInfo
 
-	installFiles := ctx.installFiles.Paths()
+	var outputDeps Paths
+	var installDeps Paths
+
+	for _, p := range testSuiteInstalls {
+		installDeps = append(installDeps, p.Dst)
+	}
+	// Act as if you built the required dependencies as well when building the current module
+	for _, dep := range ctx.GetDirectDepsProxyWithTag(RequiredDepTag) {
+		if info, ok := OtherModuleProvider(ctx, dep, ModuleBuildTargetsProvider); ok {
+			if info.OutputsTarget != nil {
+				outputDeps = append(outputDeps, info.OutputsTarget)
+			}
+			if info.InstallTarget != nil {
+				installDeps = append(installDeps, info.InstallTarget)
+			}
+		}
+	}
+
+	var installTarget Path
+	installFiles := slices.Concat(ctx.installFiles.Paths(), installDeps)
 	if len(installFiles) > 0 {
-		installTarget := phony("-"+ctx.ModuleSubDir()+"-install", installFiles)
+		installTarget = phony("-"+ctx.ModuleSubDir()+"-install", installFiles)
 		phony("-install", Paths{installTarget})
 		info.InstallTarget = installTarget
 		defaultDeps = append(defaultDeps, installTarget)
 	}
 
+	var outputTarget Path
 	outputFiles, _ := outputFilesForModule(ctx, ctx.Module(), "")
+	outputFiles = append(outputFiles, outputDeps...)
 	if len(outputFiles) > 0 {
-		outputTarget := phony("-"+ctx.ModuleSubDir()+"-outputs", outputFiles)
+		outputTarget = phony("-"+ctx.ModuleSubDir()+"-outputs", outputFiles)
 		phony("-outputs", Paths{outputTarget})
 		defaultDeps = append(defaultDeps, outputTarget)
 		checkbuildDeps = append(checkbuildDeps, outputTarget)
@@ -1756,32 +1777,33 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		}
 	}
 
-	for _, p := range testSuiteInstalls {
-		defaultDeps = append(defaultDeps, p.Dst)
+	var defaultTarget Paths
+	if installTarget != nil {
+		defaultTarget = Paths{installTarget}
+	} else if outputTarget != nil {
+		defaultTarget = Paths{outputTarget}
+	} else if checkbuildTarget != nil {
+		defaultTarget = Paths{checkbuildTarget}
+	} else {
+		defaultTarget = checkbuildDeps
 	}
 
-	// Act as if you built the required dependencies as well when building the current module
-	for _, dep := range ctx.GetDirectDepsProxyWithTag(RequiredDepTag) {
-		if info, ok := OtherModuleProvider(ctx, dep, ModuleBuildTargetsProvider); ok {
-			defaultDeps = append(defaultDeps, info.AllDeps...)
-		}
-	}
-
-	phony("", defaultDeps)
+	phony("", defaultTarget)
 	if ctx.Device() {
 		// Generate a target suffix for use in atest etc.
-		phony("-target", defaultDeps)
+		phony("-target", defaultTarget)
 	} else {
 		// Generate a host suffix for use in atest etc.
-		phony("-host", defaultDeps)
+		phony("-host", defaultTarget)
 		if ctx.Target().HostCross {
 			// Generate a host-cross suffix for use in atest etc.
-			phony("-host-cross", defaultDeps)
+			phony("-host-cross", defaultTarget)
 		}
 	}
 
 	info.BlueprintDir = ctx.ModuleDir()
-	info.AllDeps = checkbuildDeps
+	info.OutputsTarget = outputTarget
+	info.InstallTarget = installTarget
 	info.NamespaceExportedToMake = namespaceExportedToMake
 	SetProvider(ctx, ModuleBuildTargetsProvider, info)
 }
@@ -1942,10 +1964,10 @@ var SourceFilesInfoProvider = blueprint.NewProvider[SourceFilesInfo]()
 // @auto-generate: gob
 type ModuleBuildTargetsInfo struct {
 	InstallTarget           Path
+	OutputsTarget           Path
 	CheckbuildTarget        Path
 	NamespaceExportedToMake bool
 	BlueprintDir            string
-	AllDeps                 Paths
 }
 
 var ModuleBuildTargetsProvider = blueprint.NewProvider[ModuleBuildTargetsInfo]()

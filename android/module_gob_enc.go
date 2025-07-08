@@ -599,6 +599,10 @@ func (r ModuleBuildTargetsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffe
 		return err
 	}
 
+	if err = gobtools.EncodeInterface(ctx, buf, r.OutputsTarget); err != nil {
+		return err
+	}
+
 	if err = gobtools.EncodeInterface(ctx, buf, r.CheckbuildTarget); err != nil {
 		return err
 	}
@@ -609,15 +613,6 @@ func (r ModuleBuildTargetsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffe
 
 	if err = gobtools.EncodeString(buf, r.BlueprintDir); err != nil {
 		return err
-	}
-
-	if err = gobtools.EncodeSimple(buf, int32(len(r.AllDeps))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r.AllDeps); val1++ {
-		if err = gobtools.EncodeInterface(ctx, buf, r.AllDeps[val1]); err != nil {
-			return err
-		}
 	}
 	return err
 }
@@ -636,9 +631,17 @@ func (r *ModuleBuildTargetsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if val4, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 		return err
 	} else if val4 == nil {
+		r.OutputsTarget = nil
+	} else {
+		r.OutputsTarget = val4.(Path)
+	}
+
+	if val6, err := gobtools.DecodeInterface(ctx, buf); err != nil {
+		return err
+	} else if val6 == nil {
 		r.CheckbuildTarget = nil
 	} else {
-		r.CheckbuildTarget = val4.(Path)
+		r.CheckbuildTarget = val6.(Path)
 	}
 
 	err = gobtools.DecodeSimple[bool](buf, &r.NamespaceExportedToMake)
@@ -649,24 +652,6 @@ func (r *ModuleBuildTargetsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	err = gobtools.DecodeString(buf, &r.BlueprintDir)
 	if err != nil {
 		return err
-	}
-
-	var val9 int32
-	err = gobtools.DecodeSimple[int32](buf, &val9)
-	if err != nil {
-		return err
-	}
-	if val9 > 0 {
-		r.AllDeps = make([]Path, val9)
-		for val10 := 0; val10 < int(val9); val10++ {
-			if val12, err := gobtools.DecodeInterface(ctx, buf); err != nil {
-				return err
-			} else if val12 == nil {
-				r.AllDeps[val10] = nil
-			} else {
-				r.AllDeps[val10] = val12.(Path)
-			}
-		}
 	}
 
 	return err
