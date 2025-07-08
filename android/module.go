@@ -1695,7 +1695,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	}
 	namespaceExportedToMake := m.ExportedToMake()
 
-	phony := func(suffix string, deps Paths) string {
+	phony := func(suffix string, deps Paths) Path {
 		if ctx.Config().KatiEnabled() {
 			suffix += "-soong"
 		}
@@ -1717,65 +1717,73 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 			ctx.Phony(phonyName, deps...)
 		}
 
-		return phonyName
+		return PathForPhony(ctx, phonyName)
 	}
 
-	var deps Paths
+	var defaultDeps Paths
+	var checkbuildDeps Paths
 	var info ModuleBuildTargetsInfo
 
-	if len(ctx.installFiles) > 0 {
-		installFiles := ctx.installFiles.Paths()
-		name := phony("-install", installFiles)
-		info.InstallTarget = PathForPhony(ctx, name)
-		deps = append(deps, installFiles...)
+	installFiles := ctx.installFiles.Paths()
+	if len(installFiles) > 0 {
+		installTarget := phony("-"+ctx.ModuleSubDir()+"-install", installFiles)
+		phony("-install", Paths{installTarget})
+		info.InstallTarget = installTarget
+		defaultDeps = append(defaultDeps, installTarget)
+	}
+
+	outputFiles, _ := outputFilesForModule(ctx, ctx.Module(), "")
+	if len(outputFiles) > 0 {
+		outputTarget := phony("-"+ctx.ModuleSubDir()+"-outputs", outputFiles)
+		phony("-outputs", Paths{outputTarget})
+		defaultDeps = append(defaultDeps, outputTarget)
+		checkbuildDeps = append(checkbuildDeps, outputTarget)
 	}
 
 	// A module's -checkbuild phony targets should
 	// not be created if the module is not exported to make.
 	// Those could depend on the build target and fail to compile
 	// for the current build target.
-	if !ctx.uncheckedModule {
-		phony("-checkbuild", ctx.checkbuildFiles)
-		checkbuildTarget := phony("-"+ctx.ModuleSubDir()+"-checkbuild", ctx.checkbuildFiles)
-		info.CheckbuildTarget = PathForPhony(ctx, checkbuildTarget)
-		deps = append(deps, ctx.checkbuildFiles...)
+	var checkbuildTarget Path
+	checkbuildDeps = append(checkbuildDeps, ctx.checkbuildFiles...)
+	if len(checkbuildDeps) > 0 {
+		checkbuildTarget = phony("-"+ctx.ModuleSubDir()+"-checkbuild", checkbuildDeps)
+		phony("-checkbuild", Paths{checkbuildTarget})
+		defaultDeps = append(defaultDeps, checkbuildTarget)
+		checkbuildDeps = Paths{checkbuildTarget}
+		if !ctx.uncheckedModule {
+			info.CheckbuildTarget = checkbuildTarget
+		}
 	}
 
-	if outputFiles, err := outputFilesForModule(ctx, ctx.Module(), ""); err == nil && len(outputFiles) > 0 {
-		phony("-outputs", outputFiles)
-		deps = append(deps, outputFiles...)
+	for _, p := range testSuiteInstalls {
+		defaultDeps = append(defaultDeps, p.Dst)
 	}
 
 	// Act as if you built the required dependencies as well when building the current module
 	for _, dep := range ctx.GetDirectDepsProxyWithTag(RequiredDepTag) {
 		if info, ok := OtherModuleProvider(ctx, dep, ModuleBuildTargetsProvider); ok {
-			deps = append(deps, info.AllDeps...)
+			defaultDeps = append(defaultDeps, info.AllDeps...)
 		}
 	}
 
-	for _, p := range testSuiteInstalls {
-		deps = append(deps, p.Dst)
-	}
-
-	if len(deps) > 0 {
-		phony("", deps)
-		if ctx.Device() {
-			// Generate a target suffix for use in atest etc.
-			phony("-target", deps)
-		} else {
-			// Generate a host suffix for use in atest etc.
-			phony("-host", deps)
-			if ctx.Target().HostCross {
-				// Generate a host-cross suffix for use in atest etc.
-				phony("-host-cross", deps)
-			}
+	phony("", defaultDeps)
+	if ctx.Device() {
+		// Generate a target suffix for use in atest etc.
+		phony("-target", defaultDeps)
+	} else {
+		// Generate a host suffix for use in atest etc.
+		phony("-host", defaultDeps)
+		if ctx.Target().HostCross {
+			// Generate a host-cross suffix for use in atest etc.
+			phony("-host-cross", defaultDeps)
 		}
-
-		info.BlueprintDir = ctx.ModuleDir()
-		info.AllDeps = deps
-		info.NamespaceExportedToMake = namespaceExportedToMake
-		SetProvider(ctx, ModuleBuildTargetsProvider, info)
 	}
+
+	info.BlueprintDir = ctx.ModuleDir()
+	info.AllDeps = checkbuildDeps
+	info.NamespaceExportedToMake = namespaceExportedToMake
+	SetProvider(ctx, ModuleBuildTargetsProvider, info)
 }
 
 func determineModuleKind(m *ModuleBase, ctx ModuleErrorContext) moduleKind {
