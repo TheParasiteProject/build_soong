@@ -26,6 +26,7 @@ import (
 )
 
 func RegisterCollectFileSystemDepsMutators(ctx android.RegisterMutatorsContext) {
+	ctx.BottomUp("fs_recovery_fstab", setRecoveryFstabSrcs).MutatesGlobalState()
 	ctx.BottomUp("fs_collect_deps", collectDepsMutator).MutatesGlobalState()
 	ctx.BottomUp("fs_remove_deps", removeDepsMutator).MutatesGlobalState()
 	ctx.BottomUp("fs_cross_partition_required_deps", crossPartitionRequiredMutator).MutatesGlobalState()
@@ -112,6 +113,9 @@ type FsGenState struct {
 	avbKeyFilegroups map[string]string
 	// Name of all native bridge modules
 	nativeBridgeModules map[string]bool
+
+	// Name of the generated recovery fstab module name
+	recoveryFstabModuleName string
 }
 
 type installationProperties struct {
@@ -272,6 +276,10 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 		}
 		if name := createTargetRecoveryWipeModuleName(ctx); name != "" {
 			(*fsGenState.fsDeps["recovery"])[name] = defaultDepCandidateProps(ctx.Config())
+		}
+		if name := handleRecoveryFstab(ctx); name != "" {
+			(*fsGenState.fsDeps["recovery"])[name] = defaultDepCandidateProps(ctx.Config())
+			fsGenState.recoveryFstabModuleName = name
 		}
 
 		// VNDK APEXes are deprecated and are not supported and disabled for riscv64 arch.

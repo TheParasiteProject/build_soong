@@ -778,6 +778,10 @@ type PartitionVariables struct {
 	BoardFastbootInfoFile string `json:",omitempty"`
 
 	TargetRecoveryWipe string `json:",omitempty"`
+
+	TargetRecoveryFstab        string `json:",omitempty"`
+	TargetRecoveryFstabGenrule string `json:",omitempty"`
+	TargetRecoveryFstabDefault string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
