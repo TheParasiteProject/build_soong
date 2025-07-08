@@ -199,9 +199,8 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 			return partitionQualifiedVars.BuildingImage
 		case "init_boot", "vendor_boot", "vendor", "product", "system_ext", "odm", "vendor_dlkm", "odm_dlkm", "system_dlkm":
 			return partitionQualifiedVars.BuildingImage || partitionQualifiedVars.PrebuiltImage
-		// TODO: Import BOARD_USES_PVMFWIMAGE
-		// ifeq ($(BOARD_USES_PVMFWIMAGE),true)
-		// case "pvmfw":
+		case "pvmfw":
+			return partitionVars.BoardUsesPvmfwImage
 		case "recovery":
 			// ifdef INSTALLED_RECOVERYIMAGE_TARGET
 			return !ctx.DeviceConfig().BoardUsesRecoveryAsBoot() && !ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot()

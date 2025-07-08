@@ -279,7 +279,7 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	android.SetProvider(ctx, vbmetaPartitionProvider, vbmetaPartitionInfo{
-		Name:                  b.bootImageType.String(),
+		Name:                  b.partitionName(),
 		RollbackIndexLocation: ril,
 		PublicKey:             extractedPublicKey,
 		Output:                output,
