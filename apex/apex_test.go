@@ -12252,3 +12252,34 @@ func TestNoVintfFragmentInUpdatableApex(t *testing.T) {
 		}
 	`)
 }
+
+// Repro of b/407641069, just test that it reports an error instead of crashing soong
+func TestNoPanicWithNilApexfile(t *testing.T) {
+	t.Parallel()
+	testApexError(t, "Dependency .* had nil builtFile. Make sure the module has an output file. \\(the installable and compile_dex properties can affect this\\)", apex_default_bp+`
+		apex {
+			name: "myapex",
+			manifest: ":myapex.manifest",
+			androidManifest: ":myapex.androidmanifest",
+			key: "myapex.key",
+			updatable: false,
+			systemserverclasspath_fragments: ["my-systemserverclasspath-fragment"],
+		}
+
+		systemserverclasspath_fragment {
+			name: "my-systemserverclasspath-fragment",
+			standalone_contents: ["my_java_library_foo"],
+			apex_available: ["myapex"],
+		}
+
+		java_library {
+			name: "my_java_library_foo",
+			srcs: ["foo/bar/MyClass.java"],
+			sdk_version: "system_server_current",
+			apex_available: [
+				"myapex",
+			],
+			installable: false, // Removing this line makes the build successful
+		}
+	`)
+}
