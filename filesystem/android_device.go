@@ -267,7 +267,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
 		jacocoZip := android.PathForModuleOut(ctx, "jacoco-report-classes-all.jar")
-		java.BuildJacocoZip(ctx, allInstalledModules, jacocoZip)
+		java.BuildJacocoZipWithPotentialDeviceTests(ctx, allInstalledModules, jacocoZip)
 		a.jacocoZip = jacocoZip
 	}
 

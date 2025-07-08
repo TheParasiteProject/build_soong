@@ -207,6 +207,24 @@ func BuildJacocoZip(ctx BuildJacocoZipContext, modules []android.ModuleOrProxy, 
 	jacocoZipBuilder.Build("jacoco_report_classes_zip", "Building jacoco report zip")
 }
 
+func BuildJacocoZipWithPotentialDeviceTests(ctx android.ModuleContext, modules []android.ModuleOrProxy, outputFile android.WritablePath) {
+	if !ctx.Config().IsEnvTrue("JACOCO_PACKAGING_INCLUDE_DEVICE_TESTS") {
+		BuildJacocoZip(ctx, modules, outputFile)
+		return
+	}
+
+	jacocoZipWithoutDeviceTests := android.PathForModuleOut(ctx, "temp-jacoco-report-classes-all-without-device-tests.jar")
+	BuildJacocoZip(ctx, modules, jacocoZipWithoutDeviceTests)
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.MergeZips,
+		Output: outputFile,
+		Inputs: []android.Path{
+			jacocoZipWithoutDeviceTests,
+			DeviceTestsJacocoReportZip(ctx),
+		},
+	})
+}
+
 func deviceTestsJacocoZipSingletonFactory() android.Singleton {
 	return &deviceTestsJacocoZipSingleton{}
 }
