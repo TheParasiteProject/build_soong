@@ -207,6 +207,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, moduleDir st
 			}
 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk")
 		default:
+			if fi.class == shBinary {
+				fmt.Fprintln(w, "LOCAL_CHECK_ELF_FILES := false")
+			}
 			fmt.Fprintln(w, "LOCAL_MODULE_STEM :=", fi.stem())
 			fmt.Fprintln(w, "include $(BUILD_PREBUILT)")
 		}
