@@ -62,7 +62,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 	var oneVariantInstalls []android.FilePair
 	var allCompatibilitySuitePackages []compatibilitySuitePackageInfo
 
-	allTestSuiteConfigs := testSuiteConfigs
+	var allTestSuiteConfigs []testSuiteConfig
 	allTestSuitesWithHostSharedLibs := []string{
 		"general-tests",
 		"device-tests",
@@ -134,6 +134,11 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 				allTestSuitesWithHostSharedLibs = append(allTestSuitesWithHostSharedLibs, info.name)
 			}
 		}
+	})
+
+	sort.Strings(allTestSuitesWithHostSharedLibs)
+	slices.SortFunc(allTestSuiteConfigs, func(a testSuiteConfig, b testSuiteConfig) int {
+		return strings.Compare(a.name, b.name)
 	})
 
 	for suite, suiteInstalls := range allTestSuiteInstalls {
@@ -322,35 +327,7 @@ type testSuiteConfig struct {
 	name                           string
 	buildHostSharedLibsZip         bool
 	includeHostSharedLibsInMainZip bool
-	hostJavaTools                  []string
-}
-
-var testSuiteConfigs = []testSuiteConfig{
-	{
-		name: "performance-tests",
-	},
-	{
-		name:                   "device-platinum-tests",
-		buildHostSharedLibsZip: true,
-	},
-	{
-		name:                           "device-tests",
-		includeHostSharedLibsInMainZip: true,
-	},
-	{
-		name: "automotive-tests",
-	},
-	{
-		name:                   "automotive-general-tests",
-		hostJavaTools:          []string{"compatibility-host-util", "cts-tradefed", "vts-tradefed"},
-		buildHostSharedLibsZip: true,
-	},
-	{
-		name: "automotive-sdv-tests",
-	},
-	{
-		name: "al-tests",
-	},
+	hostJavaToolFiles              android.Paths
 }
 
 func buildTestSuite(ctx android.SingletonContext, suiteName string, files testModulesInstallsMap) (android.Path, android.Path) {
@@ -502,12 +479,12 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 	android.WriteFileRule(ctx, testsZipCmdTargetFileInput, strings.Join(testsZipCmdTargetFileInputContent, " "))
 	testsZipCmd.FlagWithInput("-l ", testsZipCmdTargetFileInput)
 
-	if len(suiteConfig.hostJavaTools) > 0 {
+	if len(suiteConfig.hostJavaToolFiles) > 0 {
 		testsZipCmd.FlagWithArg("-P ", "host/tools")
 		testsZipCmd.Flag("-j")
 
-		for _, hostJavaTool := range suiteConfig.hostJavaTools {
-			testsZipCmd.FlagWithInput("-f ", ctx.Config().HostJavaToolPath(ctx, hostJavaTool+".jar"))
+		for _, hostJavaTool := range suiteConfig.hostJavaToolFiles {
+			testsZipCmd.FlagWithInput("-f ", hostJavaTool)
 		}
 	}
 
@@ -754,7 +731,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 	ctx.VisitDirectDepsProxyWithTag(ctspHostJavaToolDeptag, func(dep android.ModuleProxy) {
 		file := android.OtherModuleProviderOrDefault(ctx, dep, java.JavaInfoProvider).InstallFile
 		if file == nil {
-			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide java installfile, is it a java module?", ctx.OtherModuleName(dep))
+			ctx.PropertyErrorf("tools", "Dependency %q did not provide java installfile, is it a java module?", ctx.OtherModuleName(dep))
 		}
 		toolFiles = append(toolFiles, file)
 		toolNoticeinfo = append(toolNoticeinfo, android.GetNoticeModuleInfo(ctx, dep))
@@ -763,7 +740,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 	ctx.VisitDirectDepsProxyWithTag(ctspHostToolDeptag, func(dep android.ModuleProxy) {
 		files := android.OtherModuleProviderOrDefault(ctx, dep, android.InstallFilesProvider).InstallFiles
 		if len(files) != 1 {
-			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected single file", ctx.OtherModuleName(dep))
+			ctx.ModuleErrorf("Dependency %q did not provide expected single file", ctx.OtherModuleName(dep))
 		}
 		for _, f := range files {
 			toolFiles = append(toolFiles, f)
@@ -800,6 +777,7 @@ func testSuitePackageFactory() android.Module {
 type testSuitePackageProperties struct {
 	Build_host_shared_libs_zip           *bool
 	Include_host_shared_libs_in_main_zip *bool
+	Host_java_tools                      []string
 }
 
 type testSuitePackage struct {
@@ -809,13 +787,34 @@ type testSuitePackage struct {
 
 var testSuitePackageProvider = blueprint.NewProvider[testSuiteConfig]()
 
+type tspHostJavaToolDeptagType struct {
+	blueprint.BaseDependencyTag
+}
+
+var tspHostJavaToolDeptag = tspHostJavaToolDeptagType{}
+
+func (t *testSuitePackage) DepsMutator(ctx android.BottomUpMutatorContext) {
+	variations := ctx.Config().BuildOSTarget.Variations()
+	ctx.AddVariationDependencies(variations, tspHostJavaToolDeptag, t.properties.Host_java_tools...)
+}
+
 // testSuitePackage does not have build actions of its own.
 // It sets a provider with info about its packaging config.
 // A singleton will create the build rules to create the .zip files.
 func (t *testSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+	var toolFiles android.Paths
+	ctx.VisitDirectDepsProxyWithTag(tspHostJavaToolDeptag, func(dep android.ModuleProxy) {
+		file := android.OtherModuleProviderOrDefault(ctx, dep, java.JavaInfoProvider).InstallFile
+		if file == nil {
+			ctx.PropertyErrorf("host_java_tools", "Dependency %q did not provide java installfile, is it a java module?", ctx.OtherModuleName(dep))
+		}
+		toolFiles = append(toolFiles, file)
+	})
+
 	android.SetProvider(ctx, testSuitePackageProvider, testSuiteConfig{
 		name:                           t.Name(),
 		buildHostSharedLibsZip:         proptools.Bool(t.properties.Build_host_shared_libs_zip),
 		includeHostSharedLibsInMainZip: proptools.Bool(t.properties.Include_host_shared_libs_in_main_zip),
+		hostJavaToolFiles:              toolFiles,
 	})
 }
