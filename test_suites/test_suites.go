@@ -16,6 +16,7 @@ package testsuites
 
 import (
 	"android/soong/android"
+	"android/soong/java"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -588,18 +589,6 @@ func buildCompatibilitySuitePackage(
 		copyTool(hostTool)
 	}
 
-	for _, tool := range suite.Tools {
-		if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", tool); err != nil || !matched {
-			ctx.Errorf("Invalid test suite tool, must match [a-zA-Z0-9_-]+, got %q", tool)
-			continue
-		}
-		toolPath := ctx.Config().HostJavaToolPath(ctx, tool)
-		cmd.
-			FlagWithArg("-e ", subdir+"/tools/"+tool).
-			FlagWithInput("-f ", toolPath)
-		copyTool(toolPath)
-	}
-
 	if suite.Readme != nil {
 		cmd.
 			FlagWithArg("-e ", subdir+"/tools/"+suite.Readme.Base()).
@@ -699,7 +688,6 @@ type compatibilityTestSuitePackage struct {
 type compatibilitySuitePackageInfo struct {
 	Name           string
 	Readme         android.Path
-	Tools          []string
 	DynamicConfig  android.Path
 	ToolFiles      android.Paths
 	ToolNoticeInfo android.NoticeModuleInfos
@@ -726,13 +714,20 @@ type ctspHostToolDeptagType struct {
 var ctspHostToolDeptag = ctspHostToolDeptagType{}
 
 func (m *compatibilityTestSuitePackage) DepsMutator(ctx android.BottomUpMutatorContext) {
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspTradefedDeptag, proptools.String(m.properties.Tradefed))
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, proptools.String(m.properties.Tradefed)+"-tests")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "tradefed")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "loganalysis")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "compatibility-host-util")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostJavaToolDeptag, "compatibility-tradefed")
-	ctx.AddVariationDependencies(ctx.Config().BuildOSTarget.Variations(), ctspHostToolDeptag, "test-utils-script")
+	variations := ctx.Config().BuildOSTarget.Variations()
+	ctx.AddVariationDependencies(variations, ctspTradefedDeptag, proptools.String(m.properties.Tradefed))
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, proptools.String(m.properties.Tradefed)+"-tests")
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "tradefed")
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "loganalysis")
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "compatibility-host-util")
+	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "compatibility-tradefed")
+	ctx.AddVariationDependencies(variations, ctspHostToolDeptag, "test-utils-script")
+	for _, tool := range m.properties.Tools {
+		// TODO update bp files to not have .jar and remove this
+		tool := strings.TrimSuffix(tool, ".jar")
+
+		ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, tool)
+	}
 }
 
 func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext) {
@@ -750,36 +745,18 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected files, produced: %s", tradefedName, tradefedFiles.Strings())
 	}
 
-	toolFiles := slices.Clone(tradefedFiles)
+	var toolFiles android.Paths
+	for _, f := range tradefedFiles {
+		toolFiles = append(toolFiles, f)
+	}
 	toolNoticeinfo := android.NoticeModuleInfos{android.GetNoticeModuleInfo(ctx, tradefed)}
 
-	hostJavaToolPath := ctx.Config().HostJavaToolPath(ctx, "").String()
 	ctx.VisitDirectDepsProxyWithTag(ctspHostJavaToolDeptag, func(dep android.ModuleProxy) {
-		files := android.OtherModuleProviderOrDefault(ctx, dep, android.InstallFilesProvider).InstallFiles
-		if len(files) == 2 {
-			// tradefed_java_library_host installs the same file in another location, ignore
-			// the second file. Only the second to last component is different, ensure everything
-			// else is the same. We use the file under HostJavaToolPath because the licensing
-			// logic expects that later.
-			// TODO: Consider switching to `JavaInfo.InstallFile` to get just the file we want
-			base1 := files[0].Base()
-			base2 := files[1].Base()
-			prefix1 := filepath.Dir(filepath.Dir(files[0].String()))
-			prefix2 := filepath.Dir(filepath.Dir(files[1].String()))
-			if base1 == base2 && prefix1 == prefix2 {
-				if strings.HasPrefix(files[0].String(), hostJavaToolPath) {
-					files = android.InstallPaths{files[0]}
-				} else if strings.HasPrefix(files[1].String(), hostJavaToolPath) {
-					files = android.InstallPaths{files[1]}
-				} else {
-					// leave files unchanged, fall through to error below.
-				}
-			}
+		file := android.OtherModuleProviderOrDefault(ctx, dep, java.JavaInfoProvider).InstallFile
+		if file == nil {
+			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide java installfile, is it a java module?", ctx.OtherModuleName(dep))
 		}
-		if len(files) != 1 || !strings.HasSuffix(files[0].String(), ".jar") {
-			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected single .jar file, got: %s", ctx.OtherModuleName(dep), files.Strings())
-		}
-		toolFiles = append(toolFiles, files...)
+		toolFiles = append(toolFiles, file)
 		toolNoticeinfo = append(toolNoticeinfo, android.GetNoticeModuleInfo(ctx, dep))
 	})
 
@@ -788,7 +765,9 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		if len(files) != 1 {
 			ctx.PropertyErrorf("tradefed", "Dependency %q did not provide expected single file", ctx.OtherModuleName(dep))
 		}
-		toolFiles = append(toolFiles, files...)
+		for _, f := range files {
+			toolFiles = append(toolFiles, f)
+		}
 		toolNoticeinfo = append(toolNoticeinfo, android.GetNoticeModuleInfo(ctx, dep))
 	})
 
@@ -805,9 +784,8 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 	android.SetProvider(ctx, compatibilitySuitePackageProvider, compatibilitySuitePackageInfo{
 		Name:           m.Name(),
 		Readme:         readme,
-		Tools:          m.properties.Tools,
 		DynamicConfig:  dynamicConfig,
-		ToolFiles:      toolFiles.Paths(),
+		ToolFiles:      toolFiles,
 		ToolNoticeInfo: toolNoticeinfo,
 	})
 }
