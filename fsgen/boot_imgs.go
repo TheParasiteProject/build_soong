@@ -48,6 +48,7 @@ func createBootImageCommon(ctx android.LoadHookContext, kernelPath string, prebu
 			},
 			&filesystem.CommonBootimgProperties{
 				Boot_image_type:             proptools.StringPtr("boot"),
+				Partition_name:              proptools.StringPtr("boot"),
 				Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
 				Partition_size:              getPartitionSize(partitionVariables),
 				Use_avb:                     avbInfo.avbEnable,
@@ -106,6 +107,7 @@ func createBootImageCommon(ctx android.LoadHookContext, kernelPath string, prebu
 		},
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("boot"),
+			Partition_name:              proptools.StringPtr("boot"),
 			Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
 			Partition_size:              getPartitionSize(partitionVariables),
 			Use_avb:                     avbInfo.avbEnable,
@@ -178,6 +180,7 @@ func createVendorBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 		},
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("vendor_boot"),
+			Partition_name:              proptools.StringPtr("vendor_boot"),
 			Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
 			Partition_size:              partitionSize,
 			Use_avb:                     avbInfo.avbEnable,
@@ -232,6 +235,7 @@ func createVendorKernelBootImage(ctx android.LoadHookContext, dtbImg dtbImg) boo
 		},
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("vendor_kernel_boot"),
+			Partition_name:              proptools.StringPtr("vendor_kernel_boot"),
 			Header_version:              proptools.StringPtr("4"),
 			Partition_size:              partitionSize,
 			Use_avb:                     avbInfo.avbEnable,
@@ -284,6 +288,7 @@ func createInitBootImage(ctx android.LoadHookContext) bool {
 		},
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("init_boot"),
+			Partition_name:              proptools.StringPtr("init_boot"),
 			Header_version:              proptools.StringPtr(partitionVariables.BoardInitBootHeaderVersion),
 			Partition_size:              partitionSize,
 			Use_avb:                     avbInfo.avbEnable,
