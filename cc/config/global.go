@@ -37,7 +37,6 @@ var (
 		// https://clang.llvm.org/docs/DiagnosticsReference.html
 		"-Wall",
 		"-Wextra",
-		"-Winit-self",
 		"-Wpointer-arith",
 		"-Wunguarded-availability",
 
@@ -169,9 +168,6 @@ var (
 		"-Wa,--noexecstack",
 		"-D_FORTIFY_SOURCE=3",
 
-		"-Wstrict-aliasing=2",
-
-		"-Werror=return-type",
 		"-Werror=non-virtual-dtor",
 		"-Werror=address",
 		"-Werror=sequence-point",
@@ -236,12 +232,10 @@ var (
 		"-Werror=bool-operation",
 		"-Werror=dangling",
 		"-Werror=format-insufficient-args",
-		"-Werror=implicit-int-float-conversion",
 		"-Werror=int-in-bool-context",
 		"-Werror=int-to-pointer-cast",
 		"-Werror=pointer-to-int-cast",
 		"-Werror=xor-used-as-pow",
-		"-Wimplicit-int-float-conversion",
 		// http://b/161386391 for -Wno-void-pointer-to-enum-cast
 		"-Wno-void-pointer-to-enum-cast",
 		// http://b/161386391 for -Wno-void-pointer-to-int-cast
@@ -287,9 +281,6 @@ var (
 		"-Wno-error=deprecated", // in external/googletest/googletest
 		// New warnings to be fixed after clang-r522817
 		"-Wno-error=invalid-offsetof",
-		// New warnings to be fixed after clang-r563880
-		"-Wno-nontrivial-memcall",
-		"-Wno-invalid-specialization",
 
 		// Allow using VLA CXX extension.
 		"-Wno-vla-cxx-extension",
@@ -331,9 +322,6 @@ var (
 
 		"-Wno-unused",
 		"-Wno-deprecated",
-
-		// http://b/315250603 temporarily disabled
-		"-Wno-error=format",
 	}
 
 	// Similar to noOverrideGlobalCflags, but applies only to third-party code
@@ -467,6 +455,10 @@ func init() {
 
 	pctx.VariableFunc("NoOverrideGlobalCflags", func(ctx android.PackageVarContext) string {
 		flags := noOverrideGlobalCflags
+		if ClangVersionAtLeast(ctx, 563880) {
+			flags = append(flags, "-Wno-nontrivial-memcall")
+			flags = append(flags, "-Wno-invalid-specialization")
+		}
 		if ctx.Config().IsEnvTrue("LLVM_NEXT") {
 			flags = append(noOverrideGlobalCflags, llvmNextExtraCommonGlobalCflags...)
 			IllegalFlags = []string{} // Don't fail build while testing a new compiler.

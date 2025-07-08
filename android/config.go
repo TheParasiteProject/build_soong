@@ -348,6 +348,14 @@ type DeviceConfig struct {
 // VendorConfig represents the configuration for vendor-specific behavior.
 type VendorConfig soongconfig.SoongConfig
 
+// envDeps must be a singleton. non-generic and generic configurations share a single
+// instance of envDeps.
+type envDeps struct {
+	envLock   sync.Mutex
+	envDeps   map[string]string
+	envFrozen bool
+}
+
 // Definition of general build configuration for soong_build. Some of these
 // product configuration values are read from Kati-generated soong.variables.
 type config struct {
@@ -386,10 +394,8 @@ type config struct {
 
 	runGoTests bool
 
-	env       map[string]string
-	envLock   sync.Mutex
-	envDeps   map[string]string
-	envFrozen bool
+	env     map[string]string
+	envDeps *envDeps
 
 	// Changes behavior based on whether Kati runs after soong_build, or if soong_build
 	// runs standalone.
@@ -754,6 +760,7 @@ func initConfig(cmdArgs CmdArgs, availableEnv map[string]string) (*config, error
 		moduleListFile: cmdArgs.ModuleListFile,
 		fs:             pathtools.NewOsFs(absSrcDir),
 
+		envDeps: &envDeps{},
 		OncePer: &OncePer{},
 
 		buildFromSourceStub: cmdArgs.BuildFromSourceStub,
@@ -914,7 +921,8 @@ func overrideGenericConfig(config *config) {
 		}
 	}
 
-	// OncePer must be a singleton.
+	// envDeps and OncePer must be singletons.
+	config.genericConfigField.envDeps = config.envDeps
 	config.genericConfigField.OncePer = config.OncePer
 	// keep the device name to get the install path.
 	config.genericConfigField.deviceNameToInstall = config.deviceNameToInstall
@@ -1051,17 +1059,17 @@ func (c *config) CpPreserveSymlinksFlags() string {
 func (c *config) Getenv(key string) string {
 	var val string
 	var exists bool
-	c.envLock.Lock()
-	defer c.envLock.Unlock()
-	if c.envDeps == nil {
-		c.envDeps = make(map[string]string)
+	c.envDeps.envLock.Lock()
+	defer c.envDeps.envLock.Unlock()
+	if c.envDeps.envDeps == nil {
+		c.envDeps.envDeps = make(map[string]string)
 	}
-	if val, exists = c.envDeps[key]; !exists {
-		if c.envFrozen {
+	if val, exists = c.envDeps.envDeps[key]; !exists {
+		if c.envDeps.envFrozen {
 			panic("Cannot access new environment variables after envdeps are frozen")
 		}
 		val, _ = c.env[key]
-		c.envDeps[key] = val
+		c.envDeps.envDeps[key] = val
 	}
 	return val
 }
@@ -1091,10 +1099,10 @@ func (c *config) TargetsJava21() bool {
 // EnvDeps returns the environment variables this build depends on. The first
 // call to this function blocks future reads from the environment.
 func (c *config) EnvDeps() map[string]string {
-	c.envLock.Lock()
-	defer c.envLock.Unlock()
-	c.envFrozen = true
-	return c.envDeps
+	c.envDeps.envLock.Lock()
+	defer c.envDeps.envLock.Unlock()
+	c.envDeps.envFrozen = true
+	return c.envDeps.envDeps
 }
 
 func (c *config) KatiEnabled() bool {

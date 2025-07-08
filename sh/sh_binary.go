@@ -384,6 +384,7 @@ func (s *ShBinary) customAndroidMkEntries(entries *android.AndroidMkEntries) {
 	if len(s.properties.Symlinks) > 0 {
 		entries.SetString("LOCAL_MODULE_SYMLINKS", strings.Join(s.properties.Symlinks, " "))
 	}
+	entries.SetBool("LOCAL_CHECK_ELF_FILES", false)
 }
 
 type dependencyTag struct {

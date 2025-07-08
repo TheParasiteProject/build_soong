@@ -712,7 +712,9 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		flags.Local.CFlags = append(flags.Local.CFlags, "-Oz")
 		if !ctx.Config().IsEnvFalse("THINLTO_USE_MLGO") {
 			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm,-enable-ml-inliner=release")
-			flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm,-ml-inliner-model-selector=arm64-mixed")
+			if config.ClangVersionAtLeast(ctx, 563880) {
+				flags.Local.LdFlags = append(flags.Local.LdFlags, "-Wl,-mllvm,-ml-inliner-model-selector=arm64-mixed")
+			}
 		}
 	}
 

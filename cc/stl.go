@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"android/soong/android"
+	"android/soong/cc/config"
 )
 
 func getNdkStlFamily(m LinkableInterface) string {
@@ -212,7 +213,11 @@ func (stl *stl) flags(ctx ModuleContext, flags Flags) Flags {
 					"-D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS=",
 					"-D_LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS=")
 				// Use Win32 threads in libc++.
-				flags.Local.CppFlags = append(flags.Local.CppFlags, "-D_LIBCPP_HAS_THREAD_API_WIN32=1")
+				if config.ClangVersionAtLeast(ctx, 563880) {
+					flags.Local.CppFlags = append(flags.Local.CppFlags, "-D_LIBCPP_HAS_THREAD_API_WIN32=1")
+				} else {
+					flags.Local.CppFlags = append(flags.Local.CppFlags, "-D_LIBCPP_HAS_THREAD_API_WIN32=")
+				}
 			}
 		}
 	case "libstdc++":

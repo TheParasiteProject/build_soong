@@ -139,7 +139,7 @@ type DroidstubsProperties struct {
 	// The generated public API filename by Metalava, defaults to <module>_api.txt
 	Api_filename *string
 
-	// the generated removed API filename by Metalava, defaults to <module>_removed.txt
+	// The generated removed API filename by Metalava, defaults to <module>_removed.txt
 	Removed_api_filename *string
 
 	Check_api struct {
@@ -158,60 +158,60 @@ type DroidstubsProperties struct {
 		}
 	}
 
-	// user can specify the version of previous released API file in order to do compatibility check.
+	// User can specify the version of previous released API file in order to do compatibility check.
 	Previous_api *string `android:"path"`
 
-	// is set to true, Metalava will allow framework SDK to contain annotations.
+	// If set to true, Metalava will allow framework SDK to contain annotations.
 	Annotations_enabled *bool
 
-	// a list of top-level directories containing files to merge qualifier annotations (i.e. those intended to be included in the stubs written) from.
+	// A list of top-level directories containing files to merge qualifier annotations (i.e. those intended to be included in the stubs written) from.
 	Merge_annotations_dirs []string
 
-	// a list of top-level directories containing Java stub files to merge show/hide annotations from.
+	// A list of top-level directories containing Java stub files to merge show/hide annotations from.
 	Merge_inclusion_annotations_dirs []string
 
-	// a file containing a list of classes to do nullability validation for.
+	// A file containing a list of classes to do nullability validation for.
 	Validate_nullability_from_list *string
 
-	// a file containing expected warnings produced by validation of nullability annotations.
+	// A file containing expected warnings produced by validation of nullability annotations.
 	Check_nullability_warnings *string
 
-	// if set to true, allow Metalava to generate doc_stubs source files. Defaults to false.
+	// If set to true, allow Metalava to generate doc_stubs source files. Defaults to false.
 	Create_doc_stubs *bool
 
-	// if set to true, cause Metalava to output Javadoc comments in the stubs source files. Defaults to false.
+	// If set to true, cause Metalava to output Javadoc comments in the stubs source files. Defaults to false.
 	// Has no effect if create_doc_stubs: true.
 	Output_javadoc_comments *bool
 
-	// if set to false then do not write out stubs. Defaults to true.
+	// If set to false then do not write out stubs. Defaults to true.
 	//
 	// TODO(b/146727827): Remove capability when we do not need to generate stubs and API separately.
 	Generate_stubs *bool
 
-	// if set to true, provides a hint to the build system that this rule uses a lot of memory,
+	// If set to true, provides a hint to the build system that this rule uses a lot of memory,
 	// which can be used for scheduling purposes
 	High_mem *bool
 
-	// if set to true, Metalava will allow framework SDK to contain API levels annotations.
+	// If set to true, Metalava will allow framework SDK to contain API levels annotations.
 	Api_levels_annotations_enabled *bool
 
 	// Apply the api levels database created by this module rather than generating one in this droidstubs.
 	Api_levels_module *string
 
-	// the dirs which Metalava extracts API levels annotations from.
+	// The dirs which Metalava extracts API levels annotations from.
 	Api_levels_annotations_dirs []string
 
-	// the sdk kind which Metalava extracts API levels annotations from. Supports 'public', 'system', 'module-lib' and 'system-server'; defaults to public.
+	// The sdk kind which Metalava extracts API levels annotations from. Supports 'public', 'system', 'module-lib' and 'system-server'; defaults to public.
 	Api_levels_sdk_type *string
 
-	// the filename which Metalava extracts API levels annotations from. Defaults to android.jar.
+	// The filename which Metalava extracts API levels annotations from. Defaults to android.jar.
 	Api_levels_jar_filename *string
 
-	// if set to true, collect the values used by the Dev tools and
+	// If set to true, collect the values used by the Dev tools and
 	// write them in files packaged with the SDK. Defaults to false.
 	Write_sdk_values *bool
 
-	// path or filegroup to file defining extension an SDK name <-> numerical ID mapping and
+	// Path or filegroup to file defining extension an SDK name <-> numerical ID mapping and
 	// what APIs exist in which SDKs; passed to metalava via --sdk-extensions-info
 	Extensions_info_file *string `android:"path"`
 
@@ -219,7 +219,7 @@ type DroidstubsProperties struct {
 	// For the full list of available API surfaces, refer to soong/android/sdk_version.go
 	Api_surface *string
 
-	// a list of aconfig_declarations module names that the stubs generated in this module
+	// A list of aconfig_declarations module names that the stubs generated in this module
 	// depend on.
 	Aconfig_declarations []string
 
