@@ -2039,6 +2039,10 @@ func (r *Module) useVendorApi() bool {
 	return r.Device() && (r.InVendor() || r.InProduct())
 }
 
+func (mod *Module) StdLinkageIsRlibLinkage(device bool) bool {
+	return mod.compiler != nil && mod.compiler.stdLinkage(device) == RlibLinkage
+}
+
 func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 	ctx := &depsContext{
 		BottomUpMutatorContext: actx,
@@ -2119,7 +2123,7 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	// stdlibs
 	if deps.Stdlibs != nil {
-		if mod.compiler.stdLinkage(ctx.Device()) == RlibLinkage {
+		if mod.StdLinkageIsRlibLinkage(ctx.Device()) {
 			for _, lib := range deps.Stdlibs {
 				actx.AddVariationDependencies(append(commonDepVariations, []blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}}...),
 					rlibDepTag, lib)
