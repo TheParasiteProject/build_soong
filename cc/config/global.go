@@ -44,10 +44,15 @@ var (
 		// See also noOverrideGlobalCflags for errors that cannot be disabled
 		// from Android.bp files.
 
+		// Detects usage of bitwise operators on Boolean values.
+		"-Werror=bool-operation",
 		// Using __DATE__/__TIME__ causes build nondeterminism.
 		"-Werror=date-time",
 		// Detects forgotten */& that usually cause a crash
 		"-Werror=int-conversion",
+		// Detects multi-character constants such as 'abcd', which have
+		// implementation-defined values. Usually typos and may cause bugs.
+		"-Werror=multichar",
 		// Detects unterminated alignment modification pragmas, which often lead
 		// to ABI mismatch between modules and hard-to-debug crashes.
 		"-Werror=pragma-pack",
@@ -168,9 +173,17 @@ var (
 		"-Wa,--noexecstack",
 		"-D_FORTIFY_SOURCE=3",
 
+		// Bans classes that have virtual functions and a public non-virtual destructor.
+		// This potentially allows the class to be partially destroyed, causing memory
+		// corruption.
 		"-Werror=non-virtual-dtor",
+		// Detects invalid comparisons involving pointers that always give the same
+		// result. This is almost always a bug.
 		"-Werror=address",
+		// Detects stuff like 'x++ = x++ * x++;', which has undefined effects.
 		"-Werror=sequence-point",
+		// Bans format strings in printf-like functions that are not known at
+		// compile time and cannot be checked against their arguments.
 		"-Werror=format-security",
 	}
 
@@ -229,31 +242,51 @@ var (
 	// should be the last resort, because it prevents all code in Android from
 	// opting into the warning.
 	noOverrideGlobalCflags = []string{
-		"-Werror=bool-operation",
+		// Force treating some high severity warnings as errors.
+
+		// Detects things like 'int* x = &(a + b)'. This is an error by default,
+		// but we don't want anyone to disable it from Android.bp.
+		"-Werror=address-of-temporary",
+		// Bundle of warnings that detects expressions which create dangling
+		// pointers. They are always bugs with high risk of memory corruption.
 		"-Werror=dangling",
+		// Detects printf-like functions with fewer arguments than required by
+		// the format string. Such calls usually print stack garbage and may crash.
 		"-Werror=format-insufficient-args",
-		"-Werror=int-in-bool-context",
-		"-Werror=int-to-pointer-cast",
-		"-Werror=pointer-to-int-cast",
-		"-Werror=xor-used-as-pow",
-		// http://b/161386391 for -Wno-void-pointer-to-enum-cast
-		"-Wno-void-pointer-to-enum-cast",
-		// http://b/161386391 for -Wno-void-pointer-to-int-cast
-		"-Wno-void-pointer-to-int-cast",
-		// http://b/161386391 for -Wno-pointer-to-int-cast
-		"-Wno-pointer-to-int-cast",
+		// Detects some buffer overflow bugs involving C standard library functions.
 		"-Werror=fortify-source",
+		// Detects assignments between function pointers of incompatible types,
+		// which are allowed by the standard, but are almost always bugs with
+		// memory corruption potential.
+		"-Werror=incompatible-function-pointer-types",
+		// Detects suspicious uses of integers and arithmetic expressions in Boolean
+		// contexts, such as if statements, while loops, the ternary operator ?:, etc.
+		"-Werror=int-in-bool-context",
+		// Detects casts from integers smaller than a pointer to pointers, which
+		// usually indicates address truncation in code that's not 64-bit compatible.
+		"-Werror=int-to-pointer-cast",
+		// Self-explanatory, this is always undefined behavior.
+		"-Werror=null-dereference",
+		// Detects missing or inconsistent return statements in functions.
+		// The function will return garbage, which can lead to crashes and memory
+		// corruption.
+		"-Werror=return-type",
+		// Detects the typos 2^x and 10^x, where x is a decimal constant.
+		"-Werror=xor-used-as-pow",
+
+		// Disable some warnings to unblock compiler upgrades. All of the flags below
+		// should eventually be removed or moved to other sections.
+
+		// http://b/161386391 adding -Werror=pointer-to-int-cast, which
+		// also controls -Wvoid-pointer-to-int-cast, -Wpointer-to-enum-cast
+		// and -Wvoid-pointer-to-enum-cast
+		"-Wno-pointer-to-int-cast",
 		// http://b/315246135 temporarily disabled
 		"-Wno-unused-variable",
 		// Disabled because it produces many false positives. http://b/323050926
 		"-Wno-missing-field-initializers",
 		// http://b/323050889
 		"-Wno-packed-non-pod",
-
-		"-Werror=address-of-temporary",
-		"-Werror=incompatible-function-pointer-types",
-		"-Werror=null-dereference",
-		"-Werror=return-type",
 
 		// http://b/72331526 Disable -Wtautological-* until the instances detected by these
 		// new warnings are fixed.
@@ -338,9 +371,6 @@ var (
 		// Introduced in response to a critical security vulnerability and
 		// should be a hard error - it requires only whitespace changes to fix.
 		"-Wno-misleading-indentation",
-		// Triggered by old LLVM code in external/llvm. Likely not worth
-		// enabling since it's a cosmetic issue.
-		"-Wno-bitwise-instead-of-logical",
 
 		"-Wno-unused",
 		"-Wno-unused-parameter",

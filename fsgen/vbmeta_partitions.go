@@ -49,6 +49,7 @@ var avbPartitions = []string{
 	"recovery",
 	"vbmeta_system",
 	"vbmeta_vendor",
+	"radio",
 }
 
 // Creates the vbmeta partition and the chained vbmeta partitions. Returns the list of module names
@@ -199,9 +200,8 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 			return partitionQualifiedVars.BuildingImage
 		case "init_boot", "vendor_boot", "vendor", "product", "system_ext", "odm", "vendor_dlkm", "odm_dlkm", "system_dlkm":
 			return partitionQualifiedVars.BuildingImage || partitionQualifiedVars.PrebuiltImage
-		// TODO: Import BOARD_USES_PVMFWIMAGE
-		// ifeq ($(BOARD_USES_PVMFWIMAGE),true)
-		// case "pvmfw":
+		case "pvmfw":
+			return partitionVars.BoardUsesPvmfwImage
 		case "recovery":
 			// ifdef INSTALLED_RECOVERYIMAGE_TARGET
 			return !ctx.DeviceConfig().BoardUsesRecoveryAsBoot() && !ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot()
@@ -210,6 +210,9 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 		// already included in the chained partitions.
 		case "vbmeta_system", "vbmeta_vendor":
 			return false
+		case "radio":
+			radioFilePath := partitionVars.RadioFilePath
+			return radioFilePath != "" && android.ExistentPathForSource(ctx, radioFilePath, "radio.img").Valid()
 		default:
 			return false
 		}
@@ -228,6 +231,9 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 	}
 	if len(f.properties.Vendor_boot_image) > 0 {
 		allGeneratedPartitionTypes = append(allGeneratedPartitionTypes, "vendor_boot")
+	}
+	if len(f.properties.Radio_image) > 0 {
+		allGeneratedPartitionTypes = append(allGeneratedPartitionTypes, "radio")
 	}
 
 	// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=4919;drc=62e20f0d218f60bae563b4ee742d88cca1fc1901
