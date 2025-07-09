@@ -865,3 +865,40 @@ func TestFileSystemWithNativeBridgeDeps(t *testing.T) {
 		android.AssertStringListContains(t, "missing entry", fs.entries, e)
 	}
 }
+
+func TestNoCrossPartitionVintfInstalls(t *testing.T) {
+	result := fixture.RunTestWithBp(t, `
+		android_filesystem {
+			name: "vendor",
+			partition_type: "vendor",
+			android_filesystem_deps: {
+				system: "system",
+			},
+		}
+
+		android_filesystem {
+			name: "system",
+			deps: [
+				"binfoo",
+			],
+		}
+
+		cc_binary {
+			name: "binfoo",
+			stl: "none",
+			vintf_fragments: [
+				"binfoo_manifest.xml",
+			],
+		}
+	`)
+
+	vendorFilesystem := result.ModuleForTests(t, "vendor", "android_common")
+	inputs := vendorFilesystem.Output("staging_dir.timestamp").Implicits
+	for _, input := range inputs {
+		android.AssertStringDoesNotContain(t,
+			"vendor filesystem should not vintf manifest of a system binary",
+			input.String(),
+			"binfoo_manifest.xml",
+		)
+	}
+}
