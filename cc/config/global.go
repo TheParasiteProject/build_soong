@@ -50,6 +50,9 @@ var (
 		"-Werror=date-time",
 		// Detects forgotten */& that usually cause a crash
 		"-Werror=int-conversion",
+		// Detects multi-character constants such as 'abcd', which have
+		// implementation-defined values. Usually typos and may cause bugs.
+		"-Werror=multichar",
 		// Detects unterminated alignment modification pragmas, which often lead
 		// to ABI mismatch between modules and hard-to-debug crashes.
 		"-Werror=pragma-pack",
