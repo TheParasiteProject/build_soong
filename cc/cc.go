@@ -392,6 +392,7 @@ type Deps struct {
 }
 
 // A struct which to collect flags for rlib dependencies
+// @auto-generate: gob
 type RustRlibDep struct {
 	LibPath   android.Path // path to the rlib
 	LinkDirs  []string     // flags required for dependency (e.g. -L flags)
