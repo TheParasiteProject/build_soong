@@ -330,10 +330,6 @@ var (
 		// this new warning are fixed.
 		"-Wno-null-pointer-arithmetic",
 
-		// Bug: http://b/29823425 Disable -Wnull-dereference until the
-		// new instances detected by this warning are fixed.
-		"-Wno-null-dereference",
-
 		// http://b/145211477
 		"-Wno-pointer-compare",
 		"-Wno-final-dtor-non-final-class",
