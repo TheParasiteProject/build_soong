@@ -139,9 +139,15 @@ type vbmetaPartitionInfo struct {
 	// Information about the vbmeta partition that will be added to misc_info.txt
 	// created by android_device
 	PropFileForMiscInfo android.Path
+
+	// Whether this is a partition of bootloader.img
+	AbOtaBootloaderPartition bool
 }
 
+type vbmetaPartitionInfos []vbmetaPartitionInfo
+
 var vbmetaPartitionProvider = blueprint.NewProvider[vbmetaPartitionInfo]()
+var vbmetaPartitionsProvider = blueprint.NewProvider[vbmetaPartitionInfos]()
 
 // vbmeta is the partition image that has the verification information for other partitions.
 func VbmetaFactory() android.Module {
@@ -247,6 +253,16 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 				Name:   bootImgInfo.Type.String(),
 				Output: bootImgInfo.SignedOutput,
 			})
+			continue
+		}
+		vbmetaPartitionInfos, ok := android.OtherModuleProvider(ctx, p, vbmetaPartitionsProvider)
+		if ok {
+			for _, vbmetaPartitionInfo := range vbmetaPartitionInfos {
+				includeDescriptorsFromImages = append(includeDescriptorsFromImages, partitionWithName{
+					Name:   vbmetaPartitionInfo.Name,
+					Output: vbmetaPartitionInfo.Output,
+				})
+			}
 			continue
 		}
 
@@ -398,23 +414,42 @@ func (v *vbmeta) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Pat
 	}
 
 	var partitionDepNames []string
+	var bootloaderPartitions []android.Path
 	ctx.VisitDirectDepsProxyWithTag(vbmetaPartitionDep, func(child android.ModuleProxy) {
 		if info, ok := android.OtherModuleProvider(ctx, child, vbmetaPartitionProvider); ok {
 			partitionDepNames = append(partitionDepNames, info.Name)
+		} else if info, ok := android.OtherModuleProvider(ctx, child, vbmetaPartitionsProvider); ok {
+			for _, vbmetaPartition := range info {
+				if vbmetaPartition.AbOtaBootloaderPartition {
+					// The bootloader partitions are unpacked from bootloader.img, signed with avb
+					// and its hashtree descriptors are included in vbmeta.img
+					// Make packaging's add_img_to_target_files invocation does this by
+					// explicitly adding `--include_descriptors_from_image $signed.img` to avb_vbmeta_args
+					// This ports this implementation to Soong.
+					bootloaderPartitions = append(bootloaderPartitions, vbmetaPartition.Output)
+				}
+			}
 		} else {
 			ctx.ModuleErrorf("vbmeta dep %s does not set vbmetaPartitionProvider\n", child)
 		}
 	})
+
 	if v.partitionName() != "vbmeta" { // skip for vbmeta to match Make's misc_info.txt
 		addStr(fmt.Sprintf("avb_%s", v.partitionName()), strings.Join(android.SortedUniqueStrings(partitionDepNames), " "))
 	}
 
-	addStr(fmt.Sprintf("avb_%s_args", v.partitionName()), fmt.Sprintf("--padding_size 4096 --rollback_index %s", v.rollbackIndexString(ctx)))
+	includeDescriptors := ""
+	if len(bootloaderPartitions) > 0 {
+		for _, p := range bootloaderPartitions {
+			includeDescriptors += fmt.Sprintf("--include_descriptors_from_image %s ", p.String())
+		}
+	}
+	addStr(fmt.Sprintf("avb_%s_args", v.partitionName()), fmt.Sprintf("%s--padding_size 4096 --rollback_index %s", includeDescriptors, v.rollbackIndexString(ctx)))
 
 	sort.Strings(lines)
 
 	propFile := android.PathForModuleOut(ctx, "prop_file_for_misc_info")
-	android.WriteFileRule(ctx, propFile, strings.Join(lines, "\n"))
+	android.WriteFileRule(ctx, propFile, strings.Join(lines, "\n"), bootloaderPartitions...)
 	return propFile
 }
 

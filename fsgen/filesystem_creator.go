@@ -132,6 +132,7 @@ type filesystemCreatorProps struct {
 	Vendor_kernel_boot_image string `blueprint:"mutated" android:"path_device_first"`
 	Init_boot_image          string `blueprint:"mutated" android:"path_device_first"`
 	Super_image              string `blueprint:"mutated" android:"path_device_first"`
+	Radio_image              string `blueprint:"mutated" android:"path_device_first"`
 }
 
 type filesystemCreator struct {
@@ -319,6 +320,10 @@ func (f *filesystemCreator) createInternalModules(ctx android.LoadHookContext) {
 				supported:     true,
 				handwritten:   true,
 			})
+	}
+
+	if radioImgModuleName := createRadioImg(ctx); radioImgModuleName != "" {
+		f.properties.Radio_image = radioImgModuleName
 	}
 
 	for _, x := range f.createVbmetaPartitions(ctx, partitions) {
@@ -512,8 +517,8 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Pvmfw = *pvmfwProperties
 	}
 
-	if radioImgModuleName := createRadioImg(ctx); radioImgModuleName != "" {
-		deviceProps.Radio_partition_name = &radioImgModuleName
+	if f.properties.Radio_image != "" {
+		deviceProps.Radio_partition_name = &f.properties.Radio_image
 	}
 
 	if ramdisk16kModuleName := createRamdisk16k(ctx); ramdisk16kModuleName != "" {
