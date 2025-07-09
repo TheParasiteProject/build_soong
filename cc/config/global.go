@@ -44,6 +44,8 @@ var (
 		// See also noOverrideGlobalCflags for errors that cannot be disabled
 		// from Android.bp files.
 
+		// Detects usage of bitwise operators on Boolean values.
+		"-Werror=bool-operation",
 		// Using __DATE__/__TIME__ causes build nondeterminism.
 		"-Werror=date-time",
 		// Detects forgotten */& that usually cause a crash
@@ -242,8 +244,6 @@ var (
 		// Detects things like 'int* x = &(a + b)'. This is an error by default,
 		// but we don't want anyone to disable it from Android.bp.
 		"-Werror=address-of-temporary",
-		// Detects bitwise operations on Boolean values.
-		"-Werror=bool-operation",
 		// Bundle of warnings that detects expressions which create dangling
 		// pointers. They are always bugs with high risk of memory corruption.
 		"-Werror=dangling",
@@ -368,9 +368,6 @@ var (
 		// Introduced in response to a critical security vulnerability and
 		// should be a hard error - it requires only whitespace changes to fix.
 		"-Wno-misleading-indentation",
-		// Triggered by old LLVM code in external/llvm. Likely not worth
-		// enabling since it's a cosmetic issue.
-		"-Wno-bitwise-instead-of-logical",
 
 		"-Wno-unused",
 		"-Wno-unused-parameter",
