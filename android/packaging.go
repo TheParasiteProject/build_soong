@@ -613,13 +613,10 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 
 // Returns `Vintf_fragments` of the module. This will be collected by the top-level filesystem.
 // `Vintf_fragment_modules` are ignored.
-// Skips cross partition vintf fragments.
 func getVintFragmentsPaths(ctx ModuleContext, m ModuleProxy) Paths {
-	filesystem, isFilesystem := ctx.Module().(PartitionTypeInterface)
-
 	info := OtherModuleProviderOrDefault(ctx, m, InstallFilesProvider)
 	commonInfo := OtherModulePointerProviderOrDefault(ctx, m, CommonModuleInfoProvider)
-	if !commonInfo.HideFromMake && !commonInfo.SkipInstall && isFilesystem && filesystem.PartitionType() == commonInfo.PartitionTag {
+	if !commonInfo.HideFromMake && !commonInfo.SkipInstall {
 		return info.VintfFragmentsPaths
 	}
 	return nil
