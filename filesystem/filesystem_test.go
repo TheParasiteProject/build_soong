@@ -865,3 +865,55 @@ func TestFileSystemWithNativeBridgeDeps(t *testing.T) {
 		android.AssertStringListContains(t, "missing entry", fs.entries, e)
 	}
 }
+
+func TestCrossPartitionVintfInstalls(t *testing.T) {
+	result := fixture.RunTestWithBp(t, `
+		android_filesystem {
+			name: "myfilesystem",
+			deps: [
+				"binfoo",
+			],
+		}
+
+		cc_binary {
+			name: "binfoo",
+			stl: "none",
+			vintf_fragments: [
+				"binfoo_manifest.xml",
+			],
+		}
+
+		android_filesystem {
+			name: "myfilesystem_skip_vintf",
+			partition_type: "vendor",
+			android_filesystem_deps: {
+				system: "myfilesystem",
+			},
+		}
+
+		android_filesystem {
+			name: "myfilesystem_include_vintf",
+			include_files_of: ["myfilesystem"],
+			type: "compressed_cpio",
+		}
+	`)
+
+	skipVintfFilesystem := result.ModuleForTests(t, "myfilesystem_skip_vintf", "android_common")
+	inputs := skipVintfFilesystem.Output("staging_dir.timestamp").Implicits
+	for _, input := range inputs {
+		android.AssertStringDoesNotContain(t,
+			"myfilesystem_skip_vintf should not include vintf manifest of a system binary",
+			input.String(),
+			"binfoo_manifest.xml",
+		)
+	}
+	includeVintfFilesystem := result.ModuleForTests(t, "myfilesystem_include_vintf", "android_common")
+	inputs = includeVintfFilesystem.Output("staging_dir.timestamp").Implicits
+	found := false
+	for _, input := range inputs {
+		if input.Base() == "binfoo_manifest.xml" {
+			found = true
+		}
+	}
+	android.AssertBoolEquals(t, "Could not find vintf manifest", true, found)
+}
