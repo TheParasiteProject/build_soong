@@ -291,7 +291,6 @@ var (
 		// http://b/72331526 Disable -Wtautological-* until the instances detected by these
 		// new warnings are fixed.
 		"-Wno-tautological-constant-compare",
-		"-Wno-tautological-type-limit-compare",
 		// http://b/145211066
 		"-Wno-implicit-int-float-conversion",
 		// New warnings to be fixed after clang-r377782.
