@@ -18,3 +18,25 @@ bootstrap_go_package {
     ],
     pluginFor: ["soong_build"],
 }
+
+test_suite_package {
+    name: "performance-tests",
+}
+
+test_suite_package {
+    name: "device-platinum-tests",
+    build_host_shared_libs_zip: true,
+}
+
+test_suite_package {
+    name: "device-tests",
+    include_host_shared_libs_in_main_zip: true,
+}
+
+test_suite_package {
+    name: "automotive-sdv-tests",
+}
+
+test_suite_package {
+    name: "al-tests",
+}
