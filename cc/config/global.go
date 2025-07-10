@@ -62,6 +62,9 @@ var (
 		// Detects dividing an array size by itself, which is a common typo that
 		// leads to bugs.
 		"-Werror=sizeof-array-div",
+		// Detects code like 'memcpy(dest, src, sizeof(src))' where 'src' is a pointer.
+		// This is nearly always a bug that may cause memory corruption.
+		"-Werror=sizeof-pointer-memaccess",
 		// Detects a typo that cuts off a prefix from a string literal.
 		"-Werror=string-plus-int",
 		// Detects for loops that will never execute more than once (for example
@@ -291,7 +294,6 @@ var (
 		// http://b/72331526 Disable -Wtautological-* until the instances detected by these
 		// new warnings are fixed.
 		"-Wno-tautological-constant-compare",
-		"-Wno-tautological-type-limit-compare",
 		// http://b/145211066
 		"-Wno-implicit-int-float-conversion",
 		// New warnings to be fixed after clang-r377782.
@@ -332,10 +334,6 @@ var (
 		// http://b/72331524 Allow null pointer arithmetic until the instances detected by
 		// this new warning are fixed.
 		"-Wno-null-pointer-arithmetic",
-
-		// Bug: http://b/29823425 Disable -Wnull-dereference until the
-		// new instances detected by this warning are fixed.
-		"-Wno-null-dereference",
 
 		// http://b/145211477
 		"-Wno-pointer-compare",

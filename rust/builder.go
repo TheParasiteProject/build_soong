@@ -579,6 +579,8 @@ func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	rustdocFlags = append(rustdocFlags, makeLibFlags(deps)...)
 	docTimestampFile := android.PathForModuleOut(ctx, "rustdoc.timestamp")
 
+	rustdocFlags = append(rustdocFlags, "-Zforce-unstable-if-unmarked")
+
 	// Silence warnings about renamed lints for third-party crates
 	modulePath := ctx.ModuleDir()
 	if android.IsThirdPartyPath(modulePath) {

@@ -30,6 +30,7 @@ func init() {
 	CcInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(CcInfo) })
 	LinkableInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(LinkableInfo) })
 	InstallPairGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(InstallPair) })
+	RustRlibDepGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(RustRlibDep) })
 }
 
 func (r CcMakeVarsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
@@ -2283,4 +2284,66 @@ var InstallPairGobRegId int16
 
 func (r InstallPair) GetTypeId() int16 {
 	return InstallPairGobRegId
+}
+
+func (r RustRlibDep) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeInterface(ctx, buf, r.LibPath); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, int32(len(r.LinkDirs))); err != nil {
+		return err
+	}
+	for val1 := 0; val1 < len(r.LinkDirs); val1++ {
+		if err = gobtools.EncodeString(buf, r.LinkDirs[val1]); err != nil {
+			return err
+		}
+	}
+
+	if err = gobtools.EncodeString(buf, r.CrateName); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *RustRlibDep) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+	var err error
+
+	if val2, err := gobtools.DecodeInterface(ctx, buf); err != nil {
+		return err
+	} else if val2 == nil {
+		r.LibPath = nil
+	} else {
+		r.LibPath = val2.(android.Path)
+	}
+
+	var val4 int32
+	err = gobtools.DecodeSimple[int32](buf, &val4)
+	if err != nil {
+		return err
+	}
+	if val4 > 0 {
+		r.LinkDirs = make([]string, val4)
+		for val5 := 0; val5 < int(val4); val5++ {
+			err = gobtools.DecodeString(buf, &r.LinkDirs[val5])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err = gobtools.DecodeString(buf, &r.CrateName)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+var RustRlibDepGobRegId int16
+
+func (r RustRlibDep) GetTypeId() int16 {
+	return RustRlibDepGobRegId
 }

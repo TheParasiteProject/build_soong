@@ -38,6 +38,7 @@ type cipdProxy struct {
 	cmd      *Cmd
 	wg       sync.WaitGroup
 	stopping atomic.Bool
+	unixsock string
 }
 
 func cipdPath(config Config) string {
@@ -58,9 +59,18 @@ func shouldRunCIPDProxy(config Config) bool {
 func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	ctx.Status.Status("Starting CIPD proxy server...")
 
+	unixsock := absPath(ctx, filepath.Join(config.SoongOutDir(), "cipd_proxy.sock"))
+	if _, err := os.Stat(unixsock); err == nil {
+		ctx.Verbosef("%s was not cleaned up from the last build, deleting it.", unixsock)
+		if err := os.Remove(unixsock); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	cipdArgs := []string{
 		"proxy", "-proxy-policy", cipdProxyPolicyPath,
 		"-log-level", "warning",
+		"-unix-socket", unixsock,
 	}
 	adcFlagAdded := false
 
@@ -124,7 +134,7 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
-	cp := cipdProxy{cmd: cmd}
+	cp := cipdProxy{cmd: cmd, unixsock: unixsock}
 	cp.wg.Add(1)
 	go func() {
 		// Log any error output from cipd until it exits.
@@ -161,6 +171,9 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 		}
 		if strings.HasPrefix(l, cipdProxyUrlKey) {
 			proxyUrl := strings.TrimSpace(l[len(cipdProxyUrlKey)+1:])
+			if proxyUrl != "unix://"+unixsock {
+				log.Fatalf("unexpected unix socket returned by cipd proxy: %s, expected unix://%s", proxyUrl, unixsock)
+			}
 			config.environ.Set(cipdProxyUrlKey, proxyUrl)
 			ctx.Verbosef("Started CIPD proxy listening on", proxyUrl)
 			break
@@ -169,8 +182,11 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	return &cp
 }
 
-func (c *cipdProxy) Stop() {
+func (c *cipdProxy) Stop(ctx Context) {
 	c.stopping.Store(true)
 	c.cmd.Process.Kill()
 	c.wg.Wait()
+	if err := os.Remove(c.unixsock); err != nil {
+		ctx.Printf("failed to clean up cipd proxy socket %s.\n", c.unixsock)
+	}
 }

@@ -8,7 +8,34 @@ import (
 )
 
 func init() {
+	SdkMemberTraitBaseGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SdkMemberTraitBase) })
 	SdkMemberTypeBaseGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SdkMemberTypeBase) })
+}
+
+func (r SdkMemberTraitBase) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeString(buf, r.PropertyName); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *SdkMemberTraitBase) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+	var err error
+
+	err = gobtools.DecodeString(buf, &r.PropertyName)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+var SdkMemberTraitBaseGobRegId int16
+
+func (r SdkMemberTraitBase) GetTypeId() int16 {
+	return SdkMemberTraitBaseGobRegId
 }
 
 func (r SdkMemberTypeBase) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {

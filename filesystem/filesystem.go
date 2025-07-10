@@ -356,11 +356,18 @@ type depTagWithVisibilityEnforcementBypass struct {
 
 type interPartitionDepTag struct {
 	blueprint.BaseDependencyTag
+	includeVintfs bool
 }
 
-var interPartitionDependencyTag = interPartitionDepTag{}
+var interPartitionDependencyTag = interPartitionDepTag{includeVintfs: false}
 
-var interPartitionInstallDependencyTag = interPartitionDepTag{}
+var interPartitionInstallDependencyTag = interPartitionDepTag{includeVintfs: true}
+
+func (t interPartitionDepTag) IncludeVintfs() bool {
+	return t.includeVintfs
+}
+
+var _ android.InterPartitionIncludeVintfsInterface = (*interPartitionDepTag)(nil)
 
 var _ android.ExcludeFromVisibilityEnforcementTag = (*depTagWithVisibilityEnforcementBypass)(nil)
 
