@@ -234,6 +234,19 @@ func (imageTransitionMutator) IncomingTransition(ctx IncomingTransitionContext, 
 	// when adding dependencies, would use the only variant of a module regardless of its variations
 	// if only 1 variant existed.
 	if len(variations) == 1 {
+		// TODO(b/424439549): this fallback has accidentally allowed modules to depend on modules from other
+		// images if the dependency only has a single image variation, while the holdover it was trying to
+		// emulate would only allow the dependency if it had a single _variant_, meaning no variations from any
+		// mutator.  This has allowed vendor modules to depend on core modules if the core module had no
+		// other image variations, and for core modules to depend on vendor modules if they set vendor: true
+		// and so only have a single vendor variation.  These existing violations will be cleaned up incrementally,
+		// and the fallback conditions tightened to prevent backsliding.
+		if ctx.Config().GetBuildFlagBool("RELEASE_SOONG_FIX_IMAGE_VARIANT_FALLBACK") {
+			// Disable the fallback from vendor to the core variation.
+			if incomingVariation == "vendor" && variations[0] == CoreVariation {
+				return incomingVariation
+			}
+		}
 		return variations[0]
 	}
 	return incomingVariation
