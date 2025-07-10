@@ -541,7 +541,6 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 		}
 	})
 
-	modulesToVintfFragmentsPaths := make(map[string]Paths)
 	// gather modules to install, skipping overridden modules
 	ctx.WalkDepsProxy(func(child, parent ModuleProxy) bool {
 		owner := OtherModuleNameWithPossibleOverride(ctx, child)
@@ -554,8 +553,21 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 				return false
 			}
 		}
-		modulesToVintfFragmentsPaths[owner] = getVintFragmentsPaths(ctx, child)
 		modulesToInstall[owner] = true
+		return true
+	})
+
+	// gather vintf fragments of modules that belong to this packaging module.
+	// overridden modules do not need to be skipped, since they will be removed
+	// in p.UniqueVintfFragmentsPaths using modulesToInstall.
+	modulesToVintfFragmentsPaths := make(map[string]Paths)
+	ctx.WalkDepsProxy(func(child, parent ModuleProxy) bool {
+		depTag := ctx.OtherModuleDependencyTag(child)
+		if interPartitionDepTag, ok := depTag.(InterPartitionIncludeVintfsInterface); ok {
+			return interPartitionDepTag.IncludeVintfs()
+		}
+		owner := OtherModuleNameWithPossibleOverride(ctx, child)
+		modulesToVintfFragmentsPaths[owner] = getVintFragmentsPaths(ctx, child)
 		return true
 	})
 
@@ -609,6 +621,10 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 	p.UniqueVintfFragmentsPaths = SortedUniquePaths(uniqueVintfFragmentsPaths)
 
 	return m
+}
+
+type InterPartitionIncludeVintfsInterface interface {
+	IncludeVintfs() bool
 }
 
 // Returns `Vintf_fragments` of the module. This will be collected by the top-level filesystem.
