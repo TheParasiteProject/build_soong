@@ -335,10 +335,6 @@ var (
 		// this new warning are fixed.
 		"-Wno-null-pointer-arithmetic",
 
-		// http://b/145211477
-		"-Wno-pointer-compare",
-		"-Wno-final-dtor-non-final-class",
-
 		// http://b/165945989
 		"-Wno-psabi",
 
