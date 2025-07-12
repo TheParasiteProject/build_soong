@@ -42,6 +42,7 @@ var (
 		android.X86_64: "x86_64",
 	}
 
+	// Flags that go to rustc and rustdoc invocations
 	GlobalRustFlags = []string{
 		// Allow `--extern force:foo` for dylib support
 		"-Z unstable-options",
@@ -56,6 +57,7 @@ var (
 		"--color=always",
 		"-Z dylib-lto",
 		"-Z link-native-libraries=no",
+		"-Z force-unstable-if-unmarked",
 
 		// cfg flag to indicate that we are building in AOSP with Soong
 		"--cfg soong",
