@@ -519,6 +519,9 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext, includeIn
 	allOwners := make(map[string][]installedOwnerInfo)
 
 	for _, partition := range android.SortedKeys(fsInfoMap) {
+		if fsInfoMap[partition].Prebuilt {
+			continue
+		}
 		fsInfo := fsInfoMap[partition]
 		for _, owner := range fsInfo.Owners.ToList() {
 			allOwners[owner.Name] = append(allOwners[owner.Name], installedOwnerInfo{
@@ -533,6 +536,9 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext, includeIn
 		commonInfo, ok := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider)
 		if !(ok && commonInfo.ExportedToMake) {
 			return false
+		}
+		if info, ok := fsInfoMap[commonInfo.PartitionTag]; !ok || info.Prebuilt {
+			return true
 		}
 		prebuiltInfo := android.OtherModuleProviderOrDefault(ctx, mod, android.PrebuiltInfoProvider)
 		name := android.OtherModuleNameWithPossibleOverride(ctx, mod)
@@ -778,6 +784,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 			a.rootDirForFsConfigTimestamp = rootDirForFsConfigTimestamp
 		}
 	}
+
 	// Copy cmdline, kernel etc. files of boot images
 	if a.partitionProps.Vendor_boot_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_boot_partition_name), filesystemDepTag)
