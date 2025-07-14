@@ -714,7 +714,7 @@ func (linker *baseLinker) injectVersionSymbol(ctx ModuleContext, in android.Path
 
 var checkElfFileRule = pctx.AndroidStaticRule("checkElfFile",
 	blueprint.RuleParams{
-		Command: "${checkElfFileCmd} --skip-bad-elf-magic --skip-unknown-elf-machine $args" +
+		Command: "${checkElfFileCmd} --skip-unknown-elf-machine $args" +
 			" --llvm-readobj=${config.ClangBin}/llvm-readobj $in" +
 			" && touch $out",
 		CommandDeps: []string{"$checkElfFileCmd", "${config.ClangBin}/llvm-readobj"},
