@@ -36,10 +36,10 @@ var (
 			"-mbranch-protection=standard",
 		},
 		"armv8-2a": []string{
-			"-march=armv8.2-a+aes+crypto+fp16+sha2",
+			"-march=armv8.2-a+aes+crypto+fp16+sha2+lse+i8mm",
 		},
 		"armv8-2a-dotprod": []string{
-			"-march=armv8.2-a+dotprod+aes+crypto+fp16+sha2",
+			"-march=armv8.2-a+dotprod+aes+crypto+fp16+sha2+lse+i8mm",
 		},
 		// On ARMv9 and later, Pointer Authentication Codes (PAC) are mandatory,
 		// so -fstack-protector is unnecessary.
