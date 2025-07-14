@@ -80,7 +80,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 		commonInfo := android.OtherModuleProviderOrDefault(ctx, m, android.CommonModuleInfoProvider)
 		testSuiteSharedLibsInfo := android.OtherModuleProviderOrDefault(ctx, m, android.TestSuiteSharedLibsInfoProvider)
 		makeName := android.OtherModuleProviderOrDefault(ctx, m, android.MakeNameInfoProvider).Name
-		if makeName != "" && commonInfo.Target.Os.Class == android.Host {
+		if makeName != "" && commonInfo.Target.Os == ctx.Config().BuildOS {
 			sharedLibGraph[makeName] = append(sharedLibGraph[makeName], testSuiteSharedLibsInfo.MakeNames...)
 		}
 
