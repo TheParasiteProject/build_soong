@@ -700,9 +700,6 @@ func (m *compatibilityTestSuitePackage) DepsMutator(ctx android.BottomUpMutatorC
 	ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, "compatibility-tradefed")
 	ctx.AddVariationDependencies(variations, ctspHostToolDeptag, "test-utils-script")
 	for _, tool := range m.properties.Tools {
-		// TODO update bp files to not have .jar and remove this
-		tool := strings.TrimSuffix(tool, ".jar")
-
 		ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, tool)
 	}
 }
