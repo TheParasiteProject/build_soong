@@ -334,11 +334,35 @@ func gatherHostSharedLibs(ctx android.SingletonContext, sharedLibRoots, sharedLi
 	return hostSharedLibs
 }
 
+// Gather shared library dependencies of host tests that are not installed algonside the test.
+// These common dependencies are installed in testcases/lib[64]/ (to reduce duplication).
+func gatherCommonHostSharedLibsForSymlinks(ctx android.SingletonContext, suite string) map[string]android.Paths {
+	hostOut32And64 := android.PathForHostInstall(ctx, "lib").String()
+	moduleNameToCommonHostSharedLibs := make(map[string]android.Paths)
+	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
+		commonInfo := android.OtherModuleProviderOrDefault(ctx, m, android.CommonModuleInfoProvider)
+		testInfo := android.OtherModuleProviderOrDefault(ctx, m, android.TestSuiteInfoProvider)
+		if commonInfo.SkipInstall || !commonInfo.Host || !android.InList(suite, testInfo.TestSuites) {
+			return
+		}
+		installFilesProvider := android.OtherModuleProviderOrDefault(ctx, m, android.InstallFilesProvider)
+		for _, transitive := range installFilesProvider.TransitiveInstallFiles.ToList() {
+			transitivePathString := transitive.String()
+			if strings.HasPrefix(transitivePathString, hostOut32And64) &&
+				strings.HasSuffix(transitivePathString, ".so") {
+				moduleNameToCommonHostSharedLibs[m.Name()] = append(moduleNameToCommonHostSharedLibs[m.Name()], transitive)
+			}
+		}
+	})
+	return moduleNameToCommonHostSharedLibs
+}
+
 type testSuiteConfig struct {
-	name                           string
-	buildHostSharedLibsZip         bool
-	includeHostSharedLibsInMainZip bool
-	hostJavaToolFiles              android.Paths
+	name                                         string
+	buildHostSharedLibsZip                       bool
+	includeHostSharedLibsInMainZip               bool
+	includeCommonHostSharedLibsSymlinksInMainZip bool
+	hostJavaToolFiles                            android.Paths
 }
 
 func buildTestSuite(ctx android.SingletonContext, suiteName string, files testModulesInstallsMap) (android.Path, android.Path) {
@@ -460,6 +484,41 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 			if strings.HasPrefix(f.String(), hostOutTestCases.String()) {
 				testsZipCmdHostFileInputContent = append(testsZipCmdHostFileInputContent, f.String())
 				testsZipCmd.Implicit(f)
+
+			}
+		}
+	}
+
+	if suiteConfig.includeCommonHostSharedLibsSymlinksInMainZip {
+		commonHostSharedLibsForSymlinks := gatherCommonHostSharedLibsForSymlinks(ctx, suiteConfig.name)
+		intermediatesDirForSuite := pathForPackaging(ctx, suiteConfig.name)
+		seen := make(map[string]bool)
+		for _, moduleName := range android.SortedKeys(commonHostSharedLibsForSymlinks) {
+			for _, common := range commonHostSharedLibsForSymlinks[moduleName] {
+				var symlink android.WritablePath
+				var symlinkTargetPrefix string
+				if strings.Contains(common.String(), "/lib64/") {
+					symlink = intermediatesDirForSuite.Join(ctx, "x86_64", "shared_libs", common.Base())
+					symlinkTargetPrefix = "../../../lib64"
+				} else {
+					symlink = intermediatesDirForSuite.Join(ctx, "x86", "shared_libs", common.Base())
+					symlinkTargetPrefix = "../../../lib"
+				}
+
+				if _, exists := seen[symlink.String()]; exists {
+					continue
+				}
+				seen[symlink.String()] = true
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.Symlink,
+					Output: symlink,
+					Args: map[string]string{
+						"fromPath": fmt.Sprintf("%s/%s", symlinkTargetPrefix, common.Base()),
+					},
+				})
+				testsZipCmd.FlagWithArg("-C ", intermediatesDirForSuite.String())
+				testsZipCmd.FlagWithArg("-P ", fmt.Sprintf("host/testcases/%s/", moduleName))
+				testsZipCmd.FlagWithInput("-f ", symlink)
 			}
 		}
 	}
@@ -468,6 +527,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 
 	testsZipCmd.
 		FlagWithArg("-P ", "host").
+		FlagWithArg("-C ", hostOut).
 		FlagWithInput("-l ", testsZipCmdHostFileInput).
 		FlagWithArg("-P ", "target").
 		FlagWithArg("-C ", targetOut)
@@ -785,7 +845,13 @@ func testSuitePackageFactory() android.Module {
 type testSuitePackageProperties struct {
 	Build_host_shared_libs_zip           *bool
 	Include_host_shared_libs_in_main_zip *bool
-	Host_java_tools                      []string
+	// When true, a symlink will be created per test for any
+	// shared library dependencies that are not installed alongside the test.
+	//
+	// e.g. host/testcases/$test/x86_64/shared_libs/libfoo.so --> ../../../lib64/libfoo.so
+	// The target of the symlink will be the host/testcases/lib64/libfoo.so
+	Include_common_host_shared_libs_symlinks_in_main_zip *bool
+	Host_java_tools                                      []string
 }
 
 type testSuitePackage struct {
@@ -823,6 +889,7 @@ func (t *testSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext
 		name:                           t.Name(),
 		buildHostSharedLibsZip:         proptools.Bool(t.properties.Build_host_shared_libs_zip),
 		includeHostSharedLibsInMainZip: proptools.Bool(t.properties.Include_host_shared_libs_in_main_zip),
-		hostJavaToolFiles:              toolFiles,
+		includeCommonHostSharedLibsSymlinksInMainZip: proptools.Bool(t.properties.Include_common_host_shared_libs_symlinks_in_main_zip),
+		hostJavaToolFiles: toolFiles,
 	})
 }
