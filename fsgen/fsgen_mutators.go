@@ -73,10 +73,14 @@ type moduleToInstallationProps struct {
 	// Map of _all_ soong module names to their corresponding installation properties
 	// Should not be accessed directly to add entries; Use AddToMap instead.
 	moduleToPropsMap map[string]installationProperties
+
+	// TODO (b/420968370): Remove this after we enforce that all namespaces are valid.
+	baseModuleNameToPropsMap map[string][]installationProperties
 }
 
 func (m *moduleToInstallationProps) AddToMap(ctx android.BottomUpMutatorContext, prop *installationProperties) {
 	m.moduleToPropsMap[fullyQualifiedModuleName(ctx.ModuleName(), ctx.Namespace().Path)] = *prop
+	m.baseModuleNameToPropsMap[ctx.ModuleName()] = append(m.baseModuleNameToPropsMap[ctx.ModuleName()], *prop)
 }
 
 func (m *moduleToInstallationProps) Get(ctx android.BottomUpMutatorContext) (installationProperties, bool) {
@@ -254,8 +258,11 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"product_property_contexts.recovery":    defaultDepCandidateProps(ctx.Config()),
 				},
 			},
-			fsDepsMutex:                     sync.Mutex{},
-			moduleToInstallationProps:       moduleToInstallationProps{moduleToPropsMap: map[string]installationProperties{}},
+			fsDepsMutex: sync.Mutex{},
+			moduleToInstallationProps: moduleToInstallationProps{
+				moduleToPropsMap:         map[string]installationProperties{},
+				baseModuleNameToPropsMap: map[string][]installationProperties{},
+			},
 			generatedPrebuiltEtcModuleNames: generatedPrebuiltEtcModuleNames,
 			avbKeyFilegroups:                map[string]string{},
 			nativeBridgeModules:             map[string]bool{},
@@ -507,18 +514,31 @@ func updatePartitionsOfOverrideModules(mctx android.BottomUpMutatorContext) {
 		}
 		base := override.GetOverriddenModuleName()
 		if strings.HasPrefix(base, "//") { // Has path prefix, which is either the path to the module or the namespace
-			pathOrNamspace := strings.TrimPrefix(strings.Split(base, ":")[0], "//")
+			base = strings.Split(base, ":")[1]
+
+			// TODO (b/420968370): Re-enable this after we enforce that all namespaces are valid.
+
+			//pathOrNamspace := strings.TrimPrefix(strings.Split(base, ":")[0], "//")
 			// If the path prefix is not within the exported namespace, it is likely that the
 			// prefix is the path to the module, not the namespace. In that case, drop the
 			// prefix as the non-namespace path prefix is not part of the fully qualified module
 			// name.
-			if !android.InList(pathOrNamspace, mctx.Config().ProductVariables().NamespacesToExport) {
-				base = strings.Split(base, ":")[1]
-			}
+			//if !android.InList(pathOrNamspace, mctx.Config().ProductVariables().NamespacesToExport) {
+			//	base = strings.Split(base, ":")[1]
+			//}
 		}
 
-		if baseModuleProps, ok := fsGenState.moduleToInstallationProps.GetFromFullyQualifiedModuleName(base); ok && mctx.Module().Enabled(mctx) && mctx.Module().ExportedToMake() {
-			partition := baseModuleProps.Partition
+		// TODO (b/420968370): Use fully qualifed name after we enforce that all namespaces are valid.
+		if baseModuleProps, ok := fsGenState.moduleToInstallationProps.baseModuleNameToPropsMap[base]; ok && mctx.Module().Enabled(mctx) && mctx.Module().ExportedToMake() {
+			basePartitionCandidates := []string{}
+			for _, ip := range baseModuleProps {
+				basePartitionCandidates = append(basePartitionCandidates, ip.Partition)
+			}
+			basePartitionCandidates = android.SortedUniqueStrings(basePartitionCandidates)
+			if len(basePartitionCandidates) > 1 {
+				mctx.ModuleErrorf("Could not determine partition of base module %s. Possible partitions %s\n", base, basePartitionCandidates)
+			}
+			partition := basePartitionCandidates[0]
 			appendDepIfAppropriate(mctx, fsDeps[partition], partition, android.NativeBridgeDisabled, mctx.Module().Name())
 		}
 	}
