@@ -21,7 +21,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -294,184 +293,19 @@ func EnumerateReleaseConfigs(dir string) ([]string, error) {
 	return ret, err
 }
 
-type declReq struct {
-	Map  *ReleaseConfigMap
-	Path *string
-}
-
-type declInfo struct {
-	Req      *declReq
-	Artifact *FlagArtifact
-}
-
-type contribReq struct {
-	Map  *ReleaseConfigMap
-	Path *string
-}
-
-type contribInfo struct {
-	Req     *contribReq
-	Contrib *ReleaseConfigContribution
-}
-
-type valueReq struct {
-	Map        *ReleaseConfigMap
-	ConfigName *string
-	Path       *string
-}
-
-type valueInfo struct {
-	Req   *valueReq
-	Value *FlagValue
-}
-
-type fileInfo struct {
-	decl    *declInfo
-	contrib *contribInfo
-	value   *valueInfo
-}
-
 type loadContext struct {
 	declarationsOnly bool
 	errorsChan       chan error
 	errorsWg         sync.WaitGroup
-
-	// WaitGroup for threads processing a directory.
-	dirReaderWg sync.WaitGroup
-
-	// Requests to read a flag_declarations/ file and send it to declHandlerChan.
-	declReaderChan chan *declReq
-	declReaderWg   sync.WaitGroup
-	//declHandlerChan chan *declInfo
-
-	// Requests to read a release_configs/ file and send it to contribHandlerChan
-	contribReaderChan chan *contribReq
-	contribReaderWg   sync.WaitGroup
-	//contribHandlerChan chan *contribInfo
-
-	// Requests to read flag_values/ file and send it to valueHandlerChan
-	valueReaderChan chan *valueReq
-	valueReaderWg   sync.WaitGroup
-	//valueHandlerChan chan *valueInfo
-
-	// Reads and processes data from declHandlerChan, contribHandlerChan, and
-	// valueHandlerChan.
-	infoHandlerWg   sync.WaitGroup
-	infoHandlerChan chan *fileInfo
 }
 
-func createLoadContext(configs *ReleaseConfigs, declarationsOnly bool) (ctx *loadContext) {
+func createLoadContext(configs *ReleaseConfigs, declarationsOnly bool) *loadContext {
 	startFileRecord()
-	numCPU := runtime.NumCPU()
-	ctx = &loadContext{
-		declarationsOnly:  declarationsOnly,
-		errorsChan:        make(chan error, 40),
-		declReaderChan:    make(chan *declReq, 20),
-		contribReaderChan: make(chan *contribReq, 20),
-		valueReaderChan:   make(chan *valueReq, 20),
-		infoHandlerChan:   make(chan *fileInfo),
+	ctx := &loadContext{
+		declarationsOnly: declarationsOnly,
+		errorsChan:       make(chan error, 40),
 	}
-	// dirReader funcs are added as we read directories.
-	// Create several threads to read flag_declarations, release_configs,
-	// and flag_values files.
-	for i := 0; i < numCPU; i++ {
-		ctx.declReaderWg.Add(1)
-		go ctx.declReader()
-		ctx.valueReaderWg.Add(1)
-		go ctx.valueReader()
-		ctx.contribReaderWg.Add(1)
-		go ctx.contribReader()
-	}
-	// Only one thread to process all of the info as it arrives.
-	ctx.infoHandlerWg.Add(1)
-	go ctx.infoHandler()
-	// After we finish collecting all of the textproto files, Finalize() will
-	// do validation and set final values based on all the textproto files that
-	// were read.
 	return ctx
-}
-
-func (ctx *loadContext) declReader() {
-	defer ctx.declReaderWg.Done()
-	for req := range ctx.declReaderChan {
-		fa, err := FlagArtifactFactory(*req.Path, req.Map.DirIndex)
-		if err != nil {
-			ctx.errorsChan <- err
-			continue
-		}
-		// If not given, set Containers to the default for this directory.
-		if fa.FlagDeclaration.Containers == nil {
-			fa.FlagDeclaration.Containers = req.Map.proto.DefaultContainers
-		}
-		name := *fa.FlagDeclaration.Name
-		if fa.Redacted {
-			ctx.errorsChan <- fmt.Errorf("%s may not be redacted by default.", name)
-			continue
-		}
-		ctx.infoHandlerChan <- &fileInfo{decl: &declInfo{Req: req, Artifact: fa}}
-	}
-}
-
-func (ctx *loadContext) infoHandler() {
-	defer ctx.infoHandlerWg.Done()
-	for info := range ctx.infoHandlerChan {
-		if info.decl != nil {
-			m := info.decl.Req.Map
-			m.FlagArtifactsForDecls[*info.decl.Artifact.FlagDeclaration.Name] = info.decl.Artifact
-			for _, container := range info.decl.Artifact.FlagDeclaration.GetContainers() {
-				m.BuildFlagContainersMap[container] = true
-			}
-		} else if info.contrib != nil {
-			// information from a release_configs/ file.
-			name := *info.contrib.Contrib.proto.Name
-			m := info.contrib.Req.Map
-			if def, ok := m.ReleaseConfigContributions[name]; ok {
-				// We have already processed flag_values for this release config contribution.
-				info.contrib.Contrib.FlagValues = def.FlagValues
-			}
-			m.ReleaseConfigContributions[name] = info.contrib.Contrib
-		} else if info.value != nil {
-			// information from a flag_values/ file.
-			m := info.value.Req.Map
-			// The flag_values/ info may arrive before the release_configs/ info.
-			var err error
-			rcc, ok := m.ReleaseConfigContributions[*info.value.Req.ConfigName]
-			if !ok {
-				rcc, err = ReleaseConfigContributionFactory("", m.DirIndex)
-				if err != nil {
-					ctx.errorsChan <- err
-					continue
-				}
-			}
-			rcc.FlagValues[*info.value.Value.proto.Name] = info.value.Value
-		} else {
-			ctx.errorsChan <- fmt.Errorf("Unparsable read result: %v", *info)
-		}
-	}
-}
-
-func (ctx *loadContext) contribReader() {
-	defer ctx.contribReaderWg.Done()
-	for req := range ctx.contribReaderChan {
-		rcc, err := ReleaseConfigContributionFactory(*req.Path, req.Map.DirIndex)
-		if err != nil {
-			ctx.errorsChan <- err
-			continue
-		}
-		ctx.infoHandlerChan <- &fileInfo{contrib: &contribInfo{Req: req, Contrib: rcc}}
-	}
-}
-
-func (ctx *loadContext) valueReader() {
-	defer ctx.valueReaderWg.Done()
-	for req := range ctx.valueReaderChan {
-		value, err := FlagValueFactory(*req.Path)
-		if err != nil {
-			ctx.errorsChan <- err
-			continue
-		}
-		ctx.infoHandlerChan <- &fileInfo{value: &valueInfo{Req: req, Value: value}}
-	}
 }
 
 func (configs *ReleaseConfigs) LoadReleaseConfigMap(ctx *loadContext, path string, ConfigDirIndex int, declarationsOnly bool) (*ReleaseConfigMap, error) {
@@ -515,28 +349,44 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(ctx *loadContext, path strin
 	err = WalkTextprotoFiles(dir, "flag_declarations", func(path string, d fs.DirEntry, err error) error {
 		// Gather up all errors found in flag declarations and report them together, so that it is easier to
 		// find all of the duplicate declarations, for example.
-		ctx.declReaderChan <- &declReq{
-			Map:  m,
-			Path: &path,
+		fa, err := FlagArtifactFactory(path, ConfigDirIndex)
+		if err != nil {
+			ctx.errorsChan <- err
+			return nil
+		}
+		// If not given, set Containers to the default for this directory.
+		if fa.FlagDeclaration.Containers == nil {
+			fa.FlagDeclaration.Containers = m.proto.DefaultContainers
+		}
+		name := *fa.FlagDeclaration.Name
+		if fa.Redacted {
+			ctx.errorsChan <- fmt.Errorf("%s may not be redacted by default.", name)
+			return nil
+		}
+
+		m.FlagArtifactsForDecls[name] = fa
+		for _, container := range fa.FlagDeclaration.Containers {
+			m.BuildFlagContainersMap[container] = true
 		}
 
 		// Set the initial value in the flag artifact.
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
 
 	err = WalkTextprotoFiles(dir, "release_configs", func(path string, d fs.DirEntry, err error) error {
-		ctx.contribReaderChan <- &contribReq{
-			Map:  m,
-			Path: &path,
+		rcc, err := ReleaseConfigContributionFactory(path, ConfigDirIndex)
+		if err != nil {
+			ctx.errorsChan <- err
+			return nil
 		}
+		name := *rcc.proto.Name
+		if _, ok := configs.ReleaseConfigs[name]; !ok {
+			configs.ReleaseConfigs[name] = ReleaseConfigFactory(name, ConfigDirIndex)
+			configs.ReleaseConfigs[name].ReleaseConfigType = *rcc.proto.ReleaseConfigType
+		}
+		m.ReleaseConfigContributions[name] = rcc
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
 
 	subDirs := func(subdir string) (ret []string) {
 		if flagVersions, err := os.ReadDir(filepath.Join(dir, subdir)); err == nil {
@@ -555,16 +405,19 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(ctx *loadContext, path strin
 
 	if !declarationsOnly {
 		for _, rcName := range m.FlagValueDirs["flag_values"] {
+			rcc := m.ReleaseConfigContributions[rcName]
 			err := WalkTextprotoFiles(dir, filepath.Join("flag_values", rcName), func(path string, d fs.DirEntry, err error) error {
-				ctx.valueReaderChan <- &valueReq{
-					Map:        m,
-					ConfigName: &rcName,
-					Path:       &path,
+				flagValue, err := FlagValueFactory(path)
+				if err != nil {
+					ctx.errorsChan <- err
+					return nil
 				}
+				rcc.FlagValues[*flagValue.proto.Name] = flagValue
 				return nil
 			})
 			if err != nil {
-				return nil, err
+				// This will not happen: errors are all sent to ctx.errorsChan.
+				ctx.errorsChan <- err
 			}
 		}
 	}
@@ -704,22 +557,8 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease strin
 		configs.releaseConfigMapsMap[configDir] = m
 		idx += 1
 	}
-
-	// Finish starting all of the file reads
-	ctx.dirReaderWg.Wait()
-	close(ctx.declReaderChan)
-	close(ctx.contribReaderChan)
-	close(ctx.valueReaderChan)
-
-	// Wait for all file reads to complete
-	ctx.declReaderWg.Wait()
-	ctx.contribReaderWg.Wait()
-	ctx.valueReaderWg.Wait()
-	close(ctx.infoHandlerChan)
-	// Finish processing info from the reads.
-	ctx.infoHandlerWg.Wait()
-
 	configs.Finalize(ctx, targetRelease)
+
 	close(ctx.errorsChan)
 	ctx.errorsWg.Wait()
 	configs.FilesUsedHash = finishFileRecord()
