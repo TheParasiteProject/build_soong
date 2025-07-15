@@ -349,6 +349,12 @@ license_kind {
 }
 
 license_kind {
+    name: "SPDX-license-identifier-bzip2-1.0.6",
+    conditions: ["notice"],
+    url: "https://spdx.org/licenses/bzip2-1.0.6.html",
+}
+
+license_kind {
     name: "SPDX-license-identifier-CC-BY",
     conditions: ["notice"],
 }
