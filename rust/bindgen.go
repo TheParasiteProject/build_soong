@@ -23,6 +23,7 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
+	"android/soong/rust/config"
 )
 
 var (
@@ -258,6 +259,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	}
 
 	bindgenFlags := defaultBindgenFlags
+	bindgenFlags = append(bindgenFlags, "--rust-target", config.GetRustVersion(ctx))
 	bindgenFlags = append(bindgenFlags, esc(b.Properties.Bindgen_flags)...)
 	if Bool(b.Properties.Handle_static_inline) {
 		outputStaticFnsFile := android.PathForModuleOut(ctx, b.BaseSourceProvider.getStem(ctx)+".c")
