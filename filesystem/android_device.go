@@ -671,6 +671,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 	if a.partitionProps.Vendor_boot_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_boot_partition_name), filesystemDepTag)
 		bootImgInfo, _ := android.OtherModuleProvider(ctx, bootImg, BootimgInfoProvider)
+		builder.Command().Textf("mkdir -p %s/VENDOR_BOOT", targetFilesDir)
 		builder.Command().Textf("echo %s > %s/VENDOR_BOOT/cmdline", proptools.ShellEscape(strings.Join(bootImgInfo.Cmdline, " ")), targetFilesDir)
 		builder.Command().Textf("echo %s > %s/VENDOR_BOOT/vendor_cmdline", proptools.ShellEscape(strings.Join(bootImgInfo.Cmdline, " ")), targetFilesDir)
 		if bootImgInfo.Dtb != nil {
@@ -699,7 +700,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		if !ok {
 			ctx.PropertyErrorf("boot_partition_name", "Expected a BootimgInfoProvider")
 		}
-		builder.Command().Textf("echo %s > %s/BOOT/cmdline", proptools.ShellEscape(strings.Join(bootImgInfo.Cmdline, " ")), targetFilesDir)
+		builder.Command().Textf("mkdir -p %s/BOOT && echo %s > %s/BOOT/cmdline", targetFilesDir, proptools.ShellEscape(strings.Join(bootImgInfo.Cmdline, " ")), targetFilesDir)
 		if bootImgInfo.Dtb != nil {
 			builder.Command().Textf("cp ").Input(bootImgInfo.Dtb).Textf(" %s/BOOT/dtb", targetFilesDir)
 		}
