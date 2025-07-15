@@ -32,7 +32,7 @@ func main() {
 	var outputDir string
 	var err error
 	var configs *rc_lib.ReleaseConfigs
-	var json, pb, textproto, inheritance, container bool
+	var json, pb, textproto, inheritance bool
 	var hashFile string
 	var product string
 	var allMake bool
@@ -60,7 +60,6 @@ func main() {
 	flag.BoolVar(&allMake, "all_make", false, "write makefiles for all release configs")
 	flag.BoolVar(&inheritance, "inheritance", true, "write inheritance graph")
 	flag.BoolVar(&useBuildVar, "use_get_build_var", false, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
-	flag.BoolVar(&container, "container", true, "generate per-container build_flags.json artifacts")
 	flag.BoolVar(&guard, "guard", false, "obsolete")
 
 	flag.Parse()
@@ -106,46 +105,45 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if container {
-		if err := config.WritePartitionBuildFlags(product, outputDir); err != nil {
-			panic(err)
-		}
-	}
-	// All of these artifacts require that we generate **ALL** release configs.
-	if allMake || inheritance || json || pb || textproto {
-		configs.GenerateAllReleaseConfigs(targetRelease)
-		if allMake {
-			// Write one makefile per release config, using the canonical release name.
-			for _, c := range configs.GetSortedReleaseConfigs() {
-				if c.Name != targetRelease && !c.DisallowLunchUse {
-					makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, c.Name))
-					err = config.WriteMakefile(makefilePath, c.Name, configs)
-					if err != nil {
-						panic(err)
-					}
+	if allMake {
+		// Write one makefile per release config, using the canonical release name.
+		for _, c := range configs.GetSortedReleaseConfigs() {
+			if c.Name != targetRelease && !c.DisallowLunchUse {
+				makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, c.Name))
+				err = config.WriteMakefile(makefilePath, c.Name, configs)
+				if err != nil {
+					panic(err)
 				}
 			}
 		}
-		if inheritance {
-			inheritPath := filepath.Join(outputDir, fmt.Sprintf("inheritance_graph-%s.dot", product))
-			if err := configs.WriteInheritanceGraph(inheritPath); err != nil {
-				panic(err)
-			}
-		}
-		if json {
-			if err := configs.WriteArtifact(outputDir, product, "json"); err != nil {
-				panic(err)
-			}
-		}
-		if pb {
-			if err := configs.WriteArtifact(outputDir, product, "pb"); err != nil {
-				panic(err)
-			}
-		}
-		if textproto {
-			if err := configs.WriteArtifact(outputDir, product, "textproto"); err != nil {
-				panic(err)
-			}
+	}
+	if inheritance {
+		inheritPath := filepath.Join(outputDir, fmt.Sprintf("inheritance_graph-%s.dot", product))
+		err = configs.WriteInheritanceGraph(inheritPath)
+		if err != nil {
+			panic(err)
 		}
 	}
+	if json {
+		err = configs.WriteArtifact(outputDir, product, "json")
+		if err != nil {
+			panic(err)
+		}
+	}
+	if pb {
+		err = configs.WriteArtifact(outputDir, product, "pb")
+		if err != nil {
+			panic(err)
+		}
+	}
+	if textproto {
+		err = configs.WriteArtifact(outputDir, product, "textproto")
+		if err != nil {
+			panic(err)
+		}
+	}
+	if err = config.WritePartitionBuildFlags(product, outputDir); err != nil {
+		panic(err)
+	}
+
 }
