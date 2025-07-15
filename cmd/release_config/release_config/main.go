@@ -27,13 +27,11 @@ func main() {
 	var top string
 	var quiet bool
 	var releaseConfigMapPaths rc_lib.StringList
-	var mapsFile string
 	var targetRelease string
 	var outputDir string
 	var err error
 	var configs *rc_lib.ReleaseConfigs
 	var json, pb, textproto, inheritance bool
-	var hashFile string
 	var product string
 	var allMake bool
 	var useBuildVar, allowMissing bool
@@ -44,16 +42,13 @@ func main() {
 		defaultRelease = "trunk_staging"
 	}
 
-	defaultProduct := os.Getenv("TARGET_PRODUCT")
 	flag.StringVar(&top, "top", ".", "path to top of workspace")
-	flag.StringVar(&product, "product", defaultProduct, "TARGET_PRODUCT for the build")
+	flag.StringVar(&product, "product", os.Getenv("TARGET_PRODUCT"), "TARGET_PRODUCT for the build")
 	flag.BoolVar(&quiet, "quiet", false, "disable warning messages")
-	flag.StringVar(&mapsFile, "maps-file", "", "path to a file containing a list of release_config_map.textproto paths")
 	flag.Var(&releaseConfigMapPaths, "map", "path to a release_config_map.textproto. may be repeated")
 	flag.StringVar(&targetRelease, "release", defaultRelease, "TARGET_RELEASE for this build")
 	flag.BoolVar(&allowMissing, "allow-missing", false, "Use trunk_staging values if release not found")
 	flag.StringVar(&outputDir, "out_dir", rc_lib.GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
-	flag.StringVar(&hashFile, "hashfile", "", "path in which to write a hash to determine when inputs have changed")
 	flag.BoolVar(&textproto, "textproto", true, "write artifacts as text protobuf")
 	flag.BoolVar(&json, "json", true, "write artifacts as json")
 	flag.BoolVar(&pb, "pb", true, "write artifacts as binary protobuf")
@@ -66,15 +61,6 @@ func main() {
 
 	if quiet {
 		rc_lib.DisableWarnings()
-	}
-
-	if mapsFile != "" {
-		if len(releaseConfigMapPaths) > 0 {
-			panic(fmt.Errorf("Cannot specify both --map and --maps-file"))
-		}
-		if err := releaseConfigMapPaths.ReadFromFile(mapsFile); err != nil {
-			panic(fmt.Errorf("Could not read %s", mapsFile))
-		}
 	}
 
 	if err = os.Chdir(top); err != nil {
@@ -91,12 +77,6 @@ func main() {
 	err = os.MkdirAll(outputDir, 0775)
 	if err != nil {
 		panic(err)
-	}
-
-	if hashFile != "" {
-		if err := configs.WriteHashFile(hashFile); err != nil {
-			panic(err)
-		}
 	}
 
 	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, targetRelease))

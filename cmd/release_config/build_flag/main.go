@@ -371,7 +371,7 @@ func main() {
 	flag.StringVar(&commonFlags.top, "top", topDir, "path to top of workspace")
 	flag.BoolVar(&commonFlags.quiet, "quiet", false, "disable warning messages")
 	flag.Var(&commonFlags.maps, "map", "path to a release_config_map.textproto. may be repeated")
-	flag.StringVar(&commonFlags.mapsFile, "maps-file", "", "path to a file containing a list of release_config_map.textproto paths")
+	flag.StringVar(&commonFlags.mapsFile, "maps-file", "", "path to a file containing a list of release_config_map.textproto paths, one per line")
 	flag.StringVar(&commonFlags.outDir, "out-dir", rc_lib.GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
 	flag.Var(&commonFlags.targetReleases, "release", "TARGET_RELEASE for this build")
 	flag.BoolVar(&commonFlags.allowMissing, "allow-missing", false, "Use trunk_staging values if release not found")
@@ -395,10 +395,17 @@ func main() {
 
 	if commonFlags.mapsFile != "" {
 		if len(commonFlags.maps) > 0 {
-			panic(fmt.Errorf("Cannot specify both --map and --maps-file"))
+			errorExit(fmt.Errorf("Cannot use both --map and --maps-file"))
 		}
-		if err := commonFlags.maps.ReadFromFile(commonFlags.mapsFile); err != nil {
-			panic(fmt.Errorf("Could not read %s", commonFlags.mapsFile))
+		data, err := os.ReadFile(commonFlags.mapsFile)
+		if err != nil {
+			errorExit(err)
+		}
+		// Add the list of maps to `maps`.
+		for _, m := range strings.Split(string(data), "\n") {
+			if len(m) > 0 {
+				commonFlags.maps.Set(m)
+			}
 		}
 	}
 
