@@ -54,13 +54,13 @@ func main() {
 	flag.BoolVar(&allowMissing, "allow-missing", false, "Use trunk_staging values if release not found")
 	flag.StringVar(&outputDir, "out_dir", rc_lib.GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
 	flag.StringVar(&hashFile, "hashfile", "", "path in which to write a hash to determine when inputs have changed")
-	flag.BoolVar(&textproto, "textproto", false, "write artifacts as text protobuf")
-	flag.BoolVar(&json, "json", false, "write artifacts as json")
-	flag.BoolVar(&pb, "pb", false, "write artifacts as binary protobuf")
+	flag.BoolVar(&textproto, "textproto", true, "write artifacts as text protobuf")
+	flag.BoolVar(&json, "json", true, "write artifacts as json")
+	flag.BoolVar(&pb, "pb", true, "write artifacts as binary protobuf")
 	flag.BoolVar(&allMake, "all_make", false, "write makefiles for all release configs")
-	flag.BoolVar(&inheritance, "inheritance", false, "write inheritance graph")
+	flag.BoolVar(&inheritance, "inheritance", true, "write inheritance graph")
 	flag.BoolVar(&useBuildVar, "use_get_build_var", false, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
-	flag.BoolVar(&container, "container", false, "generate per-container build_flags.json artifacts")
+	flag.BoolVar(&container, "container", true, "generate per-container build_flags.json artifacts")
 	flag.BoolVar(&guard, "guard", false, "obsolete")
 
 	flag.Parse()
@@ -81,15 +81,15 @@ func main() {
 	if err = os.Chdir(top); err != nil {
 		panic(err)
 	}
-	err = os.MkdirAll(outputDir, 0775)
-	if err != nil {
-		panic(err)
-	}
 	configs, err = rc_lib.ReadReleaseConfigMaps(releaseConfigMapPaths, targetRelease, useBuildVar, allowMissing, false)
 	if err != nil {
 		panic(err)
 	}
 	config, err := configs.GetReleaseConfig(targetRelease)
+	if err != nil {
+		panic(err)
+	}
+	err = os.MkdirAll(outputDir, 0775)
 	if err != nil {
 		panic(err)
 	}
