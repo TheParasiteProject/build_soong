@@ -350,7 +350,14 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 	fsGenState.fsDepsMutex.Lock()
 	defer fsGenState.fsDepsMutex.Unlock()
 
-	if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()]; ok {
+	moduleName := mctx.ModuleName()
+	if p, ok := m.(android.PrebuiltInterface); ok && p.Prebuilt() != nil {
+		if mm, ok := m.(interface{ BaseModuleName() string }); ok {
+			moduleName = mm.BaseModuleName()
+		}
+	}
+
+	if _, ok := fsGenState.depCandidatesMap[moduleName]; ok {
 		installPartition := m.PartitionTag(mctx.DeviceConfig())
 		// Only add the module as dependency when:
 		// - its enabled
