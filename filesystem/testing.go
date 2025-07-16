@@ -25,11 +25,13 @@ var PrepareForTestWithFilesystemBuildComponents = android.FixtureRegisterWithCon
 var prepareForTestWithAndroidDeviceComponents = android.GroupFixturePreparers(
 	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
 		ctx.RegisterModuleType("android_device", AndroidDeviceFactory)
+		ctx.RegisterModuleType("build_prop", android.BuildPropFactory)
 	}),
 	phony.PrepareForTestWithPhony,
 	cc.PrepareForTestWithCcBuildComponents,
 	cc.PrepareForTestWithCcDefaultModules,
 	etc.PrepareForTestWithPrebuiltEtc,
+	android.SetBuildDateFileEnvVarForTests(),
 	android.FixtureMergeMockFs(android.MockFS{
 		"images/Android.bp": []byte(`
 			android_filesystem {
@@ -71,6 +73,12 @@ var prepareForTestWithAndroidDeviceComponents = android.GroupFixturePreparers(
 				stl: "none",
 				system_shared_libs: [],
 			}
+		`),
+		"prop/Android.bp": []byte(`
+            build_prop {
+                name: "system-build.prop",
+                stem: "build.prop",
+            }
 		`),
 	}),
 )
