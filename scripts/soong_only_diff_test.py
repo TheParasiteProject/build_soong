@@ -16,6 +16,7 @@
 #
 
 import argparse
+import glob
 import os
 import shutil
 import stat
@@ -57,7 +58,8 @@ def run_build_target_files_zip(product: Product, soong_only: bool) -> bool:
             'dist',
             soong_only_arg,
         ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
-        return result.returncode == 0
+    move_artifacts_to_subfolder(product, soong_only)
+    return result.returncode == 0
 
 # These values are defined in build/soong/zip/zip.go
 SHA_256_HEADER_ID = 0x4967
@@ -123,13 +125,28 @@ def find_build_id() -> str | None:
 
     return build_id
 
+
+def get_sub_dist_dir(product: Product, soong_only: bool = None) -> str:
+    subdir = os.path.join('soong_only_diffs', product.product)
+    if soong_only is not None:
+        subdir = os.path.join(subdir, "soong_only" if soong_only else "soong_plus_make")
+
+    out_dir = os.getenv('OUT_DIR', 'out')
+    dist_dir = os.getenv('DIST_DIR', os.path.join(out_dir, 'dist'))
+    subdistdir = os.path.join(dist_dir, subdir)
+    return subdistdir
+
+
 def zip_ninja_files(subdistdir: str, product: Product):
     out_dir = os.getenv('OUT_DIR', 'out')
     root_dir = os.path.dirname(out_dir)
     root_ninja_name = f'combined-{product.product}.ninja'
     if is_env_true('EMMA_INSTRUMENT'):
         root_ninja_name = f'combined-{product.product}.coverage.ninja'
-    files_to_zip = transitively_included_ninja_files(out_dir, os.path.join(out_dir, root_ninja_name), {})
+    root_ninja_name = os.path.join(out_dir, root_ninja_name)
+    if not os.path.isfile(root_ninja_name):
+        return
+    files_to_zip = transitively_included_ninja_files(out_dir, root_ninja_name, {})
 
     zip_filename = os.path.join(subdistdir, "ninja_files.zip")
     with zipfile.ZipFile(zip_filename, 'w', compression=zipfile.ZIP_DEFLATED) as zipf:
@@ -137,11 +154,9 @@ def zip_ninja_files(subdistdir: str, product: Product):
             zipf.write(filename=file, arcname=os.path.relpath(file, root_dir))
 
 def move_artifacts_to_subfolder(product: Product, soong_only: bool):
-    subdir = "soong_only" if soong_only else "soong_plus_make"
-
     out_dir = os.getenv('OUT_DIR', 'out')
     dist_dir = os.getenv('DIST_DIR', os.path.join(out_dir, 'dist'))
-    subdistdir = os.path.join(dist_dir, subdir)
+    subdistdir = get_sub_dist_dir(product, soong_only)
     if os.path.exists(subdistdir):
         shutil.rmtree(subdistdir)
     os.makedirs(subdistdir)
@@ -155,7 +170,8 @@ def move_artifacts_to_subfolder(product: Product, soong_only: bool):
     ]
 
     for file in files_to_move:
-        shutil.move(file, subdistdir)
+        if os.path.isfile(file):
+            shutil.move(file, subdistdir)
 
 SHA_DIFF_ALLOWLIST = {
     "IMAGES/system.img",
@@ -169,77 +185,101 @@ SHA_DIFF_ALLOWLIST = {
     "SYSTEM/apex/com.android.resolv.capex", # TODO: b/411514418 - Remove once nondeterminism is fixed
 }
 
-def compare_sha_maps(soong_only_map: dict[str, bytes], soong_plus_make_map: dict[str, bytes]) -> bool:
-    """Compares two sha maps and reports any missing or different entries."""
+def get_target_files_comparison_report_path(product: Product):
+    return os.path.join(get_sub_dist_dir(product), 'target_files_comparison_report.txt')
 
+def compare_sha_maps(product: Product, soong_only_map: dict[str, bytes], soong_plus_make_map: dict[str, bytes]) -> bool:
+    """Compares two sha maps and reports any missing or different entries."""
     all_keys = sorted(list(soong_only_map.keys() | soong_plus_make_map.keys()))
     all_identical = True
-    for key in all_keys:
-        allowlisted = key in SHA_DIFF_ALLOWLIST
-        allowlisted_str = "ALLOWLISTED" if allowlisted else "NOT ALLOWLISTED"
-        file = None if allowlisted else sys.stderr
-        if key not in soong_only_map:
-            print(f'{key} not found in soong only build target_files.zip ({allowlisted_str})', file=file)
-            all_identical = all_identical and allowlisted
-        elif key not in soong_plus_make_map:
-            print(f'{key} not found in soong plus make build target_files.zip ({allowlisted_str})', file=file)
-            all_identical = all_identical and allowlisted
-        elif soong_only_map[key] != soong_plus_make_map[key]:
-            print(f'{key} sha value differ between soong only build and soong plus make build ({allowlisted_str})', file=file)
-            all_identical = all_identical and allowlisted
+    with open(get_target_files_comparison_report_path(product), 'wt') as file:
+        for key in all_keys:
+            allowlisted = key in SHA_DIFF_ALLOWLIST
+            allowlisted_str = "ALLOWLISTED" if allowlisted else "NOT ALLOWLISTED"
+            if key not in soong_only_map:
+                print(f'{key} not found in soong only build target_files.zip ({allowlisted_str})', file=file)
+                all_identical = all_identical and allowlisted
+            elif key not in soong_plus_make_map:
+                print(f'{key} not found in soong plus make build target_files.zip ({allowlisted_str})', file=file)
+                all_identical = all_identical and allowlisted
+            elif soong_only_map[key] != soong_plus_make_map[key]:
+                print(f'{key} sha value differ between soong only build and soong plus make build ({allowlisted_str})', file=file)
+                all_identical = all_identical and allowlisted
 
     return all_identical
 
 def get_zip_sha_map(product: Product, soong_only: bool) -> dict[str, bytes]:
     """Runs the build and returns the map of entries to its SHA256 values of target_files.zip."""
-
-    out_dir = os.getenv('OUT_DIR', 'out')
-
-    build_type = "soong only" if soong_only else "soong plus make"
-
-    build_success = run_build_target_files_zip(product, soong_only)
-    if not build_success:
-        with open(os.path.join(out_dir, 'build.log'), 'r') as f:
-            print(f.read(), file=sys.stderr)
-        sys.exit(f'{build_type} build failed')
-
-    build_id = find_build_id()
-    dist_dir = os.getenv('DIST_DIR', os.path.join(out_dir, 'dist'))
-    target_files_zip = os.path.join(dist_dir, f'{product.product}-target_files-{build_id}.zip')
-    zip_sha_map = get_local_file_sha256_fields(target_files_zip)
+    subdistdir = get_sub_dist_dir(product, soong_only)
+    target_files_zip_glob = os.path.join(subdistdir, f'{product.product}-target_files-*.zip')
+    target_files_zip = glob.glob(target_files_zip_glob)
+    if len(target_files_zip) != 1:
+        sys.exit(f'Could not find {target_files_zip_glob}')
+    zip_sha_map = get_local_file_sha256_fields(target_files_zip[0])
     if zip_sha_map is None:
         sys.exit("Could not construct sha map for target_files.zip entries for soong only build")
 
     return zip_sha_map
 
 def parse_args():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("product", help="target product name")
-  return parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("products", nargs='+', help="one or more target product names")
+    return parser.parse_args()
 
 def main():
     os.chdir(get_top())
 
     args = parse_args()
 
-    product = Product(
-      args.product,
-      'trunk_staging',
-      'userdebug',
-    )
+    products = [
+        Product(
+          p,
+          'trunk_staging',
+          'userdebug',
+        ) for p in args.products
+    ]
 
-    soong_only = True
-    soong_only_zip_sha_map = get_zip_sha_map(product, soong_only)
-    move_artifacts_to_subfolder(product, soong_only)
+    target_files_differ_products = []
+    soong_only_build_failed_products = []
+    soong_plus_make_build_failed_products = []
+    for product in products:
+        soong_only = True
+        soong_only_success = run_build_target_files_zip(product, soong_only)
+        soong_only_zip_sha_map = None
+        if soong_only_success:
+            soong_only_zip_sha_map = get_zip_sha_map(product, soong_only)
+        else:
+            soong_only_build_failed_products.append(product)
 
-    soong_only = False
-    soong_plus_make_zip_sha_map = get_zip_sha_map(product, soong_only)
-    move_artifacts_to_subfolder(product, soong_only)
+        soong_only = False
+        soong_plus_make_success = run_build_target_files_zip(product, soong_only)
+        soong_plus_make_zip_sha_map = None
+        if soong_plus_make_success:
+            soong_plus_make_zip_sha_map = get_zip_sha_map(product, soong_only)
+        else:
+            soong_plus_make_build_failed_products.append(product)
 
-    if not compare_sha_maps(soong_only_zip_sha_map, soong_plus_make_zip_sha_map):
-        sys.exit("target_files.zip differ between soong only build and soong plus make build")
+        if soong_only_zip_sha_map and soong_plus_make_zip_sha_map:
+            if not compare_sha_maps(product, soong_only_zip_sha_map, soong_plus_make_zip_sha_map):
+                target_files_differ_products.append(product)
 
-    print("target_files.zip are identical between soong only build and soong plus make build")
+        print(f"Diff test for {product.product} completed.")
+
+    for p in soong_plus_make_build_failed_products:
+        print(f"{p.product}: soong+make build failed", file=sys.stderr)
+    for p in soong_only_build_failed_products:
+        print(f"{p.product}: soong-only build failed", file=sys.stderr)
+    for p in target_files_differ_products:
+        print(f"{p.product}: target-file.zip differs", file=sys.stderr)
+
+    if len(products) == 1 and target_files_differ_products:
+        with open(get_target_files_comparison_report_path(products[0])) as f:
+            print(f.read(), file=sys.stderr)
+
+    if soong_plus_make_build_failed_products or soong_only_build_failed_products or target_files_differ_products:
+        sys.exit(1)
+    else:
+        print("target_files.zip are identical between soong only build and soong plus make build")
 
 if __name__ == "__main__":
     main()
