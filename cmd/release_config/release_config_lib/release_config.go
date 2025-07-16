@@ -216,10 +216,6 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		if err != nil {
 			return err
 		}
-		err = iConfig.GenerateReleaseConfig(configs)
-		if err != nil {
-			return err
-		}
 		err = config.InheritConfig(iConfig)
 		if err != nil {
 			return err
@@ -319,10 +315,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 
 	if config.ReleaseConfigType == rc_proto.ReleaseConfigType_RELEASE_CONFIG {
 		inheritBuildVariant := func() error {
-			build_variant := os.Getenv("TARGET_BUILD_VARIANT")
-			if build_variant == "" {
-				build_variant = "eng"
-			}
+			build_variant := configs.targetBuildVariant
 			if config.Name == build_variant {
 				return nil
 			}

@@ -15,8 +15,10 @@
 package release_config_lib
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -24,6 +26,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/google/blueprint/pathtools"
 	"google.golang.org/protobuf/encoding/prototext"
@@ -46,6 +49,24 @@ func (l *StringList) Set(v string) error {
 
 func (l *StringList) String() string {
 	return fmt.Sprintf("%v", *l)
+}
+
+// Read the stringlist from a file containing one or more lines which contain
+// space separated values to add to the StringList.
+func (l *StringList) ReadFromFile(fileName string) error {
+	// Do not include this file as part of the hash.  Reading the StringList from
+	// a file is a shorthand for command line arguments, which are not part of the
+	// hash.
+	data, err := os.ReadFile(fileName)
+	if err != nil {
+		return err
+	}
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
+		for m := range strings.SplitSeq(strings.TrimSpace(line), " ") {
+			l.Set(m)
+		}
+	}
+	return nil
 }
 
 // Write a marshalled message to a file.
@@ -107,6 +128,62 @@ func WriteFormattedMessage(path, format string, message proto.Message) (err erro
 	return pathtools.WriteFileIfChanged(path, data, 0644)
 }
 
+type fileHash struct {
+	Path string
+	Hash []byte
+}
+
+var filesUsedChan chan *fileHash
+var filesWg sync.WaitGroup
+var fileHashes []*fileHash
+
+func startFileRecord() {
+	fileHashes = nil
+	filesUsedChan = make(chan *fileHash, 40)
+	filesWg.Add(1)
+	go func() {
+		defer filesWg.Done()
+		for u := range filesUsedChan {
+			fileHashes = append(fileHashes, u)
+		}
+	}()
+}
+
+func finishFileRecord() []byte {
+	close(filesUsedChan)
+	filesWg.Wait()
+
+	slices.SortFunc(fileHashes, func(a, b *fileHash) int {
+		if a.Path == b.Path {
+			panic(fmt.Errorf("duplicate path %s", a.Path))
+		}
+		return cmp.Compare(a.Path, b.Path)
+	})
+
+	h := fnv.New128()
+	for _, fh := range fileHashes {
+		h.Write([]byte(fh.Path))
+		h.Write(fh.Hash)
+	}
+	return h.Sum([]byte{})
+}
+
+func ReadTrackedFile(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if filesUsedChan != nil {
+		h := fnv.New128()
+		h.Write(data)
+		filesUsedChan <- &fileHash{
+			Path: path,
+			Hash: h.Sum([]byte{}),
+		}
+	}
+	return data, err
+}
+
 // Read a message from a file.
 //
 // The message is unmarshalled based on the extension of the file read.
@@ -120,7 +197,7 @@ func WriteFormattedMessage(path, format string, message proto.Message) (err erro
 //
 //	error: any error encountered.
 func LoadMessage(path string, message proto.Message) error {
-	data, err := os.ReadFile(path)
+	data, err := ReadTrackedFile(path)
 	if err != nil {
 		return err
 	}

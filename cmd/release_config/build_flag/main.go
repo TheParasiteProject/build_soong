@@ -40,6 +40,9 @@ type Flags struct {
 	// accept one value, others also accept `--release --all`.
 	targetReleases rc_lib.StringList
 
+	// The TARGET_BUILD_VARIANT to use
+	targetBuildVariant string
+
 	// Disable warning messages
 	quiet bool
 
@@ -349,7 +352,7 @@ func SetCommand(configs *rc_lib.ReleaseConfigs, commonFlags Flags, cmd string, a
 	}
 
 	// Reload the release configs.
-	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, commonFlags.targetReleases[0], commonFlags.useGetBuildVar, commonFlags.allowMissing, commonFlags.declarationsOnly)
+	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, commonFlags.targetReleases[0], commonFlags.targetBuildVariant, commonFlags.useGetBuildVar, commonFlags.allowMissing, commonFlags.declarationsOnly)
 	if err != nil {
 		return err
 	}
@@ -368,12 +371,17 @@ func main() {
 	topDir, err := rc_lib.GetTopDir()
 
 	// Handle the common arguments
+	defaultVariant := os.Getenv("TARGET_BUILD_VARIANT")
+	if defaultVariant == "" {
+		defaultVariant = "eng"
+	}
 	flag.StringVar(&commonFlags.top, "top", topDir, "path to top of workspace")
 	flag.BoolVar(&commonFlags.quiet, "quiet", false, "disable warning messages")
 	flag.Var(&commonFlags.maps, "map", "path to a release_config_map.textproto. may be repeated")
-	flag.StringVar(&commonFlags.mapsFile, "maps-file", "", "path to a file containing a list of release_config_map.textproto paths, one per line")
+	flag.StringVar(&commonFlags.mapsFile, "maps-file", "", "path to a file containing a list of release_config_map.textproto paths")
 	flag.StringVar(&commonFlags.outDir, "out-dir", rc_lib.GetDefaultOutDir(), "basepath for the output. Multiple formats are created")
 	flag.Var(&commonFlags.targetReleases, "release", "TARGET_RELEASE for this build")
+	flag.StringVar(&commonFlags.targetBuildVariant, "variant", defaultVariant, "TARGET_BUILD_VARIANT for this build")
 	flag.BoolVar(&commonFlags.allowMissing, "allow-missing", false, "Use trunk_staging values if release not found")
 	flag.BoolVar(&commonFlags.allReleases, "all-releases", false, "operate on all releases. (Ignored for set command)")
 	flag.BoolVar(&commonFlags.useGetBuildVar, "use-get-build-var", true, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS to get needed maps")
@@ -395,17 +403,10 @@ func main() {
 
 	if commonFlags.mapsFile != "" {
 		if len(commonFlags.maps) > 0 {
-			errorExit(fmt.Errorf("Cannot use both --map and --maps-file"))
+			panic(fmt.Errorf("Cannot specify both --map and --maps-file"))
 		}
-		data, err := os.ReadFile(commonFlags.mapsFile)
-		if err != nil {
-			errorExit(err)
-		}
-		// Add the list of maps to `maps`.
-		for _, m := range strings.Split(string(data), "\n") {
-			if len(m) > 0 {
-				commonFlags.maps.Set(m)
-			}
+		if err := commonFlags.maps.ReadFromFile(commonFlags.mapsFile); err != nil {
+			panic(fmt.Errorf("Could not read %s", commonFlags.mapsFile))
 		}
 	}
 
@@ -427,7 +428,7 @@ func main() {
 	if relName == "--all" || relName == "-all" {
 		commonFlags.allReleases = true
 	}
-	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, relName, commonFlags.useGetBuildVar, commonFlags.allowMissing, commonFlags.declarationsOnly)
+	configs, err = rc_lib.ReadReleaseConfigMaps(commonFlags.maps, relName, commonFlags.targetBuildVariant, commonFlags.useGetBuildVar, commonFlags.allowMissing, commonFlags.declarationsOnly)
 	if err != nil {
 		errorExit(err)
 	}
