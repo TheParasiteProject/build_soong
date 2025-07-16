@@ -211,8 +211,7 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 
 func (cov *coverage) begin(ctx BaseModuleContext) {
 	if ctx.Host() && !ctx.Os().Linux() {
-		// TODO(dwillemsen): because of -nodefaultlibs, we must depend on libclang_rt.profile-*.a
-		// Just turn off for now.
+		// Host coverage is only supported on Linux.
 	} else {
 		cov.Properties = SetCoverageProperties(ctx, cov.Properties, ctx.nativeCoverage(), ctx.useSdk(), ctx.sdkVersion())
 	}
