@@ -82,9 +82,6 @@ type ReleaseConfigs struct {
 	// Map of directory to *ReleaseConfigMap
 	releaseConfigMapsMap map[string]*ReleaseConfigMap
 
-	// The files used by all release configs
-	FilesUsedMap map[string]bool
-
 	// The list of config directories used.
 	configDirs []string
 
@@ -193,8 +190,12 @@ func (configs *ReleaseConfigs) WriteArtifact(outDir, product, format string) err
 		return fmt.Errorf("all_release_configs artifact has not been generated yet")
 	}
 	return WriteMessage(
-		filepath.Join(outDir, fmt.Sprintf("all_release_configs-%s.%s", product, format)),
+		configs.AllReleaseConfigsPath(outDir, product, format),
 		configs.Artifact)
+}
+
+func (configs *ReleaseConfigs) AllReleaseConfigsPath(outDir, product, format string) string {
+	return filepath.Join(outDir, fmt.Sprintf("all_release_configs-%s.%s", product, format))
 }
 
 func ReleaseConfigsFactory(allowMissing bool, targetBuildVariant string) (c *ReleaseConfigs) {
@@ -205,7 +206,6 @@ func ReleaseConfigsFactory(allowMissing bool, targetBuildVariant string) (c *Rel
 		releaseConfigMapsMap: make(map[string]*ReleaseConfigMap),
 		configDirs:           []string{},
 		configDirIndexes:     make(ReleaseConfigDirMap),
-		FilesUsedMap:         make(map[string]bool),
 		allowMissing:         allowMissing,
 		targetBuildVariant:   targetBuildVariant,
 	}
@@ -305,6 +305,7 @@ type loadContext struct {
 }
 
 func createLoadContext(configs *ReleaseConfigs, declarationsOnly bool) *loadContext {
+	startFileRecord()
 	ctx := &loadContext{
 		declarationsOnly: declarationsOnly,
 		errorsChan:       make(chan error, 40),
@@ -320,7 +321,6 @@ func (configs *ReleaseConfigs) LoadReleaseConfigMap(ctx *loadContext, path strin
 	if err != nil {
 		return nil, err
 	}
-	configs.FilesUsedMap[path] = true
 	dir := filepath.Dir(path)
 	// Record any aliases, checking for duplicates.
 	for _, alias := range m.proto.Aliases {
@@ -529,7 +529,6 @@ func ReadReleaseConfigMaps(releaseConfigMapPaths StringList, targetRelease, vari
 	}
 
 	configs := ReleaseConfigsFactory(allowMissing, variant)
-	startFileRecord()
 	ctx := createLoadContext(configs, declarationsOnly)
 
 	var loadErrors []error
@@ -596,8 +595,6 @@ func (configs *ReleaseConfigs) Finalize(ctx *loadContext, targetRelease string) 
 			for container := range m.BuildFlagContainersMap {
 				buildFlagContainersMap[container] = true
 			}
-			// Set the initial value in the flag artifact.
-			configs.FilesUsedMap[path] = true
 		}
 
 		for name, rcc := range m.ReleaseConfigContributions {
@@ -620,11 +617,6 @@ func (configs *ReleaseConfigs) Finalize(ctx *loadContext, targetRelease string) 
 			config.AconfigFlagsOnly = config.AconfigFlagsOnly || rcc.proto.GetAconfigFlagsOnly()
 			config.DisallowLunchUse = config.DisallowLunchUse || rcc.proto.GetDisallowLunchUse()
 			config.Contributions = append(config.Contributions, rcc)
-			config.FilesUsedMap[rcc.path] = true
-
-			for _, fv := range rcc.FlagValues {
-				config.FilesUsedMap[fv.path] = true
-			}
 		}
 		// Look for flag values for release configs that are not declared in `release_configs/`.
 		for k, names := range m.FlagValueDirs {

@@ -260,14 +260,6 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		}
 	}
 
-	// If we inherited nothing, then we need to mark the global files as used for this
-	// config.  If we inherited, then we already marked them as part of inheritance.
-	if len(config.InheritNames) == 0 {
-		for f := range configs.FilesUsedMap {
-			config.FilesUsedMap[f] = true
-		}
-	}
-
 	contributionsToApply = append(contributionsToApply, config.Contributions...)
 
 	workflowManual := rc_proto.Workflow(rc_proto.Workflow_MANUAL)
@@ -573,7 +565,7 @@ func (config *ReleaseConfig) WritePartitionBuildFlags(product string, outDir str
 		})
 		// The json file name must not be modified as this is read from
 		// build_flags_json module
-		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags_%s-%s.json", product, partition)), flags); err != nil {
+		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags-%s-%s.json", product, partition)), flags); err != nil {
 			return err
 		}
 	}
