@@ -27,7 +27,10 @@ import (
 )
 
 var (
-	defaultBindgenFlags = []string{""}
+	defaultBindgenFlags = []string{
+		"--blocklist-type",
+		"max_align_t",
+	}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
 	bindgenClangVersion = "clang-r563880"
