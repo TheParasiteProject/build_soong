@@ -29,8 +29,3 @@ all_release_configs {
     // Visibility must be limited to host tests!
     visibility: ["//build/make/tools/finalization/finalization-test"],
 }
-
-release_config {
-    name: "my_release_config",
-    visibility: ["//build/release/build_config"],
-}

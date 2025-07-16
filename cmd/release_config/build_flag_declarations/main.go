@@ -69,7 +69,7 @@ func main() {
 		intermediates = append(intermediates, fda)
 	}
 	for _, decl := range flags.decls {
-		fa, err := rc_lib.FlagArtifactFactory(decl, -1)
+		fa, err := rc_lib.FlagArtifactFactory(decl)
 		if err != nil {
 			errorExit(err)
 		}
