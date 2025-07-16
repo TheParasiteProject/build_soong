@@ -263,7 +263,7 @@ def main():
             if not compare_sha_maps(product, soong_only_zip_sha_map, soong_plus_make_zip_sha_map):
                 target_files_differ_products.append(product)
 
-        print(f"Diff test for {p.product} completed.")
+        print(f"Diff test for {product.product} completed.")
 
     for p in soong_plus_make_build_failed_products:
         print(f"{p.product}: soong+make build failed", file=sys.stderr)
