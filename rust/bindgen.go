@@ -23,10 +23,14 @@ import (
 	"android/soong/android"
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
+	"android/soong/rust/config"
 )
 
 var (
-	defaultBindgenFlags = []string{""}
+	defaultBindgenFlags = []string{
+		"--blocklist-type",
+		"max_align_t",
+	}
 
 	// bindgen should specify its own Clang revision so updating Clang isn't potentially blocked on bindgen failures.
 	bindgenClangVersion = "clang-r563880"
@@ -258,6 +262,7 @@ func (b *bindgenDecorator) GenerateSource(ctx ModuleContext, deps PathDeps) andr
 	}
 
 	bindgenFlags := defaultBindgenFlags
+	bindgenFlags = append(bindgenFlags, "--rust-target", config.GetRustVersion(ctx))
 	bindgenFlags = append(bindgenFlags, esc(b.Properties.Bindgen_flags)...)
 	if Bool(b.Properties.Handle_static_inline) {
 		outputStaticFnsFile := android.PathForModuleOut(ctx, b.BaseSourceProvider.getStem(ctx)+".c")
