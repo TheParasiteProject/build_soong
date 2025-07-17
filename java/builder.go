@@ -149,13 +149,14 @@ var (
 			Command: `rm -rf "$outDir" "$annoDir" "$annoSrcJar.tmp" "$srcJarDir" "$out.tmp" && ` +
 				`mkdir -p "$outDir" "$annoDir" "$srcJarDir" && ` +
 				`${config.ZipSyncCmd} -d $srcJarDir -l $srcJarDir/list -f "*.java" $srcJars && ` +
-				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] ; then ` +
+				`${config.ZipSyncCmd} -d $annoDir -l $annoDir/list -f "*.java" $genAnnoSrcJars && ` +
+				`(if [ -s $srcJarDir/list ] || [ -s $out.rsp ] || [ -s $annoDir/list ]; then ` +
 				`${config.FindInputDeltaCmd} --template '' --target "$out" --inputs_file "$out.rsp" && ` +
 				`${config.SoongJavacWrapper} $javaTemplate${config.JavacCmd} ` +
 				`${config.JavacHeapFlags} ${config.JavacVmFlags} ${config.CommonJdkFlags} ` +
 				`$processorpath $processor $javacFlags $bootClasspath $classpath ` +
 				`-source $javaVersion -target $javaVersion ` +
-				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list ; fi ) && ` +
+				`-d $outDir -s $annoDir @$out.rsp @$srcJarDir/list @$annoDir/list ; fi ) && ` +
 				`$annoSrcJarTemplate${config.SoongZipCmd} -jar -o $annoSrcJar.tmp -C $annoDir -D $annoDir && ` +
 				`$zipTemplate${config.SoongZipCmd} -jar -o $out.tmp -C $outDir -D $outDir && ` +
 				`if ! cmp -s "$out.tmp" "$out"; then mv "$out.tmp" "$out"; fi && ` +
@@ -193,7 +194,7 @@ var (
 				Platform:     map[string]string{remoteexec.PoolKey: "${config.REJavaPool}"},
 			},
 		}, []string{"javacFlags", "bootClasspath", "classpath", "processorpath", "processor", "srcJars", "srcJarDir",
-			"outDir", "annoDir", "annoSrcJar", "javaVersion"}, nil)
+			"outDir", "annoDir", "annoSrcJar", "genAnnoSrcJars", "javaVersion"}, nil)
 
 	_ = pctx.VariableFunc("kytheCorpus",
 		func(ctx android.PackageVarContext) string { return ctx.Config().XrefCorpusName() })
@@ -498,22 +499,22 @@ func DefaultJavaBuilderFlags() javaBuilderFlags {
 }
 
 func TransformJavaToClassesInc(ctx android.ModuleContext, outputFile android.WritablePath,
-	srcFiles, srcJars, headerJars, crossModuleHeaderJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths, genAnnoSrcJar android.Path) {
+	srcFiles, srcJars, headerJars, crossModuleHeaderJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths, genAnnoSrcJars android.Paths) {
 
 	// Compile java sources into .class files
 	desc := "javac-inc"
-	transformJavaToClassesInc(ctx, outputFile, srcFiles, srcJars, headerJars, crossModuleHeaderJars, annoSrcJar, flags, deps, "javac", desc, genAnnoSrcJar)
+	transformJavaToClassesInc(ctx, outputFile, srcFiles, srcJars, headerJars, crossModuleHeaderJars, annoSrcJar, flags, deps, "javac", desc, genAnnoSrcJars)
 }
 
 func TransformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath, shardIdx int,
-	srcFiles, srcJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths) {
+	srcFiles, srcJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths, genAnnoSrcJars android.Paths) {
 
 	// Compile java sources into .class files
 	desc := "javac"
 	if shardIdx >= 0 {
 		desc += strconv.Itoa(shardIdx)
 	}
-	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, annoSrcJar, false, flags, deps, "javac", desc)
+	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, annoSrcJar, false, flags, deps, "javac", desc, genAnnoSrcJars)
 }
 func GenerateJavaAnnotations(ctx android.ModuleContext, outputFile android.WritablePath, shardIdx int,
 	srcFiles, srcJars android.Paths, annoSrcJar android.WritablePath, flags javaBuilderFlags, deps android.Paths) {
@@ -524,7 +525,7 @@ func GenerateJavaAnnotations(ctx android.ModuleContext, outputFile android.Writa
 		desc += strconv.Itoa(shardIdx)
 	}
 
-	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, annoSrcJar, true, flags, deps, "javac-apt", desc)
+	transformJavaToClasses(ctx, outputFile, shardIdx, srcFiles, srcJars, annoSrcJar, true, flags, deps, "javac-apt", desc, nil)
 }
 
 // Emits the rule to generate Xref input file (.kzip file) for the given set of source files and source jars
@@ -721,7 +722,7 @@ func TurbineApt(ctx android.ModuleContext, outputSrcJar, outputResJar android.Wr
 // rather than the full set)
 func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.WritablePath,
 	srcFiles, srcJars, shardingHeaderJars, crossModuleHeaderJars android.Paths, annoSrcJar android.WritablePath,
-	flags javaBuilderFlags, deps android.Paths, intermediatesDir, desc string, genAnnoSrcJar android.Path) {
+	flags javaBuilderFlags, deps android.Paths, intermediatesDir, desc string, genAnnoSrcJars android.Paths) {
 
 	javacClasspath := flags.classpath
 
@@ -805,6 +806,8 @@ func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.Wri
 	srcJarList := android.PathForModuleOut(ctx, intermediatesDir, srcJarDir, "list")
 	deps = append(deps, srcJarList)
 
+	// Extract srcJars as a separate action, so that it's not re-executed every time
+	// inc-javac is run, if srcJars were themselves not re-generated.
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        extractSrcJars,
 		Description: "javacExtractSrcJars",
@@ -816,22 +819,18 @@ func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.Wri
 		},
 	})
 
+	// Extract annoSrcJars as a separate action, so that it's not re-executed every time
+	// inc-javac is run, if annoSrcJars were themselves not re-generated.
 	genAnnoSrcJarList := android.PathForModuleOut(ctx, intermediatesDir, annoDir, "list")
 	deps = append(deps, genAnnoSrcJarList)
-	var jars string
-	if genAnnoSrcJar != nil {
-		jars = genAnnoSrcJar.String()
-	} else {
-		jars = ""
-	}
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        extractSrcJars,
 		Description: "javacExtractAnnoSrcJar",
-		Input:       genAnnoSrcJar,
+		Inputs:      genAnnoSrcJars,
 		Output:      genAnnoSrcJarList,
 		Args: map[string]string{
 			"extractDir": android.PathForModuleOut(ctx, intermediatesDir, annoDir).String(),
-			"jars":       jars,
+			"jars":       strings.Join(genAnnoSrcJars.Strings(), " "),
 		},
 	})
 
@@ -897,7 +896,7 @@ func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.Wri
 func transformJavaToClasses(ctx android.ModuleContext, outputFile android.WritablePath,
 	shardIdx int, srcFiles, srcJars android.Paths, annoSrcJar android.WritablePath, onlyGenerateAnnotations bool,
 	flags javaBuilderFlags, deps android.Paths,
-	intermediatesDir, desc string) {
+	intermediatesDir, desc string, genAnnoSrcJars android.Paths) {
 
 	deps = append(deps, srcJars...)
 
@@ -934,6 +933,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 
 	deps = append(deps, javacClasspath...)
 	deps = append(deps, flags.processorPath...)
+	deps = append(deps, genAnnoSrcJars...)
 
 	processor := "-proc:none"
 	if len(flags.processors) > 0 {
@@ -965,17 +965,18 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		Inputs:         srcFiles,
 		Implicits:      deps,
 		Args: map[string]string{
-			"javacFlags":    flags.javacFlags,
-			"bootClasspath": bootClasspath,
-			"classpath":     classpathArg,
-			"processorpath": flags.processorPath.FormJavaClassPath("-processorpath"),
-			"processor":     processor,
-			"srcJars":       strings.Join(srcJars.Strings(), " "),
-			"srcJarDir":     android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
-			"outDir":        android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),
-			"annoDir":       android.PathForModuleOut(ctx, intermediatesDir, annoDir).String(),
-			"annoSrcJar":    annoSrcJar.String(),
-			"javaVersion":   flags.javaVersion.String(),
+			"javacFlags":     flags.javacFlags,
+			"bootClasspath":  bootClasspath,
+			"classpath":      classpathArg,
+			"processorpath":  flags.processorPath.FormJavaClassPath("-processorpath"),
+			"processor":      processor,
+			"srcJars":        strings.Join(srcJars.Strings(), " "),
+			"srcJarDir":      android.PathForModuleOut(ctx, intermediatesDir, srcJarDir).String(),
+			"outDir":         android.PathForModuleOut(ctx, intermediatesDir, outDir).String(),
+			"annoDir":        android.PathForModuleOut(ctx, intermediatesDir, annoDir).String(),
+			"annoSrcJar":     annoSrcJar.String(),
+			"genAnnoSrcJars": strings.Join(genAnnoSrcJars.Strings(), " "),
+			"javaVersion":    flags.javaVersion.String(),
 		},
 	})
 }

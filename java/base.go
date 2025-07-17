@@ -1535,6 +1535,8 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 	var shardingHeaderJars android.Paths
 	var repackagedHeaderJarFile android.Path
 	var combinedHeaderJarFile android.Path
+	var genAnnoSrcJars android.Paths
+
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !disableTurbine {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enableSharding = true
@@ -1546,7 +1548,22 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 		}
 		extraJars := slices.Clone(kotlinHeaderJars)
 		extraJars = append(extraJars, extraCombinedJars...)
-		localHeaderJars, shardingHeaderJars, combinedHeaderJarFile = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJars, deps, flags, jarName, extraJars, manifest)
+		// if we are not sharding, let's first run turbine APT, generate some sources + res, hand them to turbine, plus pass them to javac
+		srcJarsForTurbine := slices.Clone(srcJars)
+		if !enableSharding && ctx.Config().GetBuildFlagBool("RELEASE_USE_TURBINE_APT_JAVAC") {
+			if len(flags.processorPath) > 0 {
+				turbineAptSrcJar := android.PathForModuleOut(ctx, "turbine-apt", "turbine-apt-sources.jar")
+				turbineAptResJar := android.PathForModuleOut(ctx, "turbine-apt", "turbine-apt-res.jar")
+				TurbineApt(ctx, turbineAptSrcJar, turbineAptResJar, uniqueJavaFiles, srcJars, flags)
+				genAnnoSrcJars = append(genAnnoSrcJars, turbineAptSrcJar)
+				localImplementationJars = append(localImplementationJars, turbineAptResJar)
+				srcJarsForTurbine = append(srcJarsForTurbine, genAnnoSrcJars...)
+				// Disable annotation processing in javac, it's already been handled here
+				flags.processorPath = nil
+				flags.processors = nil
+			}
+		}
+		localHeaderJars, shardingHeaderJars, combinedHeaderJarFile = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJarsForTurbine, deps, flags, jarName, extraJars, manifest)
 
 		var jarjared bool
 		j.headerJarFile, jarjared = j.jarjarIfNecessary(ctx, combinedHeaderJarFile, jarName, "turbine", false)
@@ -1579,14 +1596,15 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 
 		// turbine is disabled when API generating APs are present, in which case,
 		// we would want to process annotations before moving to incremental javac
-		var genAnnoSrcJar android.Path
 		if ctx.Device() && ctx.Config().PartialCompileFlags().Enable_inc_javac && disableTurbine {
 			srcJarsForTurbine := slices.Clone(srcJars)
 			if len(flags.processorPath) > 0 {
-				genAnnoSrcJar, _ = j.generateJavaAnnotations(ctx, jarName, -1, uniqueJavaFiles, srcJars, flags, nil)
+				genAnnoSrcJar, genResJar := j.generateJavaAnnotations(ctx, jarName, -1, uniqueJavaFiles, srcJars, flags, nil)
 				flags.processorPath = nil
 				flags.processors = nil
-				srcJarsForTurbine = append(srcJarsForTurbine, genAnnoSrcJar)
+				genAnnoSrcJars = append(genAnnoSrcJars, genAnnoSrcJar)
+				localImplementationJars = append(localImplementationJars, genResJar)
+				srcJarsForTurbine = append(srcJarsForTurbine, genAnnoSrcJars...)
 			}
 			// turbine was disabled, lets run it now
 			turbineExtraJars := slices.Clone(kotlinHeaderJars)
@@ -1618,7 +1636,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				errorproneAnnoSrcJar := android.PathForModuleOut(ctx, "errorprone", "anno.srcjar")
 
 				transformJavaToClasses(ctx, errorprone, -1, uniqueJavaFiles, srcJars, errorproneAnnoSrcJar, false, errorproneFlags, nil,
-					"errorprone", "errorprone")
+					"errorprone", "errorprone", nil)
 
 				extraJarDeps = append(extraJarDeps, errorprone)
 			}
@@ -1672,7 +1690,7 @@ func (j *Module) compile(ctx android.ModuleContext, extraSrcJars, extraClasspath
 				}
 			}
 		} else {
-			classes := j.compileJavaClasses(ctx, jarName, -1, uniqueJavaFiles, srcJars, shardingHeaderJars, crossModuleHeaderJars, flags, extraJarDeps, genAnnoSrcJar)
+			classes := j.compileJavaClasses(ctx, jarName, -1, uniqueJavaFiles, srcJars, shardingHeaderJars, crossModuleHeaderJars, flags, extraJarDeps, genAnnoSrcJars)
 			classes, _ = j.repackageFlagsIfNecessary(ctx, classes, jarName, "javac")
 			localImplementationJars = append(localImplementationJars, classes)
 		}
@@ -2211,7 +2229,7 @@ func enableErrorproneFlags(flags javaBuilderFlags) javaBuilderFlags {
 }
 
 func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, idx int,
-	srcFiles, srcJars, localHeaderJars, crossModuleHeaderJars android.Paths, flags javaBuilderFlags, extraJarDeps android.Paths, genAnnoSrcJar android.Path) android.Path {
+	srcFiles, srcJars, localHeaderJars, crossModuleHeaderJars android.Paths, flags javaBuilderFlags, extraJarDeps android.Paths, genAnnoSrcJars android.Paths) android.Path {
 
 	kzipName := pathtools.ReplaceExtension(jarName, "kzip")
 	annoSrcJar := android.PathForModuleOut(ctx, "javac", "anno.srcjar")
@@ -2225,9 +2243,9 @@ func (j *Module) compileJavaClasses(ctx android.ModuleContext, jarName string, i
 	// enable incremental javac when corresponding flags are enabled and
 	// header jars are present
 	if ctx.Config().PartialCompileFlags().Enable_inc_javac && len(localHeaderJars) > 0 {
-		TransformJavaToClassesInc(ctx, classes, srcFiles, srcJars, localHeaderJars, crossModuleHeaderJars, annoSrcJar, flags, extraJarDeps, genAnnoSrcJar)
+		TransformJavaToClassesInc(ctx, classes, srcFiles, srcJars, localHeaderJars, crossModuleHeaderJars, annoSrcJar, flags, extraJarDeps, genAnnoSrcJars)
 	} else {
-		TransformJavaToClasses(ctx, classes, idx, srcFiles, srcJars, annoSrcJar, flags, extraJarDeps)
+		TransformJavaToClasses(ctx, classes, idx, srcFiles, srcJars, annoSrcJar, flags, extraJarDeps, genAnnoSrcJars)
 	}
 
 	if ctx.Config().EmitXrefRules() && ctx.Module() == ctx.PrimaryModule() {
@@ -2700,7 +2718,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				}
 				deps.aidlIncludeDirs = append(deps.aidlIncludeDirs, dep.AidlIncludeDirs...)
 				addPlugins(&deps, dep.ExportedPlugins, dep.ExportedPluginClasses...)
-				deps.disableTurbine = deps.disableTurbine || dep.ExportedPluginDisableTurbine
+				deps.disableTurbine = !ctx.Config().GetBuildFlagBool("RELEASE_USE_TURBINE_APT_JAVAC") && (deps.disableTurbine || dep.ExportedPluginDisableTurbine)
 
 				transitiveClasspathHeaderJars = append(transitiveClasspathHeaderJars, dep.TransitiveStaticLibsHeaderJars)
 			case headerJarOverrideTag:
@@ -2728,7 +2746,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 				// Turbine doesn't run annotation processors, so any module that uses an
 				// annotation processor that generates API is incompatible with the turbine
 				// optimization.
-				deps.disableTurbine = deps.disableTurbine || dep.ExportedPluginDisableTurbine
+				deps.disableTurbine = !ctx.Config().GetBuildFlagBool("RELEASE_USE_TURBINE_APT_JAVAC") && (deps.disableTurbine || dep.ExportedPluginDisableTurbine)
 				deps.aconfigProtoFiles = append(deps.aconfigProtoFiles, dep.AconfigIntermediateCacheOutputPaths...)
 
 				transitiveClasspathHeaderJars = append(transitiveClasspathHeaderJars, dep.TransitiveStaticLibsHeaderJars)
@@ -2745,7 +2763,7 @@ func (j *Module) collectDeps(ctx android.ModuleContext) deps {
 					// Turbine doesn't run annotation processors, so any module that uses an
 					// annotation processor that generates API is incompatible with the turbine
 					// optimization.
-					deps.disableTurbine = deps.disableTurbine || plugin.GeneratesApi
+					deps.disableTurbine = !ctx.Config().GetBuildFlagBool("RELEASE_USE_TURBINE_APT_JAVAC") && (deps.disableTurbine || plugin.GeneratesApi)
 				} else {
 					ctx.PropertyErrorf("plugins", "%q is not a java_plugin module", otherName)
 				}
