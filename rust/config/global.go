@@ -16,6 +16,7 @@ package config
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"android/soong/android"
@@ -32,6 +33,10 @@ var (
 	Stdlibs            = []string{
 		"libstd",
 	}
+
+	// Rust versions usually look like "1.85.1", but might also get a
+	// letter or non-numeric suffix when testing (i.e. "1.85.1.test")
+	RustVersionRe = regexp.MustCompile(`^(\d+\.\d+\.\d+).*$`)
 
 	// Mapping between Soong internal arch types and std::env constants.
 	// Required as Rust uses aarch64 when Soong uses arm64.
@@ -108,7 +113,7 @@ func RustPath(ctx android.PathContext) string {
 	if override := ctx.Config().Getenv("RUST_PREBUILTS_BASE"); override != "" {
 		RustBase = override
 	}
-	return fmt.Sprintf("%s/%s/%s", RustBase, HostPrebuiltTag(ctx.Config()), GetRustVersion(ctx))
+	return fmt.Sprintf("%s/%s/%s", RustBase, HostPrebuiltTag(ctx.Config()), GetRustPrebuiltsVersion(ctx))
 }
 
 func init() {
@@ -174,12 +179,21 @@ func HostPrebuiltTag(config android.Config) string {
 }
 
 func getRustVersionPctx(ctx android.PackageVarContext) string {
-	return GetRustVersion(ctx)
+	return GetRustPrebuiltsVersion(ctx)
 }
 
-func GetRustVersion(ctx android.PathContext) string {
+func GetRustPrebuiltsVersion(ctx android.PathContext) string {
 	if override := ctx.Config().Getenv("RUST_PREBUILTS_VERSION"); override != "" {
 		return override
 	}
 	return RustDefaultVersion
+}
+
+func GetRustVersion(ctx android.PathContext) string {
+	ver := GetRustPrebuiltsVersion(ctx)
+	// Only get the numeric part of the version string
+	if matches := RustVersionRe.FindStringSubmatch(ver); len(matches) > 1 {
+		return matches[1]
+	}
+	panic("Invalid GetRustPrebuiltsVersion: " + ver)
 }
