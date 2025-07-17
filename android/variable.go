@@ -612,6 +612,18 @@ type ChainedAvbPartitionProps struct {
 	RollbackIndexLocation string   `json:",omitempty"`
 }
 
+type ProductPackagesVariables struct {
+	ProductPackages                   []string `json:",omitempty"`
+	ProductPackagesDebug              []string `json:",omitempty"`
+	ProductPackagesEng                []string `json:",omitempty"`
+	ProductPackagesDebugAsan          []string `json:",omitempty"`
+	ProductPackagesDebugJavaCoverage  []string `json:",omitempty"`
+	ProductPackagesArm64              []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel29 []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel33 []string `json:",omitempty"`
+	ProductPackagesShippingApiLevel34 []string `json:",omitempty"`
+}
+
 type PartitionVariables struct {
 	ProductDirectory            string `json:",omitempty"`
 	PartitionQualifiedVariables map[string]PartitionQualifiedVariablesType
@@ -718,22 +730,24 @@ type PartitionVariables struct {
 	BuildingVbmetaImage     bool                                `json:",omitempty"`
 	ChainedVbmetaPartitions map[string]ChainedAvbPartitionProps `json:",omitempty"`
 
-	ProductPackages                   []string `json:",omitempty"`
-	ProductPackagesDebug              []string `json:",omitempty"`
-	ProductPackagesEng                []string `json:",omitempty"`
-	ProductPackagesDebugAsan          []string `json:",omitempty"`
-	ProductPackagesDebugJavaCoverage  []string `json:",omitempty"`
-	ProductPackagesArm64              []string `json:",omitempty"`
-	ProductPackagesShippingApiLevel29 []string `json:",omitempty"`
-	ProductPackagesShippingApiLevel33 []string `json:",omitempty"`
-	ProductPackagesShippingApiLevel34 []string `json:",omitempty"`
-	VendorLinkerConfigSrcs            []string `json:",omitempty"`
-	ProductLinkerConfigSrcs           []string `json:",omitempty"`
+	ProductPackagesSet      map[string]ProductPackagesVariables `json:",omitempty"`
+	VendorLinkerConfigSrcs  []string                            `json:",omitempty"`
+	ProductLinkerConfigSrcs []string                            `json:",omitempty"`
 
 	BoardInfoFiles      []string `json:",omitempty"`
 	BootLoaderBoardName string   `json:",omitempty"`
 
 	ProductCopyFiles []string `json:",omitempty"`
+
+	// To be used in artifact_path_requirements.
+	// We still need this even in soong-only build until we remove PRODUCT_PACKAGES from the make
+	// world.
+	EnforceArtifactPathRequirements             string              `json:",omitempty"`
+	ArtifactPathRequirementAllowedList          []string            `json:",omitempty"`
+	ArtifactPathRequirementProducts             []string            `json:",omitempty"`
+	ArtifactPathRequirementsOfMakefile          map[string][]string `json:",omitempty"`
+	ArtifactPathAllowedListOfMakefile           map[string][]string `json:",omitempty"`
+	ArtifactPathRequirementsIsRelaxedOfMakefile map[string]bool     `json:",omitempty"`
 
 	BuildingSystemDlkmImage             bool     `json:",omitempty"`
 	SystemKernelModules                 []string `json:",omitempty"`
