@@ -272,7 +272,7 @@ def main():
     for p in target_files_differ_products:
         print(f"{p.product}: target-file.zip differs", file=sys.stderr)
 
-    if len(products) == 1 and target_files_differ_products:
+    if len(products) == 1:
         with open(get_target_files_comparison_report_path(products[0])) as f:
             print(f.read(), file=sys.stderr)
 
