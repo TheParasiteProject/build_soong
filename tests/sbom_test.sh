@@ -39,7 +39,7 @@ function run_soong {
   local targets="$1"; shift
   if [ "$#" -ge 1 ]; then
     local apps=$1; shift
-    TARGET_PRODUCT="${target_product}" TARGET_RELEASE="${target_release}" TARGET_BUILD_VARIANT="${target_build_variant}" OUT_DIR="${out_dir}" TARGET_BUILD_UNBUNDLED=true TARGET_BUILD_APPS=$apps \
+    SOONG_ONLY=false TARGET_PRODUCT="${target_product}" TARGET_RELEASE="${target_release}" TARGET_BUILD_VARIANT="${target_build_variant}" OUT_DIR="${out_dir}" TARGET_BUILD_UNBUNDLED=true TARGET_BUILD_APPS=$apps \
         build/soong/soong_ui.bash --make-mode ${targets}
   else
     TARGET_PRODUCT="${target_product}" TARGET_RELEASE="${target_release}" TARGET_BUILD_VARIANT="${target_build_variant}" OUT_DIR="${out_dir}" \
@@ -262,27 +262,90 @@ function test_sbom_unbundled_apex {
   # Setup
   out_dir="$(setup)"
 
+  APEXES="\
+    com.google.android.adbd \
+    com.google.android.adservices \
+    com.google.android.appsearch \
+    com.google.android.art \
+    com.google.android.bt \
+    com.google.android.cellbroadcast \
+    com.google.android.configinfrastructure \
+    com.google.android.conscrypt \
+    com.google.android.crashrecovery \
+    com.google.android.extservices \
+    com.google.android.healthfitness \
+    com.google.android.ipsec \
+    com.google.android.media \
+    com.google.android.media.swcodec \
+    com.google.android.mediaprovider \
+    com.google.android.neuralnetworks \
+    com.google.android.nfcservices \
+    com.google.android.ondevicepersonalization \
+    com.google.android.os.statsd \
+    com.google.android.permission \
+    com.google.android.profiling \
+    com.google.android.resolv \
+    com.google.android.rkpd \
+    com.google.android.scheduling \
+    com.google.android.sdkext \
+    com.google.android.tethering \
+    com.google.android.tzdata6 \
+    com.google.android.uprobestats \
+    com.google.android.uwb \
+    com.google.android.wifi"
+
   # run_soong to build com.android.adbd.apex
-  run_soong "${out_dir}" "sbom apex-ls" "com.android.adbd"
+  run_soong "${out_dir}" "sbom apex-ls deapexer debugfs fsck.erofs" "${APEXES}"
 
   apex_ls=${out_dir}/host/linux-x86/bin/apex-ls
-  apex_file=${out_dir}/target/product/module_arm64/system/apex/com.android.adbd.apex
-  echo "============ Diffing files in $apex_file and SBOM"
-  set +e
-  # apex-ls prints the list of all files and directories
-  # grep removes directories
-  # sed removes leading ./ in file names
-  diff -I /system/apex/com.android.adbd.apex -I apex_manifest.pb \
-      <(${apex_ls} ${apex_file} | grep -v "/$" | sed -E 's#^\./(.*)#\1#' | sort -n) \
-      <(grep '"fileName": ' ${apex_file}.spdx.json | sed -E 's/.*"fileName": "(.*)",/\1/' | sort -n )
+  deapexer=${out_dir}/host/linux-x86/bin/deapexer
+  debugfs=${out_dir}/host/linux-x86/bin/debugfs
+  fsckerofs=${out_dir}/host/linux-x86/bin/fsck.erofs
+  diff_found=false
+  for apex_name in ${APEXES}; do
+    # Verify file list
+    apex_file=${out_dir}/target/product/module_arm64/system/apex/${apex_name}.apex
+    echo "============ Diffing files in $apex_file and SBOM"
+    set +e
+    # apex-ls prints the list of all files and directories
+    # grep removes directories
+    # sed removes leading ./ in file names
+    diff -I /system/apex/${apex_name}.apex -I apex_manifest.pb -I bin/dalvikvm -I bin/dex2oat \
+        <(${apex_ls} ${apex_file} | grep -v "/$" | sed -E 's#^\./(.*)#\1#' | sort -n) \
+        <(grep '"fileName": ' ${apex_file}.spdx.json | sed -E 's/.*"fileName": "(.*)",/\1/' | sort -n )
 
-  if [ $? != "0" ]; then
-    echo "Diffs found in $apex_file and SBOM"
+    if [ $? != "0" ]; then
+      echo "Diffs found in $apex_file and SBOM"
+      diff_found=true
+    else
+      echo "No diffs."
+    fi
+    set -e
+
+    # Verify checksum of files
+    apex_unzipped=${out_dir}/target/product/module_arm64/system/apex/${apex_name}_unziped
+    ${deapexer} --debugfs_path ${debugfs} --fsckerofs_path ${fsckerofs} extract ${apex_file} ${apex_unzipped}
+
+    while read -r filename; do
+      read -r checksum
+      case ${filename} in
+        /*) # apex file
+          file_sha1=$(sha1sum ${apex_file} | cut -d' ' -f1)
+          ;;
+        *) # files in apex
+          file_sha1=$(sha1sum ${apex_unzipped}/${filename} | cut -d' ' -f1)
+          ;;
+      esac
+      if [ "${file_sha1}" != "${checksum}" ]; then
+        echo "Checksum is wrong: ${apex_file}#${filename}"
+        diff_found=true
+      fi
+    done <<< $(grep -E '("fileName":)|("checksumValue":)'  ${apex_file}.spdx.json | sed -E 's/(.*"fileName": |.*"checksumValue": )"(.*)",?/\2/')
+  done
+  if [ $diff_found = "true" ]; then
+    echo "Diff found, exit with error."
     exit 1
-  else
-    echo "No diffs."
   fi
-  set -e
 
   # Teardown
   cleanup "${out_dir}"
