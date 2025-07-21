@@ -255,6 +255,15 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			})
 			continue
 		}
+		vbmetaPartitionInfo, ok := android.OtherModuleProvider(ctx, p, vbmetaPartitionProvider)
+		if ok {
+			includeDescriptorsFromImages = append(includeDescriptorsFromImages, partitionWithName{
+				Name:   vbmetaPartitionInfo.Name,
+				Output: vbmetaPartitionInfo.Output,
+			})
+			continue
+		}
+
 		vbmetaPartitionInfos, ok := android.OtherModuleProvider(ctx, p, vbmetaPartitionsProvider)
 		if ok {
 			for _, vbmetaPartitionInfo := range vbmetaPartitionInfos {

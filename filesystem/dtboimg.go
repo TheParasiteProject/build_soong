@@ -61,6 +61,10 @@ func (p *prebuiltDtboImg) GenerateAndroidBuildActions(ctx android.ModuleContext)
 			PropFileForMiscInfo: p.buildPropFileForMiscInfo(ctx),
 		},
 	)
+	android.SetProvider(ctx, vbmetaPartitionProvider, vbmetaPartitionInfo{
+		Name:   "dtbo",
+		Output: output,
+	})
 }
 
 func (p *prebuiltDtboImg) avbAddHash(ctx android.ModuleContext, input android.Path) android.Path {
