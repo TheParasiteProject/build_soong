@@ -35,18 +35,18 @@ func partitionStagingPath(ctx android.ModuleContext, partitions map[string]Files
 	fsInfo, ok := partitions[partitionType]
 
 	if ok {
-		return fsInfo.RootDir, fsInfo.Output, true
+		return fsInfo.RebasedDir, fsInfo.Output, true
 	}
 
 	switch partitionType {
 	case "odm":
 		if vendorFsInfo, ok := partitions["vendor"]; ok {
-			partitionStagingDir := vendorFsInfo.RootDir.Join(ctx, partitionType)
+			partitionStagingDir := vendorFsInfo.RebasedDir.Join(ctx, partitionType)
 			return partitionStagingDir, vendorFsInfo.Output, true
 		}
 	case "product", "system_ext":
 		if systemFsInfo, ok := partitions["system"]; ok {
-			partitionStagingDir := systemFsInfo.RootDir.Join(ctx, partitionType)
+			partitionStagingDir := systemFsInfo.RebasedDir.Join(ctx, partitionType)
 			return partitionStagingDir, systemFsInfo.Output, true
 		}
 	}
