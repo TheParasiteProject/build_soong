@@ -233,6 +233,8 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if a.deviceProps.Ramdisk_16k != nil {
 		ctx.AddDependency(ctx.Module(), ramdisk16kDepTag, *a.deviceProps.Ramdisk_16k)
 	}
+
+	a.hostInitVerifierCheckDepsMutator(ctx)
 }
 
 func (a *androidDevice) addDepsForTargetFilesMetadata(ctx android.BottomUpMutatorContext) {
@@ -392,6 +394,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	a.checkVintf(ctx)
+	a.hostInitVerifierCheck(ctx)
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {

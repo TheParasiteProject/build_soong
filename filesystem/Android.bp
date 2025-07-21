@@ -11,6 +11,7 @@ bootstrap_go_package {
         "soong-android",
         "soong-etc",
         "soong-bpf", // for testing
+        "soong-cc", // for testing
         "soong-java", // for testing
         "soong-linkerconfig",
         "soong-phony", // for testing
@@ -27,6 +28,7 @@ bootstrap_go_package {
         "dtboimg.go",
         "filesystem.go",
         "fsverity_metadata.go",
+        "host_init_verifier_check.go",
         "logical_partition.go",
         "prebuilt.go",
         "raw_binary.go",
@@ -41,6 +43,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "filesystem_test.go",
+        "host_init_verifier_check_test.go",
     ],
     pluginFor: ["soong_build"],
 }
