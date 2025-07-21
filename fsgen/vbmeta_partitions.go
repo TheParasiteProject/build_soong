@@ -194,14 +194,16 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 		switch partition {
 		case "boot":
 			return partitionQualifiedVars.BuildingImage || partitionQualifiedVars.PrebuiltImage || partitionVars.BoardUsesRecoveryAsBoot
-		case "vendor_kernel_boot", "dtbo":
-			return partitionQualifiedVars.PrebuiltImage
+		case "vendor_kernel_boot":
+			return partitionQualifiedVars.BuildingImage || partitionQualifiedVars.PrebuiltImage
 		case "system":
 			return partitionQualifiedVars.BuildingImage
 		case "init_boot", "vendor_boot", "vendor", "product", "system_ext", "odm", "vendor_dlkm", "odm_dlkm", "system_dlkm":
 			return partitionQualifiedVars.BuildingImage || partitionQualifiedVars.PrebuiltImage
 		case "pvmfw":
 			return partitionVars.BoardUsesPvmfwImage
+		case "dtbo":
+			return partitionVars.BoardPrebuiltDtboImage != ""
 		case "recovery":
 			// ifdef INSTALLED_RECOVERYIMAGE_TARGET
 			return !ctx.DeviceConfig().BoardUsesRecoveryAsBoot() && !ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot()
@@ -232,8 +234,14 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 	if len(f.properties.Vendor_boot_image) > 0 {
 		allGeneratedPartitionTypes = append(allGeneratedPartitionTypes, "vendor_boot")
 	}
+	if len(f.properties.Vendor_kernel_boot_image) > 0 {
+		allGeneratedPartitionTypes = append(allGeneratedPartitionTypes, "vendor_kernel_boot")
+	}
 	if len(f.properties.Radio_image) > 0 {
 		allGeneratedPartitionTypes = append(allGeneratedPartitionTypes, "radio")
+	}
+	if partitionVars.BoardPrebuiltDtboImage != "" {
+		allGeneratedPartitionTypes = append(allGeneratedPartitionTypes, "dtbo")
 	}
 
 	// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=4919;drc=62e20f0d218f60bae563b4ee742d88cca1fc1901
