@@ -110,6 +110,14 @@ func TestFileSystemCreatorSystemImageProps(t *testing.T) {
 	)
 }
 
+func createProductPackagesSet(pkgs []string) map[string]android.ProductPackagesVariables {
+	productPackagesSet := make(map[string]android.ProductPackagesVariables)
+	productPackagesSet["all"] = android.ProductPackagesVariables{
+		ProductPackages: pkgs,
+	}
+	return productPackagesSet
+}
+
 func TestFileSystemCreatorSetPartitionDeps(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		android.PrepareForIntegrationTestWithAndroid,
@@ -120,7 +128,7 @@ func TestFileSystemCreatorSetPartitionDeps(t *testing.T) {
 		java.PrepareForTestWithJavaBuildComponents,
 		java.PrepareForTestWithJavaDefaultModules,
 		android.FixtureModifyConfig(func(config android.Config) {
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"bar", "baz"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"bar", "baz"})
 			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.PartitionQualifiedVariables =
 				map[string]android.PartitionQualifiedVariablesType{
 					"system": {
@@ -175,7 +183,7 @@ func TestFileSystemCreatorDepsWithNamespace(t *testing.T) {
 		java.PrepareForTestWithJavaBuildComponents,
 		java.PrepareForTestWithJavaDefaultModules,
 		android.FixtureModifyConfig(func(config android.Config) {
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"bar"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"bar"})
 			config.TestProductVariables.NamespacesToExport = []string{"a/b"}
 			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.PartitionQualifiedVariables =
 				map[string]android.PartitionQualifiedVariablesType{
@@ -253,7 +261,7 @@ func TestRemoveOverriddenModulesFromDeps(t *testing.T) {
 			`),
 		}),
 		android.FixtureModifyConfig(func(config android.Config) {
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"libfoo", "libbar", "prebuiltA", "prebuiltB"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"libfoo", "libbar", "prebuiltA", "prebuiltB"})
 		}),
 	).RunTestWithBp(t, `
 java_library {
@@ -697,7 +705,7 @@ func TestPartitionOfOverrideModules(t *testing.T) {
 		}),
 		android.FixtureModifyConfig(func(config android.Config) {
 			config.TestProductVariables.NamespacesToExport = []string{"mynamespace"}
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"system_ext_override_app", "system_ext_override_app_in_namespace"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"system_ext_override_app", "system_ext_override_app_in_namespace"})
 		}),
 	).RunTestWithBp(t, `
 android_app {
@@ -759,7 +767,7 @@ func TestCrossPartitionRequiredModules(t *testing.T) {
 		}),
 		android.FixtureModifyConfig(func(config android.Config) {
 			config.TestProductVariables.NamespacesToExport = []string{"mynamespace"}
-			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackages = []string{"some_app_in_namespace"}
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"some_app_in_namespace"})
 		}),
 	).RunTestWithBp(t, `
 		phony {

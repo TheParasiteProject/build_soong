@@ -2048,7 +2048,7 @@ func findOverrideValue(overrides []string, name string, errorMsg string) (newVal
 			// This shouldn't happen as this is first checked in make, but just in case.
 			panic(fmt.Errorf(errorMsg, o))
 		}
-		if matchPattern(split[0], name) {
+		if MatchPattern(split[0], name) {
 			return substPattern(split[0], split[1], name), true
 		}
 	}

@@ -520,6 +520,11 @@ type commonProperties struct {
 	// constants in image.go, but can also be set to a custom value by individual module types.
 	ImageVariation string `blueprint:"mutated"`
 
+	// True if this module is mutated by the image mutator to a non-primary image variant, for
+	// example, a vendor module from a vendor_available module, or a recovery module from a
+	// recovery_available module.
+	IsNonPrimaryImageVariation bool `blueprint:"mutated"`
+
 	// The team (defined by the owner/vendor) who owns the property.
 	Team *string `android:"path"`
 
@@ -1631,6 +1636,10 @@ func (m *ModuleBase) setImageVariation(variant string) {
 	m.commonProperties.ImageVariation = variant
 }
 
+func (m *ModuleBase) setNonPrimaryImageVariation() {
+	m.commonProperties.IsNonPrimaryImageVariation = true
+}
+
 func (m *ModuleBase) ImageVariation() blueprint.Variation {
 	return blueprint.Variation{
 		Mutator:   "image",
@@ -1995,8 +2004,9 @@ type CommonModuleInfo struct {
 	ApexAvailable                                []string
 	// This field is different from the above one as it can have different values
 	// for cc, java library and sdkLibraryXml.
-	ApexAvailableFor []string
-	ImageVariation   blueprint.Variation
+	ApexAvailableFor           []string
+	ImageVariation             blueprint.Variation
+	IsNonPrimaryImageVariation bool
 }
 
 // @auto-generate: gob
@@ -2387,6 +2397,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		Team:                                         m.Team(),
 		PartitionTag:                                 m.PartitionTag(ctx.DeviceConfig()),
 		ImageVariation:                               m.module.ImageVariation(),
+		IsNonPrimaryImageVariation:                   m.commonProperties.IsNonPrimaryImageVariation,
 	}
 	if mm, ok := m.module.(interface {
 		MinSdkVersion(ctx EarlyModuleContext) ApiLevel

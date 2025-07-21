@@ -139,32 +139,37 @@ func defaultDepCandidateProps(config android.Config) *depCandidateProps {
 	}
 }
 
-func productInstalledModules(ctx android.LoadHookContext) []string {
-	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
-	allInstalledModules := partitionVars.ProductPackages
+type DeviceConfigContext interface {
+	Config() android.Config
+	DeviceConfig() android.DeviceConfig
+}
+
+func productInstalledModules(ctx DeviceConfigContext, makefile string) []string {
+	productPkg := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet[makefile]
+	allInstalledModules := productPkg.ProductPackages
 	if ctx.Config().Debuggable() {
-		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesDebug...)
+		allInstalledModules = append(allInstalledModules, productPkg.ProductPackagesDebug...)
 		if ctx.Config().Eng() {
-			allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesEng...)
+			allInstalledModules = append(allInstalledModules, productPkg.ProductPackagesEng...)
 		}
 		if android.InList("address", ctx.Config().SanitizeDevice()) {
-			allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesDebugAsan...)
+			allInstalledModules = append(allInstalledModules, productPkg.ProductPackagesDebugAsan...)
 		}
 		if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
-			allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesDebugJavaCoverage...)
+			allInstalledModules = append(allInstalledModules, productPkg.ProductPackagesDebugJavaCoverage...)
 		}
 	}
 	if android.InList("arm64", []string{ctx.DeviceConfig().DeviceArch(), ctx.DeviceConfig().DeviceSecondaryArch()}) {
-		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesArm64...)
+		allInstalledModules = append(allInstalledModules, productPkg.ProductPackagesArm64...)
 	}
 	if android.UncheckedFinalApiLevel(29).GreaterThanOrEqualTo(ctx.DeviceConfig().ShippingApiLevel()) {
-		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesShippingApiLevel29...)
+		allInstalledModules = append(allInstalledModules, productPkg.ProductPackagesShippingApiLevel29...)
 	}
 	if android.UncheckedFinalApiLevel(33).GreaterThanOrEqualTo(ctx.DeviceConfig().ShippingApiLevel()) {
-		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesShippingApiLevel33...)
+		allInstalledModules = append(allInstalledModules, productPkg.ProductPackagesShippingApiLevel33...)
 	}
 	if android.UncheckedFinalApiLevel(34).GreaterThanOrEqualTo(ctx.DeviceConfig().ShippingApiLevel()) {
-		allInstalledModules = append(allInstalledModules, partitionVars.ProductPackagesShippingApiLevel34...)
+		allInstalledModules = append(allInstalledModules, productPkg.ProductPackagesShippingApiLevel34...)
 	}
 
 	return allInstalledModules
@@ -173,7 +178,7 @@ func productInstalledModules(ctx android.LoadHookContext) []string {
 func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNames []string, avbpubkeyGenerated bool) *FsGenState {
 	return ctx.Config().Once(fsGenStateOnceKey, func() interface{} {
 		allInstalledModules := slices.Concat(
-			productInstalledModules(ctx),
+			productInstalledModules(ctx, "all"),
 			generatedPrebuiltEtcModuleNames,
 		)
 		candidatesMap := map[string]bool{}
