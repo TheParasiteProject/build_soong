@@ -46,7 +46,7 @@ type BootimgProperties struct {
 	Stem *string
 
 	// Path to the linux kernel prebuilt file
-	Kernel_prebuilt *string `android:"arch_variant,path"`
+	Kernel_prebuilt proptools.Configurable[string] `android:"replace_instead_of_append,arch_variant,path"`
 
 	// Filesystem module that is used as ramdisk
 	Ramdisk_module *string
@@ -204,7 +204,7 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	kernelProp := proptools.String(b.properties.Kernel_prebuilt)
+	kernelProp := b.properties.Kernel_prebuilt.GetOrDefault(ctx, "")
 	if b.bootImageType.isVendorBoot() && kernelProp != "" {
 		ctx.PropertyErrorf("kernel_prebuilt", "vendor_boot partition can't have kernel")
 		return
@@ -318,7 +318,7 @@ type BootimgInfo struct {
 
 func (b *bootimg) getKernelPath(ctx android.ModuleContext) android.Path {
 	var kernelPath android.Path
-	kernelName := proptools.String(b.properties.Kernel_prebuilt)
+	kernelName := b.properties.Kernel_prebuilt.GetOrDefault(ctx, "")
 	if kernelName != "" {
 		kernelPath = android.PathForModuleSrc(ctx, kernelName)
 	}
