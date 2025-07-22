@@ -86,7 +86,8 @@ func (p *prebuiltDtboImg) avbAddHash(ctx android.ModuleContext, input android.Pa
 	} else {
 		cmd.FlagWithArg("--partition_size ", strconv.FormatInt(*p.properties.Partition_size, 10))
 	}
-	cmd.FlagWithArg("--prop ", fmt.Sprintf("com.android.build.dtbo.fingerprint:$(cat %s)", ctx.Config().BuildFingerprintFile(ctx).String()))
+	fingerprintFile := ctx.Config().BuildFingerprintFile(ctx)
+	cmd.FlagWithArg("--prop ", fmt.Sprintf("com.android.build.dtbo.fingerprint:$(cat %s)", fingerprintFile.String())).Implicit(fingerprintFile)
 
 	builder.Build("add_hash_footer", "add_hash_footer")
 
@@ -103,15 +104,17 @@ func (p *prebuiltDtboImg) buildPropFileForMiscInfo(ctx android.ModuleContext) an
 	if p.properties.Partition_size != nil {
 		addStr("dtbo_size", strconv.FormatInt(*p.properties.Partition_size, 10))
 	}
-	addStr("avb_dtbo_add_hash_footer_args", "--prop "+fmt.Sprintf("com.android.build.dtbo.fingerprint:{CONTENTS_OF:%s}", ctx.Config().BuildFingerprintFile(ctx).String()))
+	fingerprintFile := ctx.Config().BuildFingerprintFile(ctx)
+	addStr("avb_dtbo_add_hash_footer_args", "--prop "+fmt.Sprintf("com.android.build.dtbo.fingerprint:{CONTENTS_OF:%s}", fingerprintFile.String()))
 
 	propFilePreProcessing := android.PathForModuleOut(ctx, "prop_for_misc_info_pre_processing")
 	android.WriteFileRuleVerbatim(ctx, propFilePreProcessing, sb.String())
 	propFile := android.PathForModuleOut(ctx, "prop_file_for_misc_info")
 	ctx.Build(pctx, android.BuildParams{
-		Rule:   textFileProcessorRule,
-		Input:  propFilePreProcessing,
-		Output: propFile,
+		Rule:     textFileProcessorRule,
+		Input:    propFilePreProcessing,
+		Output:   propFile,
+		Implicit: fingerprintFile,
 	})
 
 	return propFile

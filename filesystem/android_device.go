@@ -1270,7 +1270,8 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		} else {
 			builder.Command().Textf("echo pvmfw_size= >> %s", miscInfo)
 		}
-		builder.Command().Textf("echo avb_pvmfw_add_hash_footer_args=--prop com.android.build.pvmfw.fingerprint:$(cat %s) >> %s", ctx.Config().BuildFingerprintFile(ctx).String(), miscInfo)
+		fingerprintFile := ctx.Config().BuildFingerprintFile(ctx)
+		builder.Command().Textf("echo avb_pvmfw_add_hash_footer_args=--prop com.android.build.pvmfw.fingerprint:$(cat %s) >> %s", fingerprintFile.String(), miscInfo).Implicit(fingerprintFile)
 	}
 
 	// Sort and dedup
