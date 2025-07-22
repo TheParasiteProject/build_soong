@@ -898,9 +898,11 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		}
 		// ab_partitions.txt
 		abPartitionsSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_partitions)
-		abPartitionsFilePath := android.PathForModuleOut(ctx, "target_files_tmp", "ab_partitions.txt")
-		writeFileWithNewLines(ctx, abPartitionsFilePath, abPartitionsSorted)
-		builder.Command().Textf("cp").Input(abPartitionsFilePath).Textf(" %s/META/", targetFilesDir)
+		if len(abPartitionsSorted) > 0 {
+			abPartitionsFilePath := android.PathForModuleOut(ctx, "target_files_tmp", "ab_partitions.txt")
+			writeFileWithNewLines(ctx, abPartitionsFilePath, abPartitionsSorted)
+			builder.Command().Textf("cp").Input(abPartitionsFilePath).Textf(" %s/META/", targetFilesDir)
+		}
 		// otakeys.txt
 		abOtaKeysSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_keys)
 		abOtaKeysFilePath := android.PathForModuleOut(ctx, "target_files_tmp", "otakeys.txt")
