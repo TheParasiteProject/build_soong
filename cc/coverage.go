@@ -210,11 +210,22 @@ func (cov *coverage) flags(ctx ModuleContext, flags Flags, deps PathDeps) (Flags
 }
 
 func (cov *coverage) begin(ctx BaseModuleContext) {
-	if ctx.Host() && !ctx.Os().Linux() {
-		// Host coverage is only supported on Linux.
-	} else {
+	if IsCoverageEnabled(ctx) {
 		cov.Properties = SetCoverageProperties(ctx, cov.Properties, ctx.nativeCoverage(), ctx.useSdk(), ctx.sdkVersion())
 	}
+}
+
+func IsCoverageEnabled(ctx android.BaseModuleContext) bool {
+	if ctx.Host() {
+		// Host coverage is only supported on Linux 64-bit binaries
+		if !ctx.Os().Linux() {
+			return false
+		}
+		if ctx.Arch().ArchType.Multilib == "lib32" {
+			return false
+		}
+	}
+	return true
 }
 
 func SetCoverageProperties(ctx android.BaseModuleContext, properties CoverageProperties, moduleTypeHasCoverage bool,

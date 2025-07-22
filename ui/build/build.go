@@ -541,5 +541,19 @@ func distFile(ctx Context, config Config, src string, subDirs ...string) {
 // Actions to run on every build where 'dist' is in the actions.
 // Be careful, anything added here slows down EVERY CI build
 func runDistActions(ctx Context, config Config) {
+	// Always dist the build flags used in this build.
+	if product, err := config.TargetProductOrErr(); err == nil {
+		buildFlagsDir := filepath.Join(config.DistDir(), "build_flags")
+		ensureDirectoriesExist(ctx, buildFlagsDir)
+		flagsFile := filepath.Join(config.SoongOutDir(), "release-config", fmt.Sprintf("release_config-%s.vars", product))
+		flagsData, err := os.ReadFile(flagsFile)
+		if err != nil {
+			ctx.Printf("failed to read %s: %v", flagsFile, err)
+			return
+		}
+		distFlagsFile := filepath.Join(buildFlagsDir, filepath.Base(flagsFile))
+		os.WriteFile(distFlagsFile, flagsData, 0666)
+	}
+
 	runStagingSnapshot(ctx, config)
 }

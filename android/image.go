@@ -156,6 +156,7 @@ func getImageVariations(ctx ImageInterfaceContext) []string {
 		return []string{""}
 	}
 
+	// Core variants must be the first.
 	if m.CoreVariantNeeded(ctx) {
 		variations = append(variations, CoreVariation)
 	}
@@ -168,14 +169,18 @@ func getImageVariations(ctx ImageInterfaceContext) []string {
 	if m.DebugRamdiskVariantNeeded(ctx) {
 		variations = append(variations, DebugRamdiskVariation)
 	}
-	if m.RecoveryVariantNeeded(ctx) {
-		variations = append(variations, RecoveryVariation)
+	// Product variants must be followed by the vendor variants because a product_specific
+	// module may have "vendor_available: true"
+	if m.ProductVariantNeeded(ctx) {
+		variations = append(variations, ProductVariation)
 	}
+	// Vendor variants must be followed by the recovery variants because a vendor module may
+	// have "recovery_available: true"
 	if m.VendorVariantNeeded(ctx) {
 		variations = append(variations, VendorVariation)
 	}
-	if m.ProductVariantNeeded(ctx) {
-		variations = append(variations, ProductVariation)
+	if m.RecoveryVariantNeeded(ctx) {
+		variations = append(variations, RecoveryVariation)
 	}
 
 	extraVariations := m.ExtraImageVariations(ctx)
@@ -254,6 +259,9 @@ func (imageTransitionMutator) IncomingTransition(ctx IncomingTransitionContext, 
 
 func (imageTransitionMutator) Mutate(ctx BottomUpMutatorContext, variation string) {
 	ctx.Module().base().setImageVariation(variation)
+	if variations := getImageVariations(ctx); len(variations) > 1 && variation != variations[0] {
+		ctx.Module().base().setNonPrimaryImageVariation()
+	}
 	if m, ok := ctx.Module().(ImageInterface); ok {
 		m.SetImageVariation(ctx, variation)
 	}

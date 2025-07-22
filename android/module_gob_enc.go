@@ -872,6 +872,10 @@ func (r CommonModuleInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) err
 	if err = r.ImageVariation.Encode(ctx, buf); err != nil {
 		return err
 	}
+
+	if err = gobtools.EncodeSimple(buf, r.IsNonPrimaryImageVariation); err != nil {
+		return err
+	}
 	return err
 }
 
@@ -1147,6 +1151,11 @@ func (r *CommonModuleInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) er
 	}
 
 	if err = r.ImageVariation.Decode(ctx, buf); err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.IsNonPrimaryImageVariation)
+	if err != nil {
 		return err
 	}
 

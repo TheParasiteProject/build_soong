@@ -100,7 +100,7 @@ func createBootImageCommon(ctx android.LoadHookContext, kernelPath string, prebu
 	ctx.CreateModule(
 		filesystem.BootimgFactory,
 		&filesystem.BootimgProperties{
-			Kernel_prebuilt: proptools.StringPtr(":" + kernelFilegroupName),
+			Kernel_prebuilt: proptools.NewSimpleConfigurable(":" + kernelFilegroupName),
 			Dtb_prebuilt:    dtbPrebuilt,
 			Cmdline:         cmdline,
 			Stem:            stem,
