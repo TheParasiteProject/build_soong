@@ -340,7 +340,7 @@ function test_sbom_unbundled_apex {
         echo "Checksum is wrong: ${apex_file}#${filename}"
         diff_found=true
       fi
-    done <<< $(grep -E '("fileName":)|("checksumValue":)'  ${apex_file}.spdx.json | sed -E 's/(.*"fileName": |.*"checksumValue": )"(.*)",?/\2/')
+    done <<< "$(grep -E '("fileName":)|("checksumValue":)'  ${apex_file}.spdx.json | sed -E 's/(.*"fileName": |.*"checksumValue": )"(.*)",?/\2/')"
   done
   if [ $diff_found = "true" ]; then
     echo "Diff found, exit with error."
