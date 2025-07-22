@@ -269,7 +269,6 @@ func (r *NameResolver) parseFullyQualifiedName(name string) (namespaceName strin
 		return "", "", false
 	}
 	return components[0], components[1], true
-
 }
 
 func (r *NameResolver) getNamespacesToSearchForModule(sourceNamespace blueprint.Namespace) (searchOrder []*Namespace) {
@@ -284,13 +283,13 @@ func (r *NameResolver) getNamespacesToSearchForModule(sourceNamespace blueprint.
 
 func (r *NameResolver) ModuleFromName(name string, namespace blueprint.Namespace) (group blueprint.ModuleGroup, found bool) {
 	// handle fully qualified references like "//namespace_path:module_name"
-	nsName, moduleName, isAbs := r.parseFullyQualifiedName(name)
+	modulePath, moduleName, isAbs := r.parseFullyQualifiedName(name)
 	if isAbs {
 		// TODO(b/432305765): We should not use findNamespace here, as it allows for many different
-		// ways to refer to the same module. It should either use namespaceAt(), or some solution
-		// that allows us to refer to modules by their own directory instead of the directory
-		// of the namespace.
-		namespace := r.findNamespace(nsName)
+		// ways to refer to the same module. We should require that the path exactly points to
+		// the folder the module is defined in. The //path:module syntax predates namespaces and
+		// used to work that way, and using the directory of the module is what bazel does.
+		namespace := r.findNamespace(modulePath)
 		if namespace == nil {
 			return blueprint.ModuleGroup{}, false
 		}
