@@ -41,7 +41,8 @@ type ReleaseConfigContribution struct {
 	// Protobufs relevant to the config.
 	proto rc_proto.ReleaseConfig
 
-	FlagValues []*FlagValue
+	// Quick access to FlagValues based on flag name.
+	FlagValues map[string]*FlagValue
 }
 
 // A generated release config.
@@ -62,6 +63,9 @@ type ReleaseConfig struct {
 
 	// The names of release configs that we inherit
 	InheritNames []string
+
+	// map of InheritNames
+	inheritNamesMap map[string]bool
 
 	// True if this release config only allows inheritance and aconfig flag
 	// overrides. Build flag value overrides are an error.
@@ -115,12 +119,42 @@ var ReleaseConfigInheritanceDenyMap = map[rc_proto.ReleaseConfigType]bool{
 	rc_proto.ReleaseConfigType_BUILD_VARIANT: true,
 }
 
+func ReleaseConfigContributionFactory(protoPath string, dirIndex int) (rcc *ReleaseConfigContribution, err error) {
+	rcc = &ReleaseConfigContribution{
+		path:             protoPath,
+		DeclarationIndex: dirIndex,
+		FlagValues:       make(map[string]*FlagValue),
+	}
+	if protoPath == "" {
+		return rcc, nil
+	}
+	LoadMessage(protoPath, &rcc.proto)
+
+	switch {
+	case rcc.proto.Name == nil:
+		return nil, fmt.Errorf("%s does not specify name", protoPath)
+	case fmt.Sprintf("%s.textproto", *rcc.proto.Name) != filepath.Base(protoPath):
+		return nil, fmt.Errorf("%s incorrectly declares release config %s", protoPath, *rcc.proto.Name)
+	}
+
+	// Provide a default value for ReleaseConfigType if not specified.
+	if rcc.proto.ReleaseConfigType == nil {
+		if *rcc.proto.Name == "root" {
+			rcc.proto.ReleaseConfigType = rc_proto.ReleaseConfigType_EXPLICIT_INHERITANCE_CONFIG.Enum()
+		} else {
+			rcc.proto.ReleaseConfigType = rc_proto.ReleaseConfigType_RELEASE_CONFIG.Enum()
+		}
+	}
+	return rcc, nil
+}
+
 func ReleaseConfigFactory(name string, index int) (c *ReleaseConfig) {
 	return &ReleaseConfig{
 		Name:             name,
 		DeclarationIndex: index,
 		FilesUsedMap:     make(map[string]bool),
 		PriorStagesMap:   make(map[string]bool),
+		inheritNamesMap:  make(map[string]bool),
 	}
 }
 
@@ -167,13 +201,17 @@ func (config *ReleaseConfig) GetSortedFileList() []string {
 }
 
 func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) error {
-	if config.ReleaseConfigArtifact != nil {
-		return nil
-	}
 	if config.compileInProgress {
 		return fmt.Errorf("Loop detected for release config %s", config.Name)
 	}
 	config.compileInProgress = true
+	defer func() {
+		config.compileInProgress = false
+	}()
+	if config.ReleaseConfigArtifact != nil {
+		return nil
+	}
+
 	isRoot := config.Name == "root"
 
 	// Is this a build-prefix release config, such as 'ap3a'?
@@ -216,21 +254,9 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		if err != nil {
 			return err
 		}
-		err = iConfig.GenerateReleaseConfig(configs)
-		if err != nil {
-			return err
-		}
 		err = config.InheritConfig(iConfig)
 		if err != nil {
 			return err
-		}
-	}
-
-	// If we inherited nothing, then we need to mark the global files as used for this
-	// config.  If we inherited, then we already marked them as part of inheritance.
-	if len(config.InheritNames) == 0 {
-		for f := range configs.FilesUsedMap {
-			config.FilesUsedMap[f] = true
 		}
 	}
 
@@ -319,10 +345,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 
 	if config.ReleaseConfigType == rc_proto.ReleaseConfigType_RELEASE_CONFIG {
 		inheritBuildVariant := func() error {
-			build_variant := os.Getenv("TARGET_BUILD_VARIANT")
-			if build_variant == "" {
-				build_variant = "eng"
-			}
+			build_variant := configs.targetBuildVariant
 			if config.Name == build_variant {
 				return nil
 			}
@@ -407,6 +430,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 			config.PartitionBuildFlags[container].Flags = append(config.PartitionBuildFlags[container].Flags, artifact)
 		}
 	}
+	unspecifiedValue := &rc_proto.Value{Val: &rc_proto.Value_UnspecifiedValue{false}}
 	config.ReleaseConfigArtifact = &rc_proto.ReleaseConfigArtifact{
 		Name:       proto.String(config.Name),
 		OtherNames: config.OtherNames,
@@ -414,11 +438,17 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 			ret := []*rc_proto.FlagArtifact{}
 			for _, flagName := range config.FlagArtifacts.SortedFlagNames() {
 				flag := config.FlagArtifacts[flagName]
-				ret = append(ret, &rc_proto.FlagArtifact{
+				fa := &rc_proto.FlagArtifact{
 					FlagDeclaration: flag.FlagDeclaration,
 					Traces:          flag.Traces,
 					Value:           flag.Value,
-				})
+				}
+				// TODO(b/431020600) finalization-test needs us to set value to `nil` instead of leaving it
+				// as the unspecifiedValue.
+				if proto.Equal(fa.Value, unspecifiedValue) {
+					fa.Value.Reset()
+				}
+				ret = append(ret, fa)
 			}
 			return ret
 		}(),
@@ -431,7 +461,6 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		DisallowLunchUse:  proto.Bool(config.DisallowLunchUse),
 	}
 
-	config.compileInProgress = false
 	return nil
 }
 
@@ -439,6 +468,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 func (config *ReleaseConfig) WriteMakefile(outFile, targetRelease string, configs *ReleaseConfigs) error {
 	makeVars := make(map[string]string)
 
+	config.GenerateReleaseConfig(configs)
 	myFlagArtifacts := config.FlagArtifacts.Clone()
 
 	// Add any RELEASE_ACONFIG_EXTRA_RELEASE_CONFIGS variables.
@@ -450,6 +480,10 @@ func (config *ReleaseConfig) WriteMakefile(outFile, targetRelease string, config
 	}
 	for _, rcName := range extraAconfigReleaseConfigs {
 		rc, err := configs.GetReleaseConfigStrict(rcName)
+		if err != nil {
+			return err
+		}
+		err = rc.GenerateReleaseConfig(configs)
 		if err != nil {
 			return err
 		}
@@ -531,7 +565,7 @@ func (config *ReleaseConfig) WritePartitionBuildFlags(product string, outDir str
 		})
 		// The json file name must not be modified as this is read from
 		// build_flags_json module
-		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags_%s-%s.json", product, partition)), flags); err != nil {
+		if err = WriteMessage(filepath.Join(outDir, fmt.Sprintf("build_flags-%s-%s.json", product, partition)), flags); err != nil {
 			return err
 		}
 	}
