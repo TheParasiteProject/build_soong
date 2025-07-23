@@ -346,12 +346,13 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
-	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
+	// trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
 
 	// Treble Labeling tests only for 202604 or later
-	if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
-		validations = append(validations, trebleLabelingTestTimestamp)
-	}
+	// TODO (b/433592653): Re-enable treble labelling tests in soong only mode.
+	//if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
+	//	validations = append(validations, trebleLabelingTestTimestamp)
+	//}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
