@@ -346,12 +346,13 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
-	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
+	// trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
 
 	// Treble Labeling tests only for 202604 or later
-	if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
-		validations = append(validations, trebleLabelingTestTimestamp)
-	}
+	// TODO (b/433592653): Re-enable treble labelling tests in soong only mode.
+	//if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
+	//	validations = append(validations, trebleLabelingTestTimestamp)
+	//}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
@@ -898,9 +899,11 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		}
 		// ab_partitions.txt
 		abPartitionsSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_partitions)
-		abPartitionsFilePath := android.PathForModuleOut(ctx, "target_files_tmp", "ab_partitions.txt")
-		writeFileWithNewLines(ctx, abPartitionsFilePath, abPartitionsSorted)
-		builder.Command().Textf("cp").Input(abPartitionsFilePath).Textf(" %s/META/", targetFilesDir)
+		if len(abPartitionsSorted) > 0 {
+			abPartitionsFilePath := android.PathForModuleOut(ctx, "target_files_tmp", "ab_partitions.txt")
+			writeFileWithNewLines(ctx, abPartitionsFilePath, abPartitionsSorted)
+			builder.Command().Textf("cp").Input(abPartitionsFilePath).Textf(" %s/META/", targetFilesDir)
+		}
 		// otakeys.txt
 		abOtaKeysSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_keys)
 		abOtaKeysFilePath := android.PathForModuleOut(ctx, "target_files_tmp", "otakeys.txt")
