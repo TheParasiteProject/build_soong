@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.arebapache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,67 +17,14 @@ package filesystem
 import (
 	"testing"
 
-	"android/soong/cc"
-	"github.com/google/blueprint/proptools"
-
 	"android/soong/android"
-	"android/soong/etc"
-	"android/soong/phony"
 )
 
 var prepareForHostInitVerifierCheckTest = android.GroupFixturePreparers(
 	android.PrepareForIntegrationTestWithAndroid,
 	android.PrepareForTestWithAndroidBuildComponents,
 	PrepareForTestWithFilesystemBuildComponents,
-	android.FixtureRegisterWithContext(func(ctx android.RegistrationContext) {
-		ctx.RegisterModuleType("android_device", AndroidDeviceFactory)
-	}),
-	phony.PrepareForTestWithPhony,
-	cc.PrepareForTestWithCcBuildComponents,
-	cc.PrepareForTestWithCcDefaultModules,
-	etc.PrepareForTestWithPrebuiltEtc,
-	android.FixtureMergeMockFs(android.MockFS{
-		"images/Android.bp": []byte(`
-			android_filesystem {
-				name: "system_image",
-			}
-			android_filesystem {
-				name: "vendor_image",
-			}
-			android_filesystem {
-				name: "product_image",
-			}
-			android_filesystem {
-				name: "odm_image",
-			}
-			android_filesystem {
-				name: "system_ext_image",
-			}
-
-			prebuilt_etc { name: "passwd_system", src: "passwd" }
-			prebuilt_etc { name: "passwd_system_ext", src: "passwd" }
-			prebuilt_etc { name: "passwd_vendor", src: "passwd" }
-			prebuilt_etc { name: "passwd_odm", src: "passwd" }
-			prebuilt_etc { name: "passwd_product", src: "passwd" }
-
-			prebuilt_etc { name: "plat_property_contexts", src: "props" }
-			prebuilt_etc { name: "system_ext_property_contexts", src: "props" }
-			prebuilt_etc { name: "vendor_property_contexts", src: "props" }
-			prebuilt_etc { name: "odm_property_contexts", src: "props" }
-			prebuilt_etc { name: "product_property_contexts", src: "props" }
-		`),
-		"android_device_files/Android.bp": []byte(`
-			phony {
-				name: "file_contexts_bin_gen",
-			}
-			cc_library {
-				name: "liblz4",
-				host_supported: true,
-				stl: "none",
-				system_shared_libs: [],
-			}
-		`),
-	}),
+	prepareForTestWithAndroidDeviceComponents,
 )
 
 func TestHostInitVerifierCheck(t *testing.T) {
@@ -98,11 +45,11 @@ func TestHostInitVerifierCheck(t *testing.T) {
 	cmd := rule.RuleParams.Command
 
 	// Check that the command contains flags for all the partition images.
-	android.AssertStringDoesContain(t, "command", cmd, "--out_system out/soong/.intermediates/images/system_image/android_common/system_image")
-	android.AssertStringDoesContain(t, "command", cmd, "--out_system_ext out/soong/.intermediates/images/system_ext_image/android_common/system_ext_image")
-	android.AssertStringDoesContain(t, "command", cmd, "--out_vendor out/soong/.intermediates/images/vendor_image/android_common/vendor_image")
-	android.AssertStringDoesContain(t, "command", cmd, "--out_product out/soong/.intermediates/images/product_image/android_common/product_image")
-	android.AssertStringDoesContain(t, "command", cmd, "--out_odm out/soong/.intermediates/images/odm_image/android_common/odm_image")
+	android.AssertStringDoesContain(t, "command", cmd, "--out_system out/soong/.intermediates/images/system_image/android_common/system_image/system ")
+	android.AssertStringDoesContain(t, "command", cmd, "--out_system_ext out/soong/.intermediates/images/system_ext_image/android_common/system_ext_image ")
+	android.AssertStringDoesContain(t, "command", cmd, "--out_vendor out/soong/.intermediates/images/vendor_image/android_common/vendor_image ")
+	android.AssertStringDoesContain(t, "command", cmd, "--out_product out/soong/.intermediates/images/product_image/android_common/product_image ")
+	android.AssertStringDoesContain(t, "command", cmd, "--out_odm out/soong/.intermediates/images/odm_image/android_common/odm_image ")
 
 	// Check that the command contains flags for all the passwd and property files.
 	android.AssertStringDoesContain(t, "command", cmd, "-p out/soong/.intermediates/images/passwd_system/android_arm64_armv8-a/passwd_system")
@@ -124,15 +71,12 @@ func TestHostInitVerifierCheck(t *testing.T) {
 func TestHostInitVerifierCheck_MissingDeps(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		prepareForHostInitVerifierCheckTest,
-		android.FixtureModifyConfig(func(config android.Config) {
-			config.TestProductVariables.BuildingVendorImage = proptools.BoolPtr(false)
-		})).
-		RunTestWithBp(t, `
-			android_device {
-				name: "test_device",
-				vendor_partition_name: "vendor_image",
-			}
-		`)
+	).RunTestWithBp(t, `
+		android_device {
+			name: "test_device",
+			vendor_partition_name: "vendor_image",
+		}
+	`)
 
 	checkModule := result.ModuleForTests(t, "test_device", "android_arm64_armv8-a")
 	rule := checkModule.Output("host_init_verifier_output.txt")

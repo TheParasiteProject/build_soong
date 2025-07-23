@@ -396,6 +396,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.checkVintf(ctx)
 	a.hostInitVerifierCheck(ctx)
+	a.findSharedUIDViolation(ctx)
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
