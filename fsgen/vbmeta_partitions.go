@@ -203,7 +203,7 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 		case "pvmfw":
 			return partitionVars.BoardUsesPvmfwImage
 		case "dtbo":
-			return partitionVars.BoardPrebuiltDtboImage != ""
+			return getDtboModuleName(ctx) != ""
 		case "recovery":
 			// ifdef INSTALLED_RECOVERYIMAGE_TARGET
 			return !ctx.DeviceConfig().BoardUsesRecoveryAsBoot() && !ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot()
