@@ -894,10 +894,20 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		})
 		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "external/zucchini/version_info.h")).Textf(" %s/META/zucchini_config.txt", targetFilesDir.String())
 		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "system/update_engine/update_engine.conf")).Textf(" %s/META/update_engine_config.txt", targetFilesDir.String())
-		systemFsInfo := a.getFsInfos(ctx)["system"]
-		if systemFsInfo.ErofsCompressHints != nil {
-			builder.Command().Textf("cp").Input(systemFsInfo.ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+		// erofs_default_compress_hints.txt
+		fsInfos := a.getFsInfos(ctx)
+		if fsInfos["system"].ErofsCompressHints != nil {
+			builder.Command().Textf("cp").Input(fsInfos["system"].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+		} else {
+			// Use other partitions' ErofsCompressHints if system partition's not exist.
+			for _, partition := range android.SortedKeys(fsInfos) {
+				if fsInfos[partition].ErofsCompressHints != nil {
+					builder.Command().Textf("cp").Input(fsInfos[partition].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+					break
+				}
+			}
 		}
+
 		// ab_partitions.txt
 		abPartitionsSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_partitions)
 		if len(abPartitionsSorted) > 0 {
