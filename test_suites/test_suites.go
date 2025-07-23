@@ -651,6 +651,14 @@ func buildCompatibilitySuitePackage(
 		builder.Command().Text("cp").Input(suite.DynamicConfig).Output(hostOutTestCases.Join(ctx, testSuiteName+".dynamic"))
 	}
 
+	hostSharedLibs := suite.HostSharedLibs
+	for _, hostSharedLib := range hostSharedLibs {
+		cmd.
+			FlagWithArg("-e ", subdir+"/lib64/"+hostSharedLib.Base()).
+			FlagWithInput("-f ", hostSharedLib)
+		copyTool(hostSharedLib)
+	}
+
 	licenceInfos := slices.Concat(android.GetNoticeModuleInfos(ctx, testSuiteModules), suite.ToolNoticeInfo)
 	if len(licenceInfos) > 0 {
 		notice := android.PathForOutput(ctx, "compatibility_test_suites", testSuiteName, "NOTICE.txt")
@@ -722,10 +730,11 @@ func compatibilityTestSuitePackageFactory() android.Module {
 }
 
 type compatibilityTestSuitePackageProperties struct {
-	Tradefed       *string
-	Readme         *string `android:"path"`
-	Tools          []string
-	Dynamic_config *string `android:"path"`
+	Tradefed         *string
+	Readme           *string `android:"path"`
+	Tools            []string
+	Dynamic_config   *string `android:"path"`
+	Host_shared_libs []string
 }
 
 type compatibilityTestSuitePackage struct {
@@ -739,6 +748,7 @@ type compatibilitySuitePackageInfo struct {
 	DynamicConfig  android.Path
 	ToolFiles      android.Paths
 	ToolNoticeInfo android.NoticeModuleInfos
+	HostSharedLibs android.Paths
 }
 
 var compatibilitySuitePackageProvider = blueprint.NewProvider[compatibilitySuitePackageInfo]()
@@ -761,6 +771,12 @@ type ctspHostToolDeptagType struct {
 
 var ctspHostToolDeptag = ctspHostToolDeptagType{}
 
+type ctspHostSharedLibDeptagType struct {
+	blueprint.BaseDependencyTag
+}
+
+var ctspHostSharedLibDeptag = ctspHostSharedLibDeptagType{}
+
 func (m *compatibilityTestSuitePackage) DepsMutator(ctx android.BottomUpMutatorContext) {
 	variations := ctx.Config().BuildOSTarget.Variations()
 	ctx.AddVariationDependencies(variations, ctspTradefedDeptag, proptools.String(m.properties.Tradefed))
@@ -772,6 +788,9 @@ func (m *compatibilityTestSuitePackage) DepsMutator(ctx android.BottomUpMutatorC
 	ctx.AddVariationDependencies(variations, ctspHostToolDeptag, "test-utils-script")
 	for _, tool := range m.properties.Tools {
 		ctx.AddVariationDependencies(variations, ctspHostJavaToolDeptag, tool)
+	}
+	for _, host_shared_lib := range m.properties.Host_shared_libs {
+		ctx.AddVariationDependencies(variations, ctspHostSharedLibDeptag, host_shared_lib)
 	}
 }
 
@@ -816,6 +835,15 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		toolNoticeinfo = append(toolNoticeinfo, android.GetNoticeModuleInfo(ctx, dep))
 	})
 
+	var hostSharedLibs android.Paths
+	ctx.VisitDirectDepsProxyWithTag(ctspHostSharedLibDeptag, func(dep android.ModuleProxy) {
+		libs := android.OtherModuleProviderOrDefault(ctx, dep, android.InstallFilesProvider).InstallFiles
+		for _, lib := range libs {
+			hostSharedLibs = append(hostSharedLibs, lib)
+		}
+		toolNoticeinfo = append(toolNoticeinfo, android.GetNoticeModuleInfo(ctx, dep))
+	})
+
 	var readme android.Path
 	if m.properties.Readme != nil {
 		readme = android.PathForModuleSrc(ctx, *m.properties.Readme)
@@ -832,6 +860,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		DynamicConfig:  dynamicConfig,
 		ToolFiles:      toolFiles,
 		ToolNoticeInfo: toolNoticeinfo,
+		HostSharedLibs: hostSharedLibs,
 	})
 }
 
