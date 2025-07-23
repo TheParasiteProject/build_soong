@@ -562,6 +562,10 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags, deps
 		"${config.CommonGlobalCflags}",
 		fmt.Sprintf("${config.%sGlobalCflags}", hod))
 
+	if ctx.testBinary() || ctx.testLibrary() {
+		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "${config.TestsCflags}")
+	}
+
 	if android.IsThirdPartyPath(modulePath) {
 		flags.Global.CommonFlags = append(flags.Global.CommonFlags, "${config.ExternalCflags}")
 	}
