@@ -135,14 +135,17 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 	}
 
 	ctx.VisitAllModulesOrProxies(func(m android.ModuleOrProxy) {
-		if !android.InList(m.Name(), allInstalledModules) {
-			return
-		}
-
 		info, ok := android.OtherModuleProvider(ctx, m, android.CommonModuleInfoProvider)
 		// The module names listed in the PRODUCT_PACKAGES are the primary variants in soong, that
 		// we want to vefify here. Skip non-primary variants.
 		if !ok || !info.Enabled || info.SkipInstall || info.Host || info.IsNonPrimaryImageVariation {
+			return
+		}
+
+		// m.Name() returns soong-modified names, for example, prebuilt modules have 'prebuilt_'
+		// prefix. Use BaseModuleName for the names in PRODUCT_PACKAGES.
+		name := info.BaseModuleName
+		if !android.InList(name, allInstalledModules) {
 			return
 		}
 
@@ -154,7 +157,7 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 				installedFile := filepath.Join(ps.Partition(), ps.RelPathInPackage())
 				allInstalledFiles[installedFile] = true
 				for _, makefile := range partitionVars.ArtifactPathRequirementProducts {
-					if android.InList(m.Name(), installedModulesOfMakefile[makefile]) {
+					if android.InList(name, installedModulesOfMakefile[makefile]) {
 						installedFilesOfMakefile[makefile][installedFile] = true
 					}
 				}
@@ -192,14 +195,17 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 		unusedAllowedList := internalUnusedAllowedList[makefile]
 		sort.Strings(unusedAllowedList)
 		if !partitionVars.ArtifactPathRequirementsIsRelaxedOfMakefile[makefile] {
-			printListAndError(ctx, unusedAllowedList, fmt.Sprintf("%s includes redundant allowed entries in its artifact path requirement.\n", makefile))
+			errMsg := fmt.Sprintf("%s includes redundant allowed entries in its artifact path requirement.\n", makefile)
+			errMsg += "If the modules are defined in Android.mk, They might be missing from the verification. Define the modules in Android.bp instead.\n"
+			errMsg += "Otherwise, remove the redundant allowed entries.\n"
+			printListAndError(ctx, unusedAllowedList, errMsg)
 		}
 	}
 	if enforcement != "" && enforcement != "false" {
 		for _, makefile := range android.SortedKeys(externalOffendingFiles) {
 			offending := externalOffendingFiles[makefile]
 			errMsg := fmt.Sprintf("Device makefile produces files inside %s's artifact path requirement.\n", makefile)
-			errMsg += "Consider adding this file to outside of the artifact path requirement instead."
+			errMsg += "Consider adding these files to outside of the artifact path requirement instead.\n"
 			printListAndError(ctx, android.SortedKeys(offending), errMsg)
 		}
 		if enforcement != "relaxed" {
@@ -207,6 +213,8 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 				unusedAllowedList := externalUnusedAllowedList[makefile]
 				sort.Strings(unusedAllowedList)
 				errMsg := fmt.Sprintf("Device makefile includes redundant artifact path requirement allowed list entries in %s.\n", makefile)
+				errMsg += "If the modules are defined in Android.mk, They might be missing from the verification. Define the modules in Android.bp instead.\n"
+				errMsg += "Otherwise, remove the redundant allowed entries.\n"
 				printListAndError(ctx, unusedAllowedList, errMsg)
 			}
 		}
