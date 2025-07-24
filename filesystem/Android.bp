@@ -25,8 +25,10 @@ bootstrap_go_package {
         "bootimg.go",
         "bootconfig.go",
         "boot_otas_16k.go",
+        "check_partition_sizes.go",
         "dtboimg.go",
         "filesystem.go",
+        "find_shareduid_violation_check.go",
         "fsverity_metadata.go",
         "host_init_verifier_check.go",
         "logical_partition.go",
@@ -43,6 +45,7 @@ bootstrap_go_package {
     ],
     testSrcs: [
         "filesystem_test.go",
+        "find_shareduid_violation_check_test.go",
         "host_init_verifier_check_test.go",
     ],
     pluginFor: ["soong_build"],

@@ -233,6 +233,8 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if a.deviceProps.Ramdisk_16k != nil {
 		ctx.AddDependency(ctx.Module(), ramdisk16kDepTag, *a.deviceProps.Ramdisk_16k)
 	}
+	// Add system-build.prop even system partition is not building.
+	ctx.AddDependency(ctx.Module(), filesystemDepTag, "system-build.prop")
 
 	a.hostInitVerifierCheckDepsMutator(ctx)
 }
@@ -346,13 +348,15 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
-	// trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
 
-	// Treble Labeling tests only for 202604 or later
-	// TODO (b/433592653): Re-enable treble labelling tests in soong only mode.
-	//if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
-	//	validations = append(validations, trebleLabelingTestTimestamp)
-	//}
+	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
+
+	// Treble Labeling tests only for 202604 or later if building system.img.
+	if _, exist := a.getFsInfos(ctx)["system"]; exist {
+		if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
+			validations = append(validations, trebleLabelingTestTimestamp)
+		}
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
@@ -396,6 +400,8 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	a.checkVintf(ctx)
 	a.hostInitVerifierCheck(ctx)
+	a.findSharedUIDViolation(ctx)
+	a.checkPartitionSizes(ctx)
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
@@ -764,6 +770,15 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(info.Output).Textf(" %s/PREBUILT_IMAGES/ramdisk_16k.img", targetFilesDir.String())
 	}
 
+	// Force copy build.prop for system partition even there's no system partition for this product to reflect the logic in make.
+	if _, exist := a.getFsInfos(ctx)["system"]; !exist {
+		systemBuildProp := ctx.GetDirectDepProxyWithTag("system-build.prop", filesystemDepTag)
+		if !systemBuildProp.IsNil() {
+			file := android.OutputFileForModule(ctx, systemBuildProp, "")
+			builder.Command().Textf("mkdir -p %s/SYSTEM/ && cp", targetFilesDir.String()).Input(file).Textf(" %s/SYSTEM/build.prop", targetFilesDir.String())
+		}
+	}
+
 	a.copyPrebuiltImages(ctx, builder, targetFilesDir)
 
 	a.copyVendorRamdiskFragments(ctx, builder, targetFilesDir)
@@ -893,10 +908,20 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 		})
 		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "external/zucchini/version_info.h")).Textf(" %s/META/zucchini_config.txt", targetFilesDir.String())
 		builder.Command().Textf("cp").Input(android.PathForSource(ctx, "system/update_engine/update_engine.conf")).Textf(" %s/META/update_engine_config.txt", targetFilesDir.String())
-		systemFsInfo := a.getFsInfos(ctx)["system"]
-		if systemFsInfo.ErofsCompressHints != nil {
-			builder.Command().Textf("cp").Input(systemFsInfo.ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+		// erofs_default_compress_hints.txt
+		fsInfos := a.getFsInfos(ctx)
+		if fsInfos["system"].ErofsCompressHints != nil {
+			builder.Command().Textf("cp").Input(fsInfos["system"].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+		} else {
+			// Use other partitions' ErofsCompressHints if system partition's not exist.
+			for _, partition := range android.SortedKeys(fsInfos) {
+				if fsInfos[partition].ErofsCompressHints != nil {
+					builder.Command().Textf("cp").Input(fsInfos[partition].ErofsCompressHints).Textf(" %s/META/erofs_default_compress_hints.txt", targetFilesDir.String())
+					break
+				}
+			}
 		}
+
 		// ab_partitions.txt
 		abPartitionsSorted := android.SortedUniqueStrings(a.deviceProps.Ab_ota_partitions)
 		if len(abPartitionsSorted) > 0 {
@@ -1587,21 +1612,36 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 	vendorAppsList := android.PathForModuleOut(ctx, "vendor_apps.txt")
 	android.WriteFileRule(ctx, vendorAppsList, strings.Join(vendorApps.Strings(), "\n"))
 
+	// Skip treble labeling tests if required artifacts are missing
+	// This can happen when building with prebuilt images, for example.
+	shouldSkipTest := len(platformSeappContexts) == 0 ||
+		len(vendorSeappContexts) == 0 ||
+		len(vendorFileContexts) == 0 ||
+		len(precompiledSepolicies) == 0 ||
+		proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor) == ""
+
 	rule := android.NewRuleBuilder(pctx, ctx)
 
-	if len(precompiledSepolicies) != 1 {
-		errorMessage := fmt.Sprintf("number of precompiled_sepolicy must be one but was %q", precompiledSepolicies.Strings())
+	if len(precompiledSepolicies) > 1 {
+		errorMessage := fmt.Sprintf("number of precompiled_sepolicy must not be greater than one but was %q", precompiledSepolicies.Strings())
 		rule.Command().
 			Text("echo").
 			Text(proptools.ShellEscape(errorMessage)).
 			Text(" && exit 1").
 			ImplicitOutput(testTimestamp)
-	} else if proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor) == "" {
+	} else if shouldSkipTest {
+		errorMessage := "cannot find necessary artifacts. skipping tests.\\n"
+		errorMessage += fmt.Sprintf("platformSeappContexts: %q\\n", platformSeappContexts.Strings())
+		errorMessage += fmt.Sprintf("vendorSeappContexts: %q\\n", vendorSeappContexts.Strings())
+		errorMessage += fmt.Sprintf("vendorFileContexts: %q\\n", vendorFileContexts.Strings())
+		errorMessage += fmt.Sprintf("precompiledSepolicies: %q\\n", precompiledSepolicies.Strings())
+		errorMessage += fmt.Sprintf("precompiled_sepolicy_without_vendor: %q\\n", proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
+
 		rule.Command().
 			Text("echo").
-			Text("cannot find precompiled_sepolicy_without_vendor").
-			Text(" && exit 1").
-			ImplicitOutput(testTimestamp)
+			Flag("-e").
+			Text(proptools.ShellEscape(errorMessage)).
+			FlagWithOutput("> ", testTimestamp)
 	} else {
 		precompiledSepolicyWithoutVendor := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
 		cmd := rule.Command().BuiltTool("treble_labeling_tests").

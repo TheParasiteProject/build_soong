@@ -377,5 +377,5 @@ function set_partial_compile_flags {
 }
 
 function unset_partial_compile_flags {
-    export SOONG_PARTIAL_COMPILE=
+    export SOONG_PARTIAL_COMPILE=false
 }

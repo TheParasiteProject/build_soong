@@ -55,6 +55,7 @@ func TestFileSystemCreatorSystemImageProps(t *testing.T) {
 						BoardAvbAlgorithm:     "SHA256_RSA4096",
 						BoardAvbRollbackIndex: "0",
 						BoardFileSystemType:   "ext4",
+						BuildingImage:         true,
 					},
 				}
 		}),
@@ -133,6 +134,7 @@ func TestFileSystemCreatorSetPartitionDeps(t *testing.T) {
 				map[string]android.PartitionQualifiedVariablesType{
 					"system": {
 						BoardFileSystemType: "ext4",
+						BuildingImage:       true,
 					},
 				}
 		}),
@@ -189,6 +191,7 @@ func TestFileSystemCreatorDepsWithNamespace(t *testing.T) {
 				map[string]android.PartitionQualifiedVariablesType{
 					"system": {
 						BoardFileSystemType: "ext4",
+						BuildingImage:       true,
 					},
 				}
 		}),
@@ -316,6 +319,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 				map[string]android.PartitionQualifiedVariablesType{
 					"system": {
 						BoardFileSystemType: "ext4",
+						BuildingImage:       true,
 					},
 				}
 		}),
@@ -768,6 +772,12 @@ func TestCrossPartitionRequiredModules(t *testing.T) {
 		android.FixtureModifyConfig(func(config android.Config) {
 			config.TestProductVariables.NamespacesToExport = []string{"mynamespace"}
 			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"some_app_in_namespace"})
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.PartitionQualifiedVariables =
+				map[string]android.PartitionQualifiedVariablesType{
+					"system_ext": {
+						BuildingImage: true,
+					},
+				}
 		}),
 	).RunTestWithBp(t, `
 		phony {

@@ -123,7 +123,8 @@ func (m *systemOtherImage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	(&android.PackagingBase{}).CopySpecsToDir(ctx, builder, specs, stagingDir)
 
 	fullInstallPaths := []FullInstallPathInfo{}
-	for _, spec := range specs {
+	for _, mod := range android.SortedKeys(specs) {
+		spec := specs[mod]
 		fullInstallPaths = append(fullInstallPaths, FullInstallPathInfo{
 			FullInstallPath:     spec.FullInstallPath(),
 			RequiresFullInstall: spec.RequiresFullInstall(),
