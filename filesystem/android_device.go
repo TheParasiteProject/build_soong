@@ -346,13 +346,12 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
-	// trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
+	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
 
 	// Treble Labeling tests only for 202604 or later
-	// TODO (b/433592653): Re-enable treble labelling tests in soong only mode.
-	//if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
-	//	validations = append(validations, trebleLabelingTestTimestamp)
-	//}
+	if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
+		validations = append(validations, trebleLabelingTestTimestamp)
+	}
 
 	ctx.Build(pctx, android.BuildParams{
 		Rule:        android.Touch,
@@ -1588,21 +1587,36 @@ func (a *androidDevice) buildTrebleLabelingTest(ctx android.ModuleContext) andro
 	vendorAppsList := android.PathForModuleOut(ctx, "vendor_apps.txt")
 	android.WriteFileRule(ctx, vendorAppsList, strings.Join(vendorApps.Strings(), "\n"))
 
+	// Skip treble labeling tests if required artifacts are missing
+	// This can happen when building with prebuilt images, for example.
+	shouldSkipTest := len(platformSeappContexts) == 0 ||
+		len(vendorSeappContexts) == 0 ||
+		len(vendorFileContexts) == 0 ||
+		len(precompiledSepolicies) == 0 ||
+		proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor) == ""
+
 	rule := android.NewRuleBuilder(pctx, ctx)
 
-	if len(precompiledSepolicies) != 1 {
-		errorMessage := fmt.Sprintf("number of precompiled_sepolicy must be one but was %q", precompiledSepolicies.Strings())
+	if len(precompiledSepolicies) > 1 {
+		errorMessage := fmt.Sprintf("number of precompiled_sepolicy must not be greater than one but was %q", precompiledSepolicies.Strings())
 		rule.Command().
 			Text("echo").
 			Text(proptools.ShellEscape(errorMessage)).
 			Text(" && exit 1").
 			ImplicitOutput(testTimestamp)
-	} else if proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor) == "" {
+	} else if shouldSkipTest {
+		errorMessage := "cannot find necessary artifacts. skipping tests.\\n"
+		errorMessage += fmt.Sprintf("platformSeappContexts: %q\\n", platformSeappContexts.Strings())
+		errorMessage += fmt.Sprintf("vendorSeappContexts: %q\\n", vendorSeappContexts.Strings())
+		errorMessage += fmt.Sprintf("vendorFileContexts: %q\\n", vendorFileContexts.Strings())
+		errorMessage += fmt.Sprintf("precompiledSepolicies: %q\\n", precompiledSepolicies.Strings())
+		errorMessage += fmt.Sprintf("precompiled_sepolicy_without_vendor: %q\\n", proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
+
 		rule.Command().
 			Text("echo").
-			Text("cannot find precompiled_sepolicy_without_vendor").
-			Text(" && exit 1").
-			ImplicitOutput(testTimestamp)
+			Flag("-e").
+			Text(proptools.ShellEscape(errorMessage)).
+			FlagWithOutput("> ", testTimestamp)
 	} else {
 		precompiledSepolicyWithoutVendor := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Precompiled_sepolicy_without_vendor))
 		cmd := rule.Command().BuiltTool("treble_labeling_tests").
