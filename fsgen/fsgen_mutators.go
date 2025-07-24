@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/rust"
 
 	"github.com/google/blueprint/proptools"
@@ -124,11 +125,11 @@ type FsGenState struct {
 }
 
 type installationProperties struct {
-	Required  []string
-	Overrides []string
-	Rustlibs  []string
-	Partition string
-	Namespace string
+	Required            []string
+	Overrides           []string
+	CcAndRustSharedLibs []string
+	Partition           string
+	Namespace           string
 }
 
 func defaultDepCandidateProps(config android.Config) *depCandidateProps {
@@ -404,23 +405,31 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 	// store the map of module to (required,overrides) even if the module is not in PRODUCT_PACKAGES.
 	// the module might be installed transitively.
 	if m.Enabled(mctx) && m.ExportedToMake() {
-		var rustLibs []string
+		var ccAndRustSharedLibs []string
 		if rustModule, ok := m.(*rust.Module); ok {
 			if !rustModule.StdLinkageIsRlibLinkage(mctx.Device()) {
 				for _, prop := range m.GetProperties() {
 					if rustCompilerProps, ok := prop.(*rust.BaseCompilerProperties); ok {
-						rustLibs = rustCompilerProps.Rustlibs.GetOrDefault(mctx, nil)
+						ccAndRustSharedLibs = rustCompilerProps.Rustlibs.GetOrDefault(mctx, nil)
 					}
+				}
+			}
+		}
+		if _, ok := m.(*cc.Module); ok {
+			for _, prop := range m.GetProperties() {
+				if linkerProps, ok := prop.(*cc.BaseLinkerProperties); ok {
+					deps := cc.CoalesceLibs(mctx, linkerProps, cc.Deps{})
+					ccAndRustSharedLibs = append(ccAndRustSharedLibs, deps.SharedLibs...)
 				}
 			}
 		}
 
 		fsGenState.moduleToInstallationProps.AddToMap(mctx, &installationProperties{
-			Required:  m.RequiredModuleNames(mctx),
-			Rustlibs:  rustLibs,
-			Overrides: m.Overrides(),
-			Partition: m.PartitionTag(mctx.DeviceConfig()),
-			Namespace: mctx.Namespace().Path,
+			Required:            m.RequiredModuleNames(mctx),
+			CcAndRustSharedLibs: ccAndRustSharedLibs,
+			Overrides:           m.Overrides(),
+			Partition:           m.PartitionTag(mctx.DeviceConfig()),
+			Namespace:           mctx.Namespace().Path,
 		})
 	}
 
@@ -617,8 +626,8 @@ type directDepWithParentPartition struct {
 	parentPartition string
 	// fully qualified module name of the "required" direct dep
 	directDepName string
-	// whether this is a rustlib dependency
-	isRustLibDep bool
+	// whether this is a rustlib or native shared lib dependency
+	isSharedLibDep bool
 }
 
 // This function is run only once to compute the list of transitive "required" dependencies
@@ -654,16 +663,16 @@ func correctCrossPartitionRequiredDeps(config android.Config) map[string]string 
 						})
 					}
 					// system_ext-specific image variation is not created, thus system_ext
-					// rust module will link against system rustlibs. Since cross-partition
-					// installation is not supported in filesystem modules, system rustlibs of
-					// system_ext_specific modules should be separately added as deps of the
-					// system image.
+					// rust or cc module will link against system rustlibs or shared libs.
+					// Since cross-partition installation is not supported in filesystem modules,
+					// system rustlibs or shared libs of system_ext_specific modules should be
+					// separately added as deps of the system image.
 					if partition == "system_ext" {
-						for _, rustLibModule := range props.Rustlibs {
+						for _, sharedLibModule := range props.CcAndRustSharedLibs {
 							moduleNamesStack = append(moduleNamesStack, directDepWithParentPartition{
 								parentPartition: partition,
-								directDepName:   fullyQualifiedModuleName(rustLibModule, props.Namespace),
-								isRustLibDep:    true,
+								directDepName:   fullyQualifiedModuleName(sharedLibModule, props.Namespace),
+								isSharedLibDep:  true,
 							})
 						}
 					}
@@ -690,24 +699,24 @@ func correctCrossPartitionRequiredDeps(config android.Config) map[string]string 
 			// mark the module visited.
 			if moduleProps, ok := moduleToInstallationProps.GetFromFullyQualifiedModuleName(visitingModule.directDepName); ok {
 				if moduleProps.Partition != visitingModule.parentPartition {
-					if !visitingModule.isRustLibDep || moduleProps.Partition == "system" {
+					if !visitingModule.isSharedLibDep || moduleProps.Partition == "system" {
 						ret[visitingModule.directDepName] = moduleProps.Partition
 					}
 				}
 				if _, ok := traversalMap[visitingModule.directDepName]; !ok {
 					traversalMap[visitingModule.directDepName] = true
-					for _, requiredModule := range append(moduleProps.Required, moduleProps.Rustlibs...) {
+					for _, requiredModule := range moduleProps.Required {
 						moduleNamesStack = append(moduleNamesStack, directDepWithParentPartition{
 							parentPartition: moduleProps.Partition,
 							directDepName:   requiredModule,
 						})
 					}
 					if moduleProps.Partition == "system_ext" {
-						for _, rustLibModule := range moduleProps.Rustlibs {
+						for _, rustLibModule := range moduleProps.CcAndRustSharedLibs {
 							moduleNamesStack = append(moduleNamesStack, directDepWithParentPartition{
 								parentPartition: moduleProps.Partition,
 								directDepName:   rustLibModule,
-								isRustLibDep:    true,
+								isSharedLibDep:  true,
 							})
 						}
 					}
