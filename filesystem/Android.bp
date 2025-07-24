@@ -25,6 +25,7 @@ bootstrap_go_package {
         "bootimg.go",
         "bootconfig.go",
         "boot_otas_16k.go",
+        "check_partition_sizes.go",
         "dtboimg.go",
         "filesystem.go",
         "find_shareduid_violation_check.go",
