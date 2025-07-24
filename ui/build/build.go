@@ -311,7 +311,7 @@ func Build(ctx Context, config Config) {
 	checkCaseSensitivity(ctx, config)
 
 	SetupPath(ctx, config)
-	SetProductReleaseConfigMaps(ctx, config)
+	mapsCh := QueryProductReleaseConfigMaps(ctx, config)
 
 	what := evaluateWhatToRun(config, ctx.Verboseln)
 
@@ -337,6 +337,7 @@ func Build(ctx Context, config Config) {
 		defer cipdProxy.Stop(ctx)
 	}
 
+	SetProductReleaseConfigMaps(ctx, config, mapsCh)
 	if what&RunProductConfig != 0 {
 		runMakeProductConfig(ctx, config)
 

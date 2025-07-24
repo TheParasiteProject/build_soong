@@ -594,19 +594,38 @@ func NewBuildActionConfig(action BuildAction, dir string, ctx Context, args ...s
 	return NewConfig(ctx, getConfigArgs(action, dir, ctx, args)...)
 }
 
+type productReleaseConfigMapsInfo struct {
+	// The value of PRODUCT_RELEASE_CONFIG_MAPS
+	value string
+
+	// Any error
+	err error
+}
+
 // Prepare for getting make variables.  For them to be accurate, we need to have
 // obtained PRODUCT_RELEASE_CONFIG_MAPS.
 //
 // Returns:
 //
-//	Whether config should be called again.
+//	chan to pass to SetProductReleaseConfigMaps to finish setting the value.
 //
 // TODO: when converting product config to a declarative language, make sure
 // that PRODUCT_RELEASE_CONFIG_MAPS is properly handled as a separate step in
 // that process.
-func SetProductReleaseConfigMaps(ctx Context, config Config) {
+func QueryProductReleaseConfigMaps(ctx Context, config Config) chan *productReleaseConfigMapsInfo {
+	mapsCh := make(chan *productReleaseConfigMapsInfo)
+	go func() {
+		defer close(mapsCh)
+		getProductReleaseConfigMaps(ctx, config, mapsCh)
+	}()
+	return mapsCh
+}
+
+func getProductReleaseConfigMaps(ctx Context, config Config, mapsCh chan *productReleaseConfigMapsInfo) {
 	ctx.BeginTrace(metrics.RunKati, "SetProductReleaseConfigMaps")
 	defer ctx.EndTrace()
+
+	ret := &productReleaseConfigMapsInfo{}
 
 	if config.SkipConfig() {
 		// This duplicates the logic from Build to skip product config
@@ -622,9 +641,23 @@ func SetProductReleaseConfigMaps(ctx Context, config Config) {
 	// when we run product config to get the rest of the make vars.
 	releaseMapVars, err := dumpMakeVars(ctx, config, nil, releaseConfigVars, false, "")
 	if err != nil {
-		ctx.Fatalln("Error getting PRODUCT_RELEASE_CONFIG_MAPS:", err)
+		ret.err = err
+	} else {
+		ret.value = releaseMapVars["PRODUCT_RELEASE_CONFIG_MAPS"]
 	}
-	config.Environment().Set("PRODUCT_RELEASE_CONFIG_MAPS", releaseMapVars["PRODUCT_RELEASE_CONFIG_MAPS"])
+	mapsCh <- ret
+}
+
+// Wait for the Query to finish, and set PRODUCT_RELEASE_CONFIG_MAPS in the environment.
+func SetProductReleaseConfigMaps(ctx Context, config Config, mapsCh chan *productReleaseConfigMapsInfo) {
+	if config.SkipConfig() {
+		return
+	}
+	mapsInfo := <-mapsCh
+	if mapsInfo.err != nil {
+		ctx.Fatalln("Error getting PRODUCT_RELEASE_CONFIG_MAPS:", mapsInfo.err)
+	}
+	config.Environment().Set("PRODUCT_RELEASE_CONFIG_MAPS", mapsInfo.value)
 }
 
 // storeConfigMetrics selects a set of configuration information and store in
