@@ -1314,6 +1314,7 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 	j.aconfigCacheFiles = append(deps.aconfigProtoFiles, j.properties.Aconfig_Cache_files...)
 
 	var localImplementationJars android.Paths
+	var localImplementationJarsContainsDependencies bool
 
 	// If compiling headers then compile them and skip the rest
 	if proptools.Bool(j.properties.Headers_only) {
@@ -1834,6 +1835,7 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 	if jarjarred {
 		localImplementationJars = android.Paths{jarjarFile}
 		completeStaticLibsImplementationJars = depset.New(depset.PREORDER, localImplementationJars, nil)
+		localImplementationJarsContainsDependencies = true
 	}
 	outputFile = jarjarFile
 
@@ -1864,6 +1866,7 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 		outputFile = ravenizerOutput
 		localImplementationJars = android.Paths{ravenizerOutput}
 		completeStaticLibsImplementationJars = depset.New(depset.PREORDER, localImplementationJars, nil)
+		localImplementationJarsContainsDependencies = true
 		if combinedResourceJar != nil {
 			ravenizerInput = combinedResourceJar
 			ravenizerOutput = android.PathForModuleOut(ctx, "ravenizer", "resources", jarName)
@@ -1886,6 +1889,7 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 		outputFile = apiMapperFile
 		localImplementationJars = android.Paths{apiMapperFile}
 		completeStaticLibsImplementationJars = depset.New(depset.PREORDER, localImplementationJars, nil)
+		localImplementationJarsContainsDependencies = true
 	}
 
 	// Check package restrictions if necessary.
@@ -1909,6 +1913,7 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 		outputFile = packageCheckOutputFile
 		localImplementationJars = android.Paths{packageCheckOutputFile}
 		completeStaticLibsImplementationJars = depset.New(depset.PREORDER, localImplementationJars, nil)
+		localImplementationJarsContainsDependencies = true
 
 		// Check packages and create a timestamp file when complete.
 		CheckJarPackages(ctx, pkgckFile, outputFile, j.properties.Permitted_packages)
@@ -1933,6 +1938,11 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 			localHeaderJars = append(localHeaderJars, localHeaderJarFile)
 		} else {
 			localHeaderJars = append(localHeaderJars, headerJarFile)
+		}
+		if localImplementationJarsContainsDependencies {
+			// If the local implementation jar that is being used as the header jar already has the dependencies
+			// combined in then don't also export the transitive static libs header jars.
+			transitiveStaticLibsHeaderJars = nil
 		}
 	}
 
