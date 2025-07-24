@@ -233,8 +233,6 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if a.deviceProps.Ramdisk_16k != nil {
 		ctx.AddDependency(ctx.Module(), ramdisk16kDepTag, *a.deviceProps.Ramdisk_16k)
 	}
-	// Add system-build.prop even system partition is not building.
-	ctx.AddDependency(ctx.Module(), filesystemDepTag, "system-build.prop")
 
 	a.hostInitVerifierCheckDepsMutator(ctx)
 }
@@ -348,14 +346,11 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 		deps = append(deps, a.copyFilesToProductOutForSoongOnly(ctx))
 	}
-
 	trebleLabelingTestTimestamp := a.buildTrebleLabelingTest(ctx)
 
-	// Treble Labeling tests only for 202604 or later if building system.img.
-	if _, exist := a.getFsInfos(ctx)["system"]; exist {
-		if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
-			validations = append(validations, trebleLabelingTestTimestamp)
-		}
+	// Treble Labeling tests only for 202604 or later
+	if ctx.DeviceConfig().PlatformSepolicyVersion() >= "202604" {
+		validations = append(validations, trebleLabelingTestTimestamp)
 	}
 
 	ctx.Build(pctx, android.BuildParams{
@@ -768,15 +763,6 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		ramdisk16k := ctx.GetDirectDepProxyWithTag(proptools.String(a.deviceProps.Ramdisk_16k), ramdisk16kDepTag)
 		info := android.OtherModuleProviderOrDefault(ctx, ramdisk16k, FilesystemProvider)
 		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(info.Output).Textf(" %s/PREBUILT_IMAGES/ramdisk_16k.img", targetFilesDir.String())
-	}
-
-	// Force copy build.prop for system partition even there's no system partition for this product to reflect the logic in make.
-	if _, exist := a.getFsInfos(ctx)["system"]; !exist {
-		systemBuildProp := ctx.GetDirectDepProxyWithTag("system-build.prop", filesystemDepTag)
-		if !systemBuildProp.IsNil() {
-			file := android.OutputFileForModule(ctx, systemBuildProp, "")
-			builder.Command().Textf("mkdir -p %s/SYSTEM/ && cp", targetFilesDir.String()).Input(file).Textf(" %s/SYSTEM/build.prop", targetFilesDir.String())
-		}
 	}
 
 	a.copyPrebuiltImages(ctx, builder, targetFilesDir)

@@ -189,22 +189,21 @@ func generatedPartitions(ctx android.EarlyModuleContext) allGeneratedPartitionDa
 			supported:     true,
 		})
 	}
-	if buildingSystemImage(partitionVars) {
-		if ctx.Config().UseSoongSystemImage() {
-			if ctx.Config().SoongDefinedSystemImage() == "" {
-				panic("PRODUCT_SOONG_DEFINED_SYSTEM_IMAGE must be set if USE_SOONG_DEFINED_SYSTEM_IMAGE is true")
-			}
-			result = append(result, generatedPartitionData{
-				partitionType: "system",
-				moduleName:    ctx.Config().SoongDefinedSystemImage(),
-				supported:     true,
-				handwritten:   true,
-			})
-		} else {
-			addGenerated("system")
+
+	if ctx.Config().UseSoongSystemImage() {
+		if ctx.Config().SoongDefinedSystemImage() == "" {
+			panic("PRODUCT_SOONG_DEFINED_SYSTEM_IMAGE must be set if USE_SOONG_DEFINED_SYSTEM_IMAGE is true")
 		}
+		result = append(result, generatedPartitionData{
+			partitionType: "system",
+			moduleName:    ctx.Config().SoongDefinedSystemImage(),
+			supported:     true,
+			handwritten:   true,
+		})
+	} else {
+		addGenerated("system")
 	}
-	if buildingSystemExtImage(partitionVars) && ctx.DeviceConfig().SystemExtPath() == "system_ext" {
+	if ctx.DeviceConfig().SystemExtPath() == "system_ext" {
 		addGenerated("system_ext")
 	}
 	if ctx.DeviceConfig().BuildingVendorImage() && ctx.DeviceConfig().VendorPath() == "vendor" {
@@ -352,14 +351,6 @@ func generatedModuleName(cfg android.Config, suffix string) string {
 
 func generatedModuleNameForPartition(cfg android.Config, partitionType string) string {
 	return generatedModuleName(cfg, fmt.Sprintf("%s_image", partitionType))
-}
-
-func buildingSystemImage(partitionVars android.PartitionVariables) bool {
-	return partitionVars.PartitionQualifiedVariables["system"].BuildingImage
-}
-
-func buildingSystemExtImage(partitionVars android.PartitionVariables) bool {
-	return partitionVars.PartitionQualifiedVariables["system_ext"].BuildingImage
 }
 
 func buildingSystemOtherImage(partitionVars android.PartitionVariables) bool {
@@ -744,9 +735,7 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 				},
 			)
 		}
-		if systemName := partitions.nameForType("system"); systemName != "" {
-			fsProps.Android_filesystem_deps.System = proptools.StringPtr(systemName)
-		}
+		fsProps.Android_filesystem_deps.System = proptools.StringPtr(partitions.nameForType("system"))
 		if systemExtName := partitions.nameForType("system_ext"); systemExtName != "" {
 			fsProps.Android_filesystem_deps.System_ext = proptools.StringPtr(systemExtName)
 		}
