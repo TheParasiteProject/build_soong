@@ -324,6 +324,8 @@ var (
 
 	noOverride64GlobalCflags = []string{}
 
+	extraTestsCflags = []string{}
+
 	// Extra cflags applied to third-party code (anything for which
 	// IsThirdPartyPath() in build/soong/android/paths.go returns true;
 	// includes external/, most of vendor/ and most of hardware/)
@@ -494,6 +496,7 @@ func init() {
 	pctx.StaticVariable("HostGlobalCflags", strings.Join(hostGlobalCflags, " "))
 	pctx.StaticVariable("NoOverrideExternalGlobalCflags", strings.Join(noOverrideExternalGlobalCflags, " "))
 	pctx.StaticVariable("CommonGlobalCppflags", strings.Join(commonGlobalCppflags, " "))
+	pctx.StaticVariable("TestsCflags", strings.Join(extraTestsCflags, " "))
 	pctx.StaticVariable("ExternalCflags", strings.Join(extraExternalCflags, " "))
 
 	// Everything in these lists is a crime against abstraction and dependency tracking.
