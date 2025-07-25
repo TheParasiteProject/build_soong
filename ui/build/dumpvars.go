@@ -113,7 +113,7 @@ func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_
 	cmd.Stdout = &output
 	pipe, err := cmd.StderrPipe()
 	if err != nil {
-		ctx.Fatalln("Error getting output pipe for ckati:", err)
+		ctx.Fatalln("Error getting output pipe for kati:", err)
 	}
 	cmd.StartOrFatal()
 	// TODO: error out when Stderr contains any content
@@ -305,6 +305,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"BUILD_BROKEN_USES_BUILD_STATIC_LIBRARY",
 		"RELEASE_BUILD_EXECUTION_METRICS",
 		"RELEASE_SRC_DIR_IS_READ_ONLY",
+		"RELEASE_USE_RKATI",
 	}, exportEnvVars...), BannerVars...)
 
 	makeVars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true, "")
@@ -335,6 +336,8 @@ func runMakeProductConfig(ctx Context, config Config) {
 		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=false.
 		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] == "false")
 	}
+	config.useRkati = makeVars["RELEASE_USE_RKATI"] == "true"
+
 	config.sandboxConfig.SetSrcDirRWAllowlist(strings.Fields(makeVars["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"]))
 
 	config.SetBuildBrokenDupRules(makeVars["BUILD_BROKEN_DUP_RULES"] == "true")
