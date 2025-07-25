@@ -76,16 +76,6 @@ NDK. For APIs exposed by the platform *for* APEX, use `systemapi`.
 May be used in combination with `llndk` if the symbol is exposed to both APEX
 and the LL-NDK.
 
-### future
-
-Indicates that the version or symbol is first introduced in the "future" API
-level. This is an arbitrarily high API level used to define APIs that have not
-yet been added to a specific release.
-
-Warning: APIs marked `future` will be usable in any module with `sdk: "current"`
-but **will not be included in the NDK**. `future` should generally not be used,
-but is useful when developing APIs for an unknown future release.
-
 ### introduced
 
 Indicates the version in which an API was first introduced in the NDK. For

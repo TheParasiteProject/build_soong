@@ -166,23 +166,12 @@ class SymbolPresenceTest(unittest.TestCase):
             symbolfile.symbol_in_api(
                 [Tag('introduced=21'),
                  Tag('introduced-arm=9')], Arch('arm'), 14))
-        self.assertTrue(
-            symbolfile.symbol_in_api([Tag('future')], Arch('arm'),
-                                     symbolfile.FUTURE_API_LEVEL))
 
         self.assertFalse(
             symbolfile.symbol_in_api([Tag('introduced=14')], Arch('arm'), 9))
         self.assertFalse(
             symbolfile.symbol_in_api([Tag('introduced-arm=14')], Arch('arm'),
                                      9))
-        self.assertFalse(
-            symbolfile.symbol_in_api([Tag('future')], Arch('arm'), 9))
-        self.assertFalse(
-            symbolfile.symbol_in_api(
-                [Tag('introduced=9'), Tag('future')], Arch('arm'), 14))
-        self.assertFalse(
-            symbolfile.symbol_in_api([Tag('introduced-arm=9'),
-                                      Tag('future')], Arch('arm'), 14))
         self.assertFalse(
             symbolfile.symbol_in_api(
                 [Tag('introduced-arm=21'),

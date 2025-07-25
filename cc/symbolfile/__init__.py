@@ -308,8 +308,6 @@ def symbol_in_api(tags: Iterable[Tag], arch: Arch, api: int) -> bool:
         elif tag.startswith('introduced-' + arch + '='):
             introduced_tag = tag
             arch_specific = True
-        elif tag == 'future':
-            return api == FUTURE_API_LEVEL
 
     if introduced_tag is None:
         # We found no "introduced" tags, so the symbol has always been
