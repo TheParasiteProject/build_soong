@@ -433,7 +433,7 @@ type installedOwnerInfo struct {
 
 // Returns a list of modules that are installed, which are collected from the dependency
 // filesystem and super_image modules.
-func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.ModuleOrProxy {
+func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.ModuleProxy {
 	fsInfoMap := a.getFsInfos(ctx)
 	allOwners := make(map[string][]installedOwnerInfo)
 
@@ -447,7 +447,7 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 		}
 	}
 
-	ret := []android.ModuleOrProxy{}
+	ret := []android.ModuleProxy{}
 	ctx.WalkDepsProxy(func(mod, _ android.ModuleProxy) bool {
 		commonInfo, ok := android.OtherModuleProvider(ctx, mod, android.CommonModuleInfoProvider)
 		if !(ok && commonInfo.ExportedToMake) {
@@ -469,13 +469,13 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android
 	ret = android.FirstUniqueInPlace(ret)
 
 	// Sort the modules by their names and variants
-	slices.SortFunc(ret, func(a, b android.ModuleOrProxy) int {
+	slices.SortFunc(ret, func(a, b android.ModuleProxy) int {
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
 }
 
-func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
+func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
 	allInstalledSymbolsPaths, allInstalledSymbolsMappingPaths := android.BuildSymbolsZip(ctx, allInstalledModules, a.symbolsZipFile, a.symbolsMappingFile)
@@ -585,7 +585,7 @@ type targetFilesystemZipCopy struct {
 	destSubdir string
 }
 
-func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstalledModules []android.ModuleOrProxy) {
+func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
 	targetFilesDir := android.PathForModuleOut(ctx, "target_files_dir")
 	targetFilesDirStamp := android.PathForModuleOut(ctx, "target_files_dir.stamp")
 	targetFilesZip := android.PathForModuleOut(ctx, "target_files.zip")
@@ -882,7 +882,9 @@ func writeFileWithNewLines(ctx android.ModuleContext, path android.WritablePath,
 	android.WriteFileRule(ctx, path, builder.String())
 }
 
-func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.ModuleOutPath, allInstalledModules []android.ModuleOrProxy) {
+func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, builder *android.RuleBuilder,
+	targetFilesDir android.ModuleOutPath, allInstalledModules []android.ModuleProxy) {
+
 	// Create a META/ subdirectory
 	builder.Command().Textf("mkdir -p %s/META", targetFilesDir.String())
 	if proptools.Bool(a.deviceProps.Ab_ota_updater) {

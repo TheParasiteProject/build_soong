@@ -4064,7 +4064,7 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 	return depPaths
 }
 
-func ShouldUseStubForApex(ctx android.ModuleContext, parent android.ModuleOrProxy, dep android.ModuleProxy) bool {
+func ShouldUseStubForApex(ctx android.ModuleContext, parent android.ModuleProxy, dep android.ModuleProxy) bool {
 	inVendorOrProduct := false
 	bootstrap := false
 	if android.EqualModules(ctx.Module(), parent) {
@@ -4130,7 +4130,7 @@ func ChooseStubOrImpl(ctx android.ModuleContext, dep android.ModuleProxy) (Share
 
 	if !libDepTag.explicitlyVersioned && len(sharedLibraryStubsInfo.SharedStubLibraries) > 0 {
 		// when to use (unspecified) stubs, use the latest one.
-		if ShouldUseStubForApex(ctx, ctx.Module(), dep) {
+		if ShouldUseStubForApex(ctx, ctx.ModuleProxy(), dep) {
 			stubs := sharedLibraryStubsInfo.SharedStubLibraries
 			toUse := stubs[len(stubs)-1]
 			sharedLibraryInfo = toUse.SharedLibraryInfo
