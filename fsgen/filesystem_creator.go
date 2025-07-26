@@ -719,7 +719,9 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		fsProps.Gen_aconfig_flags_pb = proptools.BoolPtr(true)
 	case "product":
 		fsProps.Gen_aconfig_flags_pb = proptools.BoolPtr(true)
-		fsProps.Android_filesystem_deps.System = proptools.StringPtr(partitions.nameForType("system"))
+		if systemName := partitions.nameForType("system"); systemName != "" {
+			fsProps.Android_filesystem_deps.System = proptools.StringPtr(systemName)
+		}
 		if systemExtName := partitions.nameForType("system_ext"); systemExtName != "" {
 			fsProps.Android_filesystem_deps.System_ext = proptools.StringPtr(systemExtName)
 		}

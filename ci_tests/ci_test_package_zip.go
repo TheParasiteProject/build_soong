@@ -172,8 +172,8 @@ func (p *testPackageZip) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	ctx.SetOutputFiles(android.Paths{p.output}, "")
 }
 
-func getAllTestModules(ctx android.ModuleContext) []android.ModuleOrProxy {
-	var ret []android.ModuleOrProxy
+func getAllTestModules(ctx android.ModuleContext) []android.ModuleProxy {
+	var ret []android.ModuleProxy
 	ctx.WalkDepsProxy(func(child, parent android.ModuleProxy) bool {
 		if info, ok := android.OtherModuleProvider(ctx, child, android.CommonModuleInfoProvider); !ok || !info.Enabled {
 			return false
@@ -191,7 +191,7 @@ func getAllTestModules(ctx android.ModuleContext) []android.ModuleOrProxy {
 		}
 	})
 	ret = android.FirstUniqueInPlace(ret)
-	slices.SortFunc(ret, func(a, b android.ModuleOrProxy) int {
+	slices.SortFunc(ret, func(a, b android.ModuleProxy) int {
 		return cmp.Compare(a.String(), b.String())
 	})
 	return ret
@@ -227,7 +227,7 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	return output
 }
 
-func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleOrProxy) {
+func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProxy) {
 	symbolsZipFile := android.PathForModuleOut(ctx, "symbols.zip")
 	symbolsMappingFile := android.PathForModuleOut(ctx, "symbols-mapping.textproto")
 	android.BuildSymbolsZip(ctx, allModules, symbolsZipFile, symbolsMappingFile)
@@ -236,7 +236,7 @@ func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleOrPr
 	ctx.SetOutputFiles(android.Paths{symbolsMappingFile}, ".elf_mapping")
 }
 
-func extendBuilderCommand(ctx android.ModuleContext, m android.ModuleOrProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
+func extendBuilderCommand(ctx android.ModuleContext, m android.ModuleProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {
 	info, ok := android.OtherModuleProvider(ctx, m, android.ModuleInfoJSONProvider)
 	if !ok {
 		ctx.OtherModuleErrorf(m, "doesn't set ModuleInfoJSON provider")

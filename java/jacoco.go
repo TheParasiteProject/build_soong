@@ -186,7 +186,7 @@ type BuildJacocoZipContext interface {
 	android.OtherModuleProviderContext
 }
 
-func BuildJacocoZip(ctx BuildJacocoZipContext, modules []android.ModuleOrProxy, outputFile android.WritablePath) {
+func BuildJacocoZip(ctx BuildJacocoZipContext, modules []android.ModuleProxy, outputFile android.WritablePath) {
 	jacocoZipBuilder := android.NewRuleBuilder(pctx, ctx)
 	jacocoZipCmd := jacocoZipBuilder.Command().BuiltTool("soong_zip").
 		FlagWithOutput("-o ", outputFile).
@@ -207,7 +207,7 @@ func BuildJacocoZip(ctx BuildJacocoZipContext, modules []android.ModuleOrProxy, 
 	jacocoZipBuilder.Build("jacoco_report_classes_zip", "Building jacoco report zip")
 }
 
-func BuildJacocoZipWithPotentialDeviceTests(ctx android.ModuleContext, modules []android.ModuleOrProxy, outputFile android.WritablePath) {
+func BuildJacocoZipWithPotentialDeviceTests(ctx android.ModuleContext, modules []android.ModuleProxy, outputFile android.WritablePath) {
 	if !ctx.Config().IsEnvTrue("JACOCO_PACKAGING_INCLUDE_DEVICE_TESTS") {
 		BuildJacocoZip(ctx, modules, outputFile)
 		return
@@ -233,7 +233,7 @@ type deviceTestsJacocoZipSingleton struct{}
 
 // GenerateBuildActions implements android.Singleton.
 func (d *deviceTestsJacocoZipSingleton) GenerateBuildActions(ctx android.SingletonContext) {
-	var deviceTestModules []android.ModuleOrProxy
+	var deviceTestModules []android.ModuleProxy
 	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
 		if tsm, ok := android.OtherModuleProvider(ctx, m, android.TestSuiteInfoProvider); ok {
 			if slices.Contains(tsm.TestSuites, "device-tests") {

@@ -15,14 +15,15 @@
 package unbundled
 
 import (
-	"android/soong/android"
-	"android/soong/cc"
-	"android/soong/filesystem"
-	"android/soong/java"
 	"fmt"
 	"slices"
 
 	"github.com/google/blueprint"
+
+	"android/soong/android"
+	"android/soong/cc"
+	"android/soong/filesystem"
+	"android/soong/java"
 )
 
 var pctx = android.NewPackageContext("android/soong/unbundled")
@@ -102,7 +103,7 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		return
 	}
 
-	var appModules []android.ModuleOrProxy
+	var appModules []android.ModuleProxy
 	ctx.VisitDirectDepsProxyWithTag(unbundledDepTag, func(m android.ModuleProxy) {
 		appModules = append(appModules, m)
 	})

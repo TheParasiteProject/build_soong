@@ -138,7 +138,7 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 		info, ok := android.OtherModuleProvider(ctx, m, android.CommonModuleInfoProvider)
 		// The module names listed in the PRODUCT_PACKAGES are the primary variants in soong, that
 		// we want to vefify here. Skip non-primary variants.
-		if !ok || !info.Enabled || info.SkipInstall || info.Host || info.IsNonPrimaryImageVariation {
+		if !ok || !info.Enabled || info.SkipInstall || info.NoFullInstall || info.Host || info.IsNonPrimaryImageVariation {
 			return
 		}
 

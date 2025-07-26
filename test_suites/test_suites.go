@@ -15,8 +15,6 @@
 package testsuites
 
 import (
-	"android/soong/android"
-	"android/soong/java"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -27,6 +25,9 @@ import (
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
+
+	"android/soong/android"
+	"android/soong/java"
 )
 
 var (
@@ -152,7 +153,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 			testSuiteSymbolsZipFile := android.PathForHostInstall(ctx, fmt.Sprintf("%s-symbols.zip", testSuite))
 			testSuiteMergedMappingProtoFile := android.PathForHostInstall(ctx, fmt.Sprintf("%s-symbols-mapping.textproto", testSuite))
 			allTestModules := files[testSuite].testModules()
-			allTestModulesOrProxy := make([]android.ModuleOrProxy, 0, len(allTestModules))
+			allTestModulesOrProxy := make([]android.ModuleProxy, 0, len(allTestModules))
 			for _, m := range allTestModules {
 				allTestModulesOrProxy = append(allTestModulesOrProxy, m)
 			}

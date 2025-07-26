@@ -1005,7 +1005,7 @@ type ProguardZips struct {
 	UsageZip    android.Path
 }
 
-func BuildProguardZips(ctx android.ModuleContext, modules []android.ModuleOrProxy) ProguardZips {
+func BuildProguardZips(ctx android.ModuleContext, modules []android.ModuleProxy) ProguardZips {
 	dictZip := android.PathForModuleOut(ctx, "proguard-dict.zip")
 	dictZipBuilder := android.NewRuleBuilder(pctx, ctx)
 	dictZipCmd := dictZipBuilder.Command().BuiltTool("soong_zip").Flag("-d").FlagWithOutput("-o ", dictZip)

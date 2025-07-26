@@ -62,7 +62,7 @@ func DumpMakeVars(ctx Context, config Config, goals, vars []string) (map[string]
 		defer os.RemoveAll(tmpDir)
 
 		SetupLitePath(ctx, config, tmpDir)
-		SetProductReleaseConfigMaps(ctx, config)
+		SetProductReleaseConfigMaps(ctx, config, QueryProductReleaseConfigMaps(ctx, config))
 
 		ret, err = dumpMakeVars(ctx, config, goals, makeVars, false, tmpDir)
 		if err != nil {
