@@ -1199,7 +1199,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			j.dexpreopter.disableDexpreopt()
 		}
 	}
-	javaInfo := j.compile(ctx, nil, nil, nil, nil)
+	javaInfo := j.compile(ctx)
 
 	j.setInstallRules(ctx)
 
