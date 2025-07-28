@@ -15,10 +15,17 @@
 package cc
 
 import (
+	"fmt"
+	"path/filepath"
+	"slices"
+	"sort"
+	"strings"
 	"sync"
 
 	"android/soong/android"
 	"android/soong/cc/config"
+
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -26,10 +33,10 @@ var (
 	lsdumpKey       = android.NewOnceKey("lsdump")
 )
 
-func lsdumpPaths(config android.Config) *[]string {
+func lsdumpPaths(config android.Config) *[]taggedLsDump {
 	return config.Once(lsdumpKey, func() any {
-		return &[]string{}
-	}).(*[]string)
+		return &[]taggedLsDump{}
+	}).(*[]taggedLsDump)
 }
 
 type lsdumpTag string
@@ -52,6 +59,11 @@ func (tag *lsdumpTag) dirName() string {
 	default:
 		return ""
 	}
+}
+
+type taggedLsDump struct {
+	tag      lsdumpTag
+	dumpFile android.Path
 }
 
 // Properties for ABI compatibility checker in Android.bp.
@@ -295,11 +307,158 @@ func (s *sabiTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, varia
 	}
 }
 
-// Add an entry to the global list of lsdump. The list is exported to a Make variable by
-// `cc.makeVarsProvider`.
-func addLsdumpPath(config android.Config, lsdumpPath string) {
+// Add an entry to the global list of lsdump. Any prebuilt lsdump files that aren't also
+// available when building from source (as determined by this list) will trigger an error in
+// check-abi-dump-list.
+func addLsdumpPath(config android.Config, tag lsdumpTag, lsdumpPath android.Path) {
 	lsdumpPaths := lsdumpPaths(config)
 	lsdumpPathsLock.Lock()
 	defer lsdumpPathsLock.Unlock()
-	*lsdumpPaths = append(*lsdumpPaths, lsdumpPath)
+	*lsdumpPaths = append(*lsdumpPaths, taggedLsDump{
+		tag:      tag,
+		dumpFile: lsdumpPath,
+	})
+}
+
+func checkAbiDumpList(ctx android.SingletonContext, stubLibraries []string) {
+	lsdumpPaths := *lsdumpPaths(ctx.Config())
+	// Need to sort lsdumpPaths because many threads add to it in a random order
+	sort.Slice(lsdumpPaths, func(i, j int) bool {
+		tagCompare := strings.Compare(string(lsdumpPaths[i].tag), string(lsdumpPaths[j].tag))
+		if tagCompare < 0 {
+			return true
+		}
+		if tagCompare > 0 {
+			return false
+		}
+		return lsdumpPaths[i].dumpFile.String() < lsdumpPaths[j].dumpFile.String()
+	})
+
+	// A python script that the build tells people to run expects this file in this location.
+	// TODO(b/434265259): Move to out/soong/lsdump_paths.txt
+	// https://source.corp.google.com/h/googleplex-android/platform/superproject/main/+/main:development/vndk/tools/header-checker/utils/utils.py;l=197;drc=75fa01f5270c0cb4e2251867deed347012a47864
+	lsdumpPathsFile := android.PathForDeviceFirstInstall(ctx, "lsdump_paths.txt")
+	var lsdumpPathsFileContent strings.Builder
+	for _, lsdump := range lsdumpPaths {
+		lsdumpPathsFileContent.WriteString(string(lsdump.tag))
+		lsdumpPathsFileContent.WriteString(": ")
+		lsdumpPathsFileContent.WriteString(lsdump.dumpFile.String())
+		lsdumpPathsFileContent.WriteString("\n")
+	}
+	android.WriteFileRuleVerbatim(ctx, lsdumpPathsFile, lsdumpPathsFileContent.String())
+
+	ctx.Phony("findlsdumps_APEX", lsdumpPathsFile)
+	ctx.Phony("findlsdumps_LLNDK", lsdumpPathsFile)
+	ctx.Phony("findlsdumps_PLATFORM", lsdumpPathsFile)
+	for _, lsdump := range lsdumpPaths {
+		ctx.Phony("findlsdumps", lsdump.dumpFile)
+		switch lsdump.tag {
+		case apexLsdumpTag:
+			ctx.Phony("findlsdumps_APEX", lsdump.dumpFile)
+		case llndkLsdumpTag:
+			ctx.Phony("findlsdumps_APEX", lsdump.dumpFile)
+		case platformLsdumpTag:
+			ctx.Phony("findlsdumps_PLATFORM", lsdump.dumpFile)
+		}
+	}
+
+	// Check that all ABI reference dumps have corresponding APEX/LLNDK/PLATFORM libraries.
+	// Check for superfluous lsdump files. Since lsdumpPaths only covers the
+	// libraries that can be built from source in the current build, and prebuilts of
+	// Mainline modules may be in use, we also allow the libs in stubLibraries for
+	// platform ABIs.
+	// In addition, libRS is allowed because it's disabled for RISC-V.
+
+	// Ignore the lack of RELEASE_BOARD_API_LEVEL and use an empty string instead in that case,
+	// as make did.
+	boardApiLevel, _ := ctx.Config().GetBuildFlag("RELEASE_BOARD_API_LEVEL")
+	vndkAbiDumpDir := "prebuilts/abi-dumps/vndk/" + boardApiLevel
+	var platformAbiDumpDir string
+	if ctx.Config().PlatformSdkCodename() == "REL" {
+		platformAbiDumpDir = "prebuilts/abi-dumps/platform/" + ctx.Config().PlatformSdkVersion().String()
+	} else {
+		platformAbiDumpDir = "prebuilts/abi-dumps/platform/current"
+	}
+
+	vndkAbiDumps, err := ctx.GlobWithDeps(vndkAbiDumpDir+"/**/*.so.lsdump", nil)
+	if err != nil {
+		ctx.Errorf("%s", err)
+	}
+	platformAbiDumps, err := ctx.GlobWithDeps(platformAbiDumpDir+"/**/*.so.lsdump", nil)
+	if err != nil {
+		ctx.Errorf("%s", err)
+	}
+	vndkAbiDumpNames := make([]string, 0, len(vndkAbiDumps))
+	for _, vndkAbiDump := range vndkAbiDumps {
+		vndkAbiDumpNames = append(vndkAbiDumpNames, filepath.Base(vndkAbiDump))
+	}
+	platformAbiDumpNames := make([]string, 0, len(platformAbiDumps))
+	for _, platformAbiDump := range platformAbiDumps {
+		platformAbiDumpNames = append(platformAbiDumpNames, filepath.Base(platformAbiDump))
+	}
+
+	replacer := strings.NewReplacer(
+		".so.apex.lsdump", ".so.lsdump", ".so.llndk.lsdump", ".so.lsdump")
+	abiDumpNames := func(tags []lsdumpTag) map[string]bool {
+		result := make(map[string]bool)
+		for _, lsdump := range lsdumpPaths {
+			if slices.Contains(tags, lsdump.tag) {
+				name := lsdump.dumpFile.Base()
+				result[replacer.Replace(name)] = true
+			}
+		}
+		result["libRS.so.lsdump"] = true
+		return result
+	}
+
+	getAddedAbiDumps := func(tags []lsdumpTag, toFilter []string) []string {
+		toRemove := abiDumpNames(tags)
+		return android.FilterListPred(toFilter, func(s string) bool {
+			_, ok := toRemove[s]
+			return !ok
+		})
+	}
+
+	var errorMsg string
+	addedVndkAbiDumps := getAddedAbiDumps([]lsdumpTag{llndkLsdumpTag}, vndkAbiDumpNames)
+	if len(addedVndkAbiDumps) > 0 {
+		errorMsg += fmt.Sprintf("Found unexpected ABI reference dump files under %s. It is caused by mismatch between Android.bp and the dump files. Run `find ${ANDROID_BUILD_TOP}/%s '(' -name %s ')' -delete` to delete the dump files.\n", vndkAbiDumpDir, vndkAbiDumpDir, strings.Join(addedVndkAbiDumps, " -or -name "))
+	}
+
+	// TODO(b/314010764): Remove LLNDK tag after PLATFORM_SDK_VERSION is upgraded to 35.
+	addedPlatformAbiDumps := getAddedAbiDumps([]lsdumpTag{apexLsdumpTag, llndkLsdumpTag, platformLsdumpTag}, platformAbiDumpNames)
+	stubLibrariesMap := make(map[string]bool)
+	for _, s := range stubLibraries {
+		stubLibrariesMap[s+".lsdump"] = true
+	}
+	addedPlatformAbiDumps = android.FilterListPred(addedPlatformAbiDumps, func(s string) bool {
+		_, ok := stubLibrariesMap[s]
+		return !ok
+	})
+	if len(addedPlatformAbiDumps) > 0 {
+		errorMsg += fmt.Sprintf("Found unexpected ABI reference dump files under %s. It is caused by mismatch between Android.bp and the dump files. Run `find ${ANDROID_BUILD_TOP}/%s '(' -name %s ')' -delete` to delete the dump files.\n", platformAbiDumpDir, platformAbiDumpDir, strings.Join(addedPlatformAbiDumps, " -or -name "))
+	}
+
+	checkAbiDumpListTimestamp := android.PathForOutput(ctx, "check-abi-dump-list-timestamp")
+	if len(errorMsg) > 0 {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.ErrorRuleNoQuotes,
+			Output: checkAbiDumpListTimestamp,
+			Args: map[string]string{
+				"error": proptools.NinjaAndShellEscape(errorMsg),
+			},
+		})
+	} else {
+		ctx.Build(pctx, android.BuildParams{
+			Rule:   android.Touch,
+			Output: checkAbiDumpListTimestamp,
+		})
+	}
+
+	ctx.Phony("check-abi-dump-list", checkAbiDumpListTimestamp)
+
+	// The ABI tool does not support sanitizer and coverage builds.
+	if !ctx.DeviceConfig().ClangCoverageEnabled() && !ctx.Config().IsEnvTrue("SKIP_ABI_CHECKS") && len(ctx.Config().SanitizeDevice()) == 0 {
+		ctx.Phony("droidcore", checkAbiDumpListTimestamp)
+	}
 }
