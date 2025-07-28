@@ -111,6 +111,7 @@ type configImpl struct {
 	katiArgs        []string
 	ninjaArgs       []string
 	katiSuffix      string
+	useRkati        bool
 	targetDevice    string
 	targetDeviceDir string
 	sandboxConfig   *SandboxConfig
@@ -1780,8 +1781,11 @@ func (c *configImpl) HostPrebuiltTag() string {
 
 func (c *configImpl) KatiBin() string {
 	binName := "ckati"
+	if c.useRkati {
+		binName = "rkati"
+	}
 	if c.UseABFS() {
-		binName = "ckati-wrap"
+		binName += "-wrap"
 	}
 
 	return c.PrebuiltBuildTool(binName)
