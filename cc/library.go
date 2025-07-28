@@ -1595,7 +1595,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 						headerAbiChecker.Exclude_symbol_tags,
 						nativeClampedApiLevel(ctx, sdkVersion).String())
 				}
-				addLsdumpPath(ctx.Config(), string(tag)+":"+llndkDump.String())
+				addLsdumpPath(ctx.Config(), tag, llndkDump)
 			} else if tag == apexLsdumpTag {
 				if apexVariantDump == nil {
 					apexVariantDump = library.linkApexSAbiDumpFiles(ctx,
@@ -1604,12 +1604,12 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 						headerAbiChecker.Exclude_symbol_tags,
 						currSdkVersion)
 				}
-				addLsdumpPath(ctx.Config(), string(tag)+":"+apexVariantDump.String())
+				addLsdumpPath(ctx.Config(), tag, apexVariantDump)
 			} else {
 				if tag.dirName() == "" {
 					optInTags = append(optInTags, tag)
 				}
-				addLsdumpPath(ctx.Config(), string(tag)+":"+implDump.String())
+				addLsdumpPath(ctx.Config(), tag, implDump)
 			}
 		}
 
