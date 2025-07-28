@@ -60,6 +60,7 @@ bootstrap_go_package {
         "hiddenapi_singleton.go",
         "jacoco.go",
         "java.go",
+        "javac_check.go",
         "java_gob_enc.go",
         "jdeps.go",
         "java_resources.go",
