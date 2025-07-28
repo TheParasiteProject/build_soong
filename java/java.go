@@ -2859,7 +2859,7 @@ func (al *ApiLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	annoSrcJar := android.PathForModuleOut(ctx, ctx.ModuleName(), "anno.srcjar")
 
 	TransformJavaToClasses(ctx, al.stubsJarWithoutStaticLibs, 0, android.Paths{},
-		android.Paths{al.stubsSrcJar}, annoSrcJar, javacFlags, android.Paths{})
+		android.Paths{al.stubsSrcJar}, annoSrcJar, javacFlags, android.Paths{}, nil)
 
 	builder := android.NewRuleBuilder(pctx, ctx)
 	builder.Command().

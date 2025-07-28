@@ -90,7 +90,7 @@ func writeValueIfChanged(ctx Context, config Config, dir string, filename string
 // in.
 func runKati(ctx Context, config Config, extraSuffix string, args []string, envFunc func(*Environment)) {
 	executable := config.KatiBin()
-	// cKati arguments.
+	// Kati arguments.
 	args = append([]string{
 		// Instead of executing commands directly, generate a Ninja file.
 		"--ninja",
@@ -162,7 +162,7 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 		args = append(args, "--default_pool=local_pool")
 	}
 
-	cmd := Command(ctx, config, "ckati", executable, args...)
+	cmd := Command(ctx, config, "kati", executable, args...)
 
 	// Set up the nsjail sandbox.
 	cmd.Sandbox = katiSandbox
@@ -170,7 +170,7 @@ func runKati(ctx Context, config Config, extraSuffix string, args []string, envF
 	// Set up stdout and stderr.
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
-		ctx.Fatalln("Error getting output pipe for ckati:", err)
+		ctx.Fatalln("Error getting output pipe for kati:", err)
 	}
 	cmd.Stderr = cmd.Stdout
 
