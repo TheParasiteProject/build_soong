@@ -92,8 +92,13 @@ var hwasanFlags = []string{
 	"-C llvm-args=--aarch64-enable-global-isel-at-O=-1",
 	"-C llvm-args=-fast-isel=false",
 	"-C llvm-args=-instcombine-lower-dbg-declare=0",
-
+}
+var hwasanFlagsExtra = []string{
 	// Additional flags for HWASAN-ified Rust/C interop
+	"-C llvm-args=-hwasan-mapping-offset-dynamic=ifunc",
+}
+var hwasanFlagsDeprecated = []string{
+	// --hwasan-with-ifunc is replaced by -hwasan-mapping-offset-dynamic=ifunc in LLVM 20
 	"-C llvm-args=--hwasan-with-ifunc",
 }
 
@@ -242,6 +247,11 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags, deps PathDeps) (
 
 	if Bool(sanitize.Properties.Sanitize.Hwaddress) {
 		flags.RustFlags = append(flags.RustFlags, hwasanFlags...)
+		if config.GetRustVersion(ctx) >= "1.87" {
+			flags.RustFlags = append(flags.RustFlags, hwasanFlagsExtra...)
+		} else {
+			flags.RustFlags = append(flags.RustFlags, hwasanFlagsDeprecated...)
+		}
 	}
 
 	if Bool(sanitize.Properties.Sanitize.Address) {
