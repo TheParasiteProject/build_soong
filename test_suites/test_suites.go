@@ -474,7 +474,6 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 			if strings.HasPrefix(f.String(), hostOutTestCases.String()) {
 				testsZipCmdHostFileInputContent = append(testsZipCmdHostFileInputContent, f.String())
 				testsZipCmd.Implicit(f)
-
 			}
 		}
 	}
@@ -495,6 +494,13 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 					symlinkTargetPrefix = "../../../lib"
 				}
 
+				// the symlink could be referenced by multiple modules, so
+				// they still need to be compiled in the soong_zip command
+				// if they're already deduplicated.
+				testsZipCmd.FlagWithArg("-C ", intermediatesDirForSuite.String())
+				testsZipCmd.FlagWithArg("-P ", fmt.Sprintf("host/testcases/%s/", moduleName))
+				testsZipCmd.FlagWithInput("-f ", symlink)
+
 				if _, exists := seen[symlink.String()]; exists {
 					continue
 				}
@@ -506,14 +512,11 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 						"fromPath": fmt.Sprintf("%s/%s", symlinkTargetPrefix, common.Base()),
 					},
 				})
-				testsZipCmd.FlagWithArg("-C ", intermediatesDirForSuite.String())
-				testsZipCmd.FlagWithArg("-P ", fmt.Sprintf("host/testcases/%s/", moduleName))
-				testsZipCmd.FlagWithInput("-f ", symlink)
 			}
 		}
 	}
 
-	android.WriteFileRule(ctx, testsZipCmdHostFileInput, strings.Join(testsZipCmdHostFileInputContent, " "))
+	android.WriteFileRule(ctx, testsZipCmdHostFileInput, strings.Join(testsZipCmdHostFileInputContent, "\n"))
 
 	testsZipCmd.
 		FlagWithArg("-P ", "host").
@@ -524,7 +527,6 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 	testsConfigsZipCmd.
 		FlagWithArg("-P ", "target").
 		FlagWithArg("-C ", targetOut)
-
 	for _, f := range files {
 		if strings.HasPrefix(f.String(), targetOutTestCases.String()) {
 			testsZipCmdTargetFileInputContent = append(testsZipCmdTargetFileInputContent, f.String())
@@ -537,7 +539,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 		}
 	}
 
-	android.WriteFileRule(ctx, testsZipCmdTargetFileInput, strings.Join(testsZipCmdTargetFileInputContent, " "))
+	android.WriteFileRule(ctx, testsZipCmdTargetFileInput, strings.Join(testsZipCmdTargetFileInputContent, "\n"))
 	testsZipCmd.FlagWithInput("-l ", testsZipCmdTargetFileInput)
 
 	if len(suiteConfig.hostJavaToolFiles) > 0 {
