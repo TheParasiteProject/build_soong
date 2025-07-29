@@ -69,19 +69,27 @@ var (
 		},
 		"rustdocFlags", "outDir", "envVars")
 
-	_            = pctx.SourcePathVariable("clippyCmd", "${config.RustBin}/clippy-driver")
-	clippyDriver = pctx.AndroidStaticRule("clippy",
-		blueprint.RuleParams{
-			Command: "$envVars ${RustcWrapper} $clippyCmd " +
-				// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
-				// Use the metadata output as it has the smallest footprint.
-				"--emit metadata -o $out --emit dep-info=$out.d.raw $in ${libFlags} " +
-				"$rustcFlags $clippyFlags",
-			CommandDeps: []string{"$clippyCmd", "${RustcWrapper}"},
-			Deps:        blueprint.DepsGCC,
-			Depfile:     "$out.d",
-		},
-		"rustcFlags", "libFlags", "clippyFlags", "envVars")
+	_                  = pctx.SourcePathVariable("clippyCmd", "${config.RustBin}/clippy-driver")
+	generateClippyRule = func(ruleName string, extraFlags string) blueprint.Rule {
+		return pctx.AndroidStaticRule(ruleName,
+			blueprint.RuleParams{
+				Command: "$envVars ${RustcWrapper} $clippyCmd " +
+					// Because clippy-driver uses rustc as backend, we need to have some output even during the linting.
+					// Use the metadata output as it has the smallest footprint.
+					"--emit metadata -o $out --emit dep-info=$out.d.raw $in ${libFlags} " +
+					"$rustcFlags $clippyFlags " + extraFlags,
+				CommandDeps: []string{"$clippyCmd", "${RustcWrapper}"},
+				Deps:        blueprint.DepsGCC,
+				Depfile:     "$out.d",
+			},
+			"rustcFlags", "libFlags", "clippyFlags", "envVars")
+	}
+	clippyDriver = generateClippyRule("clippy", "")
+
+	// Same as clippyDriver, but outputting any errors or warnings in a JSON schema to a
+	// $out.error file. This file will then be parsed by rust_check.py to provide clippy-driver
+	// errors and warnings to rust-analyzer.
+	clippyJsonDriver = generateClippyRule("clippyJson", "--error-format=json 2> $out.error")
 
 	zip = pctx.AndroidStaticRule("zip",
 		blueprint.RuleParams{
@@ -480,7 +488,23 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 	if !t.synthetic {
 		// Only worry about clippy for actual Rust modules.
 		// Libraries built from cc use generated source, and don't need to run clippy.
+		checkJsonFile := android.PathForModuleOut(ctx, outputFile.Base()+".checkJson")
+
+		args := map[string]string{
+			"rustcFlags":  strings.Join(rustcFlags, " "),
+			"libFlags":    strings.Join(libFlags, " "),
+			"clippyFlags": strings.Join(flags.ClippyFlags, " "),
+			"envVars":     rustStringifyEnvVars(envVars),
+		}
 		if flags.Clippy {
+			ctx.Build(pctx, android.BuildParams{
+				Rule:        clippyJsonDriver,
+				Description: "clippy check json " + main.Rel(),
+				Output:      checkJsonFile,
+				Inputs:      inputs,
+				Implicits:   implicits,
+				Args:        args,
+			})
 			clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
 			ctx.Build(pctx, android.BuildParams{
 				Rule:            clippyDriver,
@@ -490,12 +514,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 				Inputs:          inputs,
 				Implicits:       implicits,
 				OrderOnly:       orderOnly,
-				Args: map[string]string{
-					"rustcFlags":  strings.Join(rustcFlags, " "),
-					"libFlags":    strings.Join(libFlags, " "),
-					"clippyFlags": strings.Join(flags.ClippyFlags, " "),
-					"envVars":     rustStringifyEnvVars(envVars),
-				},
+				Args:            args,
 			})
 			// Declare the clippy build as an implicit dependency of the original crate.
 			implicits = append(implicits, clippyFile)
