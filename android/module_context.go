@@ -346,14 +346,14 @@ var _ ModuleContext = &moduleContext{}
 
 func (m *moduleContext) ninjaError(params BuildParams, err error) (PackageContext, BuildParams) {
 	return pctx, BuildParams{
-		Rule:            ErrorRule,
+		Rule:            errorRule,
 		Description:     params.Description,
 		Output:          params.Output,
 		Outputs:         params.Outputs,
 		ImplicitOutput:  params.ImplicitOutput,
 		ImplicitOutputs: params.ImplicitOutputs,
 		Args: map[string]string{
-			"error": err.Error(),
+			"error": proptools.NinjaAndShellEscape(err.Error()),
 		},
 	}
 }

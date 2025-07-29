@@ -1972,7 +1972,9 @@ func TestEmptyWholeStaticLibsAllowMissingDependencies(t *testing.T) {
 	).RunTestWithBp(t, bp)
 
 	libbar := result.ModuleForTests(t, "libbar", "android_arm64_armv8-a_static").Output("libbar.a")
-	android.AssertDeepEquals(t, "libbar rule", android.ErrorRule, libbar.Rule)
+	if !android.IsErrorRule(libbar.Rule) {
+		t.Errorf("libbar rule was not an error rule")
+	}
 
 	android.AssertStringDoesContain(t, "libbar error", libbar.Args["error"], "missing dependencies: libmissing")
 

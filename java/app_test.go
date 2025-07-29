@@ -2477,7 +2477,7 @@ func TestCertificates(t *testing.T) {
 			android.AssertPathRelativeToTopEquals(t, "certificates pem", test.expectedCertificate+".x509.pem", certificate.Pem)
 
 			signapk := foo.Output("foo.apk")
-			if signapk.Rule != android.ErrorRule {
+			if !android.IsErrorRule(signapk.Rule) {
 				signCertificateFlags := signapk.Args["certificates"]
 				expectedFlags := certificate.Pem.String() + " " + certificate.Key.String()
 				android.AssertStringEquals(t, "certificates flags", expectedFlags, signCertificateFlags)
@@ -4409,7 +4409,7 @@ func TestAppMissingCertificateAllowMissingDependencies(t *testing.T) {
 
 	foo := result.ModuleForTests(t, "foo", "android_common")
 	fooApk := foo.Output("foo.apk")
-	if fooApk.Rule != android.ErrorRule {
+	if !android.IsErrorRule(fooApk.Rule) {
 		t.Fatalf("expected ErrorRule for foo.apk, got %s", fooApk.Rule.String())
 	}
 	android.AssertStringDoesContain(t, "expected error rule message", fooApk.Args["error"], "missing dependencies: missing_certificate\n")

@@ -553,11 +553,11 @@ func (r *RuleBuilder) build(name string, desc string) {
 
 	if len(r.missingDeps) > 0 {
 		r.ctx.Build(r.pctx, BuildParams{
-			Rule:        ErrorRule,
+			Rule:        errorRule,
 			Outputs:     r.Outputs(),
 			Description: desc,
 			Args: map[string]string{
-				"error": "missing dependencies: " + strings.Join(r.missingDeps, ", "),
+				"error": proptools.NinjaAndShellEscape("missing dependencies: " + strings.Join(r.missingDeps, ", ")),
 			},
 		})
 		return
