@@ -235,12 +235,5 @@ func missingReferencesRule(ctx BuilderContext, m ModuleProxy, genInfo *GenNotice
 		panic(fmt.Errorf("missing references rule requested with no missing references"))
 	}
 
-	ctx.Build(pctx, BuildParams{
-		Rule:        ErrorRule,
-		Output:      genInfo.Output,
-		Description: "notice for " + proptools.StringDefault(genInfo.ArtifactName, "container"),
-		Args: map[string]string{
-			"error": m.Name() + " references missing module(s): " + strings.Join(genInfo.Missing, ", "),
-		},
-	})
+	ErrorRule(ctx, genInfo.Output, m.Name()+" references missing module(s): "+strings.Join(genInfo.Missing, ", "))
 }

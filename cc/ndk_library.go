@@ -402,17 +402,11 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 	missingPrebuiltErrorTemplate :=
 		"Did not find prebuilt ABI dump for %q (%q). Generate with " +
 			"//development/tools/ndk/update_ndk_abi.sh."
-	missingPrebuiltError := fmt.Sprintf(
-		missingPrebuiltErrorTemplate, this.libraryName(ctx),
-		prebuiltAbiDump.InvalidReason())
 	if !prebuiltAbiDump.Valid() {
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.ErrorRule,
-			Output: abiDiffPath,
-			Args: map[string]string{
-				"error": missingPrebuiltError,
-			},
-		})
+		missingPrebuiltError := fmt.Sprintf(
+			missingPrebuiltErrorTemplate, this.libraryName(ctx),
+			prebuiltAbiDump.InvalidReason())
+		android.ErrorRule(ctx, abiDiffPath, missingPrebuiltError)
 	} else {
 		ctx.Build(pctx, android.BuildParams{
 			Rule: stgdiff,
@@ -458,13 +452,7 @@ func (this *stubDecorator) diffAbi(ctx ModuleContext) {
 			missingNextPrebuiltError := fmt.Sprintf(
 				missingPrebuiltErrorTemplate, this.libraryName(ctx),
 				nextAbiDump.InvalidReason())
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.ErrorRule,
-				Output: nextAbiDiffPath,
-				Args: map[string]string{
-					"error": missingNextPrebuiltError,
-				},
-			})
+			android.ErrorRule(ctx, nextAbiDiffPath, missingNextPrebuiltError)
 		} else {
 			ctx.Build(pctx, android.BuildParams{
 				Rule: stgdiff,

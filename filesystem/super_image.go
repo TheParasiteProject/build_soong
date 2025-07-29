@@ -307,13 +307,7 @@ func (s *superImage) buildMiscInfo(ctx android.ModuleContext, superEmpty bool) (
 	// BOARD_GOOGLE_DYNAMIC_PARTITIONS_PARTITION_LIST.
 	missingPartitionErrorMessageFile := android.PathForModuleOut(ctx, "missing_partition_error.txt")
 	if missingPartitionErrorMessage != "" {
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.ErrorRule,
-			Output: missingPartitionErrorMessageFile,
-			Args: map[string]string{
-				"error": missingPartitionErrorMessage,
-			},
-		})
+		android.ErrorRule(ctx, missingPartitionErrorMessageFile, missingPartitionErrorMessage)
 	} else {
 		ctx.Build(pctx, android.BuildParams{
 			Rule:   android.Touch,

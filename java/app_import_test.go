@@ -1049,7 +1049,7 @@ func TestAppImportMissingCertificateAllowMissingDependencies(t *testing.T) {
 
 	foo := result.ModuleForTests(t, "foo", "android_common")
 	fooApk := foo.Output("signed/foo.apk")
-	if fooApk.Rule != android.ErrorRule {
+	if !android.IsErrorRule(fooApk.Rule) {
 		t.Fatalf("expected ErrorRule for foo.apk, got %s", fooApk.Rule.String())
 	}
 	android.AssertStringDoesContain(t, "expected error rule message", fooApk.Args["error"], "missing dependencies: missing_certificate\n")

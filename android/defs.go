@@ -16,6 +16,7 @@ package android
 
 import (
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/proptools"
 )
 
 var (
@@ -113,17 +114,10 @@ var (
 		},
 		"fromPath")
 
-	ErrorRule = pctx.AndroidStaticRule("Error",
-		blueprint.RuleParams{
-			Command:     `echo "$error" && false`,
-			Description: "error building $out",
-		},
-		"error")
-
-	// TODO(b/434265259): Dedup this with ErrorRule. I needed a version that doesn't put $error in
-	// double quotes because that doesn't properly escape backticks.
-	// This rule should always be used with proptools.NinjaAndShellEscape() on the error message.
-	ErrorRuleNoQuotes = pctx.AndroidStaticRule("ErrorNoQuotes",
+	// A rule that always fails at execution time with the given error message.
+	// The error message must be passed through proptools.NinjaAndShellEscape() first.
+	// Calling ErrorRule() will do that for you and use this rule.
+	errorRule = pctx.AndroidStaticRule("Error",
 		blueprint.RuleParams{
 			Command:     `echo $error && false`,
 			Description: "error building $out",
@@ -191,4 +185,22 @@ func CopyFileRule(ctx ModuleContext, path Path, outPath OutputPath) {
 		Output:      outPath,
 		Description: "copy " + outPath.Base(),
 	})
+}
+
+// ErrorRule creates a ninja action that fails to build the given file, failing with the
+// provided error message.
+func ErrorRule(ctx BuilderContext, path WritablePath, msg string) {
+	ctx.Build(pctx, BuildParams{
+		Rule:   errorRule,
+		Output: path,
+		Args: map[string]string{
+			"error": proptools.NinjaAndShellEscape(msg),
+		},
+	})
+}
+
+// IsErrorRule returns true if the given rule was created by ErrorRuleFunc. Intended for use
+// in tests.
+func IsErrorRule(rule blueprint.Rule) bool {
+	return rule == errorRule
 }
