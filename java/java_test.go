@@ -539,7 +539,7 @@ func TestBinary(t *testing.T) {
 	barWrapperDeps := bar.Output("bar").Implicits.Strings()
 
 	libjni := ctx.ModuleForTests(t, "libjni", buildOS+"_x86_64_shared")
-	libjniSO := libjni.Rule("Cp").Output.String()
+	libjniSO := android.OtherModuleProviderOrDefault(ctx, libjni.Module(), android.InstallFilesProvider).InstallFiles[0].RelativeToTop().String()
 
 	// Test that the install binary wrapper depends on the installed jar file
 	if g, w := barWrapperDeps, barJar; !android.InList(w, g) {
