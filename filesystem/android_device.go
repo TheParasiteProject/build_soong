@@ -70,8 +70,8 @@ type PartitionNameProperties struct {
 }
 
 type DeviceProperties struct {
-	// Path to the prebuilt bootloader that would be copied to PRODUCT_OUT
-	Bootloader *string `android:"path"`
+	// Prebuilt bootloader module that would be copied to PRODUCT_OUT
+	Bootloader *string
 	// Path to android-info.txt file containing board specific info.
 	Android_info *string `android:"path"`
 	// If this is the "main" android_device target for the build, i.e. the one that gets built
@@ -174,6 +174,9 @@ type targetFilesMetadataDepTagType struct {
 type fileContextsDepTagType struct {
 	blueprint.BaseDependencyTag
 }
+type bootloaderDepTagType struct {
+	blueprint.BaseDependencyTag
+}
 type dtboDepTagType struct {
 	blueprint.BaseDependencyTag
 }
@@ -188,6 +191,7 @@ var superPartitionDepTag superPartitionDepTagType
 var filesystemDepTag partitionDepTagType
 var targetFilesMetadataDepTag targetFilesMetadataDepTagType
 var fileContextsDepTag fileContextsDepTagType
+var bootloaderDepTag bootloaderDepTagType
 var dtboDepTag dtboDepTagType
 var radioDepTag dtboDepTagType
 var ramdisk16kDepTag ramdisk16kDepTagType
@@ -221,6 +225,9 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddDependency(ctx.Module(), filesystemDepTag, vbmetaPartition)
 	}
 	a.addDepsForTargetFilesMetadata(ctx)
+	if a.deviceProps.Bootloader != nil {
+		ctx.AddDependency(ctx.Module(), bootloaderDepTag, *a.deviceProps.Bootloader)
+	}
 	if a.deviceProps.Dtbo_image != nil {
 		ctx.AddDependency(ctx.Module(), dtboDepTag, *a.deviceProps.Dtbo_image)
 	}
@@ -570,7 +577,15 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 				ctx.DistForGoal("droidcore-unbundled", file)
 			}
 		}
-
+		// bootloader
+		if a.deviceProps.Bootloader != nil {
+			bootloader := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Bootloader, bootloaderDepTag)
+			files := android.OutputFilesForModule(ctx, bootloader, "")
+			for _, file := range files {
+				// The bootloader files are disted stanadlone, outside img.zip
+				ctx.DistForGoal("droidcore-unbundled", file)
+			}
+		}
 	}
 }
 
@@ -731,7 +746,21 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 
 	builder.Command().Textf("mkdir -p %s/IMAGES", targetFilesDir.String())
 	if a.deviceProps.Bootloader != nil {
-		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Bootloader))).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
+		bootloader := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Bootloader, bootloaderDepTag)
+		if vbmetaPartitionInfo := android.OtherModuleProviderOrDefault(ctx, bootloader, vbmetaPartitionsProvider); len(vbmetaPartitionInfo) > 0 {
+			// Bootloader with AB ota partitions are copied to RADIO/ subdirectory.
+			// This matches the make implementation.
+			files := android.OutputFilesForModule(ctx, bootloader, "")
+			builder.Command().
+				Textf("mkdir -p %s/RADIO && cp -t %s/RADIO ", targetFilesDir, targetFilesDir).
+				Inputs(files)
+		} else {
+			bootloaderFile := android.OutputFilesForModule(ctx, bootloader, "")
+			if len(bootloaderFile) != 1 {
+				ctx.ModuleErrorf("Expected bootloader to be a single file")
+			}
+			builder.Command().Textf("cp ").Input(bootloaderFile[0]).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
+		}
 	}
 	if a.partitionProps.Boot_16k_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_16k_partition_name), filesystemDepTag)

@@ -22,8 +22,7 @@ import (
 
 type prebuiltRadioImg struct {
 	android.ModuleBase
-	properties       PrebuiltRadioImgProperties
-	vbmetaPartitions vbmetaPartitionInfos
+	properties PrebuiltRadioImgProperties
 }
 
 type PrebuiltRadioImgProperties struct {
@@ -34,19 +33,6 @@ type PrebuiltRadioImgProperties struct {
 	Ab_ota_partitions []string
 
 	// Tool for unpacking radio.img
-	Unpack_tool *string `android:"path"`
-
-	Bootloader PrebuiltBootloaderProperties
-}
-
-type PrebuiltBootloaderProperties struct {
-	Src *string `android:"path"`
-	// List of OTA updatable partitions of bootloader.img.
-	// These will be unpacked from bootloader.img and added to the list
-	// of partitions to be updated.
-	Ab_ota_partitions []string
-
-	// Tool for unpacking bootloader.img
 	Unpack_tool *string `android:"path"`
 }
 
@@ -62,10 +48,8 @@ func (p *prebuiltRadioImg) GenerateAndroidBuildActions(ctx android.ModuleContext
 	input := android.PathForModuleSrc(ctx, proptools.String(p.properties.Src))
 	radioFiles = append(radioFiles, input)
 	radioFiles = append(radioFiles, p.partitionFiles(ctx)...)
-	radioFiles = append(radioFiles, p.partitionFilesBootloader(ctx)...)
 
 	ctx.SetOutputFiles(radioFiles, "")
-	android.SetProvider(ctx, vbmetaPartitionsProvider, p.vbmetaPartitions)
 }
 
 // Unpack a partition from a radio.img image and add them to
@@ -95,65 +79,4 @@ func (p *prebuiltRadioImg) partitionFiles(ctx android.ModuleContext) android.Pat
 	}
 	builder.Build("unpack_radio", "unpack_radio")
 	return radioFiles
-}
-
-// Unpack a partition from a bootloader.img and add them to
-// the list of partitions to be updated.
-func (p *prebuiltRadioImg) partitionFilesBootloader(ctx android.ModuleContext) android.Paths {
-	var files android.Paths
-	if p.properties.Bootloader.Src == nil {
-		return files
-	}
-	bootloader := android.PathForModuleSrc(ctx, proptools.String(p.properties.Bootloader.Src))
-	files = append(files, bootloader)
-
-	if len(p.properties.Bootloader.Ab_ota_partitions) == 0 {
-		return files
-	}
-	unpackedDir := android.PathForModuleOut(ctx, "unpack_bootloader")
-	builder := android.NewRuleBuilder(pctx, ctx).Sbox(
-		unpackedDir,
-		android.PathForModuleOut(ctx, "unpack_bootloader.textproto"),
-	)
-	for _, partition := range p.properties.Bootloader.Ab_ota_partitions {
-		unpackedImg := unpackedDir.Join(ctx, partition+".img")
-		cmd := builder.Command()
-		cmd.Input(android.PathForModuleSrc(ctx, proptools.String(p.properties.Bootloader.Unpack_tool))).
-			Flag(" unpack ").
-			Flag("-o ").
-			Textf("%s ", cmd.PathForOutput(unpackedDir)).
-			Input(bootloader).
-			Text(" " + partition).
-			ImplicitOutput(unpackedImg)
-
-		files = append(files, unpackedImg)
-		// avb signed
-		signed := p.avbAddHash(ctx, builder, partition, unpackedImg)
-		files = append(files, signed)
-		p.vbmetaPartitions = append(p.vbmetaPartitions, vbmetaPartitionInfo{
-			Name:                     partition,
-			Output:                   signed,
-			AbOtaBootloaderPartition: true,
-		})
-	}
-	builder.Build("unpack_bootloader", "unpack_bootloader")
-	return files
-}
-
-func (p *prebuiltRadioImg) avbAddHash(ctx android.ModuleContext, builder *android.RuleBuilder, partitionName string, unpackedPartition android.OutputPath) android.Path {
-	output := unpackedPartition.InSameDir(ctx, partitionName+"_vbfooted.img")
-	builder.Command().Text("cp").Input(unpackedPartition).Output(output)
-
-	cmd := builder.Command()
-	cmd.BuiltTool("avbtool").
-		Text("add_hash_footer").
-		FlagWithOutput("--image ", output).
-		FlagWithArg("--partition_name ", partitionName).
-		Textf(`--salt $(sha256sum "%s" "%s" | cut -d " " -f 1 | tr -d '\n')`, cmd.PathForInput(ctx.Config().BuildNumberFile(ctx)), cmd.PathForInput(ctx.Config().BuildDateFile(ctx))).
-		OrderOnly(ctx.Config().BuildNumberFile(ctx)).OrderOnly(ctx.Config().BuildDateFile(ctx))
-
-	vbmetaPaddingSize := 64*1024 + 4096
-	cmd.Textf("--partition_size $(( %d + (( $(stat -c %%s %s) - 1) / 4096 + 1) * 4096 ))", vbmetaPaddingSize, cmd.PathForOutput(unpackedPartition))
-
-	return output
 }
