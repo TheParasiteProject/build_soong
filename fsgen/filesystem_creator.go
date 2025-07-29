@@ -548,16 +548,16 @@ func (f *filesystemCreator) createDeviceModule(
 }
 
 func createRadioImg(ctx android.LoadHookContext) string {
-	radioFilePath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.RadioFilePath
+	radioFilePath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardRadioImagePath
 	if radioFilePath == "" {
 		return ""
 	}
-	if path := android.ExistentPathForSource(ctx, radioFilePath, "radio.img"); !path.Valid() {
+	if path := android.ExistentPathForSource(ctx, radioFilePath); !path.Valid() {
 		return ""
 	}
 	name := generatedModuleNameForPartition(ctx.Config(), "radio")
 	radioImgProps := filesystem.PrebuiltRadioImgProperties{
-		Src:               proptools.StringPtr(radioFilePath + "/radio.img"),
+		Src:               proptools.StringPtr(radioFilePath),
 		Ab_ota_partitions: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaRadioPartitions,
 		Unpack_tool:       proptools.StringPtr(fmt.Sprintf("vendor/google_devices/%s/prebuilts/misc_bins/unpack.py", proptools.String(ctx.Config().ProductVariables().BoardPlatform))),
 	}
