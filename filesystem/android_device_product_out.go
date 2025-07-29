@@ -106,13 +106,17 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 
 	// List all individual files to be copied to PRODUCT_OUT here
 	if a.deviceProps.Bootloader != nil {
-		bootloaderInstallPath := android.PathForModuleInPartitionInstall(ctx, "", "bootloader")
-		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Input:  android.PathForModuleSrc(ctx, *a.deviceProps.Bootloader),
-			Output: bootloaderInstallPath,
-		})
-		deps = append(deps, bootloaderInstallPath)
+		bootloader := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Bootloader, bootloaderDepTag)
+		files := android.OutputFilesForModule(ctx, bootloader, "")
+		for _, file := range files {
+			installPath := android.PathForModuleInPartitionInstall(ctx, "", file.Base())
+			ctx.Build(pctx, android.BuildParams{
+				Rule:   android.Cp,
+				Input:  file,
+				Output: installPath,
+			})
+			deps = append(deps, installPath)
+		}
 	}
 
 	copyBootImg := func(prop *string, type_ string) {

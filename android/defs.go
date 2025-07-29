@@ -120,6 +120,16 @@ var (
 		},
 		"error")
 
+	// TODO(b/434265259): Dedup this with ErrorRule. I needed a version that doesn't put $error in
+	// double quotes because that doesn't properly escape backticks.
+	// This rule should always be used with proptools.NinjaAndShellEscape() on the error message.
+	ErrorRuleNoQuotes = pctx.AndroidStaticRule("ErrorNoQuotes",
+		blueprint.RuleParams{
+			Command:     `echo $error && false`,
+			Description: "error building $out",
+		},
+		"error")
+
 	Cat = pctx.AndroidStaticRule("Cat",
 		blueprint.RuleParams{
 			Command:     "rm -f $out && cat $in > $out",

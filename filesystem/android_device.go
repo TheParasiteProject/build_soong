@@ -70,8 +70,8 @@ type PartitionNameProperties struct {
 }
 
 type DeviceProperties struct {
-	// Path to the prebuilt bootloader that would be copied to PRODUCT_OUT
-	Bootloader *string `android:"path"`
+	// Prebuilt bootloader module that would be copied to PRODUCT_OUT
+	Bootloader *string
 	// Path to android-info.txt file containing board specific info.
 	Android_info *string `android:"path"`
 	// If this is the "main" android_device target for the build, i.e. the one that gets built
@@ -174,6 +174,9 @@ type targetFilesMetadataDepTagType struct {
 type fileContextsDepTagType struct {
 	blueprint.BaseDependencyTag
 }
+type bootloaderDepTagType struct {
+	blueprint.BaseDependencyTag
+}
 type dtboDepTagType struct {
 	blueprint.BaseDependencyTag
 }
@@ -188,6 +191,7 @@ var superPartitionDepTag superPartitionDepTagType
 var filesystemDepTag partitionDepTagType
 var targetFilesMetadataDepTag targetFilesMetadataDepTagType
 var fileContextsDepTag fileContextsDepTagType
+var bootloaderDepTag bootloaderDepTagType
 var dtboDepTag dtboDepTagType
 var radioDepTag dtboDepTagType
 var ramdisk16kDepTag ramdisk16kDepTagType
@@ -221,6 +225,9 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 		ctx.AddDependency(ctx.Module(), filesystemDepTag, vbmetaPartition)
 	}
 	a.addDepsForTargetFilesMetadata(ctx)
+	if a.deviceProps.Bootloader != nil {
+		ctx.AddDependency(ctx.Module(), bootloaderDepTag, *a.deviceProps.Bootloader)
+	}
 	if a.deviceProps.Dtbo_image != nil {
 		ctx.AddDependency(ctx.Module(), dtboDepTag, *a.deviceProps.Dtbo_image)
 	}
@@ -399,6 +406,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	a.checkVintf(ctx)
+	a.runApexSepolicyTests(ctx, allInstalledModules)
 	a.hostInitVerifierCheck(ctx)
 	a.findSharedUIDViolation(ctx)
 	a.checkPartitionSizes(ctx)
@@ -570,7 +578,15 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 				ctx.DistForGoal("droidcore-unbundled", file)
 			}
 		}
-
+		// bootloader
+		if a.deviceProps.Bootloader != nil {
+			bootloader := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Bootloader, bootloaderDepTag)
+			files := android.OutputFilesForModule(ctx, bootloader, "")
+			for _, file := range files {
+				// The bootloader files are disted stanadlone, outside img.zip
+				ctx.DistForGoal("droidcore-unbundled", file)
+			}
+		}
 	}
 }
 
@@ -731,7 +747,21 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 
 	builder.Command().Textf("mkdir -p %s/IMAGES", targetFilesDir.String())
 	if a.deviceProps.Bootloader != nil {
-		builder.Command().Textf("cp ").Input(android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Bootloader))).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
+		bootloader := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Bootloader, bootloaderDepTag)
+		if vbmetaPartitionInfo := android.OtherModuleProviderOrDefault(ctx, bootloader, vbmetaPartitionsProvider); len(vbmetaPartitionInfo) > 0 {
+			// Bootloader with AB ota partitions are copied to RADIO/ subdirectory.
+			// This matches the make implementation.
+			files := android.OutputFilesForModule(ctx, bootloader, "")
+			builder.Command().
+				Textf("mkdir -p %s/RADIO && cp -t %s/RADIO ", targetFilesDir, targetFilesDir).
+				Inputs(files)
+		} else {
+			bootloaderFile := android.OutputFilesForModule(ctx, bootloader, "")
+			if len(bootloaderFile) != 1 {
+				ctx.ModuleErrorf("Expected bootloader to be a single file")
+			}
+			builder.Command().Textf("cp ").Input(bootloaderFile[0]).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
+		}
 	}
 	if a.partitionProps.Boot_16k_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_16k_partition_name), filesystemDepTag)
@@ -1784,4 +1814,39 @@ func (a *androidDevice) createMonolithicVintfCompatibleLog(ctx android.ModuleCon
 
 	builder.Build("check_vintf_compatible", "check_vintf_compatible")
 	return checkVintfLog
+}
+
+func (a *androidDevice) runApexSepolicyTests(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
+	var installedApexes []android.ModuleProxy
+	for _, installedModule := range allInstalledModules {
+		if _, isApex := android.OtherModuleProvider(ctx, installedModule, android.ApexBundleInfoProvider); isApex {
+			installedApexes = append(installedApexes, installedModule)
+		}
+	}
+
+	var outputFiles android.Paths
+	for _, installedApex := range installedApexes {
+		apexName := ctx.OtherModuleName(installedApex)
+		outputFile := android.PathForModuleOut(ctx, "apex_sepolicy_tests", apexName, "pass.txt")
+		inputApex := android.OutputFileForModule(ctx, installedApex, "")
+		rule := android.NewRuleBuilder(pctx, ctx)
+		rule.Command().
+			BuiltTool("apex-ls").
+			Flag("-Z").
+			Input(inputApex).
+			Text("|").
+			BuiltTool("apex_sepolicy_tests").
+			Flag("--all").
+			FlagWithArg("-f ", "-")
+		rule.Command().
+			Text("touch").
+			Output(outputFile)
+		rule.Build("Run apex sepolicy test "+apexName, "run_apex_sepolicy_test_"+apexName)
+		outputFiles = append(outputFiles, outputFile)
+	}
+
+	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
+		ctx.Phony("run_apex_sepolicy_tests", outputFiles...)
+		ctx.Phony("droid_targets", android.PathForPhony(ctx, "run_apex_sepolicy_tests"))
+	}
 }

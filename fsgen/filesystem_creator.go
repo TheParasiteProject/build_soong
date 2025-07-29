@@ -133,6 +133,7 @@ type filesystemCreatorProps struct {
 	Init_boot_image          string `blueprint:"mutated" android:"path_device_first"`
 	Super_image              string `blueprint:"mutated" android:"path_device_first"`
 	Radio_image              string `blueprint:"mutated" android:"path_device_first"`
+	Bootloader               string `blueprint:"mutated" android:"path_device_first"`
 }
 
 type filesystemCreator struct {
@@ -326,6 +327,9 @@ func (f *filesystemCreator) createInternalModules(ctx android.LoadHookContext) {
 	if radioImgModuleName := createRadioImg(ctx); radioImgModuleName != "" {
 		f.properties.Radio_image = radioImgModuleName
 	}
+	if bootloader, ok := f.createBootloader(ctx); ok {
+		f.properties.Bootloader = bootloader
+	}
 
 	for _, x := range f.createVbmetaPartitions(ctx, partitions) {
 		f.properties.Vbmeta_module_names = append(f.properties.Vbmeta_module_names, x.moduleName)
@@ -368,24 +372,30 @@ func buildingSystemOtherImage(partitionVars android.PartitionVariables) bool {
 	return partitionVars.BuildingSystemOtherImage
 }
 
-func (f *filesystemCreator) createBootloaderFilegroup(ctx android.LoadHookContext) (string, bool) {
-	bootloaderPath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.PrebuiltBootloader
+func (f *filesystemCreator) createBootloader(ctx android.LoadHookContext) (string, bool) {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+	bootloaderPath := partitionVars.PrebuiltBootloader
+	if filePath := android.ExistentPathForSource(ctx, partitionVars.BootloaderFilePath, "bootloader.img"); filePath.Valid() {
+		bootloaderPath = filePath.String()
+	}
 	if len(bootloaderPath) == 0 {
 		return "", false
 	}
 
-	bootloaderFilegroupName := generatedModuleName(ctx.Config(), "bootloader")
-	filegroupProps := &struct {
-		Name       *string
-		Srcs       []string
-		Visibility []string
-	}{
-		Name:       proptools.StringPtr(bootloaderFilegroupName),
-		Srcs:       []string{bootloaderPath},
-		Visibility: []string{"//visibility:public"},
+	bootloaderModuleName := generatedModuleName(ctx.Config(), "bootloader")
+	bootloaderProps := filesystem.PrebuiltBootloaderProperties{
+		Src:               proptools.StringPtr(bootloaderPath),
+		Ab_ota_partitions: partitionVars.AbOtaBootloaderPartitions,
+		Unpack_tool:       proptools.StringPtr(fmt.Sprintf("vendor/google_devices/%s/prebuilts/misc_bins/fbimg/fbpacktool.py", proptools.String(ctx.Config().ProductVariables().BoardPlatform))),
 	}
-	ctx.CreateModuleInDirectory(android.FileGroupFactory, ".", filegroupProps)
-	return bootloaderFilegroupName, true
+	ctx.CreateModuleInDirectory(filesystem.PrebuiltBootloaderFactory, ".",
+		&struct {
+			Name *string
+		}{
+			Name: &bootloaderModuleName,
+		},
+		&bootloaderProps)
+	return bootloaderModuleName, true
 }
 
 func (f *filesystemCreator) createReleaseToolsFilegroup(ctx android.LoadHookContext) (string, bool) {
@@ -507,8 +517,8 @@ func (f *filesystemCreator) createDeviceModule(
 		Precompiled_sepolicy_without_vendor: proptools.StringPtr(":precompiled_sepolicy_without_vendor"),
 	}
 
-	if bootloader, ok := f.createBootloaderFilegroup(ctx); ok {
-		deviceProps.Bootloader = proptools.StringPtr(":" + bootloader)
+	if f.properties.Bootloader != "" {
+		deviceProps.Bootloader = &f.properties.Bootloader
 	}
 	if releaseTools, ok := f.createReleaseToolsFilegroup(ctx); ok {
 		deviceProps.Releasetools_extension = proptools.StringPtr(":" + releaseTools)
@@ -550,13 +560,6 @@ func createRadioImg(ctx android.LoadHookContext) string {
 		Src:               proptools.StringPtr(radioFilePath + "/radio.img"),
 		Ab_ota_partitions: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaRadioPartitions,
 		Unpack_tool:       proptools.StringPtr(fmt.Sprintf("vendor/google_devices/%s/prebuilts/misc_bins/unpack.py", proptools.String(ctx.Config().ProductVariables().BoardPlatform))),
-	}
-	if path := android.ExistentPathForSource(ctx, ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BootloaderFilePath, "bootloader.img"); path.Valid() {
-		radioImgProps.Bootloader = filesystem.PrebuiltBootloaderProperties{
-			Src:               proptools.StringPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BootloaderFilePath + "/bootloader.img"),
-			Ab_ota_partitions: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaBootloaderPartitions,
-			Unpack_tool:       proptools.StringPtr(fmt.Sprintf("vendor/google_devices/%s/prebuilts/misc_bins/fbimg/fbpacktool.py", proptools.String(ctx.Config().ProductVariables().BoardPlatform))),
-		}
 	}
 
 	ctx.CreateModuleInDirectory(

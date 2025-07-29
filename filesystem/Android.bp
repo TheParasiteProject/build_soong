@@ -24,6 +24,7 @@ bootstrap_go_package {
         "avb_gen_vbmeta_image.go",
         "bootimg.go",
         "bootconfig.go",
+        "bootloader.go",
         "boot_otas_16k.go",
         "check_partition_sizes.go",
         "dtboimg.go",

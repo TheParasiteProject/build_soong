@@ -80,6 +80,8 @@ func (s *stubLibraries) GenerateBuildActions(ctx android.SingletonContext) {
 	s.vendorStubLibraries = android.SortedKeys(vendorStubLibraryMap)
 
 	android.WriteFileRule(ctx, StubLibrariesFile(ctx), strings.Join(s.stubLibraries, " "))
+
+	checkAbiDumpList(ctx, s.stubLibraries)
 }
 
 func StubLibrariesFile(ctx android.PathContext) android.WritablePath {

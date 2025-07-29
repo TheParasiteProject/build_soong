@@ -326,6 +326,49 @@ func (s *superImage) buildMiscInfo(ctx android.ModuleContext, superEmpty bool) (
 	return miscInfo, deps, subImageInfo
 }
 
+func (s *superImage) filterMissingPartitions(ctx android.ModuleContext, partitionList []string) []string {
+	ret := []string{}
+	for _, p := range partitionList {
+		switch p {
+		case "system":
+			if s.partitionProps.System_partition != nil {
+				ret = append(ret, p)
+			}
+		case "system_dlkm":
+			if s.partitionProps.System_dlkm_partition != nil {
+				ret = append(ret, p)
+			}
+		case "system_ext":
+			if s.partitionProps.System_ext_partition != nil {
+				ret = append(ret, p)
+			}
+		case "product":
+			if s.partitionProps.Product_partition != nil {
+				ret = append(ret, p)
+			}
+		case "vendor":
+			if s.partitionProps.Vendor_partition != nil {
+				ret = append(ret, p)
+			}
+		case "vendor_dlkm":
+			if s.partitionProps.Vendor_dlkm_partition != nil {
+				ret = append(ret, p)
+			}
+		case "odm":
+			if s.partitionProps.Odm_partition != nil {
+				ret = append(ret, p)
+			}
+		case "odm_dlkm":
+			if s.partitionProps.Odm_dlkm_partition != nil {
+				ret = append(ret, p)
+			}
+		default:
+			ctx.ModuleErrorf("partition %q is not a super image supported partition", p)
+		}
+	}
+	return ret
+}
+
 func (s *superImage) dumpDynamicPartitionInfo(ctx android.ModuleContext, sb *strings.Builder) []string {
 	addStr := func(name string, value string) {
 		sb.WriteString(name)
@@ -354,7 +397,9 @@ func (s *superImage) dumpDynamicPartitionInfo(ctx android.ModuleContext, sb *str
 		groups = append(groups, groupInfo.Name)
 		partitionList = append(partitionList, groupInfo.PartitionList...)
 	}
-	addStr("dynamic_partition_list", strings.Join(android.SortedUniqueStrings(partitionList), " "))
+
+	partitionListFiltered := s.filterMissingPartitions(ctx, partitionList)
+	addStr("dynamic_partition_list", strings.Join(android.SortedUniqueStrings(partitionListFiltered), " "))
 	addStr("super_partition_groups", strings.Join(groups, " "))
 	initialPartitionListLen := len(partitionList)
 	partitionList = android.SortedUniqueStrings(partitionList)
@@ -364,7 +409,7 @@ func (s *superImage) dumpDynamicPartitionInfo(ctx android.ModuleContext, sb *str
 	// Add Partition group info after adding `super_partition_groups` and `dynamic_partition_list`
 	for _, groupInfo := range s.properties.Partition_groups {
 		addStr("super_"+groupInfo.Name+"_group_size", groupInfo.GroupSize)
-		addStr("super_"+groupInfo.Name+"_partition_list", strings.Join(groupInfo.PartitionList, " "))
+		addStr("super_"+groupInfo.Name+"_partition_list", strings.Join(s.filterMissingPartitions(ctx, groupInfo.PartitionList), " "))
 	}
 
 	if proptools.Bool(s.properties.Super_image_in_update_package) {
@@ -413,7 +458,7 @@ func (s *superImage) dumpDynamicPartitionInfo(ctx android.ModuleContext, sb *str
 		}
 	}
 
-	return partitionList
+	return partitionListFiltered
 }
 
 func (s *superImage) generateDynamicPartitionsInfo(ctx android.ModuleContext) android.Path {

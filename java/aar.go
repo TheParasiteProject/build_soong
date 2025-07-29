@@ -1082,22 +1082,19 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	writeCombinedProguardFlagsFile(ctx, combinedExportedProguardFlagFile, exportedProguardFlagsFiles)
 	a.combinedExportedProguardFlagsFile = combinedExportedProguardFlagFile
 
-	var extraSrcJars android.Paths
-	var extraCombinedJars android.Paths
-	var extraClasspathJars android.Paths
 	if a.useResourceProcessorBusyBox(ctx) {
 		// When building a library with ResourceProcessorBusyBox enabled ResourceProcessorBusyBox for this
 		// library and each of the transitive static android_library dependencies has already created an
 		// R.class file for the appropriate package.  Add all of those R.class files to the classpath.
-		extraClasspathJars = a.transitiveAaptRJars
+		a.Module.extraClasspathJars = append(a.Module.extraClasspathJars, a.transitiveAaptRJars...)
 	} else {
 		// When building a library without ResourceProcessorBusyBox the aapt2 rule creates R.srcjar containing
 		// R.java files for the library's package and the packages from all transitive static android_library
 		// dependencies.  Compile the srcjar alongside the rest of the sources.
-		extraSrcJars = android.Paths{a.aapt.aaptSrcJar}
+		a.Module.extraSrcJars = append(a.Module.extraSrcJars, a.aapt.aaptSrcJar)
 	}
 
-	javaInfo := a.Module.compile(ctx, extraSrcJars, extraClasspathJars, extraCombinedJars, nil)
+	javaInfo := a.Module.compile(ctx)
 
 	a.aarFile = android.PathForModuleOut(ctx, ctx.ModuleName()+".aar")
 	var res android.Paths
