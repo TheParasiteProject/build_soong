@@ -406,6 +406,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	}
 
 	a.checkVintf(ctx)
+	a.runApexSepolicyTests(ctx, allInstalledModules)
 	a.hostInitVerifierCheck(ctx)
 	a.findSharedUIDViolation(ctx)
 	a.checkPartitionSizes(ctx)
@@ -1813,4 +1814,39 @@ func (a *androidDevice) createMonolithicVintfCompatibleLog(ctx android.ModuleCon
 
 	builder.Build("check_vintf_compatible", "check_vintf_compatible")
 	return checkVintfLog
+}
+
+func (a *androidDevice) runApexSepolicyTests(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
+	var installedApexes []android.ModuleProxy
+	for _, installedModule := range allInstalledModules {
+		if _, isApex := android.OtherModuleProvider(ctx, installedModule, android.ApexBundleInfoProvider); isApex {
+			installedApexes = append(installedApexes, installedModule)
+		}
+	}
+
+	var outputFiles android.Paths
+	for _, installedApex := range installedApexes {
+		apexName := ctx.OtherModuleName(installedApex)
+		outputFile := android.PathForModuleOut(ctx, "apex_sepolicy_tests", apexName, "pass.txt")
+		inputApex := android.OutputFileForModule(ctx, installedApex, "")
+		rule := android.NewRuleBuilder(pctx, ctx)
+		rule.Command().
+			BuiltTool("apex-ls").
+			Flag("-Z").
+			Input(inputApex).
+			Text("|").
+			BuiltTool("apex_sepolicy_tests").
+			Flag("--all").
+			FlagWithArg("-f ", "-")
+		rule.Command().
+			Text("touch").
+			Output(outputFile)
+		rule.Build("Run apex sepolicy test "+apexName, "run_apex_sepolicy_test_"+apexName)
+		outputFiles = append(outputFiles, outputFile)
+	}
+
+	if !ctx.Config().KatiEnabled() && proptools.Bool(a.deviceProps.Main_device) {
+		ctx.Phony("run_apex_sepolicy_tests", outputFiles...)
+		ctx.Phony("droid_targets", android.PathForPhony(ctx, "run_apex_sepolicy_tests"))
+	}
 }
