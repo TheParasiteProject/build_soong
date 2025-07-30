@@ -800,6 +800,8 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 
 	// Compile classes.jar into classes.dex and then javalib.jar
 	javalibJar := android.PathForModuleOut(ctx, "dex", dexParams.jarName).OutputPath
+	javalibJarDepsPcState := android.PathForModuleOut(ctx, "dex", dexParams.jarName+".deps.pc_state").OutputPath
+	javalibJarInputPcState := android.PathForModuleOut(ctx, "dex", dexParams.jarName+".input.pc_state").OutputPath
 	cleanPhonyPath := android.PathForModuleOut(ctx, "dex", dexParams.jarName+"-partialcompileclean").OutputPath
 	outDir := android.PathForModuleOut(ctx, "dex")
 
@@ -902,6 +904,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			rule = d8IncR8
 			cleanupD8IncR8 = true
 			description = "d8IncR8"
+			implicitOutputs = append(implicitOutputs, javalibJarInputPcState, javalibJarDepsPcState)
 		// r8 is the selected rule, useD8 is the override
 		case useR8 && rule == r8:
 			rule = d8r8
@@ -912,6 +915,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			rule = d8IncR8RE
 			cleanupD8IncR8 = true
 			description = "d8IncR8"
+			implicitOutputs = append(implicitOutputs, javalibJarInputPcState, javalibJarDepsPcState)
 		// rbeR8 is the selected rule, useD8 is the override
 		case useR8 && rule == r8RE && rbeD8:
 			rule = d8r8RE
@@ -922,6 +926,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			rule = d8IncRE
 			cleanupD8Inc = true
 			description = "d8Inc"
+			implicitOutputs = append(implicitOutputs, javalibJarInputPcState, javalibJarDepsPcState)
 		// rbeD8 is the selected rule
 		case rbeD8:
 			rule = d8RE
@@ -930,6 +935,7 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 			rule = d8Inc
 			cleanupD8Inc = true
 			description = "d8Inc"
+			implicitOutputs = append(implicitOutputs, javalibJarInputPcState, javalibJarDepsPcState)
 		// D8 is the selected rule
 		default:
 			rule = d8

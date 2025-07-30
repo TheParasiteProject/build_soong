@@ -55,7 +55,7 @@ func (this *sbomSingleton) GenerateBuildActions(ctx SingletonContext) {
 	}
 	implicits := []Path{}
 	prodVars := ctx.Config().productVariables
-	buildFingerprintFile := PathForArbitraryOutput(ctx, "target", "product", String(prodVars.DeviceName), "build_fingerprint.txt")
+	buildFingerprintFile := ctx.Config().BuildFingerprintFile(ctx)
 	implicits = append(implicits, buildFingerprintFile)
 
 	// Add installed_files.stamp as implicit input, which depends on all installed files of the product.

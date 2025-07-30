@@ -2180,13 +2180,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// Create placeholder paths for later stages that expect to see those paths,
 			// though they won't be used.
 			var unusedPath = android.PathForModuleOut(ctx, "nonexistentprivatekey")
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.ErrorRule,
-				Output: unusedPath,
-				Args: map[string]string{
-					"error": "Private key not available",
-				},
-			})
+			android.ErrorRule(ctx, unusedPath, "Private key not available")
 			a.privateKeyFile = unusedPath
 		} else {
 			ctx.PropertyErrorf("key", "private_key for %q could not be found", String(a.overridableProperties.Key))
@@ -2201,13 +2195,7 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			// Create placeholder paths for later stages that expect to see those paths,
 			// though they won't be used.
 			var unusedPath = android.PathForModuleOut(ctx, "nonexistentpublickey")
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.ErrorRule,
-				Output: unusedPath,
-				Args: map[string]string{
-					"error": "Public key not available",
-				},
-			})
+			android.ErrorRule(ctx, unusedPath, "Public key not available")
 			a.publicKeyFile = unusedPath
 		} else {
 			ctx.PropertyErrorf("key", "public_key for %q could not be found", String(a.overridableProperties.Key))
@@ -2363,13 +2351,7 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module android.Mo
 			// targets (such as module SDK) do not need it. It is only needed when the APEX is being
 			// built. Therefore, we create an error rule so that an error will occur at the ninja phase
 			// only if the APEX is being built.
-			ctx.Build(pctx, android.BuildParams{
-				Rule:   android.ErrorRule,
-				Output: tempPath,
-				Args: map[string]string{
-					"error": "Boot image profile cannot be generated",
-				},
-			})
+			android.ErrorRule(ctx, tempPath, "Boot image profile cannot be generated")
 		}
 
 		androidMkModuleName := filepath.Base(pathInApex)
