@@ -536,7 +536,7 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 	}
 
 	// Generate classpaths.proto config
-	b.generateClasspathProtoBuildActions(ctx)
+	classpathProtoOutputPath := b.generateClasspathProtoBuildActions(ctx)
 
 	moduleInfoJSON := ctx.ModuleInfoJSON()
 	moduleInfoJSON.Class = []string{"FAKE"}
@@ -582,6 +582,9 @@ func (b *BootclasspathFragmentModule) GenerateAndroidBuildActions(ctx android.Mo
 		Fragments:               b.properties.Fragments,
 		ProfilePathOnHost:       b.profilePath,
 	})
+
+	ctx.ComplianceMetadataInfo().AddBuiltFiles(classpathProtoOutputPath.String())
+	ctx.ComplianceMetadataInfo().AddBuiltFiles(hiddenAPIOutput.EncodedBootDexFilesByModule.bootDexJars().Strings()...)
 }
 
 // getProfileProviderApex returns the name of the apex that provides a boot image profile, or an
@@ -627,7 +630,7 @@ func (b *BootclasspathFragmentModule) provideApexContentInfo(ctx android.ModuleC
 }
 
 // generateClasspathProtoBuildActions generates all required build actions for classpath.proto config
-func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx android.ModuleContext) {
+func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx android.ModuleContext) android.OutputPath {
 	var classpathJars []classpathJar
 	configuredJars := b.configuredJars(ctx)
 	if "art" == proptools.String(b.properties.Image_name) {
@@ -636,7 +639,7 @@ func (b *BootclasspathFragmentModule) generateClasspathProtoBuildActions(ctx and
 	} else {
 		classpathJars = configuredJarListToClasspathJars(ctx, configuredJars, b.classpathType)
 	}
-	b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
+	return b.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
 }
 
 func (b *BootclasspathFragmentModule) configuredJars(ctx android.ModuleContext) android.ConfiguredJarList {

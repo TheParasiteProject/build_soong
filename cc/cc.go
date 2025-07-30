@@ -2828,7 +2828,7 @@ func buildComplianceMetadataInfo(ctx ModuleContext, c *Module, deps PathDeps) {
 	// Dump metadata that can not be done in android/compliance-metadata.go
 	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
 	complianceMetadataInfo.SetStringValue(android.ComplianceMetadataProp.IS_STATIC_LIB, strconv.FormatBool(ctx.static() || ctx.ModuleType() == "cc_object"))
-	complianceMetadataInfo.SetStringValue(android.ComplianceMetadataProp.BUILT_FILES, c.outputFile.String())
+	complianceMetadataInfo.AddBuiltFiles(c.outputFile.String())
 
 	// Static deps
 	staticDeps := ctx.GetDirectDepsProxyWithTag(StaticDepTag(false))
