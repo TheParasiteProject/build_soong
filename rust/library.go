@@ -30,6 +30,7 @@ import (
 
 var (
 	RlibStdlibSuffix = ".rlib-std"
+	CoreStdlibSuffix = ".rlib-core"
 )
 
 func init() {
@@ -176,6 +177,7 @@ type libraryInterface interface {
 	// Sets a particular variant type
 	setRlib()
 	setDylib()
+	setNoStd()
 	setShared()
 	setStatic()
 	setSource()
@@ -271,6 +273,10 @@ func (library *libraryDecorator) rlibStd() bool {
 
 func (library *libraryDecorator) setRlibStd() {
 	library.MutatedProperties.VariantIsStaticStd = true
+}
+
+func (library *libraryDecorator) setNoStd() {
+	library.setNoStdlibs()
 }
 
 func (library *libraryDecorator) setDylibStd() {
@@ -958,8 +964,9 @@ func (libraryTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 	if library.buildRlib() {
 		variants = append(variants, rlibVariation)
 	}
-	if library.buildDylib() && !ctx.Host() {
+	if library.buildDylib() && !ctx.Host() && (!m.compiler.noStdlibs() || library.sysroot()) {
 		// Hosts do not produce dylib variants.
+		// Libraries which are rlib-core should not have a dylib variant.
 		variants = append(variants, dylibVariation)
 	}
 
@@ -1055,7 +1062,14 @@ func (libstdTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 	if m, ok := ctx.Module().(*Module); ok && m.compiler != nil && !m.compiler.Disabled() {
 		// Only create a variant if a library is actually being built.
 		if library, ok := m.compiler.(libraryInterface); ok {
-			if library.rlib() && !library.sysroot() {
+			if library.sysroot() {
+				// Sysroot libraries have a trivial stdlinkage
+				return []string{""}
+			}
+			if m.compiler.noStdlibs() {
+				return []string{"rlib-core"}
+			}
+			if library.rlib() {
 				if ctx.Host() {
 					// Hosts do not produce dylib variants, so there's only one std option.
 					return []string{"rlib-std"}
@@ -1084,7 +1098,11 @@ func (libstdTransitionMutator) IncomingTransition(ctx android.IncomingTransition
 				if incomingVariation != "" {
 					return incomingVariation
 				}
-				return "rlib-std"
+				if m.compiler.noStdlibs() {
+					return "rlib-core"
+				} else {
+					return "rlib-std"
+				}
 			}
 		}
 	}
@@ -1097,6 +1115,11 @@ func (libstdTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variat
 		rlib := ctx.Module().(*Module)
 		rlib.compiler.(libraryInterface).setRlibStd()
 		rlib.Properties.RustSubName += RlibStdlibSuffix
+	case "rlib-core":
+		rlib := ctx.Module().(*Module)
+		rlib.compiler.(libraryInterface).setRlibStd()
+		rlib.compiler.(libraryInterface).setNoStd()
+		rlib.Properties.RustSubName += CoreStdlibSuffix
 	case "dylib-std":
 		dylib := ctx.Module().(*Module)
 		dylib.compiler.(libraryInterface).setDylibStd()

@@ -807,3 +807,52 @@ func TestRustStubsFFIOnly(t *testing.T) {
 
 // TODO: When rust_ffi libraries support export_*_lib_headers,
 // add a test similar to cc.TestStubsLibReexportsHeaders
+
+// Test that no_stdlibs libraries produce a rlib-core variant which is picked up by dependencies.
+func TestNoStdLib(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library_rlib {
+			name: "libno_std",
+			srcs: ["foo.rs"],
+			crate_name: "no_std",
+			no_stdlibs: true,
+		}
+		rust_library {
+			name: "libstd_dep",
+			srcs: ["foo.rs"],
+			crate_name: "std_dep",
+			rustlibs: ["libno_std"],
+			prefer_rlib: true,
+		}
+		rust_library_rlib {
+			name: "libnostd_dep",
+			srcs: ["foo.rs"],
+			crate_name: "nostd_dep",
+			no_stdlibs: true,
+			rustlibs: ["libno_std"],
+			vendor_available: true,
+		}
+	`)
+
+	// Test that only the rlib-core variant is created for libno_std
+	variants := ctx.ModuleVariantsForTests("libno_std")
+	if !android.InList("android_arm64_armv8-a_rlib_rlib-core", variants) {
+		t.Errorf("missing expected variant: %q", "android_arm64_armv8-a_rlib_rlib-core")
+	}
+	if android.InList("android_arm64_armv8-a_rlib_rlib-std", variants) {
+		t.Errorf("unexpected variant: %q", "android_arm64_armv8-a_rlib_rlib-std")
+	}
+
+	libstdDep := ctx.ModuleForTests(t, "libstd_dep", "android_arm64_armv8-a_rlib_rlib-std").Module().(*Module)
+	if !android.InList("libno_std.rlib-core", libstdDep.Properties.AndroidMkRlibs) {
+		t.Errorf("rlib-std variant for device rust_library does not link libno_std as an rlib-core variant")
+		t.Errorf("All rlibs: %v", libstdDep.Properties.AndroidMkRlibs)
+	}
+
+	libnostdDep := ctx.ModuleForTests(t, "libnostd_dep", "android_arm64_armv8-a_rlib_rlib-core").Module().(*Module)
+	if !android.InList("libno_std.rlib-core", libnostdDep.Properties.AndroidMkRlibs) {
+		t.Errorf("rlib-core variant for device rust_library does not link libno_std as an rlib-core variant")
+	}
+}
+
+// TODO once we can enforce that rlib-core does not depend on rlib-std or dylib-std, test it
