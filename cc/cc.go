@@ -466,6 +466,9 @@ type PathDeps struct {
 
 	directImplementationDeps     android.Paths
 	transitiveImplementationDeps []depset.DepSet[android.Path]
+
+	// Path to an output file that is re-exported by deviceForHost.
+	deviceFileForHost android.Path
 }
 
 // LocalOrGlobalFlags contains flags that need to have values set globally by the build system or locally by the module
@@ -1123,6 +1126,12 @@ func ExcludeInApexDepTag(depTag blueprint.DependencyTag) bool {
 	return ok && ccLibDepTag.excludeInApex
 }
 
+// deviceHostConverter is an interface for converting device modules in 'srcs' to a host module.
+type deviceHostConverter interface {
+	converterProps() []interface{}
+	getSrcs() []string
+}
+
 // Module contains the properties and members used by all C/C++ module types, and implements
 // the blueprint.Module interface.  It delegates to compiler, linker, and installer interfaces
 // to construct the output file.  Behavior can be customized with a Customizer, or "decorator",
@@ -1210,6 +1219,8 @@ type Module struct {
 	hasYacc         bool
 
 	makeVarsInfo *CcMakeVarsInfo
+
+	converter deviceHostConverter
 }
 
 func (c *Module) IncrementalSupported() bool {
@@ -1533,6 +1544,9 @@ func (c *Module) Init() android.Module {
 	}
 	if c.orderfile != nil {
 		c.AddProperties(c.orderfile.props()...)
+	}
+	if c.converter != nil {
+		c.AddProperties(c.converter.converterProps()...)
 	}
 	for _, feature := range c.features {
 		c.AddProperties(feature.props()...)
@@ -3404,6 +3418,12 @@ func (c *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		actx.AddDependency(c, dynamicLinkerDepTag, deps.DynamicLinker)
 	}
 
+	if c.converter != nil {
+		// Add a dependency on the modules listed in the 'Srcs' property.
+		variation := ctx.Config().AndroidFirstDeviceTarget.Variations()
+		actx.AddFarVariationDependencies(variation, deviceForHostDepTag, c.converter.getSrcs()...)
+	}
+
 	version := ctx.sdkVersion()
 
 	ndkStubDepTag := libraryDependencyTag{Kind: sharedLibraryDependency, ndk: true, makeSuffix: "." + version}
@@ -3734,6 +3754,17 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 		}
 
 		if depTag == android.RequiredDepTag {
+			return
+		}
+
+		if depTag == deviceForHostDepTag {
+			if !ctx.Config().IsEnvTrue("ART_USE_SIMULATOR") {
+				ctx.ModuleErrorf("cannot be used without ART_USE_SIMULATOR set")
+			}
+
+			// This module won't do any of its own building, instead it exposes the output of the
+			// dependency.
+			depPaths.deviceFileForHost = android.OutputFileForModule(ctx, dep, "")
 			return
 		}
 
