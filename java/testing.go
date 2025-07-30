@@ -65,8 +65,12 @@ var PrepareForTestWithJavaBuildComponents = android.GroupFixturePreparers(
 		"build/make/target/product/security": nil,
 		// Required to generate Java used-by API coverage
 		"build/soong/scripts/gen_java_usedby_apex.sh": nil,
-		// Needed for the global lint checks provided from frameworks/base
-		"prebuilts/cmdline-tools/AndroidGlobalLintChecker.jar": nil,
+		// Needed for the global lint checks provided from tools/lint_checks
+		"tools/lint_checks/global/Android.bp": []byte(`
+			java_library_host {
+				name: "AndroidGlobalLintChecker",
+			}
+			`),
 	}.AddToFixture(),
 	android.PrepareForTestWithBuildFlag("RELEASE_DEFAULT_UPDATABLE_MODULE_VERSION", testDefaultUpdatableModuleVersion),
 )
