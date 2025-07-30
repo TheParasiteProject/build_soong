@@ -178,12 +178,13 @@ func init() {
 }
 
 // CopyFileRule creates a ninja rule to copy path to outPath.
-func CopyFileRule(ctx ModuleContext, path Path, outPath OutputPath) {
+func CopyFileRule(ctx ModuleContext, path Path, outPath WritablePath, validations ...Path) {
 	ctx.Build(pctx, BuildParams{
 		Rule:        Cp,
 		Input:       path,
 		Output:      outPath,
 		Description: "copy " + outPath.Base(),
+		Validations: validations,
 	})
 }
 
