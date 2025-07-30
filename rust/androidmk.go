@@ -23,14 +23,14 @@ import (
 type AndroidMkContext interface {
 	Name() string
 	Target() android.Target
-	SubAndroidMk(*android.AndroidMkEntries, interface{})
+	SubAndroidMk(*android.AndroidMkEntries, any)
 }
 
 type SubAndroidMkProvider interface {
 	AndroidMk(AndroidMkContext, *android.AndroidMkEntries)
 }
 
-func (mod *Module) SubAndroidMk(data *android.AndroidMkEntries, obj interface{}) {
+func (mod *Module) SubAndroidMk(data *android.AndroidMkEntries, obj any) {
 	if mod.subAndroidMkOnce == nil {
 		mod.subAndroidMkOnce = make(map[SubAndroidMkProvider]bool)
 	}
@@ -49,7 +49,7 @@ func (mod *Module) AndroidMkSuffix() string {
 func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 	if mod.Properties.HideFromMake || mod.hideApexVariantFromMake {
 
-		return []android.AndroidMkEntries{android.AndroidMkEntries{Disabled: true}}
+		return []android.AndroidMkEntries{{Disabled: true}}
 	}
 
 	ret := android.AndroidMkEntries{

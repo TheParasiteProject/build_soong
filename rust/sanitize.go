@@ -104,8 +104,8 @@ var hwasanFlagsDeprecated = []string{
 
 func init() {
 }
-func (sanitize *sanitize) props() []interface{} {
-	return []interface{}{&sanitize.Properties}
+func (sanitize *sanitize) props() []any {
+	return []any{&sanitize.Properties}
 }
 
 func (sanitize *sanitize) begin(ctx BaseModuleContext) {
@@ -171,7 +171,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 			s.Address = proptools.BoolPtr(true)
 		}
 
-		if found, globalSanitizers = android.RemoveFromList("fuzzer", globalSanitizers); found && s.Fuzzer == nil {
+		if found, _ = android.RemoveFromList("fuzzer", globalSanitizers); found && s.Fuzzer == nil {
 			// TODO(b/204776996): HWASan for static Rust binaries isn't supported yet, and fuzzer enables HWAsan
 			if !ctx.RustModule().StaticExecutable() {
 				s.Fuzzer = proptools.BoolPtr(true)
@@ -179,7 +179,7 @@ func (sanitize *sanitize) begin(ctx BaseModuleContext) {
 		}
 
 		// Global Diag Sanitizers
-		if found, globalSanitizersDiag = android.RemoveFromList("memtag_heap", globalSanitizersDiag); found &&
+		if found, _ = android.RemoveFromList("memtag_heap", globalSanitizersDiag); found &&
 			s.Diag.Memtag_heap == nil && Bool(s.Memtag_heap) {
 			s.Diag.Memtag_heap = proptools.BoolPtr(true)
 		}
@@ -263,10 +263,6 @@ func (sanitize *sanitize) flags(ctx ModuleContext, flags Flags, deps PathDeps) (
 		}
 	}
 	return flags, deps
-}
-
-func (sanitize *sanitize) deps(ctx BaseModuleContext, deps Deps) Deps {
-	return deps
 }
 
 func rustSanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
@@ -379,7 +375,7 @@ func (sanitize *sanitize) isSanitizerExplicitlyDisabled(t cc.SanitizerType) bool
 		return true
 	}
 	sanitizerVal := sanitize.getSanitizerBoolPtr(t)
-	return sanitizerVal != nil && *sanitizerVal == false
+	return sanitizerVal != nil && !*sanitizerVal
 }
 
 // There isn't an analog of the method above (ie:isSanitizerExplicitlyEnabled)
@@ -393,7 +389,7 @@ func (sanitize *sanitize) isSanitizerEnabled(t cc.SanitizerType) bool {
 	}
 
 	sanitizerVal := sanitize.getSanitizerBoolPtr(t)
-	return sanitizerVal != nil && *sanitizerVal == true
+	return sanitizerVal != nil && *sanitizerVal
 }
 
 func (sanitize *sanitize) getSanitizerBoolPtr(t cc.SanitizerType) *bool {

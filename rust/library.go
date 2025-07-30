@@ -202,10 +202,7 @@ type libraryInterface interface {
 }
 
 func (library *libraryDecorator) nativeCoverage() bool {
-	if library.BuildStubs() {
-		return false
-	}
-	return true
+	return !library.BuildStubs()
 }
 
 func (library *libraryDecorator) toc() android.OptionalPath {
@@ -302,14 +299,14 @@ func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) aut
 	} else if library.dylib() || library.shared() {
 		return dylibAutoDep
 	} else {
-		panic(fmt.Errorf("autoDep called on library %q that has no enabled variants.", ctx.ModuleName()))
+		panic(fmt.Errorf("autoDep called on library %q that has no enabled variants", ctx.ModuleName()))
 	}
 }
 
 func (library *libraryDecorator) stdLinkage(device bool) RustLinkage {
 	if library.static() || library.MutatedProperties.VariantIsStaticStd {
 		return RlibLinkage
-	} else if library.baseCompiler.preferRlib() {
+	} else if library.preferRlib() {
 		return RlibLinkage
 	} else if !device {
 		return RlibLinkage
@@ -551,7 +548,7 @@ func NewRustLibrary(hod android.HostOrDeviceSupported) (*Module, *libraryDecorat
 	return module, library
 }
 
-func (library *libraryDecorator) compilerProps() []interface{} {
+func (library *libraryDecorator) compilerProps() []any {
 	return append(library.baseCompiler.compilerProps(),
 		&library.Properties,
 		&library.MutatedProperties,
@@ -675,9 +672,9 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 		outputFile = android.PathForModuleOut(ctx, "unstripped", fileName)
 		library.stripper.StripExecutableOrSharedLib(ctx, outputFile, strippedOutputFile)
 
-		library.baseCompiler.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
+		library.strippedOutputFile = android.OptionalPathForPath(strippedOutputFile)
 	}
-	library.baseCompiler.unstrippedOutputFile = outputFile
+	library.unstrippedOutputFile = outputFile
 
 	flags.RustFlags = append(flags.RustFlags, deps.depFlags...)
 	flags.LinkFlags = append(flags.LinkFlags, deps.depLinkFlags...)
@@ -745,15 +742,15 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	// rlibs and dylibs propagate their shared, whole static, and rustlib dependencies
 	if library.rlib() || library.dylib() {
-		library.flagExporter.exportLinkDirs(deps.linkDirs...)
-		library.flagExporter.exportRustLibs(deps.rustLibObjects...)
-		library.flagExporter.exportSharedLibs(deps.sharedLibObjects...)
-		library.flagExporter.exportWholeStaticLibs(deps.wholeStaticLibObjects...)
+		library.exportLinkDirs(deps.linkDirs...)
+		library.exportRustLibs(deps.rustLibObjects...)
+		library.exportSharedLibs(deps.sharedLibObjects...)
+		library.exportWholeStaticLibs(deps.wholeStaticLibObjects...)
 	}
 
 	// rlibs also propagate their staticlibs dependencies
 	if library.rlib() {
-		library.flagExporter.exportStaticLibs(deps.staticLibObjects...)
+		library.exportStaticLibs(deps.staticLibObjects...)
 	}
 	// Since we have FFI rlibs, we need to collect their includes as well
 	if library.static() || library.shared() || library.rlib() || library.stubs() {
@@ -769,7 +766,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 
 	if library.dylib() {
 		// reexport whole-static'd dependencies for dylibs.
-		library.flagExporter.wholeRustRlibDeps = append(library.flagExporter.wholeRustRlibDeps, deps.reexportedWholeCcRlibDeps...)
+		library.wholeRustRlibDeps = append(library.wholeRustRlibDeps, deps.reexportedWholeCcRlibDeps...)
 	}
 
 	if library.shared() || library.stubs() {
@@ -798,7 +795,7 @@ func (library *libraryDecorator) compile(ctx ModuleContext, flags Flags, deps Pa
 	cc.AddStubDependencyProviders(ctx)
 
 	// Set our flagexporter provider to export relevant Rust flags
-	library.flagExporter.setRustProvider(ctx)
+	library.setRustProvider(ctx)
 
 	return ret
 }
@@ -880,7 +877,7 @@ func (library *libraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
 }
 
 func (library *libraryDecorator) getStem(ctx ModuleContext) string {
-	stem := library.baseCompiler.getStemWithoutSuffix(ctx)
+	stem := library.getStemWithoutSuffix(ctx)
 	validateLibraryStem(ctx, stem, library.crateName())
 
 	return stem + String(library.baseCompiler.Properties.Suffix)
@@ -1040,7 +1037,7 @@ func (libraryTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, varia
 	if m.sourceProvider != nil && variation != sourceVariation {
 		ctx.AddVariationDependencies(
 			[]blueprint.Variation{
-				{"rust_libraries", sourceVariation},
+				{Mutator: "rust_libraries", Variation: sourceVariation},
 			},
 			sourceDepTag, ctx.ModuleName())
 	}
@@ -1095,11 +1092,12 @@ func (libstdTransitionMutator) IncomingTransition(ctx android.IncomingTransition
 }
 
 func (libstdTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variation string) {
-	if variation == "rlib-std" {
+	switch variation {
+	case "rlib-std":
 		rlib := ctx.Module().(*Module)
 		rlib.compiler.(libraryInterface).setRlibStd()
 		rlib.Properties.RustSubName += RlibStdlibSuffix
-	} else if variation == "dylib-std" {
+	case "dylib-std":
 		dylib := ctx.Module().(*Module)
 		dylib.compiler.(libraryInterface).setDylibStd()
 		if dylib.ModuleBase.ImageVariation().Variation == android.VendorRamdiskVariation {

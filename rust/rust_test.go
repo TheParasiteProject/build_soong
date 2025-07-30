@@ -674,13 +674,6 @@ func TestRustFFIRlibs(t *testing.T) {
 
 }
 
-func assertString(t *testing.T, got, expected string) {
-	t.Helper()
-	if got != expected {
-		t.Errorf("expected %q got %q", expected, got)
-	}
-}
-
 func TestStdLinkMismatch(t *testing.T) {
 	// Test that we catch cases where the std linkage mismatches. This leads to
 	// a confusing rustc error where a crate is declared missing despite being

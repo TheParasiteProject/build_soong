@@ -625,10 +625,6 @@ type RustFlagExporterInfo struct {
 
 var RustFlagExporterInfoProvider = blueprint.NewProvider[RustFlagExporterInfo]()
 
-func (mod *Module) isCoverageVariant() bool {
-	return mod.coverage.Properties.IsCoverageVariant
-}
-
 var _ cc.Coverage = (*Module)(nil)
 
 func (mod *Module) IsNativeCoverageNeeded(ctx cc.IsNativeCoverageNeededContext) bool {
@@ -667,7 +663,7 @@ type Defaults struct {
 	android.DefaultsModuleBase
 }
 
-func DefaultsFactory(props ...interface{}) android.Module {
+func DefaultsFactory(props ...any) android.Module {
 	module := &Defaults{}
 
 	module.AddProperties(props...)
@@ -1387,7 +1383,6 @@ func buildComplianceMetadataInfo(ctx *moduleContext, mod *Module, deps PathDeps)
 	for _, dep := range deps.RLibs {
 		staticDepPaths = append(staticDepPaths, dep.Path.String())
 	}
-	metadataInfo.SetListValue(android.ComplianceMetadataProp.STATIC_DEPS, android.FirstUniqueStrings(staticDepNames))
 	metadataInfo.SetListValue(android.ComplianceMetadataProp.STATIC_DEP_FILES, android.FirstUniqueStrings(staticDepPaths))
 
 	// C Whole static libs
@@ -1396,7 +1391,9 @@ func buildComplianceMetadataInfo(ctx *moduleContext, mod *Module, deps PathDeps)
 	for _, dep := range ccStaticDeps {
 		wholeStaticDepNames = append(wholeStaticDepNames, dep.Name())
 	}
-	metadataInfo.SetListValue(android.ComplianceMetadataProp.STATIC_DEPS, android.FirstUniqueStrings(staticDepNames))
+
+	allStaticDepNames := append(staticDepNames, wholeStaticDepNames...)
+	metadataInfo.SetListValue(android.ComplianceMetadataProp.STATIC_DEPS, android.FirstUniqueStrings(allStaticDepNames))
 }
 
 func (mod *Module) deps(ctx DepsContext) Deps {
@@ -1411,10 +1408,6 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 	if mod.coverage != nil {
 		deps = mod.coverage.deps(ctx, deps)
-	}
-
-	if mod.sanitize != nil {
-		deps = mod.sanitize.deps(ctx, deps)
 	}
 
 	deps.Rlibs = android.LastUniqueStrings(deps.Rlibs)
@@ -1904,11 +1897,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				lib.exportSharedLibs(ccLibPath.String())
 			}
 		} else {
-			switch {
-			case depTag == cc.CrtBeginDepTag:
+			switch depTag {
+			case cc.CrtBeginDepTag:
 				depPaths.CrtBegin = append(depPaths.CrtBegin, android.OutputFileForModule(ctx, dep, ""))
 				depPaths.directNonApexImplementationDeps = append(depPaths.directNonApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
-			case depTag == cc.CrtEndDepTag:
+			case cc.CrtEndDepTag:
 				depPaths.directNonApexImplementationDeps = append(depPaths.directNonApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
 				depPaths.CrtEnd = append(depPaths.CrtEnd, android.OutputFileForModule(ctx, dep, ""))
 			}
@@ -2027,16 +2020,6 @@ func (mod *Module) InstallInRecovery() bool {
 
 func linkPathFromFilePath(filepath android.Path) string {
 	return strings.Split(filepath.String(), filepath.Base())[0]
-}
-
-// usePublicApi returns true if the rust variant should link against NDK (publicapi)
-func (r *Module) usePublicApi() bool {
-	return r.Device() && r.UseSdk()
-}
-
-// useVendorApi returns true if the rust variant should link against LLNDK (vendorapi)
-func (r *Module) useVendorApi() bool {
-	return r.Device() && (r.InVendor() || r.InProduct())
 }
 
 func (mod *Module) StdLinkageIsRlibLinkage(device bool) bool {
@@ -2229,11 +2212,11 @@ func (mod *Module) HostToolPath() android.OptionalPath {
 		return android.OptionalPath{}
 	}
 	if binary, ok := mod.compiler.(*binaryDecorator); ok {
-		return android.OptionalPathForPath(binary.baseCompiler.path)
+		return android.OptionalPathForPath(binary.path)
 	} else if pm, ok := mod.compiler.(*procMacroDecorator); ok {
 		// Even though proc-macros aren't strictly "tools", since they target the compiler
 		// and act as compiler plugins, we treat them similarly.
-		return android.OptionalPathForPath(pm.baseCompiler.path)
+		return android.OptionalPathForPath(pm.path)
 	}
 	return android.OptionalPath{}
 }

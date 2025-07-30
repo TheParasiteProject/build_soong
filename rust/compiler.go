@@ -39,7 +39,7 @@ type compiler interface {
 	cfgFlags(ctx ModuleContext, flags Flags) Flags
 	featureFlags(ctx ModuleContext, flags Flags) Flags
 	baseCompilerProps() BaseCompilerProperties
-	compilerProps() []interface{}
+	compilerProps() []any
 	compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	crateName() string
@@ -294,10 +294,6 @@ func (compiler *baseCompiler) noStdlibs() bool {
 	return Bool(compiler.Properties.No_stdlibs)
 }
 
-func (compiler *baseCompiler) coverageOutputZipPath() android.OptionalPath {
-	panic("baseCompiler does not implement coverageOutputZipPath()")
-}
-
 func (compiler *baseCompiler) preferRlib() bool {
 	return Bool(compiler.Properties.Prefer_rlib)
 }
@@ -357,8 +353,8 @@ func (compiler *baseCompiler) inData() bool {
 	return compiler.location == InstallInData
 }
 
-func (compiler *baseCompiler) compilerProps() []interface{} {
-	return []interface{}{&compiler.Properties}
+func (compiler *baseCompiler) compilerProps() []any {
+	return []any{&compiler.Properties}
 }
 
 func (compiler *baseCompiler) baseCompilerProps() BaseCompilerProperties {
@@ -484,7 +480,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 }
 
 func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
-	panic(fmt.Errorf("baseCrater doesn't know how to crate things!"))
+	panic(fmt.Errorf("baseCrater doesn't know how to crate things"))
 }
 
 func (compiler *baseCompiler) rustdoc(ctx ModuleContext, flags Flags,
