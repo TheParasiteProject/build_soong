@@ -130,6 +130,7 @@ type installationProperties struct {
 	CcAndRustSharedLibs []string
 	Partition           string
 	Namespace           string
+	ArchType            android.ArchType
 }
 
 func defaultDepCandidateProps(config android.Config) *depCandidateProps {
@@ -430,6 +431,7 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 			Overrides:           m.Overrides(),
 			Partition:           m.PartitionTag(mctx.DeviceConfig()),
 			Namespace:           mctx.Namespace().Path,
+			ArchType:            mctx.Target().Arch.ArchType,
 		})
 	}
 
@@ -494,8 +496,12 @@ func crossPartitionRequiredMutator(mctx android.BottomUpMutatorContext) {
 	defer fsGenState.fsDepsMutex.Unlock()
 	additionalCrossPartitionRequiredDeps := correctCrossPartitionRequiredDeps(mctx.Config())
 	fullyQualifiedModuleName := fullyQualifiedModuleName(mctx.ModuleName(), mctx.Namespace().Path)
-	if partition, ok := additionalCrossPartitionRequiredDeps[fullyQualifiedModuleName]; ok && mctx.Module().PartitionTag(mctx.DeviceConfig()) == partition {
-		appendDepIfAppropriate(mctx, fsGenState.fsDeps[partition], partition, android.NativeBridgeDisabled, mctx.ModuleName())
+	if xPartitionDep, ok := additionalCrossPartitionRequiredDeps[fullyQualifiedModuleName]; ok && mctx.Module().PartitionTag(mctx.DeviceConfig()) == xPartitionDep.partition {
+		// For shared libraries, add the dependency only if the archType of the dep and parent match.
+		addXPartitionDep := !xPartitionDep.isSharedLibDep || android.InList(mctx.Target().Arch.ArchType, xPartitionDep.archesOfRequiredSharedLibDep)
+		if addXPartitionDep {
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps[xPartitionDep.partition], xPartitionDep.partition, android.NativeBridgeDisabled, mctx.ModuleName())
+		}
 	}
 }
 
@@ -624,10 +630,18 @@ func removeOverriddenDeps(mctx android.BottomUpMutatorContext) {
 type directDepWithParentPartition struct {
 	// name of the install partition of the parent module
 	parentPartition string
+	parentArchType  android.ArchType
 	// fully qualified module name of the "required" direct dep
 	directDepName string
 	// whether this is a rustlib or native shared lib dependency
 	isSharedLibDep bool
+}
+
+type crossPartitionRequiredDep struct {
+	partition      string
+	isSharedLibDep bool
+	// Arches of the binary that requested the cross partition dependency.
+	archesOfRequiredSharedLibDep []android.ArchType
 }
 
 // This function is run only once to compute the list of transitive "required" dependencies
@@ -636,8 +650,8 @@ type directDepWithParentPartition struct {
 // filesystem modules. Thus, the module will not be included in the returning map even when the
 // install partition differs from that of the parent module if the module is not installed
 // for the target product.
-// The return value is a mapping of fully qualified module names to their install partition.
-func correctCrossPartitionRequiredDeps(config android.Config) map[string]string {
+// The return value is a mapping of fully qualified module name to their install partition and arch types.
+func correctCrossPartitionRequiredDeps(config android.Config) map[string]crossPartitionRequiredDep {
 	return config.Once(fsGenCrossPartitionRequiredDepsOnceKey, func() interface{} {
 		fsGenState := config.Get(fsGenStateOnceKey).(*FsGenState)
 		fsDeps := fsGenState.fsDeps
@@ -646,7 +660,7 @@ func correctCrossPartitionRequiredDeps(config android.Config) map[string]string 
 		// Mapping of fully qualified module name to its list of install partition
 		// Given that a single module cannot be listed as deps of multiple filesystem modules,
 		// the key is a single string value instead of a list of strings
-		ret := make(map[string]string)
+		ret := make(map[string]crossPartitionRequiredDep)
 
 		// Add the pair of:
 		// 1. install partition of the top level dep module
@@ -659,6 +673,7 @@ func correctCrossPartitionRequiredDeps(config android.Config) map[string]string 
 					for _, requiredModule := range props.Required {
 						moduleNamesStack = append(moduleNamesStack, directDepWithParentPartition{
 							parentPartition: partition,
+							parentArchType:  props.ArchType,
 							directDepName:   fullyQualifiedModuleName(requiredModule, props.Namespace),
 						})
 					}
@@ -671,6 +686,7 @@ func correctCrossPartitionRequiredDeps(config android.Config) map[string]string 
 						for _, sharedLibModule := range props.CcAndRustSharedLibs {
 							moduleNamesStack = append(moduleNamesStack, directDepWithParentPartition{
 								parentPartition: partition,
+								parentArchType:  props.ArchType,
 								directDepName:   fullyQualifiedModuleName(sharedLibModule, props.Namespace),
 								isSharedLibDep:  true,
 							})
@@ -700,7 +716,16 @@ func correctCrossPartitionRequiredDeps(config android.Config) map[string]string 
 			if moduleProps, ok := moduleToInstallationProps.GetFromFullyQualifiedModuleName(visitingModule.directDepName); ok {
 				if moduleProps.Partition != visitingModule.parentPartition {
 					if !visitingModule.isSharedLibDep || moduleProps.Partition == "system" {
-						ret[visitingModule.directDepName] = moduleProps.Partition
+						if entry, exists := ret[visitingModule.directDepName]; exists {
+							archesOfRequiredSharedLibDep := append(entry.archesOfRequiredSharedLibDep, visitingModule.parentArchType)
+							entry.archesOfRequiredSharedLibDep = archesOfRequiredSharedLibDep
+						} else {
+							ret[visitingModule.directDepName] = crossPartitionRequiredDep{
+								partition:                    moduleProps.Partition,
+								isSharedLibDep:               visitingModule.isSharedLibDep,
+								archesOfRequiredSharedLibDep: []android.ArchType{visitingModule.parentArchType},
+							}
+						}
 					}
 				}
 				if _, ok := traversalMap[visitingModule.directDepName]; !ok {
@@ -724,7 +749,7 @@ func correctCrossPartitionRequiredDeps(config android.Config) map[string]string 
 			}
 		}
 		return ret
-	}).(map[string]string)
+	}).(map[string]crossPartitionRequiredDep)
 }
 
 var HighPriorityDeps = []string{}

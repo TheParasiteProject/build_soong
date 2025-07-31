@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"android/soong/android"
+	"android/soong/cc"
 	"android/soong/etc"
 	"android/soong/filesystem"
 	"android/soong/java"
@@ -808,5 +809,52 @@ func TestCrossPartitionRequiredModules(t *testing.T) {
 		"system_ext staging dir expected to contain cross partition require deps",
 		strings.Join(systemExtStagingDirImplicitDeps.Strings(), " "),
 		"mynamespace/some-permissions/android_arm64_armv8-a/default-permissions.xml",
+	)
+}
+
+func TestCrossPartitionSharedLibDeps(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		android.PrepareForIntegrationTestWithAndroid,
+		android.PrepareForTestWithAndroidBuildComponents,
+		android.PrepareForTestWithAllowMissingDependencies,
+		prepareForTestWithFsgenBuildComponents,
+		cc.PrepareForTestWithCcBuildComponents,
+		java.PrepareForTestWithJavaBuildComponents,
+		prepareMockRamdiksNodeList,
+		android.PrepareForTestWithNamespace,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external/avb/test/data/testkey_rsa4096.pem": nil,
+			"build/soong/fsgen/Android.bp": []byte(`
+			soong_filesystem_creator {
+				name: "foo",
+			}
+		`),
+		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"system_ext_bin"})
+		}),
+	).RunTestWithBp(t, `
+cc_binary {
+	name: "system_ext_bin",
+	shared_libs: ["system_lib"],
+	system_ext_specific: true,
+}
+cc_library_shared {
+	name: "system_lib",
+}
+`)
+	resolvedDeps := result.TestContext.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps["system"]
+	xPartitionSharedLib := (*resolvedDeps)["system_lib"]
+	android.AssertIntEquals(
+		t,
+		"Expected single arch variant of cross partition shared lib dependency",
+		1,
+		len(xPartitionSharedLib.Arch),
+	)
+	android.AssertStringEquals(
+		t,
+		"Expected primary arch variant of cross partition shared lib dependency",
+		"arm64",
+		xPartitionSharedLib.Arch[0].String(),
 	)
 }
