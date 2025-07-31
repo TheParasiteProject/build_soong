@@ -429,11 +429,12 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 	targetOut := filepath.Dir(targetOutTestCases.String())
 
 	testsZip := pathForPackaging(ctx, suiteConfig.name+".zip")
+	generalTestsFilesListText := pathForPackaging(ctx, "general-tests_files")
 	testsListTxt := pathForPackaging(ctx, suiteConfig.name+"_list.txt")
 	testsListZip := pathForPackaging(ctx, suiteConfig.name+"_list.zip")
 	testsConfigsZip := pathForPackaging(ctx, suiteConfig.name+"_configs.zip")
 	testsHostSharedLibsZip := pathForPackaging(ctx, suiteConfig.name+"_host-shared-libs.zip")
-	var listLines []string
+	var listLines, filesListLines []string
 
 	// use intermediate files to hold the file inputs, to prevent argument list from being too long
 	testsZipCmdHostFileInput := android.PathForIntermediates(ctx, suiteConfig.name+"_host_list.txt")
@@ -466,6 +467,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 				testsConfigsZipCmd.FlagWithInput("-f ", f)
 				listLines = append(listLines, strings.Replace(f.String(), hostOut, "host", 1))
 			}
+			filesListLines = append(filesListLines, f.String())
 		}
 	}
 
@@ -542,6 +544,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 				testsConfigsZipCmd.FlagWithInput("-f ", f)
 				listLines = append(listLines, strings.Replace(f.String(), targetOut, "target", 1))
 			}
+			filesListLines = append(filesListLines, f.String())
 		}
 	}
 
@@ -579,7 +582,10 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 	}
 
 	android.WriteFileRule(ctx, testsListTxt, strings.Join(listLines, "\n"))
-
+	// https://source.corp.google.com/h/googleplex-android/platform/build/+/c34c3738ba6be7ef1fc3acb7be5122bede415789
+	if suiteConfig.name == "general-tests" {
+		android.WriteFileRule(ctx, generalTestsFilesListText, strings.Join(filesListLines, "\n"))
+	}
 	testsListZipBuilder := android.NewRuleBuilder(pctx, ctx)
 	testsListZipBuilder.Command().
 		BuiltTool("soong_zip").
@@ -590,6 +596,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 	testsListZipBuilder.Build(suiteConfig.name+"_list_zip", "building "+suiteConfig.name+" list zip")
 
 	ctx.Phony(suiteConfig.name, testsZip, testsListZip, testsConfigsZip)
+	ctx.Phony("general-tests-files-list", generalTestsFilesListText)
 	ctx.DistForGoal(suiteConfig.name, testsZip, testsListZip, testsConfigsZip)
 	if suiteConfig.buildHostSharedLibsZip {
 		ctx.DistForGoal(suiteConfig.name, testsHostSharedLibsZip)
