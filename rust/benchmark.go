@@ -89,8 +89,8 @@ func (benchmark *benchmarkDecorator) autoDep(ctx android.BottomUpMutatorContext)
 	return rlibAutoDep
 }
 
-func (benchmark *benchmarkDecorator) stdLinkage(device bool) RustLinkage {
-	return RlibLinkage
+func (benchmark *benchmarkDecorator) stdLinkage(device bool) StdLinkage {
+	return RlibStd
 }
 
 func (benchmark *benchmarkDecorator) compilerFlags(ctx ModuleContext, flags Flags) Flags {

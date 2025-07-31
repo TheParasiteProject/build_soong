@@ -17,6 +17,7 @@ package rust
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -41,8 +42,8 @@ type LibraryInfo struct {
 }
 
 type CompilerInfo struct {
-	StdLinkageForDevice    RustLinkage
-	StdLinkageForNonDevice RustLinkage
+	StdLinkageForDevice    StdLinkage
+	StdLinkageForNonDevice StdLinkage
 	NoStdlibs              bool
 	CrateName              string
 	Edition                string
@@ -1629,7 +1630,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					if ctx.Device() {
 						rustDepStdLinkage = rustInfo.CompilerInfo.StdLinkageForDevice
 					}
-					if rustDepStdLinkage != modStdLinkage {
+					if !slices.Contains(modStdLinkage.compatChoices(), rustDepStdLinkage) {
 						ctx.ModuleErrorf("Rust dependency %q has the wrong StdLinkage; expected %#v, got %#v", depName, modStdLinkage, rustDepStdLinkage)
 						return
 					}
@@ -1664,7 +1665,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					if ctx.Device() {
 						rustDepStdLinkage = rustInfo.CompilerInfo.StdLinkageForDevice
 					}
-					if rustDepStdLinkage != modStdLinkage {
+					if !slices.Contains(modStdLinkage.compatChoices(), rustDepStdLinkage) {
 						ctx.ModuleErrorf("Rust dependency %q has the wrong StdLinkage; expected %#v, got %#v", depName, modStdLinkage, rustDepStdLinkage)
 						return
 					}
@@ -2023,46 +2024,56 @@ func linkPathFromFilePath(filepath android.Path) string {
 }
 
 func (mod *Module) StdLinkageIsRlibLinkage(device bool) bool {
-	return mod.compiler != nil && mod.compiler.stdLinkage(device) == RlibLinkage
+	if mod.compiler != nil {
+		switch mod.compiler.stdLinkage(device) {
+		case NoCore, RlibCore, RlibStd:
+			return true
+		}
+	}
+	return false
 }
 
-func (mod *Module) stdLinkageOptions(ctx DepsContext) [][]blueprint.Variation {
-	var stdLinkage string
-	if mod.compiler.stdLinkage(ctx.Device()) == RlibLinkage {
-		stdLinkage = "rlib-std"
-	} else {
-		stdLinkage = "dylib-std"
+// Go remains uncivilized for not having this as a default method on their slice.
+func sliceMap[E1 any, E2 any](base []E1, f func(E1) E2) []E2 {
+	out := make([]E2, len(base))
+	for i, v := range base {
+		out[i] = f(v)
 	}
-	if mod.compiler.noStdlibs() {
-		stdLinkage = "rlib-core"
-	}
-	if lib, ok := mod.compiler.(libraryInterface); ok && lib.sysroot() {
-		stdLinkage = ""
-	}
+	return out
+}
 
-	switch stdLinkage {
-	case "dylib-std":
+func (linkage StdLinkage) compatChoices() []StdLinkage {
+	switch linkage {
+	case DylibStd:
 		// dylib-std should only takes its own linkage, but there are cases in the build
 		// today that are depending on no-std modules.
 		// TODO migrate so that dylib-std only pulls in dylib-std
-		return [][]blueprint.Variation{{{Mutator: "rust_stdlinkage", Variation: stdLinkage}},
-			{{Mutator: "rust_stdlinkage", Variation: "rlib-core"}}}
-	case "rlib-std":
+		return []StdLinkage{linkage, RlibCore}
+	case RlibStd:
 		// rlib-std can also accept rlib-core libraries, but should prefer std libraries.
-		return [][]blueprint.Variation{{{Mutator: "rust_stdlinkage", Variation: stdLinkage}},
-			{{Mutator: "rust_stdlinkage", Variation: "rlib-core"}}}
-	case "rlib-core":
+		return []StdLinkage{linkage, RlibCore}
+	case RlibCore:
 		// rlib-core should only support its own linkage, but there are a variety of cases
 		// in the build today where a no-std build is depending on a std build, so we need
 		// to allow it, at least for now.
 		// TODO migrate existing builds to not have rlib-core libraries depend on rlib-std
-		return [][]blueprint.Variation{{{Mutator: "rust_stdlinkage", Variation: stdLinkage}},
-			{{Mutator: "rust_stdlinkage", Variation: "rlib-std"}}}
-	case "":
+		return []StdLinkage{linkage, RlibStd}
+	case NoCore:
 		// Sysroots can only accept other sysroot (e.g. non-mutated) libraries
-		return [][]blueprint.Variation{{}}
+		return []StdLinkage{linkage}
 	}
-	panic(fmt.Errorf("unknown stdLinkage: %s", stdLinkage))
+	panic(fmt.Errorf("unrecognized linkage %v", linkage))
+}
+
+func (mod *Module) stdLinkageOptions(ctx DepsContext) [][]blueprint.Variation {
+	stdLinkage := mod.compiler.stdLinkage(ctx.Device())
+	switch stdLinkage {
+	case NoCore:
+		// NoCore is currently unmutated, so there's no variation here
+		return [][]blueprint.Variation{{}}
+	default:
+		return sliceMap(stdLinkage.compatChoices(), func(choice StdLinkage) []blueprint.Variation { return []blueprint.Variation{choice.variation()} })
+	}
 }
 
 func (mod *Module) addVariantDep(ctx DepsContext, depTags []dependencyTag, lib string) {
@@ -2396,22 +2407,24 @@ type RustImplementationDepInfo struct {
 	NonApexImplementationDeps depset.DepSet[android.Path]
 }
 
-func (linkage RustLinkage) libraryVariations() []blueprint.Variation {
+func (linkage StdLinkage) libraryVariations() []blueprint.Variation {
 	switch linkage {
-	case RlibLinkage:
+	case RlibCore, RlibStd:
 		return []blueprint.Variation{{Mutator: "rust_libraries", Variation: rlibVariation}}
-	case DylibLinkage:
+	case DylibStd:
 		return []blueprint.Variation{{Mutator: "rust_libraries", Variation: dylibVariation}}
+	case NoCore:
+		panic("trying to link stdlibs for no-core library")
 	default:
 		panic(fmt.Errorf("unknown linkage: %v", linkage))
 	}
 }
 
-func (linkage RustLinkage) depTag() dependencyTag {
+func (linkage StdLinkage) depTag() dependencyTag {
 	switch linkage {
-	case RlibLinkage:
+	case RlibCore, RlibStd:
 		return rlibDepTag
-	case DylibLinkage:
+	case DylibStd:
 		return dylibDepTag
 	default:
 		panic(fmt.Errorf("unknown linkage: %v", linkage))

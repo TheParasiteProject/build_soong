@@ -855,4 +855,67 @@ func TestNoStdLib(t *testing.T) {
 	}
 }
 
+func TestNoStdVariant(t *testing.T) {
+	ctx := testRust(t, `
+	rust_library_rlib {
+		name: "libmaybe_std",
+		srcs: ["foo.rs"],
+		crate_name: "maybe_std",
+		no_std: {
+			enabled: true,
+		}
+	}
+	rust_library_rlib {
+		name: "libno_std",
+		srcs: ["foo.rs"],
+		crate_name: "no_std",
+		rustlibs: ["libmaybe_std"],
+		no_stdlibs: true
+	}
+	rust_library_rlib {
+		name: "libyes_std",
+		srcs: ["foo.rs"],
+		crate_name: "yes_std",
+		rustlibs: ["libmaybe_std"],
+	}
+	`)
+	variants := ctx.ModuleVariantsForTests("libmaybe_std")
+	// We should have both a core linkage variant and a std linkage variant
+	if !android.InList("android_arm64_armv8-a_rlib_rlib-core", variants) {
+		t.Errorf("missing expected variant: %q", "android_arm64_armv8-a_rlib_rlib-core")
+	}
+	if !android.InList("android_arm64_armv8-a_rlib_rlib-std", variants) {
+		t.Errorf("missing expected variant: %q", "android_arm64_armv8-a_rlib_rlib-std")
+	}
+
+	// The std variant should depend on std
+	maybe_std_std := ctx.ModuleForTests(t, "libmaybe_std", "android_arm64_armv8-a_rlib_rlib-std").Module().(*Module)
+	if !android.InList("libstd", maybe_std_std.Properties.AndroidMkRlibs) {
+		t.Errorf("missing expected dependency on libstd")
+	}
+	// The nostd variant should not
+	maybe_std_core := ctx.ModuleForTests(t, "libmaybe_std", "android_arm64_armv8-a_rlib_rlib-core").Module().(*Module)
+	if android.InList("libstd", maybe_std_core.Properties.AndroidMkRlibs) {
+		t.Errorf("unexpected dependency on libstd")
+	}
+
+	// The nostd library should select the nostd variant
+	no_std := ctx.ModuleForTests(t, "libno_std", "android_arm64_armv8-a_rlib_rlib-core").Module().(*Module)
+	if !android.InList("libmaybe_std.rlib-core", no_std.Properties.AndroidMkRlibs) {
+		t.Errorf("missing expected dependency on libmaybe_std.rlib-core")
+	}
+	if android.InList("libmaybe_std.rlib-std", no_std.Properties.AndroidMkRlibs) {
+		t.Errorf("unexpected dependency on libmaybe_std.rlib-std")
+	}
+
+	// The nostd library should select the nostd variant
+	yes_std := ctx.ModuleForTests(t, "libyes_std", "android_arm64_armv8-a_rlib_rlib-std").Module().(*Module)
+	if android.InList("libmaybe_std.rlib-core", yes_std.Properties.AndroidMkRlibs) {
+		t.Errorf("unexpected dependency on libmaybe_std.rlib-core")
+	}
+	if !android.InList("libmaybe_std.rlib-std", yes_std.Properties.AndroidMkRlibs) {
+		t.Errorf("missing expected dependency on libmaybe_std.rlib-std")
+	}
+}
+
 // TODO once we can enforce that rlib-core does not depend on rlib-std or dylib-std, test it

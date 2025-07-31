@@ -120,8 +120,8 @@ func (fuzzer *fuzzDecorator) compile(ctx ModuleContext, flags Flags, deps PathDe
 	return out
 }
 
-func (fuzzer *fuzzDecorator) stdLinkage(device bool) RustLinkage {
-	return RlibLinkage
+func (fuzzer *fuzzDecorator) stdLinkage(device bool) StdLinkage {
+	return RlibStd
 }
 
 func (fuzzer *fuzzDecorator) autoDep(ctx android.BottomUpMutatorContext) autoDep {

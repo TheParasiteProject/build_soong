@@ -21,18 +21,39 @@ import (
 
 	"android/soong/cc"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/rust/config"
 )
 
-type RustLinkage int
+type StdLinkage int
 
 const (
-	DylibLinkage RustLinkage = iota
-	RlibLinkage
+	NoCore StdLinkage = iota
+	RlibCore
+	RlibStd
+	DylibStd
 )
+
+func (linkage StdLinkage) variation() blueprint.Variation {
+	return blueprint.Variation{Mutator: "rust_stdlinkage", Variation: linkage.variationName()}
+}
+
+func (linkage StdLinkage) variationName() string {
+	switch linkage {
+	case NoCore:
+		return ""
+	case RlibCore:
+		return "rlib-core"
+	case RlibStd:
+		return "rlib-std"
+	case DylibStd:
+		return "dylib-std"
+	}
+	panic(fmt.Errorf("unknown linkage type %v", linkage))
+}
 
 type compiler interface {
 	compilerFlags(ctx ModuleContext, flags Flags) Flags
@@ -69,7 +90,7 @@ type compiler interface {
 	Disabled() bool
 	SetDisabled()
 
-	stdLinkage(device bool) RustLinkage
+	stdLinkage(device bool) StdLinkage
 	noStdlibs() bool
 
 	unstrippedOutputFilePath() android.Path
@@ -310,14 +331,14 @@ func (compiler *baseCompiler) Aliases() map[string]string {
 	return aliases
 }
 
-func (compiler *baseCompiler) stdLinkage(device bool) RustLinkage {
-	// For devices, we always link stdlibs in as dylibs by default.
+func (compiler *baseCompiler) stdLinkage(device bool) StdLinkage {
 	if compiler.preferRlib() {
-		return RlibLinkage
+		// For devices, we always link stdlibs in as dylibs by default.
+		return RlibStd
 	} else if device {
-		return DylibLinkage
+		return DylibStd
 	} else {
-		return RlibLinkage
+		return RlibStd
 	}
 }
 

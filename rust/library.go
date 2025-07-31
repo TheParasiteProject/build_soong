@@ -54,10 +54,11 @@ type VariantLibraryProperties struct {
 }
 
 type LibraryCompilerProperties struct {
-	Rlib   VariantLibraryProperties `android:"arch_variant"`
-	Dylib  VariantLibraryProperties `android:"arch_variant"`
-	Shared VariantLibraryProperties `android:"arch_variant"`
-	Static VariantLibraryProperties `android:"arch_variant"`
+	Rlib   VariantLibraryProperties  `android:"arch_variant"`
+	Dylib  VariantLibraryProperties  `android:"arch_variant"`
+	Shared VariantLibraryProperties  `android:"arch_variant"`
+	Static VariantLibraryProperties  `android:"arch_variant"`
+	No_std *VariantLibraryProperties `android:"arch_variant"`
 
 	// TODO: Remove this when all instances of Include_dirs have been removed from rust_ffi modules.
 	// path to include directories to pass to cc_* modules, only relevant for static/shared variants (deprecated, use export_include_dirs instead).
@@ -108,6 +109,8 @@ type LibraryMutatedProperties struct {
 	VariantIsShared bool `blueprint:"mutated"`
 	// This variant is a source provider
 	VariantIsSource bool `blueprint:"mutated"`
+	// This variant is no_std
+	VariantIsNoStd bool `blueprint:"mutated"`
 
 	// This variant is disabled and should not be compiled
 	// (used for SourceProvider variants that produce only source)
@@ -173,6 +176,7 @@ type libraryInterface interface {
 	buildDylib() bool
 	buildShared() bool
 	buildStatic() bool
+	buildNoStd() bool
 
 	// Sets a particular variant type
 	setRlib()
@@ -255,16 +259,22 @@ func (library *libraryDecorator) buildStatic() bool {
 	return library.MutatedProperties.BuildStatic && BoolDefault(library.Properties.Static.Enabled, true)
 }
 
+func (library *libraryDecorator) buildNoStd() bool {
+	return library.Properties.No_std != nil && BoolDefault(library.Properties.No_std.Enabled, false)
+}
+
 func (library *libraryDecorator) setRlib() {
 	library.MutatedProperties.VariantIsRlib = true
 	library.MutatedProperties.VariantIsDylib = false
 	library.MutatedProperties.VariantIsShared = false
+	library.MutatedProperties.VariantIsNoStd = library.noStdlibs()
 }
 
 func (library *libraryDecorator) setDylib() {
 	library.MutatedProperties.VariantIsRlib = false
 	library.MutatedProperties.VariantIsDylib = true
 	library.MutatedProperties.VariantIsShared = false
+	library.MutatedProperties.VariantIsNoStd = false
 }
 
 func (library *libraryDecorator) rlibStd() bool {
@@ -277,6 +287,7 @@ func (library *libraryDecorator) setRlibStd() {
 
 func (library *libraryDecorator) setNoStd() {
 	library.setNoStdlibs()
+	library.MutatedProperties.VariantIsNoStd = true
 }
 
 func (library *libraryDecorator) setDylibStd() {
@@ -287,6 +298,7 @@ func (library *libraryDecorator) setShared() {
 	library.MutatedProperties.VariantIsShared = true
 	library.MutatedProperties.VariantIsRlib = false
 	library.MutatedProperties.VariantIsDylib = false
+	library.MutatedProperties.VariantIsNoStd = library.noStdlibs()
 }
 
 func (library *libraryDecorator) setStatic() {
@@ -309,15 +321,16 @@ func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) aut
 	}
 }
 
-func (library *libraryDecorator) stdLinkage(device bool) RustLinkage {
-	if library.static() || library.MutatedProperties.VariantIsStaticStd {
-		return RlibLinkage
-	} else if library.preferRlib() {
-		return RlibLinkage
-	} else if !device {
-		return RlibLinkage
+func (library *libraryDecorator) stdLinkage(device bool) StdLinkage {
+	if library.sysroot() {
+		return NoCore
+	} else if library.MutatedProperties.VariantIsNoStd || library.noStdlibs() {
+		return RlibCore
+	} else if library.static() || library.MutatedProperties.VariantIsStaticStd {
+		return RlibStd
+	} else {
+		return library.baseCompiler.stdLinkage(device)
 	}
-	return DylibLinkage
 }
 
 var _ compiler = (*libraryDecorator)(nil)
@@ -1074,7 +1087,11 @@ func (libstdTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 					// Hosts do not produce dylib variants, so there's only one std option.
 					return []string{"rlib-std"}
 				}
-				return []string{"rlib-std", "dylib-std"}
+				if library.buildNoStd() {
+					return []string{"rlib-std", "dylib-std", "rlib-core"}
+				} else {
+					return []string{"rlib-std", "dylib-std"}
+				}
 			}
 		}
 	}
