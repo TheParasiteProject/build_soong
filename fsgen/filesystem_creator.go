@@ -190,24 +190,21 @@ func generatedPartitions(ctx android.EarlyModuleContext) allGeneratedPartitionDa
 			supported:     true,
 		})
 	}
-	if buildingSystemImage(partitionVars) {
-		if ctx.Config().UseSoongSystemImage() {
-			if ctx.Config().SoongDefinedSystemImage() == "" {
-				panic("PRODUCT_SOONG_DEFINED_SYSTEM_IMAGE must be set if USE_SOONG_DEFINED_SYSTEM_IMAGE is true")
-			}
-			result = append(result, generatedPartitionData{
-				partitionType: "system",
-				moduleName:    ctx.Config().SoongDefinedSystemImage(),
-				supported:     true,
-				handwritten:   true,
-			})
-		} else {
-			addGenerated("system")
+	// Always create system and system_ext partition due to still need it for finding deps for vendor or product partition.
+	if ctx.Config().UseSoongSystemImage() {
+		if ctx.Config().SoongDefinedSystemImage() == "" {
+			panic("PRODUCT_SOONG_DEFINED_SYSTEM_IMAGE must be set if USE_SOONG_DEFINED_SYSTEM_IMAGE is true")
 		}
+		result = append(result, generatedPartitionData{
+			partitionType: "system",
+			moduleName:    ctx.Config().SoongDefinedSystemImage(),
+			supported:     true,
+			handwritten:   true,
+		})
+	} else {
+		addGenerated("system")
 	}
-	if buildingSystemExtImage(partitionVars) && ctx.DeviceConfig().SystemExtPath() == "system_ext" {
-		addGenerated("system_ext")
-	}
+	addGenerated("system_ext")
 	if ctx.DeviceConfig().BuildingVendorImage() && ctx.DeviceConfig().VendorPath() == "vendor" {
 		addGenerated("vendor")
 	}
@@ -451,15 +448,20 @@ func (f *filesystemCreator) createDeviceModule(
 	}
 
 	// Currently, only the system and system_ext partition module is created.
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
 	partitionProps := &filesystem.PartitionNameProperties{}
 	if f.properties.Super_image != "" {
 		partitionProps.Super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
 	}
-	if modName := partitions.nameForType("system"); modName != "" && !android.InList("system", superImageSubPartitions) {
-		partitionProps.System_partition_name = proptools.StringPtr(modName)
+	if buildingSystemImage(partitionVars) {
+		if modName := partitions.nameForType("system"); modName != "" && !android.InList("system", superImageSubPartitions) {
+			partitionProps.System_partition_name = proptools.StringPtr(modName)
+		}
 	}
-	if modName := partitions.nameForType("system_ext"); modName != "" && !android.InList("system_ext", superImageSubPartitions) {
-		partitionProps.System_ext_partition_name = proptools.StringPtr(modName)
+	if buildingSystemExtImage(partitionVars) {
+		if modName := partitions.nameForType("system_ext"); modName != "" && !android.InList("system_ext", superImageSubPartitions) {
+			partitionProps.System_ext_partition_name = proptools.StringPtr(modName)
+		}
 	}
 	if modName := partitions.nameForType("vendor"); modName != "" && !android.InList("vendor", superImageSubPartitions) {
 		partitionProps.Vendor_partition_name = proptools.StringPtr(modName)
