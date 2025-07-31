@@ -1283,7 +1283,7 @@ func buildComplianceMetadata(ctx android.ModuleContext) {
 	for _, paths := range ctx.GetOutputFiles().TaggedOutputFiles {
 		builtFiles = append(builtFiles, paths.Strings()...)
 	}
-	complianceMetadataInfo.SetListValue(android.ComplianceMetadataProp.BUILT_FILES, android.SortedUniqueStrings(builtFiles))
+	complianceMetadataInfo.AddBuiltFiles(builtFiles...)
 
 	// Static deps
 	staticDepNames := make([]string, 0)

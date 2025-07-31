@@ -144,13 +144,14 @@ func (s *SystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.Mo
 	standaloneClasspathJars := configuredJarListToClasspathJars(ctx, standaloneConfiguredJars, STANDALONE_SYSTEMSERVER_JARS)
 	configuredJars = configuredJars.AppendList(&standaloneConfiguredJars)
 	classpathJars = append(classpathJars, standaloneClasspathJars...)
-	s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
+	classpathProtoOutputPath := s.classpathFragmentBase().generateClasspathProtoBuildActions(ctx, configuredJars, classpathJars)
 	s.setPartitionInfoOfLibraries(ctx)
 
 	android.SetProvider(ctx, SystemServerClasspathInfoProvider, SystemServerClasspathInfo{
 		Contents:           s.properties.Contents.GetOrDefault(ctx, nil),
 		StandaloneContents: s.properties.Standalone_contents.GetOrDefault(ctx, nil),
 	})
+	ctx.ComplianceMetadataInfo().AddBuiltFiles(classpathProtoOutputPath.String())
 }
 
 // Map of java library name to their install partition.

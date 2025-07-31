@@ -258,7 +258,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 			return modules[i].String() < modules[j].String()
 		})
 
-		buildCompatibilitySuitePackage(ctx, suite, slices.Clone(allTestSuiteInstalls[suite.Name]), modules)
+		buildCompatibilitySuitePackage(ctx, suite, slices.Clone(allTestSuiteInstalls[suite.Name]), modules, slices.Clone(testInstalledSharedLibs[suite.Name]))
 	}
 }
 
@@ -596,6 +596,7 @@ func buildCompatibilitySuitePackage(
 	suite compatibilitySuitePackageInfo,
 	testSuiteFiles android.Paths,
 	testSuiteModules []android.ModuleProxy,
+	testSuiteLibs android.Paths,
 ) {
 	testSuiteName := suite.Name
 	subdir := fmt.Sprintf("android-%s", testSuiteName)
@@ -679,6 +680,11 @@ func buildCompatibilitySuitePackage(
 
 	cmd.FlagWithArg("-C ", hostOutSuite.String())
 	for _, f := range testSuiteFiles {
+		cmd.FlagWithInput("-f ", f)
+	}
+
+	cmd.FlagWithArg("-C ", hostOutSuite.String())
+	for _, f := range testSuiteLibs {
 		cmd.FlagWithInput("-f ", f)
 	}
 

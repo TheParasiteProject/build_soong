@@ -689,6 +689,9 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 			// This is currently how the command line to invoke soong_build finds the
 			// root of the source tree and the output root
 			ninjaEnv.Set("TOP", os.Getenv("TOP"))
+			SetupLitePath(ctx, config, "")
+			ninjaPath, _ := config.Environment().Get("PATH")
+			ninjaEnv.Set("PATH", ninjaPath)
 
 			cmd.Environment = &ninjaEnv
 			cmd.Sandbox = soongSandbox

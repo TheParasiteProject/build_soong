@@ -116,7 +116,7 @@ func WriteFormattedMessage(path, format string, message proto.Message) (err erro
 	case "json":
 		data, err = json.MarshalIndent(message, "", "  ")
 	case "pb", "binaryproto", "protobuf":
-		data, err = proto.Marshal(message)
+		data, err = proto.MarshalOptions{Deterministic: true}.Marshal(message)
 	case "textproto":
 		data, err = prototext.MarshalOptions{Multiline: true}.Marshal(message)
 	default:
@@ -245,9 +245,13 @@ func warnf(format string, args ...any) (n int, err error) {
 	return 0, nil
 }
 
-func SortedMapKeys(inputMap map[string]bool) []string {
-	ret := []string{}
-	for k := range inputMap {
+// SortedKeys returns the keys of the given map in the ascending order.
+func SortedKeys[T cmp.Ordered, V any](m map[T]V) []T {
+	if len(m) == 0 {
+		return nil
+	}
+	ret := make([]T, 0, len(m))
+	for k := range m {
 		ret = append(ret, k)
 	}
 	slices.Sort(ret)
