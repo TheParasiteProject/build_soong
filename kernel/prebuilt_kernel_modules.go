@@ -324,17 +324,28 @@ func (pkm *prebuiltKernelModules) runDepmod(ctx android.ModuleContext, modules a
 	builder := android.NewRuleBuilder(pctx, ctx)
 
 	// Copy the module files to a temporary dir
+	moduleNames := map[string]bool{}
 	builder.Command().Text("rm").Flag("-rf").Text(modulesCpDir.String())
 	builder.Command().Text("mkdir").Flag("-p").Text(modulesCpDir.String())
 	for _, m := range modules {
 		builder.Command().Text("cp").Input(m).Text(modulesCpDir.String())
+		moduleNames[m.Base()] = true
 	}
 
 	modulesDirForSystemDlkm := modulesDirForAndroidDlkm(ctx, modulesDir, true)
 	if len(systemModules) > 0 {
+		builder.Command().Text("rm").Flag("-rf").Text(modulesDirForSystemDlkm.String())
 		builder.Command().Text("mkdir").Flag("-p").Text(modulesDirForSystemDlkm.String())
 	}
 	for _, m := range systemModules {
+		// https://source.corp.google.com/h/googleplex-android/platform/build/+/71d79d0a58e112f76ee2c2dfdebd331971145b4c:core/Makefile;l=480-487;bpv=1;bpt=0;drc=567ee7be9833ea96a65e36fb21d4bd783ff74f1c
+		// When there is a duplicate module present in both directories, we want modules in PRIVATE_MODULES to take
+		// precedence. Since depmod does not provide any guarantee about ordering of
+		// dependency resolution, we achieve this by maually removing any duplicate
+		// modules with lower priority.
+		if _, exists := moduleNames[m.Base()]; exists {
+			continue
+		}
 		builder.Command().Text("cp").Input(m).Text(modulesDirForSystemDlkm.String())
 	}
 
