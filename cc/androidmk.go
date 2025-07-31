@@ -275,6 +275,10 @@ func (object *objectLinker) prepareAndroidMKProviderInfo(config android.Config, 
 	entries.Class = "STATIC_LIBRARIES"
 }
 
+func (object *deviceForHostLinker) prepareAndroidMKProviderInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {
+	entries.Class = "STATIC_LIBRARIES"
+}
+
 func (object *objectLinker) prepareAndroidMKFooterInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {
 	out := entries.OutputFile.Path()
 	name := ctx.BaseModuleName()
