@@ -47,7 +47,6 @@ func createSuperImage(
 		Use_dynamic_partitions:        proptools.BoolPtr(partitionVars.ProductUseDynamicPartitions),
 		Super_image_in_update_package: proptools.BoolPtr(partitionVars.BoardSuperImageInUpdatePackage),
 		Create_super_empty:            proptools.BoolPtr(partitionVars.BuildingSuperEmptyImage),
-		Build_super_partition:         proptools.BoolPtr(partitionVars.ProductBuildSuperPartition),
 	}
 	if partitionVars.ProductVirtualAbOta {
 		superImageProps.Virtual_ab.Enable = proptools.BoolPtr(true)
