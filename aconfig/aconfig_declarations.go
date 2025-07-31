@@ -96,7 +96,9 @@ func (module *DeclarationsModule) DepsMutator(ctx android.BottomUpMutatorContext
 	if len(valuesFromConfig) > 0 {
 		ctx.AddDependency(ctx.Module(), implicitValuesTag, valuesFromConfig...)
 	}
-	for rcName, valueSets := range ctx.Config().ReleaseAconfigExtraReleaseConfigsValueSets() {
+	extraValueSetsMap := ctx.Config().ReleaseAconfigExtraReleaseConfigsValueSets()
+	for _, rcName := range android.SortedKeys(extraValueSetsMap) {
+		valueSets := extraValueSetsMap[rcName]
 		if len(valueSets) > 0 {
 			ctx.AddDependency(ctx.Module(), implicitValuesTagType{ReleaseConfig: rcName}, valueSets...)
 		}
