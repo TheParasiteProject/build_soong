@@ -1129,6 +1129,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	allowlist := a.createPrivappAllowlist(ctx)
 	if allowlist != nil {
 		a.privAppAllowlist = android.OptionalPathForPath(allowlist)
+		ctx.ComplianceMetadataInfo().AddBuiltFiles(a.privAppAllowlist.Path().String())
 	}
 
 	// Install the app package.

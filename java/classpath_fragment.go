@@ -162,7 +162,7 @@ func (c *ClasspathFragmentBase) outputFilename() string {
 	return strings.ToLower(c.classpathType.String()) + ".pb"
 }
 
-func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext, configuredJars android.ConfiguredJarList, jars []classpathJar) {
+func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.ModuleContext, configuredJars android.ConfiguredJarList, jars []classpathJar) android.OutputPath {
 	generateProto := proptools.BoolDefault(c.properties.Generate_classpaths_proto, true)
 	if generateProto {
 		outputFilename := c.outputFilename()
@@ -190,6 +190,7 @@ func (c *ClasspathFragmentBase) generateClasspathProtoBuildActions(ctx android.M
 		ClasspathFragmentProtoOutput:     c.outputFilepath,
 	}
 	android.SetProvider(ctx, ClasspathFragmentProtoContentInfoProvider, classpathProtoInfo)
+	return c.outputFilepath
 }
 
 func (c *ClasspathFragmentBase) installClasspathProto(ctx android.ModuleContext) android.InstallPath {

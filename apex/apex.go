@@ -2216,7 +2216,8 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 3.a) some artifacts are generated from the collected files
-	a.filesInfo = append(a.filesInfo, a.buildAconfigFiles(ctx)...)
+	aconfigFiles := a.buildAconfigFiles(ctx)
+	a.filesInfo = append(a.filesInfo, aconfigFiles...)
 
 	////////////////////////////////////////////////////////////////////////////////////////////
 	// 4) generate the build rules to create the APEX. This is done in builder.go.
@@ -2261,6 +2262,33 @@ func (a *apexBundle) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	moduleInfoJSON.Class = []string{"ETC"}
 	moduleInfoJSON.SystemSharedLibs = []string{"none"}
 	moduleInfoJSON.Disabled = false
+
+	// Build compliance metadata
+	if a.installable() && slices.Contains(ctx.Config().UnbundledBuildApps(), a.Name()) {
+		builtFiles := []string{}
+		for _, file := range aconfigFiles {
+			builtFiles = append(builtFiles, file.builtFile.String())
+		}
+
+		filesContained := []string{}
+		buildOutputPaths := []string{}
+		filesContained = append(filesContained, a.installedFile.String())
+		buildOutputPaths = append(buildOutputPaths, a.outputFile.String())
+		for _, f := range a.filesInfo {
+			filesContained = append(filesContained, f.path())
+			buildOutputPaths = append(buildOutputPaths, f.builtFile.String())
+			imageDir := android.PathForModuleOut(ctx, "image"+imageApexSuffix).String()
+			for _, symlinkPath := range f.symlinkPaths() {
+				filesContained = append(filesContained, symlinkPath)
+				buildOutputPaths = append(buildOutputPaths, filepath.Join(imageDir, symlinkPath))
+				builtFiles = append(builtFiles, filepath.Join(imageDir, symlinkPath))
+			}
+		}
+		complianceMetadataInfo := ctx.ComplianceMetadataInfo()
+		complianceMetadataInfo.SetFilesContained(filesContained)
+		complianceMetadataInfo.SetBuildOutputPathsOfFilesContained(buildOutputPaths)
+		complianceMetadataInfo.AddBuiltFiles(builtFiles...)
+	}
 }
 
 // Set prebuiltInfoProvider. This will be used by `apex_prebuiltinfo_singleton` to print out a metadata file
@@ -2343,6 +2371,7 @@ func apexBootclasspathFragmentFiles(ctx android.ModuleContext, module android.Mo
 				Input:  pathOnHost,
 				Output: tempPath,
 			})
+			ctx.ComplianceMetadataInfo().AddBuiltFiles(tempPath.String())
 		} else {
 			// At this point, the boot image profile cannot be generated. It is probably because the boot
 			// image profile source file does not exist on the branch, or it is not available for the
