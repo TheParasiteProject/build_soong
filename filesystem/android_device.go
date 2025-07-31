@@ -1081,28 +1081,28 @@ func (a *androidDevice) createFastbootInfo(ctx android.ModuleContext) android.Pa
 	fastbootInfo := android.PathForModuleOut(ctx, "fastboot-info.txt")
 	var fastbootInfoString strings.Builder
 	fastbootInfoString.WriteString(fmt.Sprintf("# fastboot-info for %s\n", ctx.Config().DeviceProduct()))
-	fastbootInfoString.WriteString(fmt.Sprintf("version 1\n"))
+	fastbootInfoString.WriteString("version 1\n")
 	if a.partitionProps.Boot_partition_name != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash boot\n"))
+		fastbootInfoString.WriteString("flash boot\n")
 	}
 	if a.partitionProps.Init_boot_partition_name != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash init_boot\n"))
+		fastbootInfoString.WriteString("flash init_boot\n")
 	}
 	if a.deviceProps.Dtbo_image != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash dtbo\n"))
+		fastbootInfoString.WriteString("flash dtbo\n")
 	}
 	if a.partitionProps.Vendor_kernel_boot_partition_name != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash vendor_kernel_boot\n"))
+		fastbootInfoString.WriteString("flash vendor_kernel_boot\n")
 	}
 	if a.deviceProps.Pvmfw.Image != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash pvmfw\n"))
+		fastbootInfoString.WriteString("flash pvmfw\n")
 	}
 	if a.partitionProps.Vendor_boot_partition_name != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash vendor_boot\n"))
+		fastbootInfoString.WriteString("flash vendor_boot\n")
 	}
 	// vbmeta
 	if len(a.partitionProps.Vbmeta_partitions) > 0 {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash --apply-vbmeta vbmeta\n"))
+		fastbootInfoString.WriteString("flash --apply-vbmeta vbmeta\n")
 	}
 	var allChainedVbmetaPartitionTypes []string
 	for _, vbmetaPartitionName := range a.partitionProps.Vbmeta_partitions {
@@ -1121,8 +1121,8 @@ func (a *androidDevice) createFastbootInfo(ctx android.ModuleContext) android.Pa
 		}
 	}
 
-	fastbootInfoString.WriteString(fmt.Sprintf("reboot fastboot\n"))
-	fastbootInfoString.WriteString(fmt.Sprintf("update-super\n"))
+	fastbootInfoString.WriteString("reboot fastboot\n")
+	fastbootInfoString.WriteString("update-super\n")
 
 	var partitionsInSuper map[string]FilesystemInfo
 	if a.partitionProps.Super_partition_name != nil {
@@ -1147,16 +1147,16 @@ func (a *androidDevice) createFastbootInfo(ctx android.ModuleContext) android.Pa
 	}
 
 	if _, exists := partitionsInSuper["system_other"]; exists {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash --slot-other system system_other.img\n"))
+		fastbootInfoString.WriteString("flash --slot-other system system_other.img\n")
 	}
 
-	fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase userdata\n"))
+	fastbootInfoString.WriteString("if-wipe erase userdata\n")
 
 	// TODO: handle products with cache (PRODUCT_BUILD_CACHE_IMAGE=true)
 	// fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase cache\n"))
 
 	// TODO: Remove this hardcoding
-	fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase metadata\n"))
+	fastbootInfoString.WriteString("if-wipe erase metadata\n")
 
 	android.WriteFileRuleVerbatim(ctx, fastbootInfo, fastbootInfoString.String())
 	return fastbootInfo
