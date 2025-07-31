@@ -77,9 +77,6 @@ type ReleaseConfig struct {
 	// Unmarshalled flag artifacts
 	FlagArtifacts FlagArtifacts
 
-	// The files used by this release config
-	FilesUsedMap map[string]bool
-
 	// Generated release config
 	ReleaseConfigArtifact *rc_proto.ReleaseConfigArtifact
 
@@ -152,7 +149,6 @@ func ReleaseConfigFactory(name string, index int) (c *ReleaseConfig) {
 	return &ReleaseConfig{
 		Name:             name,
 		DeclarationIndex: index,
-		FilesUsedMap:     make(map[string]bool),
 		PriorStagesMap:   make(map[string]bool),
 		inheritNamesMap:  make(map[string]bool),
 	}
@@ -162,9 +158,6 @@ func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
 	if config.ReleaseConfigType != iConfig.ReleaseConfigType && ReleaseConfigInheritanceDenyMap[config.ReleaseConfigType] {
 		return fmt.Errorf("Release config %s (type '%s') cannot inherit from %s (type '%s')",
 			config.Name, config.ReleaseConfigType, iConfig.Name, iConfig.ReleaseConfigType)
-	}
-	for f := range iConfig.FilesUsedMap {
-		config.FilesUsedMap[f] = true
 	}
 	for _, fa := range iConfig.FlagArtifacts {
 		name := *fa.FlagDeclaration.Name
@@ -194,10 +187,6 @@ func (config *ReleaseConfig) InheritConfig(iConfig *ReleaseConfig) error {
 		}
 	}
 	return nil
-}
-
-func (config *ReleaseConfig) GetSortedFileList() []string {
-	return SortedMapKeys(config.FilesUsedMap)
 }
 
 func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) error {
@@ -456,7 +445,7 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 		Inherits:          myInherits,
 		Directories:       directories,
 		ValueDirectories:  valueDirectories,
-		PriorStages:       SortedMapKeys(config.PriorStagesMap),
+		PriorStages:       SortedKeys(config.PriorStagesMap),
 		ReleaseConfigType: config.ReleaseConfigType.Enum(),
 		DisallowLunchUse:  proto.Bool(config.DisallowLunchUse),
 	}
@@ -542,7 +531,6 @@ func (config *ReleaseConfig) WriteMakefile(outFile, targetRelease string, config
 	if config.DisallowLunchUse {
 		data += fmt.Sprintf("_disallow_lunch_use :=$= true\n")
 	}
-	data += fmt.Sprintf("_used_files := %s\n", strings.Join(config.GetSortedFileList(), " "))
 	data += fmt.Sprintf("_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
 	for _, pName := range pNames {
 		data += fmt.Sprintf("_ALL_RELEASE_FLAGS.PARTITIONS.%s :=$= %s\n", pName, strings.Join(partitions[pName], " "))
