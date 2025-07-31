@@ -67,6 +67,9 @@ type PartitionNameProperties struct {
 	Vendor_dlkm_partition_name *string
 	// Name of the odm_dlkm partition filesystem module
 	Odm_dlkm_partition_name *string
+
+	// This is used to create deps
+	Dynamic_config_only_super_partition_name *string
 }
 
 type DeviceProperties struct {
@@ -206,6 +209,10 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if a.partitionProps.Super_partition_name != nil {
 		ctx.AddDependency(ctx.Module(), superPartitionDepTag, *a.partitionProps.Super_partition_name)
 	}
+	if a.partitionProps.Dynamic_config_only_super_partition_name != nil {
+		ctx.AddDependency(ctx.Module(), superPartitionDepTag, *a.partitionProps.Dynamic_config_only_super_partition_name)
+	}
+
 	addDependencyIfDefined(a.partitionProps.Boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.Boot_16k_partition_name)
 	addDependencyIfDefined(a.partitionProps.Init_boot_partition_name)
@@ -1059,8 +1066,13 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	// apex_info.pb, care_map.pb, vbmeta_digest.txt
 	a.addImgToTargetFiles(ctx, builder, targetFilesDir.String())
 
-	if a.partitionProps.Super_partition_name != nil {
-		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
+	// Pack dynamic_partitions_info.txt to target-file.
+	superPartitionName := a.partitionProps.Super_partition_name
+	if superPartitionName == nil {
+		superPartitionName = a.partitionProps.Dynamic_config_only_super_partition_name
+	}
+	if superPartitionName != nil {
+		superPartition := ctx.GetDirectDepProxyWithTag(*superPartitionName, superPartitionDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
 			// dynamic_partitions_info.txt
 			// TODO (b/390192334): Add `building_super_empty_partition=true`
