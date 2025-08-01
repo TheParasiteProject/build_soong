@@ -20,7 +20,6 @@ package java
 import (
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -1128,10 +1127,9 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, BundleProvider, BundleInfo{Bundle: bundleFile})
 
 	allowlist := a.createPrivappAllowlist(ctx)
-	complianceMetadataInfo := ctx.ComplianceMetadataInfo()
 	if allowlist != nil {
 		a.privAppAllowlist = android.OptionalPathForPath(allowlist)
-		complianceMetadataInfo.AddBuiltFiles(a.privAppAllowlist.Path().String())
+		ctx.ComplianceMetadataInfo().AddBuiltFiles(a.privAppAllowlist.Path().String())
 	}
 
 	// Install the app package.
@@ -1200,11 +1198,6 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 	a.setOutputFiles(ctx)
 
 	buildComplianceMetadata(ctx)
-	if a.IsInstallable() && slices.Contains(ctx.Config().UnbundledBuildApps(), a.Name()) {
-		complianceMetadataInfo.SetFilesContained([]string{a.installedOutputFile.String()})
-		complianceMetadataInfo.SetBuildOutputPathsOfFilesContained([]string{a.outputFile.String()})
-		complianceMetadataInfo.AddBuiltFiles(a.outputFile.String())
-	}
 
 	if !a.hideApexVariantFromMake && !a.IsHideFromMake() {
 		if a.embeddedJniLibs {
