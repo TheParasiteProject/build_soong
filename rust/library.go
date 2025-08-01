@@ -22,10 +22,12 @@ import (
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/depset"
 	"github.com/google/blueprint/pathtools"
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/cc"
 	cc_config "android/soong/cc/config"
+	"android/soong/rust/config"
 )
 
 var (
@@ -49,8 +51,11 @@ func init() {
 }
 
 type VariantLibraryProperties struct {
-	Enabled *bool    `android:"arch_variant"`
-	Srcs    []string `android:"path,arch_variant"`
+	Enabled  *bool                            `android:"arch_variant"`
+	Srcs     proptools.Configurable[[]string] `android:"path,arch_variant"`
+	Features proptools.Configurable[[]string] `android:"arch_variant"`
+	Rustlibs proptools.Configurable[[]string] `android:"arch_variant"`
+	Cfgs     proptools.Configurable[[]string] `android:"arch_variant"`
 }
 
 type LibraryCompilerProperties struct {
@@ -207,6 +212,10 @@ type libraryInterface interface {
 	libraryProperties() LibraryCompilerProperties
 }
 
+func (library *libraryDecorator) setSysroot() {
+	library.Properties.Sysroot = proptools.BoolPtr(true)
+}
+
 func (library *libraryDecorator) nativeCoverage() bool {
 	return !library.BuildStubs()
 }
@@ -229,6 +238,10 @@ func (library *libraryDecorator) dylib() bool {
 
 func (library *libraryDecorator) shared() bool {
 	return library.MutatedProperties.VariantIsShared
+}
+
+func (library *libraryDecorator) noStd() bool {
+	return library.MutatedProperties.VariantIsNoStd
 }
 
 func (library *libraryDecorator) static() bool {
@@ -324,7 +337,7 @@ func (library *libraryDecorator) autoDep(ctx android.BottomUpMutatorContext) aut
 func (library *libraryDecorator) stdLinkage(device bool) StdLinkage {
 	if library.sysroot() {
 		return NoCore
-	} else if library.MutatedProperties.VariantIsNoStd || library.noStdlibs() {
+	} else if library.noStd() || library.noStdlibs() {
 		return RlibCore
 	} else if library.static() || library.MutatedProperties.VariantIsStaticStd {
 		return RlibStd
@@ -1063,7 +1076,7 @@ func (libraryTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, varia
 	}
 
 	if prebuilt, ok := m.compiler.(*prebuiltLibraryDecorator); ok {
-		if Bool(prebuilt.Properties.Force_use_prebuilt) && len(prebuilt.prebuiltSrcs()) > 0 {
+		if Bool(prebuilt.Properties.Force_use_prebuilt) && len(prebuilt.prebuiltSrcs(ctx)) > 0 {
 			m.Prebuilt().SetUsePrebuilt(true)
 		}
 	}
@@ -1146,5 +1159,34 @@ func (libstdTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, variat
 			// variants are properly supported.
 			dylib.Disable()
 		}
+	}
+}
+
+func (library *libraryDecorator) variantProperties() *VariantLibraryProperties {
+	if library.noStd() && library.Properties.No_std != nil {
+		return library.Properties.No_std
+	} else if library.rlib() {
+		return &library.Properties.Rlib
+	} else if library.dylib() {
+		return &library.Properties.Dylib
+	} else if library.shared() {
+		return &library.Properties.Shared
+	} else if library.static() {
+		return &library.Properties.Static
+	} else {
+		return nil
+	}
+}
+
+func (library *libraryDecorator) begin(ctx BaseModuleContext) {
+	library.baseCompiler.begin(ctx)
+	if overrides := library.variantProperties(); overrides != nil {
+		if err := proptools.ExtendMatchingProperties(ctx.Module().GetProperties(), overrides, nil, proptools.OrderReplace); err != nil {
+			panic(fmt.Errorf("unable to apply overrides: %v", err))
+		}
+	}
+	stdlibs := library.baseCompiler.Properties.Stdlibs.Get(ctx)
+	if library.stdLinkage(ctx.Device()) == RlibCore && !stdlibs.IsPresent() {
+		library.baseCompiler.Properties.Stdlibs = proptools.NewSimpleConfigurable(config.Corelibs)
 	}
 }

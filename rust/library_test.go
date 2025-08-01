@@ -918,4 +918,50 @@ func TestNoStdVariant(t *testing.T) {
 	}
 }
 
+// Test that feature and rustlib overrides are applied correctly.
+func TestLibraryFeatureAndRustlibOverrides(t *testing.T) {
+	ctx := testRust(t, `
+		rust_library {
+			name: "libfoo",
+			srcs: ["foo.rs"],
+			features: ["c"],
+			crate_name: "foo",
+			no_std: {
+				enabled: true,
+				features: [],
+			},
+			rlib: {
+				features: ["a", "b"],
+				rustlibs: ["libbar"],
+			},
+		}
+		rust_library {
+			name: "libbar",
+			srcs: ["bar.rs"],
+			crate_name: "bar",
+		}
+	`)
+
+	libfooRlib := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_rlib_rlib-std").Rule("rustc")
+
+	if !strings.Contains(libfooRlib.Args["rustcFlags"], "--cfg 'feature=\"a\"' --cfg 'feature=\"b\"'") {
+		t.Errorf("missing expected features for rlib variant, rustcFlags: %#v", libfooRlib.Args["rustcFlags"])
+	}
+	if strings.Contains(libfooRlib.Args["rustcFlags"], "--cfg 'feature=\"c\"'") {
+		t.Errorf("unexpected feature for rlib variant, rustcFlags: %#v", libfooRlib.Args["rustcFlags"])
+	}
+
+	if !strings.Contains(libfooRlib.Args["libFlags"], "--extern bar=out/soong/.intermediates/libbar/android_arm64_armv8-a_rlib_rlib-std/libbar.rlib") {
+		t.Errorf("missing expected rustlibs for rlib variant, libFlags: %#v", libfooRlib.Args["libFlags"])
+	}
+
+	libfooNoStd := ctx.ModuleForTests(t, "libfoo", "android_arm64_armv8-a_rlib_rlib-core").Rule("rustc")
+	if strings.Contains(libfooNoStd.Args["rustcFlags"], "--cfg 'feature=\"c\"'") {
+		t.Errorf("unexpected feature for no_std variant, rustcFlags: %#v", libfooRlib.Args["rustcFlags"])
+	}
+	if strings.Contains(libfooNoStd.Args["rustcFlags"], "--cfg 'feature=\"a\"'") {
+		t.Errorf("unexpected feature for no_std variant, rustcFlags: %#v", libfooRlib.Args["rustcFlags"])
+	}
+}
+
 // TODO once we can enforce that rlib-core does not depend on rlib-std or dylib-std, test it
