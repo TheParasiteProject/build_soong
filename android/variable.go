@@ -687,10 +687,10 @@ type PartitionVariables struct {
 	BoardKernelModulesLoad16K         []string `json:",omitempty"`
 
 	// Radio stuff
-	RadioFilePath             string   `json:",omitempty"`
 	AbOtaRadioPartitions      []string `json:",omitempty"`
 	BootloaderFilePath        string   `json:",omitempty"`
 	AbOtaBootloaderPartitions []string `json:",omitempty"`
+	BoardRadioImagePath       string   `json:",omitempty"`
 
 	// pvmfw stuff
 	BoardUsesPvmfwImage              bool   `json:",omitempty"`
