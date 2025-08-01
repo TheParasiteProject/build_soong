@@ -204,7 +204,6 @@ build_prop {
         "//packages/modules/Virtualization/build/microdroid",
         "//frameworks/base/ravenwood",
         "//visibility:any_system_partition",
-        "//bootable/recovery/tests/ota",
     ],
 }
 
@@ -237,6 +236,7 @@ build_prop {
     visibility: [
         "//build/make/target/product/gsi",
         "//build/soong/fsgen",
+        "//bootable/recovery/tests/ota",
     ],
 }
 
