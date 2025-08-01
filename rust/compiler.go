@@ -122,7 +122,7 @@ type BaseCompilerProperties struct {
 	// the module name with ":", for example ":libfoo_bindgen"
 	//
 	// If no source file is defined, a single generated source module can be defined to be used as the main source.
-	Srcs []string `android:"path,arch_variant"`
+	Srcs proptools.Configurable[[]string] `android:"path,arch_variant"`
 
 	// Entry point that is passed to rustc to begin the compilation. E.g. main.rs or lib.rs.
 	// When this property is set,
@@ -645,14 +645,14 @@ func (compiler *baseCompiler) relativeInstallPath() string {
 
 func (compiler *baseCompiler) crateRootPath(ctx ModuleContext) android.Path {
 	if compiler.Properties.Crate_root == nil {
-		return srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs)
+		return srcPathFromModuleSrcs(ctx, compiler.Properties.Srcs.GetOrDefault(ctx, nil))
 	} else {
 		return android.PathForModuleSrc(ctx, *compiler.Properties.Crate_root)
 	}
 }
 
 func (compiler *baseCompiler) crateSources(ctx ModuleContext) android.Paths {
-	crateSources := android.PathsForModuleSrc(ctx, compiler.Properties.Srcs)
+	crateSources := android.PathsForModuleSrc(ctx, compiler.Properties.Srcs.GetOrDefault(ctx, nil))
 
 	// By default use an expansive set of required sources.
 	// Check for UseRBE here since this isn't necessary for local builds and can
