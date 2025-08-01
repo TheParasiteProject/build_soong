@@ -92,21 +92,6 @@ func SetupTempDir(ctx Context, config Config) {
 	ensureEmptyDirectoriesExist(ctx, config.TempDir())
 }
 
-// SetupKatiEnabledMarker creates or delets a file that tells soong_build if we're running with
-// kati.
-func SetupKatiEnabledMarker(ctx Context, config Config) {
-	// Potentially write a marker file for whether kati is enabled. This is used by soong_build to
-	// potentially run the AndroidMk singleton and postinstall commands.
-	// Note that the absence of the file does not preclude running Kati for product
-	// configuration purposes.
-	katiEnabledMarker := filepath.Join(config.SoongOutDir(), ".soong.kati_enabled")
-	if config.SkipKati() || config.SkipKatiNinja() {
-		os.Remove(katiEnabledMarker)
-	} else {
-		ensureEmptyFileExists(ctx, katiEnabledMarker)
-	}
-}
-
 var combinedBuildNinjaTemplate = template.Must(template.New("combined").Parse(`
 builddir = {{.OutDir}}
 {{if .UseRemoteBuild }}pool local_pool
@@ -347,8 +332,6 @@ func Build(ctx Context, config Config) {
 	}
 
 	// Everything below here depends on product config.
-
-	SetupKatiEnabledMarker(ctx, config)
 
 	if inList("installclean", config.Arguments()) ||
 		inList("install-clean", config.Arguments()) {

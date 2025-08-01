@@ -202,6 +202,9 @@ func (pb PrimaryBuilderFactory) primaryBuilderInvocation(config Config) bootstra
 	commonArgs := make([]string, 0, 0)
 
 	commonArgs = append(commonArgs, "--kati_suffix", config.KatiSuffix())
+	if !config.SkipKati() {
+		commonArgs = append(commonArgs, "--kati_enabled")
+	}
 
 	if !pb.config.skipSoongTests {
 		commonArgs = append(commonArgs, "-t")
