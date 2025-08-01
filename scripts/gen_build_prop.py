@@ -68,6 +68,13 @@ def parse_args():
   args.config = json.load(args.product_config)
   config = args.config
 
+  if args.partition == "system":
+    config['ProductBrand'] = config['SystemBrand']
+    config['DeviceName'] = config['SystemDevice']
+    config['ProductManufacturer'] = config['SystemManufacturer']
+    config['ProductModel'] = config['SystemModel']
+    config['DeviceProduct'] = config['SystemName']
+
   config["BuildFlavor"] = get_build_flavor(config)
   config["BuildKeys"] = get_build_keys(config)
   config["BuildVariant"] = get_build_variant(config)
@@ -116,18 +123,11 @@ def generate_common_build_props(args):
   build_flags = config["BuildFlags"]
   partition = args.partition
 
-  if partition == "system":
-    print(f"ro.product.{partition}.brand={config['SystemBrand']}")
-    print(f"ro.product.{partition}.device={config['SystemDevice']}")
-    print(f"ro.product.{partition}.manufacturer={config['SystemManufacturer']}")
-    print(f"ro.product.{partition}.model={config['SystemModel']}")
-    print(f"ro.product.{partition}.name={config['SystemName']}")
-  else:
-    print(f"ro.product.{partition}.brand={config['ProductBrand']}")
-    print(f"ro.product.{partition}.device={config['DeviceName']}")
-    print(f"ro.product.{partition}.manufacturer={config['ProductManufacturer']}")
-    print(f"ro.product.{partition}.model={config['ProductModel']}")
-    print(f"ro.product.{partition}.name={config['DeviceProduct']}")
+  print(f"ro.product.{partition}.brand={config['ProductBrand']}")
+  print(f"ro.product.{partition}.device={config['DeviceName']}")
+  print(f"ro.product.{partition}.manufacturer={config['ProductManufacturer']}")
+  print(f"ro.product.{partition}.model={config['ProductModel']}")
+  print(f"ro.product.{partition}.name={config['DeviceProduct']}")
 
   if partition != "system":
     if config["ProductModelForAttestation"]:
