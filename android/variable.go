@@ -797,6 +797,8 @@ type PartitionVariables struct {
 	TargetRecoveryFstab        string `json:",omitempty"`
 	TargetRecoveryFstabGenrule string `json:",omitempty"`
 	TargetRecoveryFstabDefault string `json:",omitempty"`
+
+	VendorBlobsLicense string `json:",omitempty"`
 }
 
 func boolPtr(v bool) *bool {
