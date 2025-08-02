@@ -48,7 +48,7 @@ type SanitizeProperties struct {
 			// if set, enables sync memory tagging
 			Memtag_heap *bool `android:"arch_variant"`
 		}
-	}
+	} `android:"arch_variant"`
 	SanitizerEnabled bool `blueprint:"mutated"`
 
 	// Used when we need to place libraries in their own directory, such as ASAN.

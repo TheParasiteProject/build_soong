@@ -84,6 +84,7 @@ type CmdArgs struct {
 	SoongOutDir    string
 	SoongVariables string
 	KatiSuffix     string
+	KatiEnabled    bool
 
 	DocFile string
 
@@ -767,6 +768,8 @@ func initConfig(cmdArgs CmdArgs, availableEnv map[string]string) (*config, error
 		OncePer: &OncePer{},
 
 		buildFromSourceStub: cmdArgs.BuildFromSourceStub,
+
+		katiEnabled: cmdArgs.KatiEnabled,
 	}
 	variant, ok := os.LookupEnv("TARGET_BUILD_VARIANT")
 	isEngBuild := !ok || variant == "eng"
@@ -795,11 +798,6 @@ func initConfig(cmdArgs CmdArgs, availableEnv map[string]string) (*config, error
 	err = loadConfig(newConfig)
 	if err != nil {
 		return &config{}, err
-	}
-
-	KatiEnabledMarkerFile := filepath.Join(cmdArgs.SoongOutDir, ".soong.kati_enabled")
-	if _, err := os.Stat(absolutePath(KatiEnabledMarkerFile)); err == nil {
-		newConfig.katiEnabled = true
 	}
 
 	determineBuildOS(newConfig)
