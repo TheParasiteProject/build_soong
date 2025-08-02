@@ -444,6 +444,24 @@ func (f *filesystemCreator) createDeviceModule(
 	vbmetaPartitions []string,
 	superImageSubPartitions []string,
 ) {
+	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+
+	var vendorBlobsLicenseProp *string
+	if partitionVars.VendorBlobsLicense != "" {
+		vendorBlobsLicenceFilegroupName := generatedModuleName(ctx.Config(), "vendor_blobs_license")
+		filegroupProps := &struct {
+			Name       *string
+			Srcs       []string
+			Visibility []string
+		}{
+			Name:       proptools.StringPtr(vendorBlobsLicenceFilegroupName),
+			Srcs:       []string{filepath.Base(partitionVars.VendorBlobsLicense)},
+			Visibility: []string{"//build/soong/fsgen:__subpackages__"},
+		}
+		ctx.CreateModuleInDirectory(android.FileGroupFactory, filepath.Dir(partitionVars.VendorBlobsLicense), filegroupProps)
+		vendorBlobsLicenseProp = proptools.StringPtr(":" + vendorBlobsLicenceFilegroupName)
+	}
+
 	baseProps := &struct {
 		Name *string
 	}{
@@ -505,16 +523,17 @@ func (f *filesystemCreator) createDeviceModule(
 
 	deviceProps := &filesystem.DeviceProperties{
 		Main_device:                         proptools.BoolPtr(true),
-		Ab_ota_updater:                      proptools.BoolPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaUpdater),
-		Ab_ota_partitions:                   ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPartitions,
-		Ab_ota_postinstall_config:           ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaPostInstallConfig,
+		Ab_ota_updater:                      proptools.BoolPtr(partitionVars.AbOtaUpdater),
+		Ab_ota_partitions:                   partitionVars.AbOtaPartitions,
+		Ab_ota_postinstall_config:           partitionVars.AbOtaPostInstallConfig,
 		Ramdisk_node_list:                   proptools.StringPtr(":ramdisk_node_list"),
 		Android_info:                        proptools.StringPtr(":" + generatedModuleName(ctx.Config(), "android_info.prop{.txt}")),
 		Kernel_version:                      ctx.Config().ProductVariables().BoardKernelVersion,
-		Partial_ota_update_partitions:       ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardPartialOtaUpdatePartitionsList,
-		Flash_block_size:                    proptools.StringPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardFlashBlockSize),
-		Bootloader_in_update_package:        proptools.BoolPtr(ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BootloaderInUpdatePackage),
+		Partial_ota_update_partitions:       partitionVars.BoardPartialOtaUpdatePartitionsList,
+		Flash_block_size:                    proptools.StringPtr(partitionVars.BoardFlashBlockSize),
+		Bootloader_in_update_package:        proptools.BoolPtr(partitionVars.BootloaderInUpdatePackage),
 		Precompiled_sepolicy_without_vendor: proptools.StringPtr(":precompiled_sepolicy_without_vendor"),
+		Vendor_blobs_license:                vendorBlobsLicenseProp,
 	}
 
 	if f.properties.Bootloader != "" {
@@ -548,16 +567,16 @@ func (f *filesystemCreator) createDeviceModule(
 }
 
 func createRadioImg(ctx android.LoadHookContext) string {
-	radioFilePath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.RadioFilePath
+	radioFilePath := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BoardRadioImagePath
 	if radioFilePath == "" {
 		return ""
 	}
-	if path := android.ExistentPathForSource(ctx, radioFilePath, "radio.img"); !path.Valid() {
+	if path := android.ExistentPathForSource(ctx, radioFilePath); !path.Valid() {
 		return ""
 	}
 	name := generatedModuleNameForPartition(ctx.Config(), "radio")
 	radioImgProps := filesystem.PrebuiltRadioImgProperties{
-		Src:               proptools.StringPtr(radioFilePath + "/radio.img"),
+		Src:               proptools.StringPtr(radioFilePath),
 		Ab_ota_partitions: ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.AbOtaRadioPartitions,
 		Unpack_tool:       proptools.StringPtr(fmt.Sprintf("vendor/google_devices/%s/prebuilts/misc_bins/unpack.py", proptools.String(ctx.Config().ProductVariables().BoardPlatform))),
 	}

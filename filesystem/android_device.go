@@ -114,6 +114,8 @@ type DeviceProperties struct {
 	Pvmfw PvmfwProperties
 
 	Ramdisk_16k *string
+
+	Vendor_blobs_license *string `android:"path"`
 }
 
 type PvmfwProperties struct {
@@ -148,6 +150,9 @@ type androidDevice struct {
 
 	symbolsZipFile     android.ModuleOutPath
 	symbolsMappingFile android.ModuleOutPath
+
+	withLicenseFile     android.Path
+	withLicenseDistName string
 
 	fastbootInfoFile android.Path
 }
@@ -277,6 +282,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.proguardZips = java.BuildProguardZips(ctx, allInstalledModules)
 	a.buildSymbolsZip(ctx, allInstalledModules)
 	a.buildUpdatePackage(ctx)
+	a.buildWithLicenseZip(ctx)
 
 	if ctx.Config().IsEnvTrue("EMMA_INSTRUMENT") {
 		jacocoZip := android.PathForModuleOut(ctx, "jacoco-report-classes-all.jar")
@@ -586,6 +592,11 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 				// The bootloader files are disted stanadlone, outside img.zip
 				ctx.DistForGoal("droidcore-unbundled", file)
 			}
+		}
+
+		if a.withLicenseFile != nil {
+			ctx.Phony("with-license", a.withLicenseFile)
+			ctx.DistForGoalWithFilename("with-license", a.withLicenseFile, a.withLicenseDistName)
 		}
 	}
 }
@@ -1081,28 +1092,28 @@ func (a *androidDevice) createFastbootInfo(ctx android.ModuleContext) android.Pa
 	fastbootInfo := android.PathForModuleOut(ctx, "fastboot-info.txt")
 	var fastbootInfoString strings.Builder
 	fastbootInfoString.WriteString(fmt.Sprintf("# fastboot-info for %s\n", ctx.Config().DeviceProduct()))
-	fastbootInfoString.WriteString(fmt.Sprintf("version 1\n"))
+	fastbootInfoString.WriteString("version 1\n")
 	if a.partitionProps.Boot_partition_name != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash boot\n"))
+		fastbootInfoString.WriteString("flash boot\n")
 	}
 	if a.partitionProps.Init_boot_partition_name != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash init_boot\n"))
+		fastbootInfoString.WriteString("flash init_boot\n")
 	}
 	if a.deviceProps.Dtbo_image != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash dtbo\n"))
+		fastbootInfoString.WriteString("flash dtbo\n")
 	}
 	if a.partitionProps.Vendor_kernel_boot_partition_name != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash vendor_kernel_boot\n"))
+		fastbootInfoString.WriteString("flash vendor_kernel_boot\n")
 	}
 	if a.deviceProps.Pvmfw.Image != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash pvmfw\n"))
+		fastbootInfoString.WriteString("flash pvmfw\n")
 	}
 	if a.partitionProps.Vendor_boot_partition_name != nil {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash vendor_boot\n"))
+		fastbootInfoString.WriteString("flash vendor_boot\n")
 	}
 	// vbmeta
 	if len(a.partitionProps.Vbmeta_partitions) > 0 {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash --apply-vbmeta vbmeta\n"))
+		fastbootInfoString.WriteString("flash --apply-vbmeta vbmeta\n")
 	}
 	var allChainedVbmetaPartitionTypes []string
 	for _, vbmetaPartitionName := range a.partitionProps.Vbmeta_partitions {
@@ -1121,8 +1132,8 @@ func (a *androidDevice) createFastbootInfo(ctx android.ModuleContext) android.Pa
 		}
 	}
 
-	fastbootInfoString.WriteString(fmt.Sprintf("reboot fastboot\n"))
-	fastbootInfoString.WriteString(fmt.Sprintf("update-super\n"))
+	fastbootInfoString.WriteString("reboot fastboot\n")
+	fastbootInfoString.WriteString("update-super\n")
 
 	var partitionsInSuper map[string]FilesystemInfo
 	if a.partitionProps.Super_partition_name != nil {
@@ -1147,16 +1158,16 @@ func (a *androidDevice) createFastbootInfo(ctx android.ModuleContext) android.Pa
 	}
 
 	if _, exists := partitionsInSuper["system_other"]; exists {
-		fastbootInfoString.WriteString(fmt.Sprintf("flash --slot-other system system_other.img\n"))
+		fastbootInfoString.WriteString("flash --slot-other system system_other.img\n")
 	}
 
-	fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase userdata\n"))
+	fastbootInfoString.WriteString("if-wipe erase userdata\n")
 
 	// TODO: handle products with cache (PRODUCT_BUILD_CACHE_IMAGE=true)
 	// fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase cache\n"))
 
 	// TODO: Remove this hardcoding
-	fastbootInfoString.WriteString(fmt.Sprintf("if-wipe erase metadata\n"))
+	fastbootInfoString.WriteString("if-wipe erase metadata\n")
 
 	android.WriteFileRuleVerbatim(ctx, fastbootInfo, fastbootInfoString.String())
 	return fastbootInfo
@@ -1399,6 +1410,47 @@ func (a *androidDevice) buildUpdatePackage(ctx android.ModuleContext) {
 	rule.Build("updatepackage", "Building updatepackage")
 
 	a.updatePackage = updatePackage
+}
+
+func (a *androidDevice) buildWithLicenseZip(ctx android.ModuleContext) {
+	name := ""
+	if ctx.Config().HasDeviceProduct() {
+		if ctx.Config().BuildType() == "debug" {
+			name = ctx.Config().DeviceProduct() + "_debug-"
+		} else {
+			name = ctx.Config().DeviceProduct() + "-"
+		}
+	}
+	a.withLicenseDistName = name + "flashable-FILE_NAME_TAG_PLACEHOLDER-with-license.sh"
+	name += "flashable-with-license"
+
+	withLicense := android.PathForModuleOut(ctx, "with-license", name+".sh")
+	a.withLicenseFile = withLicense
+	if proptools.String(a.deviceProps.Vendor_blobs_license) == "" {
+		android.ErrorRule(ctx, withLicense, "with-license requires VENDOR_BLOBS_LICENSE to be set.")
+		return
+	}
+
+	intermediateZip := android.PathForModuleOut(ctx, "with-license", name+".zip")
+	intermediateBuilder := android.NewRuleBuilder(pctx, ctx)
+	intermediateBuilder.Command().
+		BuiltTool("zip2zip").
+		FlagWithInput("-i ", a.targetFilesZip).
+		FlagWithOutput("-o ", intermediateZip).
+		Text("RADIO/bootloader.img:bootloader.img").
+		Text("RADIO/radio.img:radio.img").
+		Text("IMAGES/*.img:.").
+		Text("OTA/android-info.txt:android-info.txt")
+	intermediateBuilder.Build("with_license_intermediate_zip", "with-license intermediate zip")
+
+	withLicenseBuilder := android.NewRuleBuilder(pctx, ctx)
+	withLicenseBuilder.Command().
+		BuiltTool("generate-self-extracting-archive").
+		Output(withLicense).
+		Input(intermediateZip).
+		Text(name).
+		Input(android.PathForModuleSrc(ctx, *a.deviceProps.Vendor_blobs_license))
+	withLicenseBuilder.Build("with_license", "build with-license")
 }
 
 type ApexKeyPathInfo struct {

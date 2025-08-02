@@ -836,18 +836,12 @@ func transformJavaToClassesInc(ctx android.ModuleContext, outputFile android.Wri
 
 	rule := javacInc
 	ctx.Build(pctx, android.BuildParams{
-		Rule:        rule,
-		Description: desc,
-		Output:      outputFile,
-		ImplicitOutputs: android.WritablePaths{
-			annoSrcJar,
-			outputFile.ReplaceExtension(ctx, "jar.input.pc_state"),
-			outputFile.ReplaceExtension(ctx, "jar.deps.pc_state"),
-			outputFile.ReplaceExtension(ctx, "jar.headers.pc_state"),
-			outputFile.ReplaceExtension(ctx, "jar.crossModuleDeps.pc_state"),
-		},
-		Inputs:    srcFiles,
-		Implicits: deps,
+		Rule:           rule,
+		Description:    desc,
+		Output:         outputFile,
+		ImplicitOutput: annoSrcJar,
+		Inputs:         srcFiles,
+		Implicits:      deps,
 		Args: map[string]string{
 			"javacFlags":        flags.javacFlags,
 			"bootClasspath":     bootClasspath,

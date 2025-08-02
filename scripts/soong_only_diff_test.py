@@ -175,14 +175,11 @@ def move_artifacts_to_subfolder(product: Product, soong_only: bool):
 
 SHA_DIFF_ALLOWLIST = {
     "IMAGES/system.img",
-    "IMAGES/system_ext.img", # TODO: b/406045340 - Remove from the allowlist once it's fixed
     "IMAGES/userdata.img",
     "IMAGES/vbmeta_system.img",
     "META/apkcerts.txt",
     "META/misc_info.txt",
     "META/vbmeta_digest.txt",
-    "SYSTEM_EXT/etc/vm/trusty_vm/trusty_security_vm.elf", # TODO: b/406045340 - Remove from the allowlist once it's fixed
-    "SYSTEM/apex/com.android.resolv.capex", # TODO: b/411514418 - Remove once nondeterminism is fixed
 }
 
 def get_target_files_comparison_report_path(product: Product):
