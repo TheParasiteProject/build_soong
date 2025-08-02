@@ -67,6 +67,7 @@ func init() {
 	flag.StringVar(&cmdlineArgs.OutDir, "out", "", "the ninja builddir directory")
 	flag.StringVar(&cmdlineArgs.ModuleListFile, "l", "", "file that lists filepaths to parse")
 	flag.StringVar(&cmdlineArgs.KatiSuffix, "kati_suffix", "", "the suffix for kati and ninja files, so that different configurations don't clobber each other")
+	flag.BoolVar(&cmdlineArgs.KatiEnabled, "kati_enabled", false, "If the main kati build phase is enabled. False for soong-only builds")
 
 	// Debug flags
 	flag.StringVar(&delveListen, "delve_listen", "", "Delve port to listen on for debugging")
