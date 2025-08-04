@@ -37,6 +37,7 @@ func main() {
 	var product, variant string
 	var allMake bool
 	var useBuildVar, allowMissing bool
+	var withVariant bool
 	var guard bool
 
 	defaultProduct := os.Getenv("TARGET_PRODUCT")
@@ -67,6 +68,7 @@ func main() {
 	flag.BoolVar(&useBuildVar, "use_get_build_var", false, "use get_build_var PRODUCT_RELEASE_CONFIG_MAPS")
 	flag.BoolVar(&container, "container", false, "generate per-container build_flags.json artifacts")
 	flag.BoolVar(&guard, "guard", false, "obsolete")
+	flag.BoolVar(&withVariant, "with-variant", false, "include build variant in artifact names")
 
 	flag.Parse()
 
@@ -105,7 +107,14 @@ func main() {
 		}
 	}
 
-	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, targetRelease))
+	lunchable := func(release string) string {
+		if withVariant {
+			return fmt.Sprintf("%s-%s-%s", product, release, variant)
+		}
+		return fmt.Sprintf("%s-%s", product, release)
+	}
+
+	makefilePath := filepath.Join(outputDir, fmt.Sprintf("release_config-%s.varmk", lunchable(targetRelease)))
 	// Write the makefile where release_config.mk is going to look for it.
 	err = config.WriteMakefile(makefilePath, targetRelease, configs)
 	if err != nil {
@@ -123,7 +132,7 @@ func main() {
 			// Write one makefile per release config, using the canonical release name.
 			for _, c := range configs.GetSortedReleaseConfigs() {
 				if c.Name != targetRelease && !c.DisallowLunchUse {
-					makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s-%s.varmk", product, c.Name))
+					makefilePath = filepath.Join(outputDir, fmt.Sprintf("release_config-%s.varmk", lunchable(c.Name)))
 					err = config.WriteMakefile(makefilePath, c.Name, configs)
 					if err != nil {
 						panic(err)
@@ -137,18 +146,25 @@ func main() {
 				panic(err)
 			}
 		}
+		var product_variant string
+		if withVariant {
+			product_variant = product + "-" + variant
+		} else {
+			product_variant = product
+		}
+
 		if json {
-			if err := configs.WriteArtifact(outputDir, product, "json"); err != nil {
+			if err := configs.WriteArtifact(outputDir, product_variant, "json"); err != nil {
 				panic(err)
 			}
 		}
 		if pb {
-			if err := configs.WriteArtifact(outputDir, product, "pb"); err != nil {
+			if err := configs.WriteArtifact(outputDir, product_variant, "pb"); err != nil {
 				panic(err)
 			}
 		}
 		if textproto {
-			if err := configs.WriteArtifact(outputDir, product, "textproto"); err != nil {
+			if err := configs.WriteArtifact(outputDir, product_variant, "textproto"); err != nil {
 				panic(err)
 			}
 		}
