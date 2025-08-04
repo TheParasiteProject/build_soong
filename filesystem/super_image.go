@@ -322,24 +322,20 @@ func (s *superImage) buildMiscInfo(ctx android.ModuleContext, superEmpty bool) (
 
 func (s *superImage) filterMissingPartitions(ctx android.ModuleContext, partitionList []string) []string {
 	ret := []string{}
+	// In make it will only filter out not existing partitions for vendor, vendor_dlkm, odm, odm_dlkm, and system_dlkm.
+	// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=6192
 	for _, p := range partitionList {
 		switch p {
 		case "system":
-			if s.partitionProps.System_partition != nil {
-				ret = append(ret, p)
-			}
+			ret = append(ret, p)
 		case "system_dlkm":
 			if s.partitionProps.System_dlkm_partition != nil {
 				ret = append(ret, p)
 			}
 		case "system_ext":
-			if s.partitionProps.System_ext_partition != nil {
-				ret = append(ret, p)
-			}
+			ret = append(ret, p)
 		case "product":
-			if s.partitionProps.Product_partition != nil {
-				ret = append(ret, p)
-			}
+			ret = append(ret, p)
 		case "vendor":
 			if s.partitionProps.Vendor_partition != nil {
 				ret = append(ret, p)

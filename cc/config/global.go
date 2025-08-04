@@ -310,7 +310,6 @@ var (
 		// New warnings to be fixed after clang-r428724
 		"-Wno-align-mismatch", // http://b/193679946
 		// New warnings to be fixed after clang-r433403
-		"-Wno-error=unused-but-set-variable",  // http://b/197240255
 		"-Wno-error=unused-but-set-parameter", // http://b/197240255
 		// New warnings to be fixed after clang-r468909
 		"-Wno-error=deprecated", // in external/googletest/googletest
@@ -324,7 +323,9 @@ var (
 
 	noOverride64GlobalCflags = []string{}
 
-	extraTestsCflags = []string{}
+	extraTestsCflags = []string{
+		"-Wno-error=unused-but-set-variable",
+	}
 
 	// Extra cflags applied to third-party code (anything for which
 	// IsThirdPartyPath() in build/soong/android/paths.go returns true;
@@ -350,6 +351,7 @@ var (
 		"-Wno-deprecated-non-prototype",
 
 		"-Wno-unused",
+		"-Wno-unused-but-set-variable",
 		"-Wno-deprecated",
 	}
 

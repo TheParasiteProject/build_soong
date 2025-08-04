@@ -327,18 +327,8 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetNinjaArgs(strings.Fields(makeVars["NINJA_GOALS"]))
 	config.SetTargetDevice(makeVars["TARGET_DEVICE"])
 	config.SetTargetDeviceDir(makeVars["TARGET_DEVICE_DIR"])
-	if makeVars["RELEASE_SRC_DIR_IS_READ_ONLY"] == "true" {
-		// If the release config says source is read-only, then make it read-write only if
-		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true.
-		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] != "true")
-	} else {
-		// If the release config says source is not read-only, then make it read-only only if
-		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=false.
-		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] == "false")
-	}
 	config.useRkati = makeVars["RELEASE_USE_RKATI"] == "true"
-
-	config.sandboxConfig.SetSrcDirRWAllowlist(strings.Fields(makeVars["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"]))
+	config.setupSandboxConfig(ctx, makeVars)
 
 	config.SetBuildBrokenDupRules(makeVars["BUILD_BROKEN_DUP_RULES"] == "true")
 	config.SetBuildBrokenUsesNetwork(makeVars["BUILD_BROKEN_USES_NETWORK"] == "true")

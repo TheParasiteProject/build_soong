@@ -354,9 +354,7 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 		ret.distDir = filepath.Join(ret.OutDir(), "dist")
 	}
 
-	if srcDirIsWritable, ok := ret.environ.Get("BUILD_BROKEN_SRC_DIR_IS_WRITABLE"); ok {
-		ret.sandboxConfig.SetSrcDirIsRO(srcDirIsWritable == "false")
-	}
+	ret.setupSandboxConfig(ctx, ret.environ.AsMap())
 
 	if os.Getenv("GENERATE_SOONG_DEBUG") == "true" {
 		ret.moduleDebugFile, _ = filepath.Abs(shared.JoinPath(ret.SoongOutDir(), "soong-debug-info.json"))
@@ -659,6 +657,19 @@ func SetProductReleaseConfigMaps(ctx Context, config Config, mapsCh chan *produc
 		ctx.Fatalln("Error getting PRODUCT_RELEASE_CONFIG_MAPS:", mapsInfo.err)
 	}
 	config.Environment().Set("PRODUCT_RELEASE_CONFIG_MAPS", mapsInfo.value)
+}
+
+func (config *configImpl) setupSandboxConfig(ctx Context, makeVars map[string]string) {
+	if makeVars["RELEASE_SRC_DIR_IS_READ_ONLY"] == "true" || config.environ.IsEnvTrue("SOONG_SRC_DIR_IS_READ_ONLY") {
+		// If the release config says source is read-only, then make it read-write only if
+		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true.
+		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] != "true")
+	} else {
+		// If the release config says source is not read-only, then make it read-only only if
+		// BUILD_BROKEN_SRC_DIR_IS_WRITABLE=false.
+		config.sandboxConfig.SetSrcDirIsRO(makeVars["BUILD_BROKEN_SRC_DIR_IS_WRITABLE"] == "false")
+	}
+	config.sandboxConfig.SetSrcDirRWAllowlist(strings.Fields(makeVars["BUILD_BROKEN_SRC_DIR_RW_ALLOWLIST"]))
 }
 
 // storeConfigMetrics selects a set of configuration information and store in
