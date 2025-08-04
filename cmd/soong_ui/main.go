@@ -295,10 +295,15 @@ func preProductConfigSetup(buildCtx build.Context, config build.Config) {
 		}
 	}
 
-	// Create a source finder.
-	f := build.NewSourceFinder(buildCtx, config)
-	defer f.Shutdown()
-	build.FindSources(buildCtx, config, f)
+	// _SOONG_INTERNAL_NO_FINDER may only be enabled when soong_ui has already run
+	// and the source tree is known to have not changed since.  This is most beneficial
+	// if the job is iterating over a large number of lunch targets.
+	if !build.OsEnvironment().IsEnvTrue("_SOONG_INTERNAL_NO_FINDER") {
+		// Create a source finder.
+		f := build.NewSourceFinder(buildCtx, config)
+		defer f.Shutdown()
+		build.FindSources(buildCtx, config, f)
+	}
 }
 
 func dumpVar(ctx build.Context, config build.Config, args []string) {
