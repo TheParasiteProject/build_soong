@@ -325,6 +325,11 @@ func (config *ReleaseConfig) GenerateReleaseConfig(configs *ReleaseConfigs) erro
 				if config.ReleaseConfigType != rc_proto.ReleaseConfigType_BUILD_VARIANT {
 					return fmt.Errorf("Setting value for BUILD_VARIANT flag %s is not allowed in %s", name, value.path)
 				}
+			default:
+				// BUILD_VARIANT release configs cannot set non-MANUAL_BUILD_VARIANT flags.
+				if config.ReleaseConfigType == rc_proto.ReleaseConfigType_BUILD_VARIANT {
+					return fmt.Errorf("Setting value for non-BUILD_VARIANT flag %s is not allowed in %s", name, value.path)
+				}
 			}
 			if err := fa.UpdateValue(*value); err != nil {
 				return err
