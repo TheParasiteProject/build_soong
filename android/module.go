@@ -2556,7 +2556,9 @@ func (m *ModuleBase) setupTestSuites(ctx ModuleContext, info TestSuiteInfo) []Fi
 	if PrefixInList(info.TestSuites, "mcts-") && !InList("mcts", info.TestSuites) {
 		info.TestSuites = append(info.TestSuites, "mcts")
 	}
-
+	if info.IsUnitTest && ctx.Host() {
+		info.TestSuites = append(info.TestSuites, "host-unit-tests")
+	}
 	if len(info.TestSuites) == 0 {
 		info.TestSuites = []string{"null-suite"}
 	}

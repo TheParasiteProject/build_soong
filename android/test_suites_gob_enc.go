@@ -98,6 +98,10 @@ func (r TestSuiteInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error 
 	if err = gobtools.EncodeSimple(buf, r.DisableTestConfig); err != nil {
 		return err
 	}
+
+	if err = gobtools.EncodeSimple(buf, r.IsUnitTest); err != nil {
+		return err
+	}
 	return err
 }
 
@@ -230,6 +234,11 @@ func (r *TestSuiteInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error
 	}
 
 	err = gobtools.DecodeSimple[bool](buf, &r.DisableTestConfig)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.IsUnitTest)
 	if err != nil {
 		return err
 	}

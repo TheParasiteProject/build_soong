@@ -552,6 +552,7 @@ func (s *ShTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		Data:                 s.data,
 		NeedsArchFolder:      true,
 		PerTestcaseDirectory: proptools.Bool(s.testProperties.Per_testcase_directory),
+		IsUnitTest:           Bool(s.testProperties.Test_options.Unit_test),
 	})
 
 	mkEntries := s.AndroidMkEntries()[0]

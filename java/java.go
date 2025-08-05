@@ -2038,6 +2038,7 @@ func (j *Test) javaTestSetTestsuiteInfo(ctx android.ModuleContext) {
 		NeedsArchFolder:      ctx.Device(),
 		NonArchData:          testData,
 		PerTestcaseDirectory: proptools.Bool(j.testProperties.Per_testcase_directory),
+		IsUnitTest:           Bool(j.testProperties.Test_options.Unit_test),
 	})
 
 	android.SetProvider(ctx, JavaTestInfoProvider, JavaTestInfo{
