@@ -483,6 +483,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 		intermediatesDirForSuite := pathForPackaging(ctx, suiteConfig.name)
 		seen := make(map[string]bool)
 		for _, moduleName := range android.SortedKeys(commonHostSharedLibsForSymlinks) {
+			var symlinksPerModule []android.WritablePath
 			for _, common := range commonHostSharedLibsForSymlinks[moduleName] {
 				var symlink android.WritablePath
 				var symlinkTargetPrefix string
@@ -494,12 +495,10 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 					symlinkTargetPrefix = "../../../lib"
 				}
 
-				// the symlink could be referenced by multiple modules, so
-				// they still need to be compiled in the soong_zip command
-				// if they're already deduplicated.
-				testsZipCmd.FlagWithArg("-C ", intermediatesDirForSuite.String())
-				testsZipCmd.FlagWithArg("-P ", fmt.Sprintf("host/testcases/%s/", moduleName))
-				testsZipCmd.FlagWithInput("-f ", symlink)
+				// the symlink could be referenced by multiple modules, so they still
+				// need to be compiled in the soong_zip command if they're already
+				// deduplicated.
+				symlinksPerModule = append(symlinksPerModule, symlink)
 
 				if _, exists := seen[symlink.String()]; exists {
 					continue
@@ -512,6 +511,13 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 						"fromPath": fmt.Sprintf("%s/%s", symlinkTargetPrefix, common.Base()),
 					},
 				})
+			}
+			if len(symlinksPerModule) != 0 {
+				testsZipCmd.FlagWithArg("-C ", intermediatesDirForSuite.String())
+				testsZipCmd.FlagWithArg("-P ", fmt.Sprintf("host/testcases/%s/", moduleName))
+				for _, symlink := range symlinksPerModule {
+					testsZipCmd.FlagWithInput("-f ", symlink)
+				}
 			}
 		}
 	}
