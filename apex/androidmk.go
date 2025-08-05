@@ -270,7 +270,7 @@ func (a *apexBundle) androidMkForType() android.AndroidMkData {
 			commonProperties := []string{
 				"LOCAL_FULL_INIT_RC", "LOCAL_FULL_VINTF_FRAGMENTS",
 				"LOCAL_PROPRIETARY_MODULE", "LOCAL_VENDOR_MODULE", "LOCAL_ODM_MODULE", "LOCAL_PRODUCT_MODULE", "LOCAL_SYSTEM_EXT_MODULE",
-				"LOCAL_MODULE_OWNER",
+				"LOCAL_MODULE_OWNER", "LOCAL_ADDITIONAL_CHECKED_MODULE",
 			}
 			for _, name := range commonProperties {
 				if value, ok := data.Entries.EntryMap[name]; ok {
