@@ -232,12 +232,17 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 		}
 	}
 
-	if proptools.String(a.deviceProps.Android_info) != "" {
+	if a.androidInfoTxt != nil {
 		installPath := android.PathForModuleInPartitionInstall(ctx, "", "android-info.txt")
+		var validations android.Paths
+		if a.boardInfoTxt != nil && a.deviceProps.Bootloader != nil {
+			validations = append(validations, a.checkRadioVersion(ctx))
+		}
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   android.Cp,
-			Input:  android.PathForModuleSrc(ctx, *a.deviceProps.Android_info),
-			Output: installPath,
+			Rule:        android.Cp,
+			Input:       a.androidInfoTxt,
+			Output:      installPath,
+			Validations: validations,
 		})
 		deps = append(deps, installPath)
 	}
