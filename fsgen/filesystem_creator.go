@@ -340,6 +340,8 @@ func (f *filesystemCreator) createInternalModules(ctx android.LoadHookContext) {
 	if buildingSuperImage(partitionVars) {
 		superImageSubpartitions = createSuperImage(ctx, partitions, partitionVars, systemOtherImageName)
 		f.properties.Super_image = ":" + generatedModuleNameForPartition(ctx.Config(), "super")
+	} else if partitionVars.ProductUseDynamicPartitions {
+		createSuperImage(ctx, partitions, partitionVars, systemOtherImageName)
 	}
 
 	ctx.Config().Get(fsGenStateOnceKey).(*FsGenState).soongGeneratedPartitions = partitions
@@ -472,6 +474,8 @@ func (f *filesystemCreator) createDeviceModule(
 	partitionProps := &filesystem.PartitionNameProperties{}
 	if f.properties.Super_image != "" {
 		partitionProps.Super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
+	} else if partitionVars.ProductUseDynamicPartitions {
+		partitionProps.Dynamic_config_only_super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
 	}
 	if buildingSystemImage(partitionVars) {
 		if modName := partitions.nameForType("system"); modName != "" && !android.InList("system", superImageSubPartitions) {
