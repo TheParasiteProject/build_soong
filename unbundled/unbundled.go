@@ -197,5 +197,10 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 		ctx.DistForGoal("apps_only", jacocoZip)
 	}
 
+	// Dist sboms
+	for _, app := range appModules {
+		android.BuildUnbundledSbom(ctx, app)
+	}
+
 	ctx.DistForGoal("apps_only", java.ApkCertsFile(ctx))
 }
