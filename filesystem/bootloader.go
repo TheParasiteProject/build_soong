@@ -15,10 +15,17 @@
 package filesystem
 
 import (
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
+
+type bootloaderInfo struct {
+	bootloaderImg android.Path
+}
+
+var bootloaderInfoProvider = blueprint.NewProvider[bootloaderInfo]()
 
 type prebuiltBootloader struct {
 	android.ModuleBase
@@ -37,6 +44,10 @@ type PrebuiltBootloaderProperties struct {
 	Unpack_tool *string `android:"path"`
 }
 
+// TODO(soong-team): This module should be registered with the name
+// `prebuilt_bootloader`. If not, update the property error in
+// [androidDevice.checkRadioVersion]. Remove this TODO once the module type is
+// registered.
 func PrebuiltBootloaderFactory() android.Module {
 	module := &prebuiltBootloader{}
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
@@ -54,6 +65,9 @@ func (p *prebuiltBootloader) GenerateAndroidBuildActions(ctx android.ModuleConte
 
 	ctx.SetOutputFiles(bootloaderFiles, "")
 	android.SetProvider(ctx, vbmetaPartitionsProvider, p.vbmetaPartitions)
+	android.SetProvider(ctx, bootloaderInfoProvider, bootloaderInfo{
+		bootloaderImg: bootloader,
+	})
 }
 
 // Unpack a partition from a bootloader.img and add them to

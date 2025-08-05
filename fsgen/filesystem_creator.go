@@ -535,7 +535,7 @@ func (f *filesystemCreator) createDeviceModule(
 		Ab_ota_partitions:                   partitionVars.AbOtaPartitions,
 		Ab_ota_postinstall_config:           partitionVars.AbOtaPostInstallConfig,
 		Ramdisk_node_list:                   proptools.StringPtr(":ramdisk_node_list"),
-		Android_info:                        proptools.StringPtr(":" + generatedModuleName(ctx.Config(), "android_info.prop{.txt}")),
+		Android_info:                        proptools.StringPtr(generatedModuleName(ctx.Config(), "android_info.prop")),
 		Kernel_version:                      ctx.Config().ProductVariables().BoardKernelVersion,
 		Partial_ota_update_partitions:       partitionVars.BoardPartialOtaUpdatePartitionsList,
 		Flash_block_size:                    proptools.StringPtr(partitionVars.BoardFlashBlockSize),
@@ -1124,13 +1124,8 @@ func (f *filesystemCreator) createAndroidInfo(ctx android.LoadHookContext) {
 	// The board info files might be in a directory outside the root soong namespace, so create
 	// the module in "."
 	partitionVars := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
-	androidInfoProps := &struct {
-		Name                  *string
-		Board_info_files      []string
-		Bootloader_board_name *string
-		Stem                  *string
-	}{
-		Name:             proptools.StringPtr(generatedModuleName(ctx.Config(), "android_info.prop")),
+	androidInfoProps := &android.AndroidInfoProperties{
+
 		Board_info_files: partitionVars.BoardInfoFiles,
 		Stem:             proptools.StringPtr("android-info.txt"),
 	}
@@ -1140,6 +1135,11 @@ func (f *filesystemCreator) createAndroidInfo(ctx android.LoadHookContext) {
 	androidInfoProp := ctx.CreateModuleInDirectory(
 		android.AndroidInfoFactory,
 		".",
+		&struct {
+			Name *string
+		}{
+			Name: proptools.StringPtr(generatedModuleName(ctx.Config(), "android_info.prop")),
+		},
 		androidInfoProps,
 	)
 	androidInfoProp.HideFromMake()

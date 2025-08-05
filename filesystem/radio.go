@@ -15,6 +15,7 @@
 package filesystem
 
 import (
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
@@ -36,6 +37,16 @@ type PrebuiltRadioImgProperties struct {
 	Unpack_tool *string `android:"path"`
 }
 
+type radioInfo struct {
+	image android.Path
+}
+
+var radioInfoProvider = blueprint.NewProvider[radioInfo]()
+
+// TODO(soong-team): This module should be registered with the name
+// `prebuilt_radio_image`. If not, update the property error in
+// [androidDevice.checkRadioVersion]. Remove this TODO once the module type is
+// registered.
 func PrebuiltRadioImgFactory() android.Module {
 	module := &prebuiltRadioImg{}
 	android.InitAndroidArchModule(module, android.DeviceSupported, android.MultilibFirst)
@@ -50,6 +61,10 @@ func (p *prebuiltRadioImg) GenerateAndroidBuildActions(ctx android.ModuleContext
 	radioFiles = append(radioFiles, p.partitionFiles(ctx)...)
 
 	ctx.SetOutputFiles(radioFiles, "")
+
+	android.SetProvider(ctx, radioInfoProvider, radioInfo{
+		image: input,
+	})
 }
 
 // Unpack a partition from a radio.img image and add them to
