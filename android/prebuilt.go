@@ -809,10 +809,24 @@ func (p *Prebuilt) usePrebuilt(ctx BaseModuleContext, source Module, prebuilt Mo
 		return true
 	}
 
+	// b/137216042 don't use prebuilts when address sanitizer is on, unless the prebuilt has a sanitized source
+	if sanitized, ok := prebuilt.(SanitizedPrebuilt); ok {
+		forceDisable := false
+		forceDisable = forceDisable || (InList("address", ctx.Config().SanitizeDevice()) && !sanitized.HasSanitizedSource("address"))
+		forceDisable = forceDisable || (InList("hwaddress", ctx.Config().SanitizeDevice()) && !sanitized.HasSanitizedSource("hwaddress"))
+		if forceDisable {
+			return false
+		}
+	}
+
 	// TODO: use p.Properties.Name and ctx.ModuleDir to override preference
 	return p.properties.Prefer.GetOrDefault(ctx, false)
 }
 
 func (p *Prebuilt) SourceExists() bool {
 	return p.properties.SourceExists
+}
+
+type SanitizedPrebuilt interface {
+	HasSanitizedSource(sanitizer string) bool
 }
