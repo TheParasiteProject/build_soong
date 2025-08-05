@@ -34,8 +34,8 @@ type coverage struct {
 	linkCoverage bool
 }
 
-func (cov *coverage) props() []interface{} {
-	return []interface{}{&cov.Properties}
+func (cov *coverage) props() []any {
+	return []any{&cov.Properties}
 }
 
 func getClangProfileLibraryName(ctx ModuleContextIntf) string {

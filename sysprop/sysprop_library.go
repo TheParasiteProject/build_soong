@@ -542,10 +542,10 @@ type rustLibraryProperties struct {
 	Sysprop_srcs      []string `android:"path"`
 	Scope             string
 	Check_api         *string
-	Srcs              []string
+	Srcs              proptools.Configurable[[]string]
 	Installable       *bool
 	Crate_name        string
-	Rustlibs          []string
+	Rustlibs          proptools.Configurable[[]string]
 	Vendor_available  *bool
 	Product_available *bool
 	Apex_available    []string
@@ -689,10 +689,10 @@ func syspropLibraryHook(ctx android.LoadHookContext, m *syspropLibrary) {
 		Check_api:    proptools.StringPtr(ctx.ModuleName()),
 		Installable:  m.properties.Installable,
 		Crate_name:   m.rustCrateName(),
-		Rustlibs: []string{
+		Rustlibs: proptools.NewSimpleConfigurable([]string{
 			"liblog_rust",
 			"librustutils",
-		},
+		}),
 		Vendor_available:  m.properties.Vendor_available,
 		Product_available: m.properties.Product_available,
 		Apex_available:    m.ApexProperties.Apex_available,

@@ -21,25 +21,46 @@ import (
 
 	"android/soong/cc"
 
+	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 	"android/soong/rust/config"
 )
 
-type RustLinkage int
+type StdLinkage int
 
 const (
-	DylibLinkage RustLinkage = iota
-	RlibLinkage
+	NoCore StdLinkage = iota
+	RlibCore
+	RlibStd
+	DylibStd
 )
+
+func (linkage StdLinkage) variation() blueprint.Variation {
+	return blueprint.Variation{Mutator: "rust_stdlinkage", Variation: linkage.variationName()}
+}
+
+func (linkage StdLinkage) variationName() string {
+	switch linkage {
+	case NoCore:
+		return ""
+	case RlibCore:
+		return "rlib-core"
+	case RlibStd:
+		return "rlib-std"
+	case DylibStd:
+		return "dylib-std"
+	}
+	panic(fmt.Errorf("unknown linkage type %v", linkage))
+}
 
 type compiler interface {
 	compilerFlags(ctx ModuleContext, flags Flags) Flags
 	cfgFlags(ctx ModuleContext, flags Flags) Flags
 	featureFlags(ctx ModuleContext, flags Flags) Flags
 	baseCompilerProps() BaseCompilerProperties
-	compilerProps() []interface{}
+	compilerProps() []any
 	compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput
 	compilerDeps(ctx DepsContext, deps Deps) Deps
 	crateName() string
@@ -69,7 +90,7 @@ type compiler interface {
 	Disabled() bool
 	SetDisabled()
 
-	stdLinkage(device bool) RustLinkage
+	stdLinkage(device bool) StdLinkage
 	noStdlibs() bool
 
 	unstrippedOutputFilePath() android.Path
@@ -294,10 +315,6 @@ func (compiler *baseCompiler) noStdlibs() bool {
 	return Bool(compiler.Properties.No_stdlibs)
 }
 
-func (compiler *baseCompiler) coverageOutputZipPath() android.OptionalPath {
-	panic("baseCompiler does not implement coverageOutputZipPath()")
-}
-
 func (compiler *baseCompiler) preferRlib() bool {
 	return Bool(compiler.Properties.Prefer_rlib)
 }
@@ -314,14 +331,14 @@ func (compiler *baseCompiler) Aliases() map[string]string {
 	return aliases
 }
 
-func (compiler *baseCompiler) stdLinkage(device bool) RustLinkage {
-	// For devices, we always link stdlibs in as dylibs by default.
+func (compiler *baseCompiler) stdLinkage(device bool) StdLinkage {
 	if compiler.preferRlib() {
-		return RlibLinkage
+		// For devices, we always link stdlibs in as dylibs by default.
+		return RlibStd
 	} else if device {
-		return DylibLinkage
+		return DylibStd
 	} else {
-		return RlibLinkage
+		return RlibStd
 	}
 }
 
@@ -357,8 +374,8 @@ func (compiler *baseCompiler) inData() bool {
 	return compiler.location == InstallInData
 }
 
-func (compiler *baseCompiler) compilerProps() []interface{} {
-	return []interface{}{&compiler.Properties}
+func (compiler *baseCompiler) compilerProps() []any {
+	return []any{&compiler.Properties}
 }
 
 func (compiler *baseCompiler) baseCompilerProps() BaseCompilerProperties {
@@ -484,7 +501,7 @@ func (compiler *baseCompiler) compilerFlags(ctx ModuleContext, flags Flags) Flag
 }
 
 func (compiler *baseCompiler) compile(ctx ModuleContext, flags Flags, deps PathDeps) buildOutput {
-	panic(fmt.Errorf("baseCrater doesn't know how to crate things!"))
+	panic(fmt.Errorf("baseCrater doesn't know how to crate things"))
 }
 
 func (compiler *baseCompiler) rustdoc(ctx ModuleContext, flags Flags,

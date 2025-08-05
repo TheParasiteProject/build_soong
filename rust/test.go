@@ -121,7 +121,7 @@ func NewRustTest(hod android.HostOrDeviceSupported) (*Module, *testDecorator) {
 	return module, test
 }
 
-func (test *testDecorator) compilerProps() []interface{} {
+func (test *testDecorator) compilerProps() []any {
 	return append(test.binaryDecorator.compilerProps(), &test.Properties)
 }
 
@@ -134,11 +134,11 @@ func (test *testDecorator) install(ctx ModuleContext) {
 
 	var configs []tradefed.Config
 	if Bool(test.Properties.Require_root) {
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", nil})
+		configs = append(configs, tradefed.Object{Type: "target_preparer", Class: "com.android.tradefed.targetprep.RootTargetPreparer", Options: nil})
 	} else {
 		var options []tradefed.Option
 		options = append(options, tradefed.Option{Name: "force-root", Value: "false"})
-		configs = append(configs, tradefed.Object{"target_preparer", "com.android.tradefed.targetprep.RootTargetPreparer", options})
+		configs = append(configs, tradefed.Object{Type: "target_preparer", Class: "com.android.tradefed.targetprep.RootTargetPreparer", Options: options})
 	}
 
 	test.testConfig = tradefed.AutoGenTestConfig(ctx, tradefed.AutoGenTestConfigOptions{
@@ -195,7 +195,7 @@ func (test *testDecorator) install(ctx ModuleContext) {
 
 	// default relative install path is module name
 	if !Bool(test.Properties.No_named_install_directory) {
-		test.baseCompiler.relative = ctx.ModuleName()
+		test.relative = ctx.ModuleName()
 	} else if String(test.baseCompiler.Properties.Relative_install_path) == "" {
 		ctx.PropertyErrorf("no_named_install_directory", "Module install directory may only be disabled if relative_install_path is set")
 	}
@@ -216,7 +216,7 @@ func (test *testDecorator) install(ctx ModuleContext) {
 		NeedsArchFolder: true,
 	})
 
-	test.binaryDecorator.installTestData(ctx, test.data)
+	test.installTestData(ctx, test.data)
 	test.binaryDecorator.install(ctx)
 }
 
@@ -275,8 +275,8 @@ func RustTestHostFactory() android.Module {
 	return module.Init()
 }
 
-func (test *testDecorator) stdLinkage(device bool) RustLinkage {
-	return RlibLinkage
+func (test *testDecorator) stdLinkage(device bool) StdLinkage {
+	return RlibStd
 }
 
 func (test *testDecorator) compilerDeps(ctx DepsContext, deps Deps) Deps {
