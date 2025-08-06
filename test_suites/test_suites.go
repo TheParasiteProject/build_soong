@@ -885,6 +885,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		HostSharedLibs: hostSharedLibs,
 		BuildMetadata:  proptools.Bool(m.properties.Build_metadata),
 	})
+	ctx.SetOutputFiles(android.Paths{android.PathForHostInstall(ctx, m.Name(), fmt.Sprintf("android-%s.zip", m.Name()))}, "")
 }
 
 func testSuitePackageFactory() android.Module {
