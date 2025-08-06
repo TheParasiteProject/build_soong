@@ -701,6 +701,32 @@ func buildCompatibilitySuitePackage(
 	ctx.Phony(testSuiteName, out)
 	ctx.DistForGoal(testSuiteName, out)
 
+	if suite.BuildTestList == true {
+		// Original compatibility_tests_list_zip in build/make/core/tasks/tools/compatibility.mk
+		// output is $(HOST_OUT)/$(test_suite_name)/android-$(test_suite_name)-tests_list.zip
+		testsListTxt := hostOutSuite.Join(ctx, fmt.Sprintf("android-%s-tests_list", testSuiteName))
+		testsListZip := hostOutSuite.Join(ctx, fmt.Sprintf("android-%s-tests_list.zip", testSuiteName))
+		var listLines []string
+		for _, f := range testSuiteFiles {
+			if f.Ext() == ".config" {
+				listLines = append(listLines, strings.TrimPrefix(f.String(), hostOutTestCases.String()+"/"))
+			}
+		}
+		sort.Strings(listLines)
+		android.WriteFileRule(ctx, testsListTxt, strings.Join(listLines, "\n"))
+
+		testsListZipBuilder := android.NewRuleBuilder(pctx, ctx)
+		testsListZipBuilder.Command().
+			BuiltTool("soong_zip").
+			FlagWithOutput("-o ", testsListZip).
+			FlagWithArg("-C ", hostOutSuite.String()).
+			FlagWithInput("-f ", testsListTxt)
+		testsListZipBuilder.Build(subdir+"-tests_list", "building "+subdir+" testcases list zip")
+
+		ctx.Phony(testSuiteName, testsListZip)
+		ctx.DistForGoal(testSuiteName, testsListZip)
+	}
+
 	if suite.BuildMetadata {
 		metadata_rule := android.NewRuleBuilder(pctx, ctx)
 		compatibility_files_metadata := hostOutSuite.Join(ctx, fmt.Sprintf("%s_files_metadata.textproto", testSuiteName))
@@ -755,6 +781,7 @@ type compatibilityTestSuitePackageProperties struct {
 	Tools            []string
 	Dynamic_config   *string `android:"path"`
 	Host_shared_libs []string
+	Build_test_list  *bool
 	Build_metadata   *bool
 }
 
@@ -770,6 +797,7 @@ type compatibilitySuitePackageInfo struct {
 	ToolFiles      android.Paths
 	ToolNoticeInfo android.NoticeModuleInfos
 	HostSharedLibs android.Paths
+	BuildTestList  bool
 	BuildMetadata  bool
 }
 
@@ -883,6 +911,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		ToolFiles:      toolFiles,
 		ToolNoticeInfo: toolNoticeinfo,
 		HostSharedLibs: hostSharedLibs,
+		BuildTestList:  proptools.Bool(m.properties.Build_test_list),
 		BuildMetadata:  proptools.Bool(m.properties.Build_metadata),
 	})
 	ctx.SetOutputFiles(android.Paths{android.PathForHostInstall(ctx, m.Name(), fmt.Sprintf("android-%s.zip", m.Name()))}, "")
