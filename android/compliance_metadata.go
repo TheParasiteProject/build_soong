@@ -301,14 +301,14 @@ func RegisterComplianceMetadataSingleton(ctx RegistrationContext) {
 
 var (
 	// sqlite3 command line tool
-	sqlite3 = pctx.HostBinToolVariable("sqlite3", "sqlite3")
+	sqlite3 = pctx.HostBinToolVariable("sqlite3_noicu", "sqlite3_noicu")
 
 	// Command to import .csv files to sqlite3 database
 	importCsv = pctx.AndroidStaticRule("importCsv",
 		blueprint.RuleParams{
 			Command: `rm -rf $out && ` +
-				`cat $out.rsp | tr ' ' '\n' | while read -r file || [ -n "$$file" ]; do ${sqlite3} $out ".import --csv $${file} $$(basename $${file} .csv)"; done`,
-			CommandDeps:    []string{"${sqlite3}"},
+				`cat $out.rsp | tr ' ' '\n' | while read -r file || [ -n "$$file" ]; do ${sqlite3_noicu} $out ".import --csv $${file} $$(basename $${file} .csv)"; done`,
+			CommandDeps:    []string{"${sqlite3_noicu}"},
 			Rspfile:        `$out.rsp`,
 			RspfileContent: `$in`,
 		})
