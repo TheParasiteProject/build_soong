@@ -2517,10 +2517,6 @@ func (c *config) ProductDefaultWifiChannels() []string {
 	return c.productVariables.ProductDefaultWifiChannels
 }
 
-func (c *config) BoardUseVbmetaDigestInFingerprint() bool {
-	return Bool(c.productVariables.BoardUseVbmetaDigestInFingerprint)
-}
-
 func (c *config) OemProperties() []string {
 	return c.productVariables.OemProperties
 }
