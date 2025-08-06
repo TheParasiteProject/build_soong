@@ -700,6 +700,22 @@ func buildCompatibilitySuitePackage(
 
 	ctx.Phony(testSuiteName, out)
 	ctx.DistForGoal(testSuiteName, out)
+
+	if suite.BuildMetadata {
+		metadata_rule := android.NewRuleBuilder(pctx, ctx)
+		compatibility_files_metadata := hostOutSuite.Join(ctx, fmt.Sprintf("%s_files_metadata.textproto", testSuiteName))
+
+		metadata_rule.Command().BuiltTool("file_metadata_generation").
+			FlagWithArg("--testcases_dir ", hostOutTestCases.String()).
+			FlagWithInput("--aapt2 ", ctx.Config().HostToolPath(ctx, "aapt2")).
+			FlagWithArg("--sdk_version ", ctx.Config().PlatformSdkVersion().String()).
+			FlagWithOutput("--output ", compatibility_files_metadata).
+			Implicit(out)
+		metadata_rule.Build("compatibility_metadata_"+testSuiteName, fmt.Sprintf("Compatibility test suite metadata file %q", testSuiteName))
+
+		ctx.Phony(testSuiteName, compatibility_files_metadata)
+		ctx.DistForGoal(testSuiteName, compatibility_files_metadata)
+	}
 }
 
 func addJdkToZip(ctx android.SingletonContext, command *android.RuleBuilderCommand, subdir string) {
@@ -739,6 +755,7 @@ type compatibilityTestSuitePackageProperties struct {
 	Tools            []string
 	Dynamic_config   *string `android:"path"`
 	Host_shared_libs []string
+	Build_metadata   *bool
 }
 
 type compatibilityTestSuitePackage struct {
@@ -753,6 +770,7 @@ type compatibilitySuitePackageInfo struct {
 	ToolFiles      android.Paths
 	ToolNoticeInfo android.NoticeModuleInfos
 	HostSharedLibs android.Paths
+	BuildMetadata  bool
 }
 
 var compatibilitySuitePackageProvider = blueprint.NewProvider[compatibilitySuitePackageInfo]()
@@ -865,6 +883,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		ToolFiles:      toolFiles,
 		ToolNoticeInfo: toolNoticeinfo,
 		HostSharedLibs: hostSharedLibs,
+		BuildMetadata:  proptools.Bool(m.properties.Build_metadata),
 	})
 }
 
