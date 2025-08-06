@@ -339,6 +339,7 @@ type testSuiteConfig struct {
 	includeHostSharedLibsInMainZip               bool
 	includeCommonHostSharedLibsSymlinksInMainZip bool
 	hostJavaToolFiles                            android.Paths
+	Art_data_zips                                android.Paths
 }
 
 func buildTestSuite(ctx android.SingletonContext, suiteName string, files android.InstallPaths) (android.Path, android.Path) {
@@ -429,7 +430,6 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 		BuiltTool("soong_zip").
 		Flag("-sha256").
 		Flag("-d").
-		FlagWithOutput("-o ", testsZip).
 		FlagWithArg("-P ", "host").
 		FlagWithArg("-C ", hostOut)
 
@@ -560,7 +560,26 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 		}
 	}
 
-	testsZipBuilder.Build(suiteConfig.name, "building "+suiteConfig.name+" zip")
+	// Special handling for art_data_zips. This is a custom property for ART's needs.
+	// It points to a filegroup that generates the art_common directory, which
+	// must be placed under host/testcases in the final zip.
+	if len(suiteConfig.Art_data_zips) > 0 {
+		unmergedTestsZip := pathForPackaging(ctx, suiteConfig.name+"-unmerged.zip")
+		testsZipCmd.FlagWithOutput("-o ", unmergedTestsZip)
+		testsZipBuilder.Build(suiteConfig.name+"-unmerged", "building "+suiteConfig.name+" unmerged zip")
+
+		mergeBuilder := android.NewRuleBuilder(pctx, ctx)
+		mergeBuilder.Command().
+			BuiltTool("merge_zips").
+			Output(testsZip).
+			Inputs(android.Paths{unmergedTestsZip}).
+			Inputs(suiteConfig.Art_data_zips)
+		mergeBuilder.Build(suiteConfig.name+"-merge", "merging "+suiteConfig.name+" zip")
+	} else {
+		testsZipCmd.FlagWithOutput("-o ", testsZip)
+		testsZipBuilder.Build(suiteConfig.name, "building "+suiteConfig.name+" zip")
+	}
+
 	testsConfigsZipBuilder.Build(suiteConfig.name+"-configs", "building "+suiteConfig.name+" configs zip")
 
 	if suiteConfig.buildHostSharedLibsZip {
@@ -973,6 +992,11 @@ type testSuitePackageProperties struct {
 	// The target of the symlink will be the host/testcases/lib64/libfoo.so
 	Include_common_host_shared_libs_symlinks_in_main_zip *bool
 	Host_java_tools                                      []string
+	// Custom property for ART's needs. This points to a zip file (or a list of zip files)
+	// that provides extra data files for ART host tests. The content of the zip(s) will be
+	// merged into the final test suite zip. For example, it is used to package the
+	// art_common_host_data_files.zip file.
+	Art_data_zips []string `android:"path"`
 }
 
 type testSuitePackage struct {
@@ -1012,6 +1036,7 @@ func (t *testSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext
 		includeHostSharedLibsInMainZip: proptools.Bool(t.properties.Include_host_shared_libs_in_main_zip),
 		includeCommonHostSharedLibsSymlinksInMainZip: proptools.Bool(t.properties.Include_common_host_shared_libs_symlinks_in_main_zip),
 		hostJavaToolFiles: toolFiles,
+		Art_data_zips:     android.PathsForModuleSrc(ctx, t.properties.Art_data_zips),
 	})
 
 	if ctx.Config().JavaCoverageEnabled() {
