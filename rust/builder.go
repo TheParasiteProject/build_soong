@@ -506,7 +506,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 				Implicits:   implicits,
 				Args:        args,
 			})
-			ctx.Phony("rust", checkJsonFile)
+			ctx.Phony("rustClippyJson", checkJsonFile)
 			clippyFile := android.PathForModuleOut(ctx, outputFile.Base()+".clippy")
 			ctx.Build(pctx, android.BuildParams{
 				Rule:            clippyDriver,
