@@ -235,9 +235,6 @@ def generate_build_info(args):
     print(f"ro.product.locale={config['ProductLocales'][0]}")
   print(f"ro.wifi.channels={' '.join(config['ProductDefaultWifiChannels'])}")
 
-  print(f"# ro.build.product is obsolete; use ro.product.device")
-  print(f"ro.build.product={config['DeviceName']}")
-
   print(f"# Do not try to parse description or thumbprint")
   print(f"ro.build.description?={config['BuildDesc']}")
   if "BuildThumbprint" in config:
@@ -574,7 +571,10 @@ def build_product_prop(args):
   if config["UsesProductImage"]:
     gen_common_build_props = True
 
-  build_prop(args, gen_build_info=False, gen_common_build_props=True, variables=variables)
+  # Product is the most product-specific partition. So it is the best place to
+  # have the build info.
+  # Product props will be read for any duplicatied properties.
+  build_prop(args, gen_build_info=True, gen_common_build_props=gen_common_build_props, variables=variables)
 
   if config["OemProperties"]:
     print("####################################")
