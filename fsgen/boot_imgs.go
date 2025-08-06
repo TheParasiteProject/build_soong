@@ -212,7 +212,7 @@ func createVendorKernelBootImage(ctx android.LoadHookContext, dtbImg dtbImg) boo
 	avbInfo := getAvbInfo(ctx.Config(), "vendor_kernel_boot")
 
 	var dtbPrebuilt *string
-	if dtbImg.include && dtbImg.imgType == "boot" {
+	if dtbImg.include && dtbImg.imgType == "vendor_kernel_boot" {
 		dtbPrebuilt = proptools.StringPtr(":" + dtbImg.name)
 	}
 
@@ -406,7 +406,7 @@ func createDtbImgFilegroup(ctx android.LoadHookContext) dtbImg {
 		// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=1655-1658?q=INTERNAL_VENDOR_BOOTIMAGE_ARGS&ss=android%2Fplatform%2Fsuperproject%2Fmain
 		// If we have vendor_kernel_boot partition, we migrate dtb image to that image
 		// and allow dtb in vendor_boot to be empty.
-		imgType = "boot"
+		imgType = "vendor_kernel_boot"
 	}
 	if partitionVars.BoardPrebuiltDtbDir != "" {
 		// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=1019-1022?q=BOARD_PREBUILT_DTBIMAGE_DIR&ss=android%2Fplatform%2Fsuperproject%2Fmaini
