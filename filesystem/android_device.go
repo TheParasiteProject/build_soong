@@ -1265,6 +1265,14 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	}
 	if fsInfos["system"].ErofsCompressHints != nil {
 		builder.Command().Textf("echo erofs_default_compress_hints=%s >> %s", fsInfos["system"].ErofsCompressHints, miscInfo)
+	} else {
+		// Use other partitions' ErofsCompressHints if system partition's not exist.
+		for _, partition := range android.SortedKeys(fsInfos) {
+			if fsInfos[partition].ErofsCompressHints != nil {
+				builder.Command().Textf("echo erofs_default_compress_hints=%s >> %s", fsInfos[partition].ErofsCompressHints, miscInfo)
+				break
+			}
+		}
 	}
 	if proptools.String(a.deviceProps.Releasetools_extension) != "" {
 		releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension))
