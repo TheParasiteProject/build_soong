@@ -2302,8 +2302,8 @@ func CopySymbolsAndSetSymbolsInfoProvider(ctx android.ModuleContext, symbolInfos
 
 	android.SetProvider(ctx, android.SymbolInfosProvider, symbolicOutputInfos)
 
-	ctx.CheckbuildFile(symbolicOutputInfos.SortedUniqueSymbolicOutputPaths()...)
-	ctx.CheckbuildFile(symbolicOutputInfos.SortedUniqueElfMappingProtoPaths()...)
+	ctx.ModulePhonyFiles(symbolicOutputInfos.SortedUniqueSymbolicOutputPaths()...)
+	ctx.ModulePhonyFiles(symbolicOutputInfos.SortedUniqueElfMappingProtoPaths()...)
 }
 
 func (c *Module) collectSymbolsInfo(ctx android.ModuleContext) {
