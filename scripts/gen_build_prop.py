@@ -177,11 +177,7 @@ def generate_build_info(args):
   config = args.config
   build_flags = config["BuildFlags"]
 
-  # The ro.build.id will be set dynamically by init, by appending the unique vbmeta digest.
-  if config["BoardUseVbmetaDigestInFingerprint"]:
-    print(f"ro.build.legacy.id={config['BuildId']}")
-  else:
-    print(f"ro.build.id?={config['BuildId']}")
+  print(f"ro.build.id?={config['BuildId']}")
 
   # ro.build.display.id is shown under Settings -> About Phone
   if config["BuildVariant"] == "user":
@@ -449,11 +445,6 @@ def append_additional_vendor_props(args):
   # to decide if VABC should be disabled.
   if config["DontUseVabcOta"]:
     props.append(f"ro.vendor.build.dont_use_vabc=true")
-
-  # Set the flag in vendor. So VTS would know if the new fingerprint format is in use when
-  # the system images are replaced by GSI.
-  if config["BoardUseVbmetaDigestInFingerprint"]:
-    props.append(f"ro.vendor.build.fingerprint_has_digest=1")
 
   props.append(f"ro.vendor.build.security_patch={config['VendorSecurityPatch']}")
   props.append(f"ro.product.board={config['BootloaderBoardName']}")

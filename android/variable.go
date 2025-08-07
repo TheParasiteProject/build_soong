@@ -516,8 +516,6 @@ type ProductVariables struct {
 
 	ProductDefaultWifiChannels []string `json:",omitempty"`
 
-	BoardUseVbmetaDigestInFingerprint *bool `json:",omitempty"`
-
 	OemProperties []string `json:",omitempty"`
 
 	ArtTargetIncludeDebugBuild *bool `json:",omitempty"`
