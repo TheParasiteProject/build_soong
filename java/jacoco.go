@@ -204,7 +204,7 @@ func BuildJacocoZip(ctx BuildJacocoZipContext, modules []android.ModuleProxy, ou
 		}
 	}
 
-	jacocoZipBuilder.Build("jacoco_report_classes_zip", "Building jacoco report zip")
+	jacocoZipBuilder.Build("jacoco_report_classes_zip_"+outputFile.String(), "Building jacoco report zip")
 }
 
 func BuildJacocoZipWithPotentialDeviceTests(ctx android.ModuleContext, modules []android.ModuleProxy, outputFile android.WritablePath) {
