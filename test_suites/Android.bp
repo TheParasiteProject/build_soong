@@ -40,3 +40,14 @@ test_suite_package {
 test_suite_package {
     name: "al-tests",
 }
+
+test_suite_package {
+    name: "general-tests",
+    include_common_host_shared_libs_symlinks_in_main_zip: true,
+    include_host_shared_libs_in_main_zip: true,
+    host_java_tools: [
+        "compatibility-host-util",
+        "cts-tradefed",
+        "vts-tradefed",
+    ],
+}
