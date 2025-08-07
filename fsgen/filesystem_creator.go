@@ -472,19 +472,24 @@ func (f *filesystemCreator) createDeviceModule(
 
 	// Currently, only the system and system_ext partition module is created.
 	partitionProps := &filesystem.PartitionNameProperties{}
+	infoPartitionProps := &filesystem.InfoPartitionNameProperties{}
 	if f.properties.Super_image != "" {
 		partitionProps.Super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
 	} else if partitionVars.ProductUseDynamicPartitions {
-		partitionProps.Dynamic_config_only_super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
+		infoPartitionProps.Info_super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
 	}
-	if buildingSystemImage(partitionVars) {
-		if modName := partitions.nameForType("system"); modName != "" && !android.InList("system", superImageSubPartitions) {
+	if modName := partitions.nameForType("system"); modName != "" && !android.InList("system", superImageSubPartitions) {
+		if buildingSystemImage(partitionVars) {
 			partitionProps.System_partition_name = proptools.StringPtr(modName)
+		} else {
+			infoPartitionProps.Info_system_partition_name = proptools.StringPtr(modName)
 		}
 	}
-	if buildingSystemExtImage(partitionVars) {
-		if modName := partitions.nameForType("system_ext"); modName != "" && !android.InList("system_ext", superImageSubPartitions) {
+	if modName := partitions.nameForType("system_ext"); modName != "" && !android.InList("system_ext", superImageSubPartitions) {
+		if buildingSystemExtImage(partitionVars) {
 			partitionProps.System_ext_partition_name = proptools.StringPtr(modName)
+		} else {
+			infoPartitionProps.Info_system_ext_partition_name = proptools.StringPtr(modName)
 		}
 	}
 	if modName := partitions.nameForType("vendor"); modName != "" && !android.InList("vendor", superImageSubPartitions) {
@@ -571,7 +576,7 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Ramdisk_16k = &ramdisk16kModuleName
 	}
 
-	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
+	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps, infoPartitionProps)
 }
 
 func createRadioImg(ctx android.LoadHookContext) string {
