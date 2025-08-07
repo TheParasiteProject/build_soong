@@ -607,6 +607,10 @@ func (r ModuleBuildTargetsInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffe
 		return err
 	}
 
+	if err = gobtools.EncodeInterface(ctx, buf, r.ModulePhonyTarget); err != nil {
+		return err
+	}
+
 	if err = gobtools.EncodeSimple(buf, r.NamespaceExportedToMake); err != nil {
 		return err
 	}
@@ -642,6 +646,14 @@ func (r *ModuleBuildTargetsInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 		r.CheckbuildTarget = nil
 	} else {
 		r.CheckbuildTarget = val6.(Path)
+	}
+
+	if val8, err := gobtools.DecodeInterface(ctx, buf); err != nil {
+		return err
+	} else if val8 == nil {
+		r.ModulePhonyTarget = nil
+	} else {
+		r.ModulePhonyTarget = val8.(Path)
 	}
 
 	err = gobtools.DecodeSimple[bool](buf, &r.NamespaceExportedToMake)

@@ -1729,7 +1729,6 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		return PathForPhony(ctx, phonyName)
 	}
 
-	var defaultDeps Paths
 	var checkbuildDeps Paths
 	var info ModuleBuildTargetsInfo
 
@@ -1757,17 +1756,23 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		installTarget = phony("-"+ctx.ModuleSubDir()+"-install", installFiles)
 		phony("-install", Paths{installTarget})
 		info.InstallTarget = installTarget
-		defaultDeps = append(defaultDeps, installTarget)
 	}
 
 	var outputTarget Path
 	outputFiles, _ := outputFilesForModule(ctx, ctx.Module(), "")
 	outputFiles = append(outputFiles, outputDeps...)
+	outputFiles = append(outputFiles, ctx.modulePhonyFiles...)
 	if len(outputFiles) > 0 {
 		outputTarget = phony("-"+ctx.ModuleSubDir()+"-outputs", outputFiles)
 		phony("-outputs", Paths{outputTarget})
-		defaultDeps = append(defaultDeps, outputTarget)
 		checkbuildDeps = append(checkbuildDeps, outputTarget)
+	}
+
+	var modulePhonyTarget Path
+	if len(ctx.modulePhonyFiles) > 0 {
+		modulePhonyTarget = phony("-"+ctx.ModuleSubDir()+"-phony-files", ctx.modulePhonyFiles)
+		phony("-phony-files", Paths{modulePhonyTarget})
+		checkbuildDeps = append(checkbuildDeps, modulePhonyTarget)
 	}
 
 	// A module's -checkbuild phony targets should
@@ -1779,7 +1784,6 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	if len(checkbuildDeps) > 0 {
 		checkbuildTarget = phony("-"+ctx.ModuleSubDir()+"-checkbuild", checkbuildDeps)
 		phony("-checkbuild", Paths{checkbuildTarget})
-		defaultDeps = append(defaultDeps, checkbuildTarget)
 		checkbuildDeps = Paths{checkbuildTarget}
 		if !ctx.uncheckedModule {
 			info.CheckbuildTarget = checkbuildTarget
@@ -1797,6 +1801,11 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		defaultTarget = checkbuildDeps
 	}
 
+	if modulePhonyTarget != nil {
+		// Paths registered via `ModulePhonyFiles(...)` are always built as part of the default target.
+		defaultTarget = append(defaultTarget, modulePhonyTarget)
+	}
+
 	phony("", defaultTarget)
 	if ctx.Device() {
 		// Generate a target suffix for use in atest etc.
@@ -1810,6 +1819,7 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		}
 	}
 
+	info.ModulePhonyTarget = modulePhonyTarget
 	info.BlueprintDir = ctx.ModuleDir()
 	info.OutputsTarget = outputTarget
 	info.InstallTarget = installTarget
@@ -1975,6 +1985,7 @@ type ModuleBuildTargetsInfo struct {
 	InstallTarget           Path
 	OutputsTarget           Path
 	CheckbuildTarget        Path
+	ModulePhonyTarget       Path
 	NamespaceExportedToMake bool
 	BlueprintDir            string
 }

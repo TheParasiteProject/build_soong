@@ -15,6 +15,7 @@
 package rust
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/google/blueprint"
@@ -399,7 +400,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 
 	// Disallow experimental features
 	modulePath := ctx.ModuleDir()
-	if !(android.IsThirdPartyPath(modulePath) || strings.HasPrefix(modulePath, "prebuilts")) {
+	if !android.IsThirdPartyPath(modulePath) && !strings.HasPrefix(modulePath, "prebuilts") {
 		rustcFlags = append(rustcFlags, "-Zallow-features=\"\"")
 	}
 
@@ -574,7 +575,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 func Rustdoc(ctx ModuleContext, main android.Path, deps PathDeps,
 	flags Flags) android.ModuleOutPath {
 
-	rustdocFlags := append([]string{}, flags.RustdocFlags...)
+	rustdocFlags := slices.Clone(flags.RustdocFlags)
 	rustdocFlags = append(rustdocFlags, flags.GlobalRustFlags...)
 	rustdocFlags = append(rustdocFlags, "--sysroot=/dev/null")
 

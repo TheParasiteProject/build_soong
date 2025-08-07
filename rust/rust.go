@@ -17,6 +17,7 @@ package rust
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -41,8 +42,8 @@ type LibraryInfo struct {
 }
 
 type CompilerInfo struct {
-	StdLinkageForDevice    RustLinkage
-	StdLinkageForNonDevice RustLinkage
+	StdLinkageForDevice    StdLinkage
+	StdLinkageForNonDevice StdLinkage
 	NoStdlibs              bool
 	CrateName              string
 	Edition                string
@@ -625,10 +626,6 @@ type RustFlagExporterInfo struct {
 
 var RustFlagExporterInfoProvider = blueprint.NewProvider[RustFlagExporterInfo]()
 
-func (mod *Module) isCoverageVariant() bool {
-	return mod.coverage.Properties.IsCoverageVariant
-}
-
 var _ cc.Coverage = (*Module)(nil)
 
 func (mod *Module) IsNativeCoverageNeeded(ctx cc.IsNativeCoverageNeededContext) bool {
@@ -667,7 +664,7 @@ type Defaults struct {
 	android.DefaultsModuleBase
 }
 
-func DefaultsFactory(props ...interface{}) android.Module {
+func DefaultsFactory(props ...any) android.Module {
 	module := &Defaults{}
 
 	module.AddProperties(props...)
@@ -1387,7 +1384,6 @@ func buildComplianceMetadataInfo(ctx *moduleContext, mod *Module, deps PathDeps)
 	for _, dep := range deps.RLibs {
 		staticDepPaths = append(staticDepPaths, dep.Path.String())
 	}
-	metadataInfo.SetListValue(android.ComplianceMetadataProp.STATIC_DEPS, android.FirstUniqueStrings(staticDepNames))
 	metadataInfo.SetListValue(android.ComplianceMetadataProp.STATIC_DEP_FILES, android.FirstUniqueStrings(staticDepPaths))
 
 	// C Whole static libs
@@ -1396,7 +1392,9 @@ func buildComplianceMetadataInfo(ctx *moduleContext, mod *Module, deps PathDeps)
 	for _, dep := range ccStaticDeps {
 		wholeStaticDepNames = append(wholeStaticDepNames, dep.Name())
 	}
-	metadataInfo.SetListValue(android.ComplianceMetadataProp.STATIC_DEPS, android.FirstUniqueStrings(staticDepNames))
+
+	allStaticDepNames := append(staticDepNames, wholeStaticDepNames...)
+	metadataInfo.SetListValue(android.ComplianceMetadataProp.STATIC_DEPS, android.FirstUniqueStrings(allStaticDepNames))
 }
 
 func (mod *Module) deps(ctx DepsContext) Deps {
@@ -1411,10 +1409,6 @@ func (mod *Module) deps(ctx DepsContext) Deps {
 
 	if mod.coverage != nil {
 		deps = mod.coverage.deps(ctx, deps)
-	}
-
-	if mod.sanitize != nil {
-		deps = mod.sanitize.deps(ctx, deps)
 	}
 
 	deps.Rlibs = android.LastUniqueStrings(deps.Rlibs)
@@ -1636,7 +1630,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					if ctx.Device() {
 						rustDepStdLinkage = rustInfo.CompilerInfo.StdLinkageForDevice
 					}
-					if rustDepStdLinkage != modStdLinkage {
+					if !slices.Contains(modStdLinkage.compatChoices(), rustDepStdLinkage) {
 						ctx.ModuleErrorf("Rust dependency %q has the wrong StdLinkage; expected %#v, got %#v", depName, modStdLinkage, rustDepStdLinkage)
 						return
 					}
@@ -1671,7 +1665,7 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 					if ctx.Device() {
 						rustDepStdLinkage = rustInfo.CompilerInfo.StdLinkageForDevice
 					}
-					if rustDepStdLinkage != modStdLinkage {
+					if !slices.Contains(modStdLinkage.compatChoices(), rustDepStdLinkage) {
 						ctx.ModuleErrorf("Rust dependency %q has the wrong StdLinkage; expected %#v, got %#v", depName, modStdLinkage, rustDepStdLinkage)
 						return
 					}
@@ -1904,11 +1898,11 @@ func (mod *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 				lib.exportSharedLibs(ccLibPath.String())
 			}
 		} else {
-			switch {
-			case depTag == cc.CrtBeginDepTag:
+			switch depTag {
+			case cc.CrtBeginDepTag:
 				depPaths.CrtBegin = append(depPaths.CrtBegin, android.OutputFileForModule(ctx, dep, ""))
 				depPaths.directNonApexImplementationDeps = append(depPaths.directNonApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
-			case depTag == cc.CrtEndDepTag:
+			case cc.CrtEndDepTag:
 				depPaths.directNonApexImplementationDeps = append(depPaths.directNonApexImplementationDeps, android.OutputFileForModule(ctx, dep, ""))
 				depPaths.CrtEnd = append(depPaths.CrtEnd, android.OutputFileForModule(ctx, dep, ""))
 			}
@@ -2029,18 +2023,74 @@ func linkPathFromFilePath(filepath android.Path) string {
 	return strings.Split(filepath.String(), filepath.Base())[0]
 }
 
-// usePublicApi returns true if the rust variant should link against NDK (publicapi)
-func (r *Module) usePublicApi() bool {
-	return r.Device() && r.UseSdk()
-}
-
-// useVendorApi returns true if the rust variant should link against LLNDK (vendorapi)
-func (r *Module) useVendorApi() bool {
-	return r.Device() && (r.InVendor() || r.InProduct())
-}
-
 func (mod *Module) StdLinkageIsRlibLinkage(device bool) bool {
-	return mod.compiler != nil && mod.compiler.stdLinkage(device) == RlibLinkage
+	if mod.compiler != nil {
+		switch mod.compiler.stdLinkage(device) {
+		case NoCore, RlibCore, RlibStd:
+			return true
+		}
+	}
+	return false
+}
+
+// Go remains uncivilized for not having this as a default method on their slice.
+func sliceMap[E1 any, E2 any](base []E1, f func(E1) E2) []E2 {
+	out := make([]E2, len(base))
+	for i, v := range base {
+		out[i] = f(v)
+	}
+	return out
+}
+
+func (linkage StdLinkage) compatChoices() []StdLinkage {
+	switch linkage {
+	case DylibStd:
+		// dylib-std should only takes its own linkage, but there are cases in the build
+		// today that are depending on no-std modules.
+		// TODO migrate so that dylib-std only pulls in dylib-std
+		return []StdLinkage{linkage, RlibCore}
+	case RlibStd:
+		// rlib-std can also accept rlib-core libraries, but should prefer std libraries.
+		return []StdLinkage{linkage, RlibCore}
+	case RlibCore:
+		// rlib-core should only support its own linkage, but there are a variety of cases
+		// in the build today where a no-std build is depending on a std build, so we need
+		// to allow it, at least for now.
+		// TODO migrate existing builds to not have rlib-core libraries depend on rlib-std
+		return []StdLinkage{linkage, RlibStd}
+	case NoCore:
+		// Sysroots can only accept other sysroot (e.g. non-mutated) libraries
+		return []StdLinkage{linkage}
+	}
+	panic(fmt.Errorf("unrecognized linkage %v", linkage))
+}
+
+func (mod *Module) stdLinkageOptions(ctx DepsContext) [][]blueprint.Variation {
+	stdLinkage := mod.compiler.stdLinkage(ctx.Device())
+	switch stdLinkage {
+	case NoCore:
+		// NoCore is currently unmutated, so there's no variation here
+		return [][]blueprint.Variation{{}}
+	default:
+		return sliceMap(stdLinkage.compatChoices(), func(choice StdLinkage) []blueprint.Variation { return []blueprint.Variation{choice.variation()} })
+	}
+}
+
+func (mod *Module) addVariantDep(ctx DepsContext, depTags []dependencyTag, lib string) {
+	// Preference order is to get the preferred depTag, then to get preferred stdLinkage.
+	for _, depTag := range depTags {
+		for _, stdLinkage := range mod.stdLinkageOptions(ctx) {
+			variations := append(stdLinkage, depTag.libraryVariation())
+			// If the stdlinkage + depTag choice exists, select it and return
+			if ctx.OtherModuleDependencyVariantExists(variations, lib) {
+				ctx.AddVariationDependencies(variations, depTag, lib)
+				return
+			}
+		}
+	}
+	if !ctx.Config().AllowMissingDependencies() {
+		ctx.ModuleErrorf("unable to find allowed variation for lib %#v - stdLinkage %v depTags %v", lib, mod.stdLinkageOptions(ctx), depTags)
+	}
 }
 
 func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
@@ -2055,30 +2105,14 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		deps.SharedLibs, _ = cc.FilterNdkLibs(mod, ctx.Config(), deps.SharedLibs)
 	}
 
-	stdLinkage := "dylib-std"
-	if mod.compiler.stdLinkage(ctx.Device()) == RlibLinkage {
-		stdLinkage = "rlib-std"
-	}
-
-	rlibDepVariations := commonDepVariations
-
-	if lib, ok := mod.compiler.(libraryInterface); !ok || !lib.sysroot() {
-		rlibDepVariations = append(rlibDepVariations,
-			blueprint.Variation{Mutator: "rust_stdlinkage", Variation: stdLinkage})
-	}
-
 	// rlibs
-	rlibDepVariations = append(rlibDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: rlibVariation})
 	for _, lib := range deps.Rlibs {
-		depTag := rlibDepTag
-		actx.AddVariationDependencies(rlibDepVariations, depTag, lib)
+		mod.addVariantDep(ctx, []dependencyTag{rlibDepTag}, lib)
 	}
 
 	// dylibs
-	dylibDepVariations := append(commonDepVariations, blueprint.Variation{Mutator: "rust_libraries", Variation: dylibVariation})
-
 	for _, lib := range deps.Dylibs {
-		actx.AddVariationDependencies(dylibDepVariations, dylibDepTag, lib)
+		mod.addVariantDep(ctx, []dependencyTag{dylibDepTag}, lib)
 	}
 
 	// rustlibs
@@ -2086,24 +2120,16 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 		if !mod.compiler.Disabled() {
 			for _, lib := range deps.Rustlibs {
 				autoDep := mod.compiler.(autoDeppable).autoDep(ctx)
-				if autoDep.depTag == rlibDepTag {
-					// Handle the rlib deptag case
-					actx.AddVariationDependencies(rlibDepVariations, rlibDepTag, lib)
-
-				} else {
+				switch autoDep.depTag {
+				case rlibDepTag:
+					mod.addVariantDep(ctx, []dependencyTag{rlibDepTag}, lib)
+				case dylibDepTag:
 					// autoDep.depTag is a dylib depTag. Not all rustlibs may be available as a dylib however.
 					// Check for the existence of the dylib deptag variant. Select it if available,
 					// otherwise select the rlib variant.
-					autoDepVariations := append(commonDepVariations,
-						blueprint.Variation{Mutator: "rust_libraries", Variation: autoDep.variation})
-					if actx.OtherModuleDependencyVariantExists(autoDepVariations, lib) {
-						actx.AddVariationDependencies(autoDepVariations, autoDep.depTag, lib)
-
-					} else {
-						// If there's no dylib dependency available, try to add the rlib dependency instead.
-						actx.AddVariationDependencies(rlibDepVariations, rlibDepTag, lib)
-
-					}
+					mod.addVariantDep(ctx, []dependencyTag{dylibDepTag, rlibDepTag}, lib)
+				default:
+					panic(fmt.Errorf("unknown depTag: %v", autoDep.depTag))
 				}
 			}
 		} else if _, ok := mod.sourceProvider.(*protobufDecorator); ok {
@@ -2123,16 +2149,9 @@ func (mod *Module) DepsMutator(actx android.BottomUpMutatorContext) {
 
 	// stdlibs
 	if deps.Stdlibs != nil {
-		if mod.StdLinkageIsRlibLinkage(ctx.Device()) {
-			for _, lib := range deps.Stdlibs {
-				actx.AddVariationDependencies(append(commonDepVariations, []blueprint.Variation{{Mutator: "rust_libraries", Variation: "rlib"}}...),
-					rlibDepTag, lib)
-			}
-		} else {
-			for _, lib := range deps.Stdlibs {
-				actx.AddVariationDependencies(dylibDepVariations, dylibDepTag, lib)
-
-			}
+		stdLinkage := mod.compiler.stdLinkage(ctx.Device())
+		for _, lib := range deps.Stdlibs {
+			actx.AddVariationDependencies(stdLinkage.libraryVariations(), stdLinkage.depTag(), lib)
 		}
 	}
 
@@ -2229,11 +2248,11 @@ func (mod *Module) HostToolPath() android.OptionalPath {
 		return android.OptionalPath{}
 	}
 	if binary, ok := mod.compiler.(*binaryDecorator); ok {
-		return android.OptionalPathForPath(binary.baseCompiler.path)
+		return android.OptionalPathForPath(binary.path)
 	} else if pm, ok := mod.compiler.(*procMacroDecorator); ok {
 		// Even though proc-macros aren't strictly "tools", since they target the compiler
 		// and act as compiler plugins, we treat them similarly.
-		return android.OptionalPathForPath(pm.baseCompiler.path)
+		return android.OptionalPathForPath(pm.path)
 	}
 	return android.OptionalPath{}
 }
@@ -2386,6 +2405,41 @@ func (c *Module) Partition() string {
 
 type RustImplementationDepInfo struct {
 	NonApexImplementationDeps depset.DepSet[android.Path]
+}
+
+func (linkage StdLinkage) libraryVariations() []blueprint.Variation {
+	switch linkage {
+	case RlibCore, RlibStd:
+		return []blueprint.Variation{{Mutator: "rust_libraries", Variation: rlibVariation}}
+	case DylibStd:
+		return []blueprint.Variation{{Mutator: "rust_libraries", Variation: dylibVariation}}
+	case NoCore:
+		panic("trying to link stdlibs for no-core library")
+	default:
+		panic(fmt.Errorf("unknown linkage: %v", linkage))
+	}
+}
+
+func (linkage StdLinkage) depTag() dependencyTag {
+	switch linkage {
+	case RlibCore, RlibStd:
+		return rlibDepTag
+	case DylibStd:
+		return dylibDepTag
+	default:
+		panic(fmt.Errorf("unknown linkage: %v", linkage))
+	}
+}
+
+func (depTag dependencyTag) libraryVariation() blueprint.Variation {
+	switch depTag {
+	case rlibDepTag:
+		return blueprint.Variation{Mutator: "rust_libraries", Variation: rlibVariation}
+	case dylibDepTag:
+		return blueprint.Variation{Mutator: "rust_libraries", Variation: dylibVariation}
+	default:
+		panic(fmt.Errorf("creating variation for unknown depTag: %v", depTag))
+	}
 }
 
 var RustImplementationDepInfoProvider = blueprint.NewProvider[*RustImplementationDepInfo]()

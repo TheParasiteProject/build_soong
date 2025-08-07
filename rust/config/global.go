@@ -33,6 +33,11 @@ var (
 	Stdlibs            = []string{
 		"libstd",
 	}
+	Corelibs = []string{
+		"libcore.rust_sysroot",
+		"libcompiler_builtins.rust_sysroot",
+		"liballoc.rust_sysroot",
+	}
 
 	// Rust versions usually look like "1.85.1", but might also get a
 	// letter or non-numeric suffix when testing (i.e. "1.85.1.test")
