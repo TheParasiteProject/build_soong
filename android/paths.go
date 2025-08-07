@@ -114,6 +114,7 @@ type ModuleInstallPathContext interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
+	InstallPathSkipFirstStageRamdisk() bool
 	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
@@ -151,6 +152,10 @@ func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRamdisk() bool 
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendorRamdisk() bool {
 	return ctx.Module().InstallInVendorRamdisk()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallPathSkipFirstStageRamdisk() bool {
+	return ctx.Module().InstallPathSkipFirstStageRamdisk()
 }
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendorKernelRamdisk() bool {
@@ -2055,7 +2060,7 @@ func modulePartition(ctx ModuleInstallPathContext, device bool) string {
 			// /first_stage_ramdisk. To expose the module before switching root
 			// on a device without a dedicated recovery partition, install the
 			// recovery variant.
-			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
+			if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() && !ctx.InstallPathSkipFirstStageRamdisk() {
 				partition = "vendor_ramdisk/first_stage_ramdisk"
 			} else {
 				partition = "vendor_ramdisk"
@@ -2326,6 +2331,10 @@ func (m testModuleInstallPathContext) InstallInRamdisk() bool {
 
 func (m testModuleInstallPathContext) InstallInVendorRamdisk() bool {
 	return m.inVendorRamdisk
+}
+
+func (m testModuleInstallPathContext) InstallPathSkipFirstStageRamdisk() bool {
+	return false
 }
 
 func (m testModuleInstallPathContext) InstallInVendorKernelRamdisk() bool {
