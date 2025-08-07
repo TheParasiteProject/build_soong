@@ -1587,6 +1587,8 @@ var validPartitions = []string{
 	"vendor_ramdisk",
 	"recovery",
 	"vendor_kernel_ramdisk",
+	"vendor_ramdisk-debug",
+	"debug_ramdisk",
 }
 
 func (f *filesystem) buildEventLogtagsFile(
