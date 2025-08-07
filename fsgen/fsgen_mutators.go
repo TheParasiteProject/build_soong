@@ -246,6 +246,7 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 				},
 				"ramdisk":               {},
 				"vendor_ramdisk":        {},
+				"vendor_ramdisk-debug":  {},
 				"vendor_kernel_ramdisk": {},
 				"recovery": {
 					"sepolicy.recovery":                     defaultDepCandidateProps(ctx.Config()),
@@ -264,6 +265,9 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"product_service_contexts.recovery":     defaultDepCandidateProps(ctx.Config()),
 					"product_property_contexts.recovery":    defaultDepCandidateProps(ctx.Config()),
 				},
+				"debug_ramdisk": {
+					"force_debuggable": defaultDepCandidateProps(ctx.Config()),
+				}, // TODO: move this to PRODUCT_PACKAGES
 			},
 			fsDepsMutex: sync.Mutex{},
 			moduleToInstallationProps: moduleToInstallationProps{
@@ -395,6 +399,7 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 		installPartition := "vendor_ramdisk"
 		if m.Enabled(mctx) && m.ExportedToMake() {
 			appendDepIfAppropriate(mctx, fsGenState.fsDeps[installPartition], installPartition, android.NativeBridgeDisabled, mctx.ModuleName())
+			appendDepIfAppropriate(mctx, fsGenState.fsDeps["vendor_ramdisk-debug"], installPartition, android.NativeBridgeDisabled, mctx.ModuleName())
 		}
 	} else if _, ok := fsGenState.depCandidatesMap[mctx.ModuleName()+".recovery"]; ok && mctx.Module().InstallInRecovery() {
 		installPartition := "recovery"

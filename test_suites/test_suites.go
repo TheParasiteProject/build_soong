@@ -429,11 +429,12 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 	targetOut := filepath.Dir(targetOutTestCases.String())
 
 	testsZip := pathForPackaging(ctx, suiteConfig.name+".zip")
+	generalTestsFilesListText := pathForPackaging(ctx, "general-tests_files")
 	testsListTxt := pathForPackaging(ctx, suiteConfig.name+"_list.txt")
 	testsListZip := pathForPackaging(ctx, suiteConfig.name+"_list.zip")
 	testsConfigsZip := pathForPackaging(ctx, suiteConfig.name+"_configs.zip")
 	testsHostSharedLibsZip := pathForPackaging(ctx, suiteConfig.name+"_host-shared-libs.zip")
-	var listLines []string
+	var listLines, filesListLines []string
 
 	// use intermediate files to hold the file inputs, to prevent argument list from being too long
 	testsZipCmdHostFileInput := android.PathForIntermediates(ctx, suiteConfig.name+"_host_list.txt")
@@ -466,6 +467,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 				testsConfigsZipCmd.FlagWithInput("-f ", f)
 				listLines = append(listLines, strings.Replace(f.String(), hostOut, "host", 1))
 			}
+			filesListLines = append(filesListLines, f.String())
 		}
 	}
 
@@ -542,6 +544,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 				testsConfigsZipCmd.FlagWithInput("-f ", f)
 				listLines = append(listLines, strings.Replace(f.String(), targetOut, "target", 1))
 			}
+			filesListLines = append(filesListLines, f.String())
 		}
 	}
 
@@ -579,7 +582,10 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 	}
 
 	android.WriteFileRule(ctx, testsListTxt, strings.Join(listLines, "\n"))
-
+	// https://source.corp.google.com/h/googleplex-android/platform/build/+/c34c3738ba6be7ef1fc3acb7be5122bede415789
+	if suiteConfig.name == "general-tests" {
+		android.WriteFileRule(ctx, generalTestsFilesListText, strings.Join(filesListLines, "\n"))
+	}
 	testsListZipBuilder := android.NewRuleBuilder(pctx, ctx)
 	testsListZipBuilder.Command().
 		BuiltTool("soong_zip").
@@ -590,6 +596,7 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 	testsListZipBuilder.Build(suiteConfig.name+"_list_zip", "building "+suiteConfig.name+" list zip")
 
 	ctx.Phony(suiteConfig.name, testsZip, testsListZip, testsConfigsZip)
+	ctx.Phony("general-tests-files-list", generalTestsFilesListText)
 	ctx.DistForGoal(suiteConfig.name, testsZip, testsListZip, testsConfigsZip)
 	if suiteConfig.buildHostSharedLibsZip {
 		ctx.DistForGoal(suiteConfig.name, testsHostSharedLibsZip)
@@ -699,7 +706,10 @@ func buildCompatibilitySuitePackage(
 	builder.Build("compatibility_zip_"+testSuiteName, fmt.Sprintf("Compatibility test suite zip %q", testSuiteName))
 
 	ctx.Phony(testSuiteName, out)
-	ctx.DistForGoal(testSuiteName, out)
+	// TODO: Enable NoDist by default for all compatibility test suites.
+	if !suite.NoDist {
+		ctx.DistForGoal(testSuiteName, out)
+	}
 
 	if suite.BuildTestList == true {
 		// Original compatibility_tests_list_zip in build/make/core/tasks/tools/compatibility.mk
@@ -740,7 +750,9 @@ func buildCompatibilitySuitePackage(
 		metadata_rule.Build("compatibility_metadata_"+testSuiteName, fmt.Sprintf("Compatibility test suite metadata file %q", testSuiteName))
 
 		ctx.Phony(testSuiteName, compatibility_files_metadata)
-		ctx.DistForGoal(testSuiteName, compatibility_files_metadata)
+		if !suite.NoDist {
+			ctx.DistForGoal(testSuiteName, compatibility_files_metadata)
+		}
 	}
 }
 
@@ -783,6 +795,11 @@ type compatibilityTestSuitePackageProperties struct {
 	Host_shared_libs []string
 	Build_test_list  *bool
 	Build_metadata   *bool
+	// If true, the test suite will not be included in the dist-for-goal method.
+	No_dist *bool
+	// If set, this will override the name property used in the zip file. This is useful when the test suite
+	// requires post-processing, so the module name does not conflict with the original test suite name.
+	Test_suite_name *string `json:"test_suite_name"`
 }
 
 type compatibilityTestSuitePackage struct {
@@ -799,6 +816,7 @@ type compatibilitySuitePackageInfo struct {
 	HostSharedLibs android.Paths
 	BuildTestList  bool
 	BuildMetadata  bool
+	NoDist         bool
 }
 
 var compatibilitySuitePackageProvider = blueprint.NewProvider[compatibilitySuitePackageInfo]()
@@ -845,8 +863,13 @@ func (m *compatibilityTestSuitePackage) DepsMutator(ctx android.BottomUpMutatorC
 }
 
 func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext) {
-	if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", m.Name()); err != nil || !matched {
-		ctx.ModuleErrorf("Invalid test suite name, must match [a-zA-Z0-9_-]+, got %q", m.Name())
+	suiteName := m.Name()
+	if m.properties.Test_suite_name != nil && *m.properties.Test_suite_name != "" {
+		suiteName = *m.properties.Test_suite_name
+	}
+
+	if matched, err := regexp.MatchString("[a-zA-Z0-9_-]+", suiteName); err != nil || !matched {
+		ctx.ModuleErrorf("Invalid test suite name, must match [a-zA-Z0-9_-]+, got %q", suiteName)
 		return
 	}
 
@@ -905,7 +928,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 	}
 
 	android.SetProvider(ctx, compatibilitySuitePackageProvider, compatibilitySuitePackageInfo{
-		Name:           m.Name(),
+		Name:           suiteName,
 		Readme:         readme,
 		DynamicConfig:  dynamicConfig,
 		ToolFiles:      toolFiles,
@@ -913,8 +936,11 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		HostSharedLibs: hostSharedLibs,
 		BuildTestList:  proptools.Bool(m.properties.Build_test_list),
 		BuildMetadata:  proptools.Bool(m.properties.Build_metadata),
+		NoDist:         proptools.Bool(m.properties.No_dist),
 	})
-	ctx.SetOutputFiles(android.Paths{android.PathForHostInstall(ctx, m.Name(), fmt.Sprintf("android-%s.zip", m.Name()))}, "")
+
+	// Make compatibility_test_suite_package a SourceFileProducer so that it can be used by other modules.
+	ctx.SetOutputFiles(android.Paths{android.PathForHostInstall(ctx, suiteName, fmt.Sprintf("android-%s.zip", suiteName))}, "")
 }
 
 func testSuitePackageFactory() android.Module {

@@ -41,6 +41,8 @@ type PartitionNameProperties struct {
 	Boot_16k_partition_name *string
 	// Name of the vendor boot partition filesystem module
 	Vendor_boot_partition_name *string
+	// Name of the vendor boot debug partition filesystem module
+	Vendor_boot_debug_partition_name *string
 	// Name of the vendor kernel boot partition filesystem module
 	Vendor_kernel_boot_partition_name *string
 	// Name of the init boot partition filesystem module
@@ -67,9 +69,12 @@ type PartitionNameProperties struct {
 	Vendor_dlkm_partition_name *string
 	// Name of the odm_dlkm partition filesystem module
 	Odm_dlkm_partition_name *string
+}
 
-	// This is used to create deps
-	Dynamic_config_only_super_partition_name *string
+type InfoPartitionNameProperties struct {
+	Info_super_partition_name      *string
+	Info_system_partition_name     *string
+	Info_system_ext_partition_name *string
 }
 
 type DeviceProperties struct {
@@ -135,6 +140,8 @@ type androidDevice struct {
 
 	deviceProps DeviceProperties
 
+	infoPartitionProps InfoPartitionNameProperties
+
 	allImagesZip android.Path
 
 	proguardZips                java.ProguardZips
@@ -164,7 +171,7 @@ type androidDevice struct {
 
 func AndroidDeviceFactory() android.Module {
 	module := &androidDevice{}
-	module.AddProperties(&module.partitionProps, &module.deviceProps)
+	module.AddProperties(&module.partitionProps, &module.deviceProps, &module.infoPartitionProps)
 	android.InitAndroidMultiTargetsArchModule(module, android.DeviceSupported, android.MultilibFirst)
 	return module
 }
@@ -220,14 +227,15 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if a.partitionProps.Super_partition_name != nil {
 		ctx.AddDependency(ctx.Module(), superPartitionDepTag, *a.partitionProps.Super_partition_name)
 	}
-	if a.partitionProps.Dynamic_config_only_super_partition_name != nil {
-		ctx.AddDependency(ctx.Module(), superPartitionDepTag, *a.partitionProps.Dynamic_config_only_super_partition_name)
+	if a.infoPartitionProps.Info_super_partition_name != nil {
+		ctx.AddDependency(ctx.Module(), superPartitionDepTag, *a.infoPartitionProps.Info_super_partition_name)
 	}
 
 	addDependencyIfDefined(a.partitionProps.Boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.Boot_16k_partition_name)
 	addDependencyIfDefined(a.partitionProps.Init_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.Vendor_boot_partition_name)
+	addDependencyIfDefined(a.partitionProps.Vendor_boot_debug_partition_name)
 	addDependencyIfDefined(a.partitionProps.Vendor_kernel_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.System_partition_name)
 	addDependencyIfDefined(a.partitionProps.System_ext_partition_name)
@@ -263,6 +271,10 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	// Add system-build.prop even system partition is not building.
 	ctx.AddDependency(ctx.Module(), filesystemDepTag, "system-build.prop")
+
+	// For collecting install module information for products not building system.img or system_ext.img.
+	addDependencyIfDefined(a.infoPartitionProps.Info_system_partition_name)
+	addDependencyIfDefined(a.infoPartitionProps.Info_system_ext_partition_name)
 
 	a.hostInitVerifierCheckDepsMutator(ctx)
 }
@@ -301,13 +313,16 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 	}
 
-	allInstalledModules := a.allInstalledModules(ctx)
+	// Normal allInstalledModules which only include modules in those partitions which will be create images for this product.
+	allInstalledModules := a.allInstalledModules(ctx, false)
 
 	a.getAndroidInfoProvider(ctx)
 	a.apkCertsInfo = a.buildApkCertsInfo(ctx)
 	a.kernelVersion, a.kernelConfig = a.extractKernelVersionAndConfigs(ctx)
 	a.miscInfo = a.addMiscInfo(ctx)
-	a.buildTargetFilesZip(ctx, allInstalledModules)
+	// Use the allInstalledModules which included modules which is installed under system or sysem_ext.
+	// Because target file's apexkeys.txt collect those apex under system or system_ext even they don't build these 2 images.
+	a.buildTargetFilesZip(ctx, a.allInstalledModules(ctx, true))
 	a.proguardZips = java.BuildProguardZips(ctx, allInstalledModules)
 	a.buildSymbolsZip(ctx, allInstalledModules)
 	a.buildUpdatePackage(ctx)
@@ -482,9 +497,17 @@ type installedOwnerInfo struct {
 }
 
 // Returns a list of modules that are installed, which are collected from the dependency
-// filesystem and super_image modules.
-func (a *androidDevice) allInstalledModules(ctx android.ModuleContext) []android.ModuleProxy {
+// filesystem and super_image modules. If includeInfoOnly is true it will also find modules
+// under system and system_ext fsinfos even though those images is not going to be built.
+func (a *androidDevice) allInstalledModules(ctx android.ModuleContext, includeInfoOnly bool) []android.ModuleProxy {
 	fsInfoMap := a.getFsInfos(ctx)
+	if includeInfoOnly {
+		fsInfoOnlyMap := a.getInfoOnlyFsInfos(ctx)
+		for partition, fsInfo := range fsInfoOnlyMap {
+			fsInfoMap[partition] = fsInfo
+		}
+	}
+
 	allOwners := make(map[string][]installedOwnerInfo)
 
 	for _, partition := range android.SortedKeys(fsInfoMap) {
@@ -621,6 +644,12 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 				// The bootloader files are disted stanadlone, outside img.zip
 				ctx.DistForGoal("droidcore-unbundled", file)
 			}
+		}
+		// vendor_boot-debug
+		if a.partitionProps.Vendor_boot_debug_partition_name != nil {
+			bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_boot_debug_partition_name), filesystemDepTag)
+			bootImgInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, BootimgInfoProvider)
+			ctx.DistForGoal("droidcore-unbundled", bootImgInfo.Output)
 		}
 
 		if a.withLicenseFile != nil {
@@ -1100,7 +1129,7 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	// Pack dynamic_partitions_info.txt to target-file.
 	superPartitionName := a.partitionProps.Super_partition_name
 	if superPartitionName == nil {
-		superPartitionName = a.partitionProps.Dynamic_config_only_super_partition_name
+		superPartitionName = a.infoPartitionProps.Info_super_partition_name
 	}
 	if superPartitionName != nil {
 		superPartition := ctx.GetDirectDepProxyWithTag(*superPartitionName, superPartitionDepTag)
@@ -1265,6 +1294,14 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	}
 	if fsInfos["system"].ErofsCompressHints != nil {
 		builder.Command().Textf("echo erofs_default_compress_hints=%s >> %s", fsInfos["system"].ErofsCompressHints, miscInfo)
+	} else {
+		// Use other partitions' ErofsCompressHints if system partition's not exist.
+		for _, partition := range android.SortedKeys(fsInfos) {
+			if fsInfos[partition].ErofsCompressHints != nil {
+				builder.Command().Textf("echo erofs_default_compress_hints=%s >> %s", fsInfos[partition].ErofsCompressHints, miscInfo)
+				break
+			}
+		}
 	}
 	if proptools.String(a.deviceProps.Releasetools_extension) != "" {
 		releaseTools := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Releasetools_extension))

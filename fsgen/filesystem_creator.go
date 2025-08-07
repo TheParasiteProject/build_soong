@@ -129,6 +129,7 @@ type filesystemCreatorProps struct {
 	Boot_image               string `blueprint:"mutated" android:"path_device_first"`
 	Boot_16k_image           string `blueprint:"mutated" android:"path_device_first"`
 	Vendor_boot_image        string `blueprint:"mutated" android:"path_device_first"`
+	Vendor_boot_debug_image  string `blueprint:"mutated" android:"path_device_first"`
 	Vendor_kernel_boot_image string `blueprint:"mutated" android:"path_device_first"`
 	Init_boot_image          string `blueprint:"mutated" android:"path_device_first"`
 	Super_image              string `blueprint:"mutated" android:"path_device_first"`
@@ -235,6 +236,12 @@ func generatedPartitions(ctx android.EarlyModuleContext) allGeneratedPartitionDa
 	if buildingVendorBootImage(partitionVars) {
 		addGenerated("vendor_ramdisk")
 	}
+	if buildingDebugVendorBootImage(partitionVars) {
+		addGenerated("vendor_ramdisk-debug")
+	}
+	if buildingDebugRamdiskImage(partitionVars) {
+		addGenerated("debug_ramdisk")
+	}
 	if buildingVendorKernelBootImage(partitionVars) {
 		addGenerated("vendor_kernel_ramdisk")
 	}
@@ -268,6 +275,13 @@ func (f *filesystemCreator) createInternalModules(ctx android.LoadHookContext) {
 			f.properties.Vendor_boot_image = ":" + generatedModuleNameForPartition(ctx.Config(), "vendor_boot")
 		} else {
 			f.properties.Unsupported_partition_types = append(f.properties.Unsupported_partition_types, "vendor_boot")
+		}
+	}
+	if buildingDebugVendorBootImage(partitionVars) {
+		if createVendorBootDebugImage(ctx, dtbImg) {
+			f.properties.Vendor_boot_debug_image = ":" + generatedModuleNameForPartition(ctx.Config(), "vendor_boot-debug")
+		} else {
+			f.properties.Unsupported_partition_types = append(f.properties.Unsupported_partition_types, "vendor_boot-debug")
 		}
 	}
 
@@ -472,19 +486,24 @@ func (f *filesystemCreator) createDeviceModule(
 
 	// Currently, only the system and system_ext partition module is created.
 	partitionProps := &filesystem.PartitionNameProperties{}
+	infoPartitionProps := &filesystem.InfoPartitionNameProperties{}
 	if f.properties.Super_image != "" {
 		partitionProps.Super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
 	} else if partitionVars.ProductUseDynamicPartitions {
-		partitionProps.Dynamic_config_only_super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
+		infoPartitionProps.Info_super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
 	}
-	if buildingSystemImage(partitionVars) {
-		if modName := partitions.nameForType("system"); modName != "" && !android.InList("system", superImageSubPartitions) {
+	if modName := partitions.nameForType("system"); modName != "" && !android.InList("system", superImageSubPartitions) {
+		if buildingSystemImage(partitionVars) {
 			partitionProps.System_partition_name = proptools.StringPtr(modName)
+		} else {
+			infoPartitionProps.Info_system_partition_name = proptools.StringPtr(modName)
 		}
 	}
-	if buildingSystemExtImage(partitionVars) {
-		if modName := partitions.nameForType("system_ext"); modName != "" && !android.InList("system_ext", superImageSubPartitions) {
+	if modName := partitions.nameForType("system_ext"); modName != "" && !android.InList("system_ext", superImageSubPartitions) {
+		if buildingSystemExtImage(partitionVars) {
 			partitionProps.System_ext_partition_name = proptools.StringPtr(modName)
+		} else {
+			infoPartitionProps.Info_system_ext_partition_name = proptools.StringPtr(modName)
 		}
 	}
 	if modName := partitions.nameForType("vendor"); modName != "" && !android.InList("vendor", superImageSubPartitions) {
@@ -519,6 +538,9 @@ func (f *filesystemCreator) createDeviceModule(
 	}
 	if f.properties.Vendor_boot_image != "" {
 		partitionProps.Vendor_boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_boot"))
+	}
+	if f.properties.Vendor_boot_debug_image != "" {
+		partitionProps.Vendor_boot_debug_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_boot-debug"))
 	}
 	if f.properties.Init_boot_image != "" {
 		partitionProps.Init_boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "init_boot"))
@@ -571,7 +593,7 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Ramdisk_16k = &ramdisk16kModuleName
 	}
 
-	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
+	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps, infoPartitionProps)
 }
 
 func createRadioImg(ctx android.LoadHookContext) string {
@@ -879,16 +901,29 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 			fsProps.Include_files_of = []string{recoveryName}
 		}
 		fsProps.Stem = proptools.StringPtr("vendor_ramdisk.img")
+	case "vendor_ramdisk-debug":
+		if recoveryName := partitions.nameForType("recovery"); recoveryName != "" {
+			fsProps.Include_files_of = []string{recoveryName}
+		}
+		fsProps.Include_files_of = append(
+			fsProps.Include_files_of,
+			generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk"),
+			generatedModuleNameForPartition(ctx.Config(), "debug_ramdisk"),
+		)
+		fsProps.Stem = proptools.StringPtr("vendor_ramdisk-debug.img")
 	case "vendor_kernel_ramdisk":
 		fsProps.Stem = proptools.StringPtr("vendor_kernel_ramdisk.img")
 	}
 }
 
 var (
-	dlkmPartitions = []string{
+	partitionsWithKernelModules = []string{
 		"system_dlkm",
 		"vendor_dlkm",
 		"odm_dlkm",
+		"vendor_ramdisk",
+		"vendor_ramdisk-debug",
+		"vendor_kernel_ramdisk",
 	}
 )
 
@@ -915,7 +950,7 @@ func (f *filesystemCreator) createPartition(ctx android.LoadHookContext, partiti
 		}
 	}
 
-	if android.InList(partitionType, append(dlkmPartitions, "vendor_ramdisk", "vendor_kernel_ramdisk")) {
+	if android.InList(partitionType, partitionsWithKernelModules) {
 		f.createPrebuiltKernelModules(ctx, partitionType)
 	}
 
@@ -1084,7 +1119,7 @@ func (f *filesystemCreator) createPrebuiltKernelModules(ctx android.LoadHookCont
 			props.Blocklist_file = proptools.StringPtr(blocklistFile)
 		}
 		props.Strip_debug_symbols = proptools.BoolPtr(false)
-	case "vendor_ramdisk":
+	case "vendor_ramdisk", "vendor_ramdisk-debug":
 		props.Srcs = android.ExistentPathsForSources(ctx, partitionVars.VendorRamdiskKernelModules).Strings()
 		props.Vendor_ramdisk = proptools.BoolPtr(true)
 		if blocklistFile := partitionVars.VendorRamdiskKernelBlocklistFile; blocklistFile != "" {
@@ -1540,7 +1575,12 @@ func (f *filesystemCreator) GenerateAndroidBuildActions(ctx android.ModuleContex
 	}
 	var diffTestFiles []android.Path
 	for _, partitionType := range partitions.types() {
-		if partitionType == "vendor_kernel_ramdisk" || partitionType == "pvmfw" {
+		if android.InList(partitionType, []string{
+			"debug_ramdisk",
+			"vendor_ramdisk-debug",
+			"vendor_kernel_ramdisk",
+			"pvmfw",
+		}) {
 			continue // Make packaging does not create a filter file for this partition.
 		}
 		diffTestFile := f.createFileListDiffTest(ctx, partitionType, partitions.nameForType(partitionType))

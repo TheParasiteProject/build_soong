@@ -276,6 +276,7 @@ _INSTALLED_IMG_FILES_SHA_DIFF_ALLOWLIST = [
     "vendor_boot.img",
     "vendor_dlkm.img",
     "vendor.img",
+    "vendor_kernel_ramdisk.img"
     "vendor_ramdisk.img",
 ]
 
