@@ -476,3 +476,16 @@ func createAvbpubkeyModule(ctx android.LoadHookContext) bool {
 
 	return true
 }
+
+func getPrebuiltKernelPath(ctx android.LoadHookContext) string {
+	processedProductCopyFilesMap := uniqueExistingProductCopyFileMap(ctx)
+	for _, srcPath := range android.SortedKeys(processedProductCopyFilesMap) {
+		destPaths := processedProductCopyFilesMap[srcPath]
+		for _, destPath := range destPaths {
+			if destPath == "kernel" {
+				return srcPath
+			}
+		}
+	}
+	return ""
+}

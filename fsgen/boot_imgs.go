@@ -65,7 +65,8 @@ func createBootImageCommon(ctx android.LoadHookContext, kernelPath string, prebu
 	}
 
 	if kernelPath == "" {
-		// There are potentially code paths that don't set TARGET_KERNEL_PATH
+		// There are potentially code paths that don't use `PRODUCT_COPY_FILES` to copy the kernel to
+		// ANDROID_PRODUCT_OUT
 		return false
 	}
 
@@ -131,7 +132,7 @@ func createBootImageCommon(ctx android.LoadHookContext, kernelPath string, prebu
 
 func createBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 	partitionVariables := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
-	return createBootImageCommon(ctx, partitionVariables.TargetKernelPath, partitionVariables.BoardPrebuiltBootImage, dtbImg, proptools.StringPtr("boot.img"))
+	return createBootImageCommon(ctx, getPrebuiltKernelPath(ctx), partitionVariables.BoardPrebuiltBootImage, dtbImg, proptools.StringPtr("boot.img"))
 }
 
 func createBootImage16k(ctx android.LoadHookContext) bool {
