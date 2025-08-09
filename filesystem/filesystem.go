@@ -1110,6 +1110,8 @@ func (f *filesystem) verifyGenericConfig(ctx android.ModuleContext) {
 	allowedModules := []string{
 		// build_flag_system collects information from the metadata for each product.
 		"build_flag_system",
+		// system_ext may have bootjars that are non-generic.
+		"dex_bootjars",
 		// microdroid_ramdisk is an android_filesystem included in the system image.
 		"microdroid_ramdisk",
 		// notice_xml_system collects information from the metadata for each product.
