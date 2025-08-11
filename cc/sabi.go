@@ -354,7 +354,7 @@ func checkAbiDumpList(ctx android.SingletonContext, stubLibraries []string) {
 		case apexLsdumpTag:
 			ctx.Phony("findlsdumps_APEX", lsdump.dumpFile)
 		case llndkLsdumpTag:
-			ctx.Phony("findlsdumps_APEX", lsdump.dumpFile)
+			ctx.Phony("findlsdumps_LLNDK", lsdump.dumpFile)
 		case platformLsdumpTag:
 			ctx.Phony("findlsdumps_PLATFORM", lsdump.dumpFile)
 		}
