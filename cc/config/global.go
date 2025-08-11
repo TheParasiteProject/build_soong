@@ -285,7 +285,7 @@ var (
 		// and -Wvoid-pointer-to-enum-cast
 		"-Wno-pointer-to-int-cast",
 		// http://b/315246135 temporarily disabled
-		"-Wno-error=unused-variable",
+		"-Wno-unused-variable",
 		// Disabled because it produces many false positives. http://b/323050926
 		"-Wno-missing-field-initializers",
 		// http://b/323050889
@@ -325,7 +325,6 @@ var (
 
 	extraTestsCflags = []string{
 		"-Wno-error=unused-but-set-variable",
-		"-Wno-error=unused-variable",
 	}
 
 	// Extra cflags applied to third-party code (anything for which
@@ -374,7 +373,6 @@ var (
 		"-Wno-unused",
 		"-Wno-unused-parameter",
 		"-Wno-unused-but-set-parameter",
-		"-Wno-unused-variable",
 		"-Wno-unqualified-std-cast-call",
 		"-Wno-array-parameter",
 		"-Wno-gnu-offsetof-extensions",
