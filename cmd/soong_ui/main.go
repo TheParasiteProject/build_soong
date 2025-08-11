@@ -188,12 +188,13 @@ func main() {
 	logsDir := config.LogsDir()
 	buildStarted = config.BuildStartedTimeOrDefault(buildStarted)
 
-	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error")
-	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics")
-	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics.pb")
-	soongBuildMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_build_metrics.pb")
-	buildTraceFile := filepath.Join(logsDir, c.logsPrefix+"build.trace.gz")
-	executionMetricsFile := filepath.Join(logsDir, c.logsPrefix+"execution_metrics.pb")
+	suffix := os.Getenv("SOONG_METRICS_SUFFIX")
+	buildErrorFile := filepath.Join(logsDir, c.logsPrefix+"build_error"+suffix)
+	soongMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_metrics"+suffix)
+	rbeMetricsFile := filepath.Join(logsDir, c.logsPrefix+"rbe_metrics"+suffix+".pb")
+	soongBuildMetricsFile := filepath.Join(logsDir, c.logsPrefix+"soong_build_metrics"+suffix+".pb")
+	buildTraceFile := filepath.Join(logsDir, c.logsPrefix+"build.trace"+suffix+".gz")
+	executionMetricsFile := filepath.Join(logsDir, c.logsPrefix+"execution_metrics"+suffix+".pb")
 
 	metricsFiles := []string{
 		buildErrorFile,        // build error strings

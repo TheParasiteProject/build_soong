@@ -125,6 +125,9 @@ func init() {
 
 		// b/65004097: prevent using java.lang.invoke.StringConcatFactory when using -target 1.9
 		`-XDstringConcat=inline`,
+		// b/436191454: Remove methodParams in turbine classes, maintaining parity
+		// with soong's javac implementation.
+		`-XDturbine.noMethodParameters`,
 	}, " "))
 
 	pctx.StaticVariable("JavaVmFlags", strings.Join(javaVmFlagsList, " "))
