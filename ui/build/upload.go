@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"android/soong/ui/metrics"
@@ -104,6 +105,10 @@ func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted t
 
 	for i, src := range metricsFiles {
 		dst := filepath.Join(tmpDir, filepath.Base(src))
+		if suffix := os.Getenv("SOONG_METRICS_SUFFIX"); suffix != "" {
+			ext := filepath.Ext(dst)
+			dst = strings.TrimSuffix(dst, suffix) + ext
+		}
 		if _, err := copyFile(src, dst); err != nil {
 			ctx.Fatalf("failed to copy %q to %q: %v\n", src, dst, err)
 		}
