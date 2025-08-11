@@ -467,12 +467,17 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 				testsConfigsZipCmd.FlagWithInput("-f ", f)
 				listLines = append(listLines, strings.Replace(f.String(), hostOut, "host", 1))
 			}
+			// Adding files installed in out/host to general-tests-files-list, e.g.,
+			// out/host/linux-x86/testcases/hello_world_test/hello_world_test.config
 			filesListLines = append(filesListLines, f.String())
 		}
 	}
 
 	if suiteConfig.includeHostSharedLibsInMainZip {
 		for _, f := range sharedLibs {
+			// Adding host shared libs to general-tests-files-list, e.g.,
+			// out/host/linux-x86/testcases/lib64/libc++.so
+			filesListLines = append(filesListLines, f.String())
 			if strings.HasPrefix(f.String(), hostOutTestCases.String()) {
 				testsZipCmdHostFileInputContent = append(testsZipCmdHostFileInputContent, f.String())
 				testsZipCmd.Implicit(f)
@@ -501,6 +506,11 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 				// need to be compiled in the soong_zip command if they're already
 				// deduplicated.
 				symlinksPerModule = append(symlinksPerModule, symlink)
+
+				// Adding host shared libs symbolic links to general-tests-files-list, e.g.,
+				// out/host/linux-x86/testcases/hello_world_test/x86_64/shared_libs/libc++.so
+				relativePath, _ := filepath.Rel(intermediatesDirForSuite.String(), symlink.String())
+				filesListLines = append(filesListLines, fmt.Sprintf("%s/%s/%s", hostOutTestCases, moduleName, relativePath))
 
 				if _, exists := seen[symlink.String()]; exists {
 					continue
@@ -544,6 +554,9 @@ func packageTestSuite(ctx android.SingletonContext, files, sharedLibs android.Pa
 				testsConfigsZipCmd.FlagWithInput("-f ", f)
 				listLines = append(listLines, strings.Replace(f.String(), targetOut, "target", 1))
 			}
+
+			// Adding files installed in out/target to general-tests-files-list, e.g.,
+			// out/target/product/vsoc_x86_64_only/testcases/hello_world_test/hello_world_test.config
 			filesListLines = append(filesListLines, f.String())
 		}
 	}
