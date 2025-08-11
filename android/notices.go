@@ -123,12 +123,40 @@ func buildNoticeOutputFromLicenseMetadata(
 		libraryName = modules[0].Name
 	}
 	rule := NewRuleBuilder(pctx, ctx)
+
+	// Arguments that will go into the response file.
+	var rspArgs []string
+
+	for _, sp := range extraArgs.StripPrefix {
+		rspArgs = append(rspArgs, "--strip_prefix", sp)
+	}
+	for _, sp := range modules.OutputDirs() {
+		rspArgs = append(rspArgs, "--strip_prefix", sp)
+	}
+
+	// The difference between nil and empty slice matters here, to allow for empty filter sets
+	if extraArgs.Filter != nil {
+		rspArgs = append(rspArgs, "--filter")
+		for _, f := range extraArgs.Filter {
+			rspArgs = append(rspArgs, "--filter_to", f)
+		}
+	}
+	for _, r := range extraArgs.Replace.Args() {
+		rspArgs = append(rspArgs, "--replace", r)
+	}
+
+	// Add input files.
+	for _, f := range modules.LicenseMetadataFiles() {
+		rspArgs = append(rspArgs, f.String())
+	}
+
+	rspFile := outputFile.ReplaceExtension(ctx, strings.TrimPrefix(outputFile.Ext()+".rsp", "."))
+	WriteFileRule(ctx, rspFile, strings.Join(rspArgs, "\n"))
+
 	cmd := rule.Command().
 		BuiltTool(tool).
 		FlagWithOutput("-o ", outputFile).
-		FlagWithDepFile("-d ", depsFile).
-		FlagForEachArg("--strip_prefix ", extraArgs.StripPrefix).
-		FlagForEachArg("--strip_prefix ", modules.OutputDirs())
+		FlagWithDepFile("-d ", depsFile)
 
 	if libraryName != "" {
 		cmd.FlagWithArg("--product ", proptools.ShellEscapeIncludingSpaces(libraryName))
@@ -136,13 +164,12 @@ func buildNoticeOutputFromLicenseMetadata(
 	if extraArgs.Title != "" {
 		cmd.FlagWithArg("--title ", proptools.ShellEscapeIncludingSpaces(extraArgs.Title))
 	}
-	// The difference between nil and empty slice matters here, to allow for empty filter sets
-	if extraArgs.Filter != nil {
-		cmd.Flag("--filter")
-		cmd.FlagForEachArg("--filter_to ", extraArgs.Filter)
-	}
-	cmd.FlagForEachArg("--replace ", extraArgs.Replace.Args())
-	cmd.Inputs(modules.LicenseMetadataFiles())
+
+	cmd.Flag("@" + rspFile.String())
+
+	cmd.Implicits(modules.LicenseMetadataFiles())
+	cmd.Implicit(rspFile)
+
 	rule.Build(ruleName, "container notice file")
 }
 

@@ -613,6 +613,9 @@ func buildCompatibilitySuitePackage(
 ) {
 	testSuiteName := suite.Name
 	subdir := fmt.Sprintf("android-%s", testSuiteName)
+	if suite.TestSuiteSubdir != "" {
+		subdir = suite.TestSuiteSubdir
+	}
 
 	hostOutSuite := android.PathForHostInstall(ctx, testSuiteName)
 	hostOutTestCases := hostOutSuite.Join(ctx, subdir, "testcases")
@@ -731,7 +734,7 @@ func buildCompatibilitySuitePackage(
 			FlagWithOutput("-o ", testsListZip).
 			FlagWithArg("-C ", hostOutSuite.String()).
 			FlagWithInput("-f ", testsListTxt)
-		testsListZipBuilder.Build(subdir+"-tests_list", "building "+subdir+" testcases list zip")
+		testsListZipBuilder.Build("tests_list_"+testSuiteName, fmt.Sprintf("Compatibility test suite test list %q", testSuiteName))
 
 		ctx.Phony(testSuiteName, testsListZip)
 		ctx.DistForGoal(testSuiteName, testsListZip)
@@ -799,7 +802,8 @@ type compatibilityTestSuitePackageProperties struct {
 	No_dist *bool
 	// If set, this will override the name property used in the zip file. This is useful when the test suite
 	// requires post-processing, so the module name does not conflict with the original test suite name.
-	Test_suite_name *string `json:"test_suite_name"`
+	Test_suite_name   *string `json:"test_suite_name"`
+	Test_suite_subdir *string
 }
 
 type compatibilityTestSuitePackage struct {
@@ -808,15 +812,16 @@ type compatibilityTestSuitePackage struct {
 }
 
 type compatibilitySuitePackageInfo struct {
-	Name           string
-	Readme         android.Path
-	DynamicConfig  android.Path
-	ToolFiles      android.Paths
-	ToolNoticeInfo android.NoticeModuleInfos
-	HostSharedLibs android.Paths
-	BuildTestList  bool
-	BuildMetadata  bool
-	NoDist         bool
+	Name            string
+	Readme          android.Path
+	DynamicConfig   android.Path
+	ToolFiles       android.Paths
+	ToolNoticeInfo  android.NoticeModuleInfos
+	HostSharedLibs  android.Paths
+	BuildTestList   bool
+	BuildMetadata   bool
+	NoDist          bool
+	TestSuiteSubdir string
 }
 
 var compatibilitySuitePackageProvider = blueprint.NewProvider[compatibilitySuitePackageInfo]()
@@ -928,15 +933,16 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 	}
 
 	android.SetProvider(ctx, compatibilitySuitePackageProvider, compatibilitySuitePackageInfo{
-		Name:           suiteName,
-		Readme:         readme,
-		DynamicConfig:  dynamicConfig,
-		ToolFiles:      toolFiles,
-		ToolNoticeInfo: toolNoticeinfo,
-		HostSharedLibs: hostSharedLibs,
-		BuildTestList:  proptools.Bool(m.properties.Build_test_list),
-		BuildMetadata:  proptools.Bool(m.properties.Build_metadata),
-		NoDist:         proptools.Bool(m.properties.No_dist),
+		Name:            suiteName,
+		Readme:          readme,
+		DynamicConfig:   dynamicConfig,
+		ToolFiles:       toolFiles,
+		ToolNoticeInfo:  toolNoticeinfo,
+		HostSharedLibs:  hostSharedLibs,
+		BuildTestList:   proptools.BoolDefault(m.properties.Build_test_list, true),
+		BuildMetadata:   proptools.Bool(m.properties.Build_metadata),
+		NoDist:          proptools.Bool(m.properties.No_dist),
+		TestSuiteSubdir: proptools.String(m.properties.Test_suite_subdir),
 	})
 
 	// Make compatibility_test_suite_package a SourceFileProducer so that it can be used by other modules.
