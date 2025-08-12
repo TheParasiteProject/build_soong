@@ -559,7 +559,6 @@ func (f *filesystemCreator) createDeviceModule(
 		Ab_ota_updater:                      proptools.BoolPtr(partitionVars.AbOtaUpdater),
 		Ab_ota_partitions:                   partitionVars.AbOtaPartitions,
 		Ab_ota_postinstall_config:           partitionVars.AbOtaPostInstallConfig,
-		Ramdisk_node_list:                   proptools.StringPtr(":ramdisk_node_list"),
 		Android_info:                        proptools.StringPtr(generatedModuleName(ctx.Config(), "android_info.prop")),
 		Kernel_version:                      ctx.Config().ProductVariables().BoardKernelVersion,
 		Partial_ota_update_partitions:       partitionVars.BoardPartialOtaUpdatePartitionsList,
@@ -567,6 +566,11 @@ func (f *filesystemCreator) createDeviceModule(
 		Bootloader_in_update_package:        proptools.BoolPtr(partitionVars.BootloaderInUpdatePackage),
 		Precompiled_sepolicy_without_vendor: proptools.StringPtr(":precompiled_sepolicy_without_vendor"),
 		Vendor_blobs_license:                vendorBlobsLicenseProp,
+	}
+
+	if buildingInitBootImage(partitionVars) {
+		// https://cs.android.com/android/_/android/platform/build/+/045a3d6a3e359633a14853a5a5e1e4f2a11cbdae:core/Makefile;l=6869-6873;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b;bpv=1;bpt=0
+		deviceProps.Ramdisk_node_list = proptools.StringPtr(":ramdisk_node_list")
 	}
 
 	if f.properties.Bootloader != "" {
