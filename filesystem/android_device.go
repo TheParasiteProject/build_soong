@@ -71,6 +71,8 @@ type PartitionNameProperties struct {
 	Odm_dlkm_partition_name *string
 	// Name of the ramdisk partition module
 	Ramdisk_partition_name *string
+	// Name of the vendor kernel ramdisk partition filesystem module
+	Vendor_kernel_ramdisk_partition_name *string
 }
 
 type InfoPartitionNameProperties struct {
@@ -250,6 +252,7 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined(a.partitionProps.Odm_dlkm_partition_name)
 	addDependencyIfDefined(a.partitionProps.Recovery_partition_name)
 	addDependencyIfDefined(a.partitionProps.Ramdisk_partition_name)
+	addDependencyIfDefined(a.partitionProps.Vendor_kernel_ramdisk_partition_name)
 	for _, vbmetaPartition := range a.partitionProps.Vbmeta_partitions {
 		ctx.AddDependency(ctx.Module(), filesystemDepTag, vbmetaPartition)
 	}
