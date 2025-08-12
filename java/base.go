@@ -1450,11 +1450,6 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 			flags.kotlincDeps = append(flags.kotlincDeps, deps.composeEmbeddablePlugin.Path())
 		}
 
-		// TODO(b/403236545): Remove this once the Kotlin compiler version is >= 2.2.0.
-		if j.useCompose(ctx) {
-			kotlincFlags = append(kotlincFlags, "-P", "plugin:androidx.compose.compiler.plugins.kotlin:featureFlag=+OptimizeNonSkippingGroups")
-		}
-
 		if len(kotlincFlags) > 0 {
 			// Flags with `-J` as a prefix are meant to be passed to java directly.
 			// When running the kotlin-incremental-client, flags are first parsed by a bash
