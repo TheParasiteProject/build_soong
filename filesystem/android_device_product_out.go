@@ -100,6 +100,28 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 		}
 
 		deps = append(deps, imgInstallPath)
+
+		// Copy installed-files(.txt|.json) to staging dir for makepush
+		for _, installedFiles := range info.InstalledFilesDepSet.ToList() {
+			if installedFiles.Json != nil {
+				installPath := android.PathForModuleInPartitionInstall(ctx, "", installedFiles.Json.Base())
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.Cp,
+					Input:  installedFiles.Json,
+					Output: installPath,
+				})
+				deps = append(deps, installPath)
+			}
+			if installedFiles.Txt != nil {
+				installPath := android.PathForModuleInPartitionInstall(ctx, "", installedFiles.Txt.Base())
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.Cp,
+					Input:  installedFiles.Txt,
+					Output: installPath,
+				})
+				deps = append(deps, installPath)
+			}
+		}
 	}
 
 	a.createComplianceMetadataTimestamp(ctx, depsNoImg)
