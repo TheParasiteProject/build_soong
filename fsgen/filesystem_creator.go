@@ -544,7 +544,10 @@ func (f *filesystemCreator) createDeviceModule(
 	}
 	if f.properties.Init_boot_image != "" {
 		partitionProps.Init_boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "init_boot"))
+	} else if partitionVars.BuildingRamdiskImage {
+		partitionProps.Ramdisk_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "ramdisk"))
 	}
+
 	if f.properties.Vendor_kernel_boot_image != "" {
 		partitionProps.Vendor_kernel_boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_kernel_boot"))
 	}
