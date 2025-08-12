@@ -230,8 +230,6 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"fs_config_dirs_system_dlkm":  defaultDepCandidateProps(ctx.Config()),
 					"fs_config_files_system_dlkm": defaultDepCandidateProps(ctx.Config()),
 					"notice_xml_system_dlkm":      defaultDepCandidateProps(ctx.Config()),
-					// build props are automatically added to `ALL_DEFAULT_INSTALLED_MODULES`
-					"system_dlkm-build.prop": defaultDepCandidateProps(ctx.Config()),
 				},
 				"vendor_dlkm": {
 					"fs_config_dirs_vendor_dlkm":  defaultDepCandidateProps(ctx.Config()),
@@ -310,6 +308,13 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 			for _, vndkVersion := range ctx.DeviceConfig().ExtraVndkVersions() {
 				(*fsGenState.fsDeps["system_ext"])["com.android.vndk.v"+vndkVersion] = defaultDepCandidateProps(ctx.Config())
 			}
+		}
+
+		if ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BuildingSystemDlkmImage {
+			(*fsGenState.fsDeps["system_dlkm"])["system_dlkm-build.prop"] = defaultDepCandidateProps(ctx.Config())
+		} else {
+			// system_dlkm build.prop is installed in system partition if system_dlkm.img is not available
+			(*fsGenState.fsDeps["system"])["system_dlkm-build.prop"] = defaultDepCandidateProps(ctx.Config())
 		}
 
 		if ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.BuildingOdmDlkmImage {
