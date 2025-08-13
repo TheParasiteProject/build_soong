@@ -55,6 +55,23 @@ def run_build_target_files_zip(product: Product, soong_only: bool) -> bool:
             f'TARGET_PRODUCT={product.product}',
             f'TARGET_RELEASE={product.release}',
             f'TARGET_BUILD_VARIANT={product.variant}',
+            'installclean',
+            soong_only_arg,
+        ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
+
+        if result.returncode != 0:
+            return False
+
+        result = subprocess.run([
+            'build/soong/soong_ui.bash',
+            '--make-mode',
+            'USE_RBE=true',
+            'BUILD_DATETIME=1',
+            'USE_FIXED_TIMESTAMP_IMG_FILES=true',
+            'DISABLE_NOTICE_XML_GENERATION=true',
+            f'TARGET_PRODUCT={product.product}',
+            f'TARGET_RELEASE={product.release}',
+            f'TARGET_BUILD_VARIANT={product.variant}',
             'droid',
             soong_only_arg,
         ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
