@@ -1731,7 +1731,6 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		return PathForPhony(ctx, phonyName)
 	}
 
-	var checkbuildDeps Paths
 	var info ModuleBuildTargetsInfo
 
 	var outputDeps Paths
@@ -1767,14 +1766,12 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	if len(outputFiles) > 0 {
 		outputTarget = phony("-"+ctx.ModuleSubDir()+"-outputs", outputFiles)
 		phony("-outputs", Paths{outputTarget})
-		checkbuildDeps = append(checkbuildDeps, outputTarget)
 	}
 
 	var modulePhonyTarget Path
 	if len(ctx.modulePhonyFiles) > 0 {
 		modulePhonyTarget = phony("-"+ctx.ModuleSubDir()+"-phony-files", ctx.modulePhonyFiles)
 		phony("-phony-files", Paths{modulePhonyTarget})
-		checkbuildDeps = append(checkbuildDeps, modulePhonyTarget)
 	}
 
 	// A module's -checkbuild phony targets should
@@ -1782,11 +1779,9 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	// Those could depend on the build target and fail to compile
 	// for the current build target.
 	var checkbuildTarget Path
-	checkbuildDeps = append(checkbuildDeps, ctx.checkbuildFiles...)
-	if len(checkbuildDeps) > 0 {
-		checkbuildTarget = phony("-"+ctx.ModuleSubDir()+"-checkbuild", checkbuildDeps)
+	if len(ctx.checkbuildFiles) > 0 {
+		checkbuildTarget = phony("-"+ctx.ModuleSubDir()+"-checkbuild", ctx.checkbuildFiles)
 		phony("-checkbuild", Paths{checkbuildTarget})
-		checkbuildDeps = Paths{checkbuildTarget}
 		if !ctx.uncheckedModule {
 			info.CheckbuildTarget = checkbuildTarget
 		}
@@ -1799,8 +1794,6 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		defaultTarget = Paths{outputTarget}
 	} else if checkbuildTarget != nil {
 		defaultTarget = Paths{checkbuildTarget}
-	} else {
-		defaultTarget = checkbuildDeps
 	}
 
 	if modulePhonyTarget != nil {
