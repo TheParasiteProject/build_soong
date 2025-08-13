@@ -48,6 +48,8 @@ var (
 		"-D missing-docs",
 		"-D warnings",
 		"-D unsafe_op_in_unsafe_fn",
+		// b/438512272
+		"-A mismatched_lifetime_syntaxes",
 	}
 	// Default Clippy lints. These are applied on top of defaultRustcLints.
 	// It should be assumed that any warning lint will be promoted to a
