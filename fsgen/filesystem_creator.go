@@ -486,24 +486,24 @@ func (f *filesystemCreator) createDeviceModule(
 
 	// Currently, only the system and system_ext partition module is created.
 	partitionProps := &filesystem.PartitionNameProperties{}
-	infoPartitionProps := &filesystem.InfoPartitionNameProperties{}
+	infoPartitionProps := &filesystem.PartitionNameProperties{}
 	if f.properties.Super_image != "" {
 		partitionProps.Super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
 	} else if partitionVars.ProductUseDynamicPartitions {
-		infoPartitionProps.Info_super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
+		infoPartitionProps.Super_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "super"))
 	}
 	if modName := partitions.nameForType("system"); modName != "" && !android.InList("system", superImageSubPartitions) {
 		if buildingSystemImage(partitionVars) {
 			partitionProps.System_partition_name = proptools.StringPtr(modName)
 		} else {
-			infoPartitionProps.Info_system_partition_name = proptools.StringPtr(modName)
+			infoPartitionProps.System_partition_name = proptools.StringPtr(modName)
 		}
 	}
 	if modName := partitions.nameForType("system_ext"); modName != "" && !android.InList("system_ext", superImageSubPartitions) {
 		if buildingSystemExtImage(partitionVars) {
 			partitionProps.System_ext_partition_name = proptools.StringPtr(modName)
 		} else {
-			infoPartitionProps.Info_system_ext_partition_name = proptools.StringPtr(modName)
+			infoPartitionProps.System_ext_partition_name = proptools.StringPtr(modName)
 		}
 	}
 	if modName := partitions.nameForType("vendor"); modName != "" && !android.InList("vendor", superImageSubPartitions) {
@@ -551,6 +551,9 @@ func (f *filesystemCreator) createDeviceModule(
 	if f.properties.Vendor_kernel_boot_image != "" {
 		partitionProps.Vendor_kernel_boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_kernel_boot"))
 	}
+	if modName := partitions.nameForType("vendor_kernel_ramdisk"); modName != "" {
+		partitionProps.Vendor_kernel_ramdisk_partition_name = proptools.StringPtr(modName)
+	}
 
 	partitionProps.Vbmeta_partitions = vbmetaPartitions
 
@@ -566,6 +569,7 @@ func (f *filesystemCreator) createDeviceModule(
 		Bootloader_in_update_package:        proptools.BoolPtr(partitionVars.BootloaderInUpdatePackage),
 		Precompiled_sepolicy_without_vendor: proptools.StringPtr(":precompiled_sepolicy_without_vendor"),
 		Vendor_blobs_license:                vendorBlobsLicenseProp,
+		InfoPartitionProps:                  *infoPartitionProps,
 	}
 
 	if buildingInitBootImage(partitionVars) {
@@ -600,7 +604,7 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Ramdisk_16k = &ramdisk16kModuleName
 	}
 
-	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps, infoPartitionProps)
+	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
 }
 
 func createRadioImg(ctx android.LoadHookContext) string {

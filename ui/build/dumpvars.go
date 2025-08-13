@@ -327,7 +327,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 	config.SetNinjaArgs(strings.Fields(makeVars["NINJA_GOALS"]))
 	config.SetTargetDevice(makeVars["TARGET_DEVICE"])
 	config.SetTargetDeviceDir(makeVars["TARGET_DEVICE_DIR"])
-	config.useRkati = makeVars["RELEASE_USE_RKATI"] == "true"
+	config.useRkati = makeVars["RELEASE_USE_RKATI"] == "true" || os.Getenv("SOONG_USE_RKATI") == "true"
 	config.setupSandboxConfig(ctx, makeVars)
 
 	config.SetBuildBrokenDupRules(makeVars["BUILD_BROKEN_DUP_RULES"] == "true")
