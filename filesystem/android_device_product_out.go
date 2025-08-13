@@ -344,14 +344,14 @@ func (a *androidDevice) getFsInfos(ctx android.ModuleContext) map[string]Filesys
 func (a *androidDevice) getInfoOnlyFsInfos(ctx android.ModuleContext) map[string]FilesystemInfo {
 	filesystemInfos := make(map[string]FilesystemInfo)
 
-	if a.infoPartitionProps.Info_system_partition_name != nil {
-		systemPartition := ctx.GetDirectDepProxyWithTag(*a.infoPartitionProps.Info_system_partition_name, filesystemDepTag)
+	if a.deviceProps.InfoPartitionProps.System_partition_name != nil {
+		systemPartition := ctx.GetDirectDepProxyWithTag(*a.deviceProps.InfoPartitionProps.System_partition_name, filesystemDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, systemPartition, FilesystemProvider); ok {
 			filesystemInfos["system"] = info
 		}
 	}
-	if a.infoPartitionProps.Info_system_ext_partition_name != nil {
-		systemExtPartition := ctx.GetDirectDepProxyWithTag(*a.infoPartitionProps.Info_system_ext_partition_name, filesystemDepTag)
+	if a.deviceProps.InfoPartitionProps.System_ext_partition_name != nil {
+		systemExtPartition := ctx.GetDirectDepProxyWithTag(*a.deviceProps.InfoPartitionProps.System_ext_partition_name, filesystemDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, systemExtPartition, FilesystemProvider); ok {
 			filesystemInfos["system_ext"] = info
 		}
