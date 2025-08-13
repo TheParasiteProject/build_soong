@@ -355,6 +355,12 @@ message SoongBuildMetrics {
 
   // Performance during for soong_build execution.
   repeated PerfCounters perf_counters = 8;
+
+  // The number of modules that supports incremental build.
+  optional uint32 incremental_supported = 9;
+
+  // The number of modules that are restored from cache during incremental build.
+  optional uint32 incremental_restored = 10;
 }
 
 message ExpConfigFetcher {
