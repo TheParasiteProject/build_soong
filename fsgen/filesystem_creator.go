@@ -551,6 +551,9 @@ func (f *filesystemCreator) createDeviceModule(
 	if f.properties.Vendor_kernel_boot_image != "" {
 		partitionProps.Vendor_kernel_boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_kernel_boot"))
 	}
+	if modName := partitions.nameForType("vendor_kernel_ramdisk"); modName != "" {
+		partitionProps.Vendor_kernel_ramdisk_partition_name = proptools.StringPtr(modName)
+	}
 
 	partitionProps.Vbmeta_partitions = vbmetaPartitions
 
