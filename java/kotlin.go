@@ -156,7 +156,7 @@ var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 			// Skip header jars, those should not have an effect on kythe results.
 			` --args '${config.KotlincGlobalFlags} ` +
 			` ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
-			` $kotlincFlags $kotlincPluginFlags -jvm-target $kotlinJvmTarget ` +
+			` $kotlincFlags $friendPathsArg $kotlincPluginFlags -jvm-target $kotlinJvmTarget ` +
 			`${config.KotlincKytheGlobalFlags}'`,
 		CommandDeps: []string{
 			"${config.KotlinKytheExtractor}",
@@ -165,7 +165,8 @@ var kotlinKytheExtract = pctx.AndroidStaticRule("kotlinKythe",
 		Rspfile:        "$out.rsp",
 		RspfileContent: "$in",
 	},
-	"classpath", "kotlincFlags", "kotlincPluginFlags", "commonSrcFilesList", "kotlinJvmTarget", "outJar", "srcJars", "srcJarDir",
+	"classpath", "kotlincFlags", "kotlincPluginFlags", "commonSrcFilesList", "kotlinJvmTarget", "outJar",
+	"srcJars", "srcJarDir", "friendPathsArg",
 )
 
 var kotlinIncrementalClean = pctx.AndroidStaticRule("kotlin-partialcompileclean",
