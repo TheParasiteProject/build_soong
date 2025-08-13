@@ -1538,6 +1538,21 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 	var combinedHeaderJarFile android.Path
 	var genAnnoSrcJars android.Paths
 
+	hasErrorproneableFiles := false
+	if len(uniqueJavaFiles) > 0 || len(srcJars) > 0 {
+		for _, ext := range j.sourceExtensions {
+			if ext != ".proto" && ext != ".aidl" {
+				// Skip running errorprone on pure proto or pure aidl modules. Some modules take a long time to
+				// compile, and it's not useful to have warnings on these generated sources.
+				hasErrorproneableFiles = true
+				break
+			}
+		}
+	}
+
+	errorproneExplicitlyEnabled := Bool(j.properties.Errorprone.Enabled)
+	errorProneEnabled := hasErrorproneableFiles && ctx.Config().RunErrorProne() && j.properties.Errorprone.Enabled == nil
+
 	if ctx.Device() && !ctx.Config().IsEnvFalse("TURBINE_ENABLED") && !disableTurbine {
 		if j.properties.Javac_shard_size != nil && *(j.properties.Javac_shard_size) > 0 {
 			enableSharding = true
@@ -1551,17 +1566,24 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 		extraJars = append(extraJars, j.extraCombinedJars...)
 		// if we are not sharding, let's first run turbine APT, generate some sources + res, hand them to turbine, plus pass them to javac
 		srcJarsForTurbine := slices.Clone(srcJars)
+		errorPronePlanned := errorproneExplicitlyEnabled || errorProneEnabled
 		if !enableSharding && ctx.Config().GetBuildFlagBool("RELEASE_USE_TURBINE_APT_JAVAC") {
 			if len(flags.processorPath) > 0 {
 				turbineAptSrcJar := android.PathForModuleOut(ctx, "turbine-apt", "turbine-apt-sources.jar")
 				turbineAptResJar := android.PathForModuleOut(ctx, "turbine-apt", "turbine-apt-res.jar")
 				TurbineApt(ctx, turbineAptSrcJar, turbineAptResJar, uniqueJavaFiles, srcJars, flags)
-				genAnnoSrcJars = append(genAnnoSrcJars, turbineAptSrcJar)
-				localImplementationJars = append(localImplementationJars, turbineAptResJar)
-				srcJarsForTurbine = append(srcJarsForTurbine, genAnnoSrcJars...)
-				// Disable annotation processing in javac, it's already been handled here
-				flags.processorPath = nil
-				flags.processors = nil
+				// if errorProne is going to be attempted, let's use javac for AP as there
+				// are certain processors that are tied with errorprone. We still pass
+				// turbine-apt generated sources to turbine, in case API generating APs
+				// were being used.
+				srcJarsForTurbine = append(srcJarsForTurbine, turbineAptSrcJar)
+				if !errorPronePlanned {
+					genAnnoSrcJars = append(genAnnoSrcJars, turbineAptSrcJar)
+					localImplementationJars = append(localImplementationJars, turbineAptResJar)
+					// Disable annotation processing in javac, it's already been handled here
+					flags.processorPath = nil
+					flags.processors = nil
+				}
 			}
 		}
 		localHeaderJars, shardingHeaderJars, combinedHeaderJarFile = j.compileJavaHeader(ctx, uniqueJavaFiles, srcJarsForTurbine, deps, flags, jarName, extraJars, manifest)
@@ -1585,16 +1607,6 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 		}
 	}
 	if len(uniqueJavaFiles) > 0 || len(srcJars) > 0 {
-		hasErrorproneableFiles := false
-		for _, ext := range j.sourceExtensions {
-			if ext != ".proto" && ext != ".aidl" {
-				// Skip running errorprone on pure proto or pure aidl modules. Some modules take a long time to
-				// compile, and it's not useful to have warnings on these generated sources.
-				hasErrorproneableFiles = true
-				break
-			}
-		}
-
 		// turbine is disabled when API generating APs are present, in which case,
 		// we would want to process annotations before moving to incremental javac
 		if ctx.Device() && ctx.Config().PartialCompileFlags().Enable_inc_javac && disableTurbine {
@@ -1615,11 +1627,11 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 		}
 
 		var extraJarDeps android.Paths
-		if Bool(j.properties.Errorprone.Enabled) {
+		if errorproneExplicitlyEnabled {
 			// If error-prone is enabled, enable errorprone flags on the regular
 			// build.
 			flags = enableErrorproneFlags(flags)
-		} else if hasErrorproneableFiles && ctx.Config().RunErrorProne() && j.properties.Errorprone.Enabled == nil {
+		} else if errorProneEnabled {
 			if ctx.Config().RunErrorProneInline() {
 				// On CI, we're not going to toggle back/forth between errorprone and non-errorprone
 				// builds, so it's faster if we don't compile the module twice and instead always
