@@ -540,6 +540,11 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 		}
 	}
 
+	// Enable a safe form of list iteration rewriting for D8/R8, though note that D8 impact is
+	// conditional on the use of release mode. We *prepend* this flag to ensure application
+	// to the JVM environment, before other args that are passed along to D8/R8.
+	flags = append([]string{"-JDcom.android.tools.r8.enableListIterationRewriting=1"}, flags...)
+
 	// If the specified SDK level is 10000, then configure the compiler to use the
 	// current platform SDK level and to compile the build as a platform build.
 	var minApiFlagValue = effectiveVersion.FinalOrFutureInt()
