@@ -58,6 +58,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 	sharedLibRoots := make(map[string][]string)
 	sharedLibGraph := make(map[string][]string)
 	allTestSuiteInstalls := make(map[string]android.Paths)
+	allTestSuiteSrcs := make(map[string]android.Paths)
 	var toInstall []android.FilePair
 	var oneVariantInstalls []android.FilePair
 	var allCompatibilitySuitePackages []compatibilitySuitePackageInfo
@@ -100,9 +101,11 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 				for _, testSuite := range tsm.TestSuites {
 					for _, f := range testSuiteInstalls.Files {
 						allTestSuiteInstalls[testSuite] = append(allTestSuiteInstalls[testSuite], f.Dst)
+						allTestSuiteSrcs[testSuite] = append(allTestSuiteSrcs[testSuite], f.Src)
 					}
 					for _, f := range testSuiteInstalls.OneVariantInstalls {
 						allTestSuiteInstalls[testSuite] = append(allTestSuiteInstalls[testSuite], f.Dst)
+						allTestSuiteSrcs[testSuite] = append(allTestSuiteSrcs[testSuite], f.Src)
 					}
 				}
 				installs := android.OtherModuleProviderOrDefault(ctx, m, android.InstallFilesProvider).InstallFiles
@@ -245,7 +248,143 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 
 	for _, suite := range allCompatibilitySuitePackages {
 		buildCompatibilitySuitePackage(ctx, suite, slices.Clone(allTestSuiteInstalls[suite.Name]), testSuiteModules[suite.Name], slices.Clone(testInstalledSharedLibs[suite.Name]))
+		if suite.Name == "cts" {
+			generateCtsCoverageReports(ctx, allTestSuiteSrcs)
+		}
 	}
+}
+
+type apiReportType int
+
+const (
+	apiMapReportType apiReportType = iota
+	apiInheritReportType
+)
+
+func (a apiReportType) String() string {
+	switch a {
+	case apiMapReportType:
+		return "api-map"
+	case apiInheritReportType:
+		return "api-inherit"
+	default:
+		return "unknown"
+	}
+}
+
+// The cts test suite will generate reports with "cts-api-map". It needs test suite dependencies
+// and api.xml files to analyze jar files. Finally dist the report as build goal "cts-api-coverage".
+func generateCtsCoverageReports(ctx android.SingletonContext, allTestSuiteSrcs map[string]android.Paths) {
+	hostOutApiMap := android.PathForHostInstall(ctx, "cts-api-map")
+	allApiMapFile := make(map[string]android.InstallPath)
+	ctsReportModules := []string{"cts", "cts-v-host"}
+	ctsVerifierAppListModule := "android-cts-verifier-app-list"
+	apiXmlModules := []string{"android_stubs_current", "android_system_stubs_current", "android_module_lib_stubs_current", "android_system_server_stubs_current"}
+	foundApiXmlFiles := make(map[string]android.Path)
+	testSuiteOutput := make(map[string]android.Path)
+	var apiXmlFiles android.Paths
+	var ctsVerifierApiMapFile android.Path
+
+	// Collect apk and jar paths in {suite}_api_map_files.txt as input for coverage report.
+	for suite, suiteSrcs := range allTestSuiteSrcs {
+		if slices.Contains(ctsReportModules, suite) {
+			allTestSuiteSrcs[suite] = android.SortedUniquePaths(suiteSrcs)
+			var apkJarSrcs android.Paths
+			for _, srcPath := range allTestSuiteSrcs[suite] {
+				if srcPath.Ext() == ".apk" || srcPath.Ext() == ".jar" {
+					apkJarSrcs = append(apkJarSrcs, srcPath)
+				}
+			}
+			allApiMapFile[suite] = hostOutApiMap.Join(ctx, fmt.Sprintf("%s_api_map_files.txt", suite))
+			android.WriteFileRule(ctx, allApiMapFile[suite], strings.Join(apkJarSrcs.Strings(), " "))
+		}
+	}
+
+	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
+		if slices.Contains(apiXmlModules, m.Name()) {
+			if _, exists := foundApiXmlFiles[m.Name()]; exists {
+				ctx.Errorf("Found multiple variants for module %q while looking for .api.xml", m.Name())
+				return
+			}
+			foundApiXmlFiles[m.Name()] = android.OutputFileForModule(ctx, m, ".api.xml")
+		}
+		if m.Name() == ctsVerifierAppListModule {
+			if ctsVerifierApiMapFile != nil {
+				ctx.Errorf("Found multiple variants for module %q", ctsVerifierAppListModule)
+				return
+			}
+			ctsVerifierApiMapFile = android.OutputFileForModule(ctx, m, "")
+		}
+		if slices.Contains(ctsReportModules, m.Name()) {
+			if _, exists := testSuiteOutput[m.Name()]; exists {
+				ctx.Errorf("Found multiple variants for module %q while looking for suite zip", m.Name())
+				return
+			}
+			testSuiteOutput[m.Name()] = android.OutputFileForModule(ctx, m, "")
+		}
+	})
+	for _, moduleName := range apiXmlModules {
+		apiXmlFiles = append(apiXmlFiles, foundApiXmlFiles[moduleName])
+	}
+	generateApiMapReport(ctx, pctx, "cts-v-host", apiMapReportType, apiXmlFiles, android.Paths{ctsVerifierApiMapFile, allApiMapFile["cts-v-host"]}, android.Paths{testSuiteOutput["cts-v-host"]})
+	generateApiMapReport(ctx, pctx, "cts", apiMapReportType, apiXmlFiles, android.Paths{allApiMapFile["cts"]}, android.Paths{testSuiteOutput["cts"]})
+	// Suite "cts-combined": "cts" and "cts-v-host"
+	generateApiMapReport(ctx, pctx, "cts-combined", apiMapReportType, apiXmlFiles, android.Paths{ctsVerifierApiMapFile, allApiMapFile["cts"], allApiMapFile["cts-v-host"]}, android.Paths{testSuiteOutput["cts"], testSuiteOutput["cts-v-host"]})
+	ctx.DistForGoalWithFilename("cts-api-coverage", hostOutApiMap.Join(ctx, "cts-combined-api-map.xml"), "cts-api-map-report.xml")
+	generateApiMapReport(ctx, pctx, "cts-combined", apiInheritReportType, apiXmlFiles, android.Paths{ctsVerifierApiMapFile, allApiMapFile["cts"], allApiMapFile["cts-v-host"]}, android.Paths{testSuiteOutput["cts"], testSuiteOutput["cts-v-host"]})
+	ctx.DistForGoalWithFilename("cts-api-coverage", hostOutApiMap.Join(ctx, "cts-combined-api-inherit.xml"), "cts-api-inherit-report.xml")
+}
+
+func generateApiMapReport(ctx android.SingletonContext, pctx android.PackageContext, suite string, reportType apiReportType, apiXmlFiles android.Paths, jarFileLists android.Paths, dependencies android.Paths) {
+	hostOutApiMap := android.PathForHostInstall(ctx, "cts-api-map")
+	moduleName := fmt.Sprintf("%s-%s-xml", suite, reportType.String())
+	sboxOut := android.PathForOutput(ctx, "api_map_report_temps", moduleName, "gen")
+	sboxManifest := android.PathForOutput(ctx, "api_map_report_temps", moduleName, fmt.Sprintf("%s_genrule.sbox.textproto", moduleName))
+	outputFileName := fmt.Sprintf("%s-%s.xml", suite, reportType.String())
+	jarFilesList := hostOutApiMap.Join(ctx, fmt.Sprintf("%s_jar_files_%s.txt", suite, reportType.String()))
+	jarFiles_rule := android.NewRuleBuilder(pctx, ctx)
+	jarFiles_rule.Command().
+		Text("cat").
+		Inputs(jarFileLists).
+		Text(">").
+		Output(jarFilesList)
+	jarFiles_rule.Build(jarFilesList.Base(), fmt.Sprintf("Jar files list for %s", suite))
+
+	rule := android.NewRuleBuilder(pctx, ctx).Sbox(sboxOut, sboxManifest)
+	switch reportType {
+	case apiMapReportType:
+		rule.Command().BuiltTool("cts-api-map").
+			Flag("-j 8").
+			Flag("-m api_map").
+			Flag("-m xts_annotation").
+			FlagWithArg("-a ", strings.Join(apiXmlFiles.Strings(), ",")).
+			FlagWithArg("-i ", jarFilesList.String()).
+			Flag("-f xml").
+			FlagWithOutput("-o ", sboxOut.Join(ctx, outputFileName)).
+			Implicit(jarFilesList).
+			Implicits(apiXmlFiles).
+			Implicits(dependencies)
+	case apiInheritReportType:
+		rule.Command().BuiltTool("cts-api-map").
+			Flag("-j 8").
+			Flag("-m xts_api_inherit").
+			FlagWithArg("-a ", strings.Join(apiXmlFiles.Strings(), ",")).
+			FlagWithArg("-i ", jarFilesList.String()).
+			Flag("-f xml").
+			FlagWithOutput("-o ", sboxOut.Join(ctx, outputFileName)).
+			Implicit(jarFilesList).
+			Implicits(apiXmlFiles).
+			Implicits(dependencies)
+	}
+	reportDesc := fmt.Sprintf("%s report for %s", reportType.String(), suite)
+	rule.Command().Text("echo").Text(reportDesc + ":").Text(hostOutApiMap.Join(ctx, outputFileName).String())
+	rule.Build(fmt.Sprintf("generate_%s_report_%s", reportType.String(), suite), reportDesc)
+	ctx.Phony(moduleName, hostOutApiMap.Join(ctx, outputFileName))
+	ctx.Build(pctx, android.BuildParams{
+		Rule:   android.Cp,
+		Input:  sboxOut.Join(ctx, outputFileName),
+		Output: hostOutApiMap.Join(ctx, outputFileName),
+	})
 }
 
 // Get a mapping from testSuite -> list of host shared libraries, given:
