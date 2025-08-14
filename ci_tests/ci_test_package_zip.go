@@ -240,7 +240,7 @@ func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProx
 
 func createJacocoJar(ctx android.ModuleContext, allModules []android.ModuleProxy) {
 	if ctx.Config().JavaCoverageEnabled() {
-		jacocoJar := android.PathForModuleOut(ctx, "jacoco.jar")
+		jacocoJar := android.PathForModuleOut(ctx, ctx.ModuleName()+"_jacoco_report_classes.jar")
 		java.BuildJacocoZip(ctx, allModules, jacocoJar)
 		ctx.SetOutputFiles(android.Paths{jacocoJar}, ".jacoco")
 	}

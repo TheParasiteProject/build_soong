@@ -90,6 +90,16 @@ func (r Dist) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 			return err
 		}
 	}
+
+	val8 := r.Only_on_java_coverage_builds == nil
+	if err = gobtools.EncodeSimple(buf, val8); err != nil {
+		return err
+	}
+	if !val8 {
+		if err = gobtools.EncodeSimple(buf, (*r.Only_on_java_coverage_builds)); err != nil {
+			return err
+		}
+	}
 	return err
 }
 
@@ -187,6 +197,19 @@ func (r *Dist) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 			return err
 		}
 		r.Tag = &val20
+	}
+
+	var val24 bool
+	if err = gobtools.DecodeSimple(buf, &val24); err != nil {
+		return err
+	}
+	if !val24 {
+		var val23 bool
+		err = gobtools.DecodeSimple[bool](buf, &val23)
+		if err != nil {
+			return err
+		}
+		r.Only_on_java_coverage_builds = &val23
 	}
 
 	return err
