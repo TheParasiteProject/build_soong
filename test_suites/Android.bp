@@ -6,6 +6,8 @@ bootstrap_go_package {
     name: "soong-test_suites",
     pkgPath: "android/soong/test_suites",
     deps: [
+        "blueprint",
+        "blueprint-proptools",
         "soong",
         "soong-android",
         "soong-java",

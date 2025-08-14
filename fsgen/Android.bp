@@ -7,11 +7,17 @@ bootstrap_go_package {
     pkgPath: "android/soong/fsgen",
     deps: [
         "blueprint",
+        "blueprint-parser",
+        "blueprint-proptools",
         "soong",
         "soong-android",
         "soong-cc",
+        "soong-genrule",
+        "soong-etc",
         "soong-filesystem",
         "soong-kernel",
+        "soong-java",
+        "soong-phony",
         "soong-rust",
     ],
     srcs: [
