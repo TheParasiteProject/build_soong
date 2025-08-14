@@ -227,6 +227,10 @@ type Dist struct {
 	// default output files provided by the modules, i.e. the result of calling
 	// OutputFiles("").
 	Tag *string `android:"arch_variant"`
+
+	// Only do the dist on java coverage builds (EMMA_INSTRUMENT=true).
+	// Used for disting java coverage reports which are not built normally.
+	Only_on_java_coverage_builds *bool
 }
 
 // NamedPath associates a path with a name. e.g. a license text path with a package name
@@ -1254,6 +1258,9 @@ func (m *ModuleBase) Dists() []Dist {
 func (m *ModuleBase) GenerateTaggedDistFiles(ctx BaseModuleContext) TaggedDistFiles {
 	var distFiles TaggedDistFiles
 	for _, dist := range m.Dists() {
+		if proptools.Bool(dist.Only_on_java_coverage_builds) && !ctx.Config().JavaCoverageEnabled() {
+			continue
+		}
 		// If no tag is specified then it means to use the default dist paths so use
 		// the special tag name which represents that.
 		tag := proptools.StringDefault(dist.Tag, DefaultDistTag)
