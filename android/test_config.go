@@ -100,13 +100,25 @@ func modifyTestConfigToSupportArchMutator(testConfig Config) {
 	config := testConfig.config
 
 	config.Targets = map[OsType][]Target{
-		Android: []Target{
-			{Android, Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}}, NativeBridgeDisabled, "", "", false},
-			{Android, Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}}, NativeBridgeDisabled, "", "", false},
+		Android: {
+			{
+				Os:   Android,
+				Arch: Arch{ArchType: Arm64, ArchVariant: "armv8-a", Abi: []string{"arm64-v8a"}},
+			},
+			{
+				Os:   Android,
+				Arch: Arch{ArchType: Arm, ArchVariant: "armv7-a-neon", Abi: []string{"armeabi-v7a"}},
+			},
 		},
-		config.BuildOS: []Target{
-			{config.BuildOS, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
-			{config.BuildOS, Arch{ArchType: X86}, NativeBridgeDisabled, "", "", false},
+		config.BuildOS: {
+			{
+				Os:   config.BuildOS,
+				Arch: Arch{ArchType: X86_64},
+			},
+			{
+				Os:   config.BuildOS,
+				Arch: Arch{ArchType: X86},
+			},
 		},
 	}
 
@@ -133,8 +145,14 @@ func ModifyTestConfigForMusl(config Config) {
 	config.productVariables.HostMusl = boolPtr(true)
 	determineBuildOS(config.config)
 	config.Targets[config.BuildOS] = []Target{
-		{config.BuildOS, Arch{ArchType: X86_64}, NativeBridgeDisabled, "", "", false},
-		{config.BuildOS, Arch{ArchType: X86}, NativeBridgeDisabled, "", "", false},
+		{
+			Os:   config.BuildOS,
+			Arch: Arch{ArchType: X86_64},
+		},
+		{
+			Os:   config.BuildOS,
+			Arch: Arch{ArchType: X86},
+		},
 	}
 
 	config.BuildOSTarget = config.Targets[config.BuildOS][0]
@@ -143,7 +161,11 @@ func ModifyTestConfigForMusl(config Config) {
 
 func modifyTestConfigForMuslArm64HostCross(config Config) {
 	config.Targets[LinuxMusl] = append(config.Targets[LinuxMusl],
-		Target{config.BuildOS, Arch{ArchType: Arm64}, NativeBridgeDisabled, "", "", true})
+		Target{
+			Os:        config.BuildOS,
+			Arch:      Arch{ArchType: Arm64},
+			HostCross: true,
+		})
 }
 
 // TestArchConfig returns a Config object suitable for using for tests that
