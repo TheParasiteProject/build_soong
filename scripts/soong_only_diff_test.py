@@ -44,60 +44,78 @@ def run_build_target_files_zip(product: Product, soong_only: bool) -> bool:
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 
-    with open(os.path.join(out_dir, 'build.log'), 'wb') as f:
-        result = subprocess.run([
-            'build/soong/soong_ui.bash',
-            '--make-mode',
-            'USE_RBE=true',
-            'BUILD_DATETIME=1',
-            'USE_FIXED_TIMESTAMP_IMG_FILES=true',
-            'DISABLE_NOTICE_XML_GENERATION=true',
-            f'TARGET_PRODUCT={product.product}',
-            f'TARGET_RELEASE={product.release}',
-            f'TARGET_BUILD_VARIANT={product.variant}',
-            'installclean',
-            soong_only_arg,
-        ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
+    # inner function so we can early return but not miss the final
+    # move_artifacts_to_subfolder()
+    def inner():
+        with open(os.path.join(out_dir, 'build.log'), 'wb') as f:
+            result = subprocess.run([
+                'build/soong/soong_ui.bash',
+                '--make-mode',
+                'USE_RBE=true',
+                'BUILD_DATETIME=1',
+                'USE_FIXED_TIMESTAMP_IMG_FILES=true',
+                'DISABLE_NOTICE_XML_GENERATION=true',
+                f'TARGET_PRODUCT={product.product}',
+                f'TARGET_RELEASE={product.release}',
+                f'TARGET_BUILD_VARIANT={product.variant}',
+                'installclean',
+                soong_only_arg,
+            ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
+
+            if result.returncode != 0:
+                return False
+
+        with open(os.path.join(out_dir, 'build.log'), 'wb') as f:
+            result = subprocess.run([
+                'build/soong/soong_ui.bash',
+                '--make-mode',
+                'USE_RBE=true',
+                'BUILD_DATETIME=1',
+                'USE_FIXED_TIMESTAMP_IMG_FILES=true',
+                'DISABLE_NOTICE_XML_GENERATION=true',
+                f'TARGET_PRODUCT={product.product}',
+                f'TARGET_RELEASE={product.release}',
+                f'TARGET_BUILD_VARIANT={product.variant}',
+                'target-files-package',
+                'droid',
+                soong_only_arg,
+            ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
+
+            if result.returncode != 0:
+                return False
+
+        with open(os.path.join(out_dir, 'build.log2'), 'wb') as f:
+            # Split the dist into a separate invocation to limit dist to target_files.zip
+            # This is expected to be faster than disting all droid.
+            result = subprocess.run([
+                'build/soong/soong_ui.bash',
+                '--make-mode',
+                'USE_RBE=true',
+                'BUILD_DATETIME=1',
+                'USE_FIXED_TIMESTAMP_IMG_FILES=true',
+                'DISABLE_NOTICE_XML_GENERATION=true',
+                f'TARGET_PRODUCT={product.product}',
+                f'TARGET_RELEASE={product.release}',
+                f'TARGET_BUILD_VARIANT={product.variant}',
+                'target-files-package',
+                'dist',
+                soong_only_arg,
+            ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
+
+        with open(os.path.join(out_dir, 'build.log2'), 'rb') as f:
+            log2_contents = f.read()
+        with open(os.path.join(out_dir, 'build.log'), 'ab') as f:
+            f.write(b"\n")
+            f.write(log2_contents)
 
         if result.returncode != 0:
             return False
 
-        result = subprocess.run([
-            'build/soong/soong_ui.bash',
-            '--make-mode',
-            'USE_RBE=true',
-            'BUILD_DATETIME=1',
-            'USE_FIXED_TIMESTAMP_IMG_FILES=true',
-            'DISABLE_NOTICE_XML_GENERATION=true',
-            f'TARGET_PRODUCT={product.product}',
-            f'TARGET_RELEASE={product.release}',
-            f'TARGET_BUILD_VARIANT={product.variant}',
-            'droid',
-            soong_only_arg,
-        ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
+        return True
 
-        if result.returncode != 0:
-            return False
-
-        # Split the dist into a separate invocation to limit dist to target_files.zip
-        # This is expected to be faster than disting all droid.
-        result = subprocess.run([
-            'build/soong/soong_ui.bash',
-            '--make-mode',
-            'USE_RBE=true',
-            'BUILD_DATETIME=1',
-            'USE_FIXED_TIMESTAMP_IMG_FILES=true',
-            'DISABLE_NOTICE_XML_GENERATION=true',
-            f'TARGET_PRODUCT={product.product}',
-            f'TARGET_RELEASE={product.release}',
-            f'TARGET_BUILD_VARIANT={product.variant}',
-            'target-files-package',
-            'dist',
-            soong_only_arg,
-        ], stdout=f, stderr=subprocess.STDOUT, env=os.environ)
-
+    succeeded = inner()
     move_artifacts_to_subfolder(product, soong_only)
-    return result.returncode == 0
+    return succeeded
 
 # These values are defined in build/soong/zip/zip.go
 SHA_256_HEADER_ID = 0x4967
@@ -401,8 +419,10 @@ def main():
         print(f"{p.product}: target-file.zip and/or $ANDROID_PRODUCT_OUT differs", file=sys.stderr)
 
     if len(products) == 1:
-        with open(get_comparison_report_path(products[0])) as f:
-            print(f.read(), file=sys.stderr)
+        report = get_comparison_report_path(products[0])
+        if os.path.isfile(report):
+            with open(report) as f:
+                print(f.read(), file=sys.stderr)
 
     if soong_plus_make_build_failed_products or soong_only_build_failed_products or target_files_differ_products:
         sys.exit(1)

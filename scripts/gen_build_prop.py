@@ -421,8 +421,9 @@ def append_additional_vendor_props(args):
   if config["ShippingApiLevel"]:
     props.append(f"ro.product.first_api_level={config['ShippingApiLevel']}")
 
-  if config["BuildVariant"] != "user" and config["BuildDebugfsRestrictionsEnabled"]:
-    props.append(f"ro.product.debugfs_restrictions.enabled=true")
+  if config["BuildVariant"] != "user":
+    if "BuildDebugfsRestrictionsEnabled" in config:
+        props.append(f"ro.product.debugfs_restrictions.enabled={'true' if config['BuildDebugfsRestrictionsEnabled'] else 'false'}")
 
   # Vendors with GRF must define BOARD_SHIPPING_API_LEVEL for the vendor API level.
   # This must not be defined for the non-GRF devices.

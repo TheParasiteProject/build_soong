@@ -23,6 +23,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/cc"
+	"android/soong/java"
 
 	"github.com/google/blueprint"
 	"github.com/google/blueprint/proptools"
@@ -215,6 +216,7 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 	}
 
 	createSymbolsZip(ctx, allTestModules)
+	createJacocoJar(ctx, allTestModules)
 
 	output := android.PathForModuleOut(ctx, ctx.ModuleName()+".zip")
 	builder.Command().
@@ -234,6 +236,14 @@ func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProx
 
 	ctx.SetOutputFiles(android.Paths{symbolsZipFile}, ".symbols")
 	ctx.SetOutputFiles(android.Paths{symbolsMappingFile}, ".elf_mapping")
+}
+
+func createJacocoJar(ctx android.ModuleContext, allModules []android.ModuleProxy) {
+	if ctx.Config().JavaCoverageEnabled() {
+		jacocoJar := android.PathForModuleOut(ctx, ctx.ModuleName()+"_jacoco_report_classes.jar")
+		java.BuildJacocoZip(ctx, allModules, jacocoJar)
+		ctx.SetOutputFiles(android.Paths{jacocoJar}, ".jacoco")
+	}
 }
 
 func extendBuilderCommand(ctx android.ModuleContext, m android.ModuleProxy, builder *android.RuleBuilder, stagingDir android.ModuleOutPath, productOut, arch, secondArch string) {

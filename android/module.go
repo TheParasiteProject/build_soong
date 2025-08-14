@@ -227,6 +227,10 @@ type Dist struct {
 	// default output files provided by the modules, i.e. the result of calling
 	// OutputFiles("").
 	Tag *string `android:"arch_variant"`
+
+	// Only do the dist on java coverage builds (EMMA_INSTRUMENT=true).
+	// Used for disting java coverage reports which are not built normally.
+	Only_on_java_coverage_builds *bool
 }
 
 // NamedPath associates a path with a name. e.g. a license text path with a package name
@@ -1254,6 +1258,9 @@ func (m *ModuleBase) Dists() []Dist {
 func (m *ModuleBase) GenerateTaggedDistFiles(ctx BaseModuleContext) TaggedDistFiles {
 	var distFiles TaggedDistFiles
 	for _, dist := range m.Dists() {
+		if proptools.Bool(dist.Only_on_java_coverage_builds) && !ctx.Config().JavaCoverageEnabled() {
+			continue
+		}
 		// If no tag is specified then it means to use the default dist paths so use
 		// the special tag name which represents that.
 		tag := proptools.StringDefault(dist.Tag, DefaultDistTag)
@@ -1731,7 +1738,6 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		return PathForPhony(ctx, phonyName)
 	}
 
-	var checkbuildDeps Paths
 	var info ModuleBuildTargetsInfo
 
 	var outputDeps Paths
@@ -1767,14 +1773,12 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	if len(outputFiles) > 0 {
 		outputTarget = phony("-"+ctx.ModuleSubDir()+"-outputs", outputFiles)
 		phony("-outputs", Paths{outputTarget})
-		checkbuildDeps = append(checkbuildDeps, outputTarget)
 	}
 
 	var modulePhonyTarget Path
 	if len(ctx.modulePhonyFiles) > 0 {
 		modulePhonyTarget = phony("-"+ctx.ModuleSubDir()+"-phony-files", ctx.modulePhonyFiles)
 		phony("-phony-files", Paths{modulePhonyTarget})
-		checkbuildDeps = append(checkbuildDeps, modulePhonyTarget)
 	}
 
 	// A module's -checkbuild phony targets should
@@ -1782,11 +1786,9 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 	// Those could depend on the build target and fail to compile
 	// for the current build target.
 	var checkbuildTarget Path
-	checkbuildDeps = append(checkbuildDeps, ctx.checkbuildFiles...)
-	if len(checkbuildDeps) > 0 {
-		checkbuildTarget = phony("-"+ctx.ModuleSubDir()+"-checkbuild", checkbuildDeps)
+	if len(ctx.checkbuildFiles) > 0 {
+		checkbuildTarget = phony("-"+ctx.ModuleSubDir()+"-checkbuild", ctx.checkbuildFiles)
 		phony("-checkbuild", Paths{checkbuildTarget})
-		checkbuildDeps = Paths{checkbuildTarget}
 		if !ctx.uncheckedModule {
 			info.CheckbuildTarget = checkbuildTarget
 		}
@@ -1799,8 +1801,6 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		defaultTarget = Paths{outputTarget}
 	} else if checkbuildTarget != nil {
 		defaultTarget = Paths{checkbuildTarget}
-	} else {
-		defaultTarget = checkbuildDeps
 	}
 
 	if modulePhonyTarget != nil {

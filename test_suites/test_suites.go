@@ -410,12 +410,14 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 	targetOut := filepath.Dir(targetOutTestCases.String())
 
 	testsZip := pathForPackaging(ctx, suiteConfig.name+".zip")
-	generalTestsFilesListText := pathForPackaging(ctx, "general-tests_files")
+	generalTestsFilesListText := android.PathForDeviceFirstInstall(ctx, "general-tests_files")
+	generalTestsHostFilesListText := android.PathForDeviceFirstInstall(ctx, "general-tests_host_files")
+	generalTestsTargetFilesListText := android.PathForDeviceFirstInstall(ctx, "general-tests_target_files")
 	testsListTxt := pathForPackaging(ctx, suiteConfig.name+"_list.txt")
 	testsListZip := pathForPackaging(ctx, suiteConfig.name+"_list.zip")
 	testsConfigsZip := pathForPackaging(ctx, suiteConfig.name+"_configs.zip")
 	testsHostSharedLibsZip := pathForPackaging(ctx, suiteConfig.name+"_host-shared-libs.zip")
-	var listLines, filesListLines []string
+	var listLines, filesListLines, hostFilesListLines, targetFilesListLines []string
 
 	// use intermediate files to hold the file inputs, to prevent argument list from being too long
 	testsZipCmdHostFileInput := android.PathForIntermediates(ctx, suiteConfig.name+"_host_list.txt")
@@ -451,6 +453,7 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 			// Adding files installed in out/host to general-tests-files-list, e.g.,
 			// out/host/linux-x86/testcases/hello_world_test/hello_world_test.config
 			filesListLines = append(filesListLines, f.String())
+			hostFilesListLines = append(hostFilesListLines, f.String())
 		}
 	}
 
@@ -459,6 +462,7 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 			// Adding host shared libs to general-tests-files-list, e.g.,
 			// out/host/linux-x86/testcases/lib64/libc++.so
 			filesListLines = append(filesListLines, f.String())
+			hostFilesListLines = append(hostFilesListLines, f.String())
 			if strings.HasPrefix(f.String(), hostOutTestCases.String()) {
 				testsZipCmdHostFileInputContent = append(testsZipCmdHostFileInputContent, f.String())
 				testsZipCmd.Implicit(f)
@@ -492,6 +496,7 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 				// out/host/linux-x86/testcases/hello_world_test/x86_64/shared_libs/libc++.so
 				relativePath, _ := filepath.Rel(intermediatesDirForSuite.String(), symlink.String())
 				filesListLines = append(filesListLines, fmt.Sprintf("%s/%s/%s", hostOutTestCases, moduleName, relativePath))
+				hostFilesListLines = append(hostFilesListLines, fmt.Sprintf("%s/%s/%s", hostOutTestCases, moduleName, relativePath))
 
 				if _, exists := seen[symlink.String()]; exists {
 					continue
@@ -539,6 +544,7 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 			// Adding files installed in out/target to general-tests-files-list, e.g.,
 			// out/target/product/vsoc_x86_64_only/testcases/hello_world_test/hello_world_test.config
 			filesListLines = append(filesListLines, f.String())
+			targetFilesListLines = append(targetFilesListLines, f.String())
 		}
 	}
 
@@ -579,6 +585,8 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 	// https://source.corp.google.com/h/googleplex-android/platform/build/+/c34c3738ba6be7ef1fc3acb7be5122bede415789
 	if suiteConfig.name == "general-tests" {
 		android.WriteFileRule(ctx, generalTestsFilesListText, strings.Join(filesListLines, "\n"))
+		android.WriteFileRule(ctx, generalTestsHostFilesListText, strings.Join(hostFilesListLines, "\n"))
+		android.WriteFileRule(ctx, generalTestsTargetFilesListText, strings.Join(targetFilesListLines, "\n"))
 	}
 	testsListZipBuilder := android.NewRuleBuilder(pctx, ctx)
 	testsListZipBuilder.Command().
@@ -595,7 +603,7 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 	}
 
 	ctx.Phony(suiteConfig.name, testsZip, testsListZip, testsConfigsZip)
-	ctx.Phony("general-tests-files-list", generalTestsFilesListText)
+	ctx.Phony("general-tests-files-list", generalTestsFilesListText, generalTestsHostFilesListText, generalTestsTargetFilesListText)
 	ctx.DistForGoal(suiteConfig.name, testsZip, testsListZip, testsConfigsZip)
 	if suiteConfig.buildHostSharedLibsZip {
 		ctx.DistForGoal(suiteConfig.name, testsHostSharedLibsZip)
