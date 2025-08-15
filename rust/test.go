@@ -214,6 +214,7 @@ func (test *testDecorator) install(ctx ModuleContext) {
 		ConfigFile:      test.testConfig,
 		Data:            test.data,
 		NeedsArchFolder: true,
+		IsUnitTest:      Bool(test.Properties.Test_options.Unit_test),
 	})
 
 	test.installTestData(ctx, test.data)
