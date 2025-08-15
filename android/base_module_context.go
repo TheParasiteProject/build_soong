@@ -201,13 +201,13 @@ type BaseModuleContext interface {
 	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
 	// Module returned by PrimaryModule without data races.  This can be used to perform singleton actions that are
 	// only done once for all variants of a module.
-	IsPrimaryModule(module ModuleOrProxy) bool
+	IsPrimaryModule() bool
 
 	// IsFinalModule returns if the current module is the last variant.  Variants of a module are always visited in
 	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from all
 	// variants using VisitAllModuleVariants if the current module is the last one. This can be used to perform
 	// singleton actions that are only done once for all variants of a module.
-	IsFinalModule(module ModuleOrProxy) bool
+	IsFinalModule() bool
 
 	// GetTagPath is supposed to be called in visit function passed in WalkDeps()
 	// and returns a top-down dependency tags path from a start module to current child module.
@@ -569,12 +569,12 @@ func (b *baseModuleContext) PrimaryModule() Module {
 	return b.bp.PrimaryModule().(Module)
 }
 
-func (b *baseModuleContext) IsPrimaryModule(module ModuleOrProxy) bool {
-	return b.bp.IsPrimaryModule(module)
+func (b *baseModuleContext) IsPrimaryModule() bool {
+	return b.bp.IsPrimaryModule()
 }
 
-func (b *baseModuleContext) IsFinalModule(module ModuleOrProxy) bool {
-	return b.bp.IsFinalModule(module)
+func (b *baseModuleContext) IsFinalModule() bool {
+	return b.bp.IsFinalModule()
 }
 
 // IsMetaDependencyTag returns true for cross-cutting metadata dependencies.
