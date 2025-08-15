@@ -66,7 +66,7 @@ func getRBEVars(ctx Context, config Config) map[string]string {
 		"RBE_download_tmp_dir": config.rbeDownloadTmpDir(),
 		"RBE_platform":         "container-image=" + remoteexec.DefaultImage,
 	}
-	if config.StartRBE() {
+	if config.StartReproxy() {
 		name, err := config.rbeSockAddr(absPath(ctx, config.rbeTmpDir()))
 		if err != nil {
 			ctx.Fatalf("Error retrieving socket address: %v", err)
@@ -179,7 +179,7 @@ func DumpRBEMetrics(ctx Context, config Config, filename string) {
 	// If RBE does not require to start, the RBE proxy maybe started
 	// manually for debugging purpose and can generate the metrics
 	// afterwards.
-	if !config.StartRBE() {
+	if !config.StartReproxy() {
 		return
 	}
 

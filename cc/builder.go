@@ -773,7 +773,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 			tidyCmd := "${config.ClangBin}/clang-tidy"
 
 			rule := clangTidy
-			if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CLANG_TIDY") {
+			if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_CLANG_TIDY") {
 				rule = clangTidyRE
 			}
 
@@ -804,7 +804,7 @@ func transformSourceToObj(ctx android.ModuleContext, subdir string, srcFiles, no
 			sAbiDumpFiles = append(sAbiDumpFiles, sAbiDumpFile)
 
 			dumpRule := sAbiDump
-			if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ABI_DUMPER") {
+			if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_ABI_DUMPER") {
 				dumpRule = sAbiDumpRE
 			}
 			ctx.Build(pctx, android.BuildParams{
@@ -1015,7 +1015,7 @@ func transformObjToDynamicBinary(ctx android.ModuleContext,
 		implicitOutputs = append(slices.Clone(implicitOutputs), pdb)
 	}
 
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = ldRE
 		args["implicitOutputs"] = strings.Join(implicitOutputs.Strings(), ",")
 		args["implicitInputs"] = strings.Join(deps.Strings(), ",")
@@ -1076,7 +1076,7 @@ func transformDumpToLinkedDump(ctx android.ModuleContext, sAbiDumps android.Path
 		"arch":                ctx.Arch().ArchType.Name,
 		"exportedHeaderFlags": exportedHeaderFlags,
 	}
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ABI_LINKER") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_ABI_LINKER") {
 		rule = sAbiLinkRE
 		rbeImplicits := append(implicits.Strings(), exportedIncludeDirs...)
 		args["implicitInputs"] = strings.Join(rbeImplicits, ",")
@@ -1155,7 +1155,7 @@ func transformObjsToObj(ctx android.ModuleContext, objFiles android.Paths,
 		"ldCmd":   ldCmd,
 		"ldFlags": flags.globalLdFlags + " " + flags.localLdFlags,
 	}
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_CXX_LINKS") {
 		rule = partialLdRE
 		args["inCommaList"] = strings.Join(objFiles.Strings(), ",")
 		args["implicitInputs"] = strings.Join(deps.Strings(), ",")

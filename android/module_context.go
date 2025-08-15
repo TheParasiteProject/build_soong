@@ -427,8 +427,8 @@ func (m *moduleContext) Rule(pctx PackageContext, name string, params blueprint.
 
 	if m.config.UseRemoteBuild() {
 		if params.Pool == nil {
-			// When USE_RBE=true is set and the rule is not supported by RBE, restrict
-			// jobs to the local parallelism value
+			// When USE_REWRAPPER=true is set and the rule is not supported by RBE,
+			// restrict jobs to the local parallelism value
 			params.Pool = localPool
 		} else if params.Pool == remotePool {
 			// remotePool is a fake pool used to identify rule that are supported for remoting. If the rule's

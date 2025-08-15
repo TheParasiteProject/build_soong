@@ -2579,7 +2579,7 @@ func metalavaStubCmd(ctx android.ModuleContext, rule *android.RuleBuilder,
 	cmd := rule.Command()
 	cmd.FlagWithArg("ANDROID_PREFS_ROOT=", homeDir.String())
 
-	if metalavaUseRbe(ctx) {
+	if metalavaUseRewrapper(ctx) {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		execStrategy := ctx.Config().GetenvWithDefault("RBE_METALAVA_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
 		labels := map[string]string{"type": "tool", "name": "metalava"}

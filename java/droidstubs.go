@@ -765,8 +765,8 @@ func (d *Droidstubs) apiCompatibilityFlags(ctx android.ModuleContext, cmd *andro
 	}
 }
 
-func metalavaUseRbe(ctx android.ModuleContext) bool {
-	return ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_METALAVA")
+func metalavaUseRewrapper(ctx android.ModuleContext) bool {
+	return ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_METALAVA")
 }
 
 func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, srcs android.Paths,
@@ -778,7 +778,7 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, srcs andr
 	cmd := rule.Command()
 	cmd.FlagWithArg("ANDROID_PREFS_ROOT=", homeDir.String())
 
-	if metalavaUseRbe(ctx) {
+	if metalavaUseRewrapper(ctx) {
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		execStrategy := ctx.Config().GetenvWithDefault("RBE_METALAVA_EXEC_STRATEGY", remoteexec.LocalExecStrategy)
 		compare := ctx.Config().IsEnvTrue("RBE_METALAVA_COMPARE")
@@ -1025,7 +1025,7 @@ func (d *Droidstubs) everythingStubCmd(ctx android.ModuleContext, params stubsCo
 	}
 
 	// TODO(b/183630617): rewrapper doesn't support restat rules
-	if !metalavaUseRbe(ctx) {
+	if !metalavaUseRewrapper(ctx) {
 		rule.Restat()
 	}
 
@@ -1248,7 +1248,7 @@ func (d *Droidstubs) optionalStubCmd(ctx android.ModuleContext, params stubsComm
 	}
 
 	// TODO(b/183630617): rewrapper doesn't support restat rules
-	if !metalavaUseRbe(ctx) {
+	if !metalavaUseRewrapper(ctx) {
 		rule.Restat()
 	}
 

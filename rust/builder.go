@@ -538,7 +538,7 @@ func transformSrctoCrate(ctx android.ModuleContext, main android.Path, deps Path
 
 	// If SrcFiles populating is ever tied to some other property being set
 	// (e.g. crate_root), a check against whether its populated should be added here.
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_RUST") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_RUST") {
 		rule = rustcRbe
 		rbeInputs := android.Paths{}
 		rbeInputs = append(rbeInputs, implicits...)

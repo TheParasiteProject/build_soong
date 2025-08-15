@@ -185,6 +185,9 @@ message BuildConfig {
 
   reserved 1;
   reserved 3;
+
+  // Whether the build used rewrapper.
+  optional bool use_rewrapper = 11;
 }
 
 message SoongEnvVars {
