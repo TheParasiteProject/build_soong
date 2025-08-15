@@ -14,69 +14,111 @@ func init() {
 func (r ComplianceMetadataInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.properties))); err != nil {
-		return err
-	}
-	for k, v := range r.properties {
-		if err = gobtools.EncodeString(buf, k); err != nil {
+	if r.properties == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
 		}
-		if err = gobtools.EncodeString(buf, v); err != nil {
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.properties))); err != nil {
 			return err
 		}
-	}
-
-	if err = gobtools.EncodeSimple(buf, int32(len(r.filesContained))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r.filesContained); val1++ {
-		if err = gobtools.EncodeString(buf, r.filesContained[val1]); err != nil {
-			return err
+		for k, v := range r.properties {
+			if err = gobtools.EncodeString(buf, k); err != nil {
+				return err
+			}
+			if err = gobtools.EncodeString(buf, v); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.buildOutputPathsOfFilesContained))); err != nil {
-		return err
-	}
-	for val2 := 0; val2 < len(r.buildOutputPathsOfFilesContained); val2++ {
-		if err = gobtools.EncodeString(buf, r.buildOutputPathsOfFilesContained[val2]); err != nil {
+	if r.filesContained == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.filesContained))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r.filesContained); val1++ {
+			if err = gobtools.EncodeString(buf, r.filesContained[val1]); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.prebuiltFilesCopied))); err != nil {
-		return err
-	}
-	for val3 := 0; val3 < len(r.prebuiltFilesCopied); val3++ {
-		if err = gobtools.EncodeString(buf, r.prebuiltFilesCopied[val3]); err != nil {
+	if r.buildOutputPathsOfFilesContained == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.buildOutputPathsOfFilesContained))); err != nil {
+			return err
+		}
+		for val2 := 0; val2 < len(r.buildOutputPathsOfFilesContained); val2++ {
+			if err = gobtools.EncodeString(buf, r.buildOutputPathsOfFilesContained[val2]); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.platformGeneratedFiles))); err != nil {
-		return err
-	}
-	for val4 := 0; val4 < len(r.platformGeneratedFiles); val4++ {
-		if err = gobtools.EncodeString(buf, r.platformGeneratedFiles[val4]); err != nil {
+	if r.prebuiltFilesCopied == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.prebuiltFilesCopied))); err != nil {
+			return err
+		}
+		for val3 := 0; val3 < len(r.prebuiltFilesCopied); val3++ {
+			if err = gobtools.EncodeString(buf, r.prebuiltFilesCopied[val3]); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.productCopyFiles))); err != nil {
-		return err
-	}
-	for val5 := 0; val5 < len(r.productCopyFiles); val5++ {
-		if err = gobtools.EncodeString(buf, r.productCopyFiles[val5]); err != nil {
+	if r.platformGeneratedFiles == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.platformGeneratedFiles))); err != nil {
+			return err
+		}
+		for val4 := 0; val4 < len(r.platformGeneratedFiles); val4++ {
+			if err = gobtools.EncodeString(buf, r.platformGeneratedFiles[val4]); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.kernelModuleCopyFiles))); err != nil {
-		return err
-	}
-	for val6 := 0; val6 < len(r.kernelModuleCopyFiles); val6++ {
-		if err = gobtools.EncodeString(buf, r.kernelModuleCopyFiles[val6]); err != nil {
+	if r.productCopyFiles == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.productCopyFiles))); err != nil {
+			return err
+		}
+		for val5 := 0; val5 < len(r.productCopyFiles); val5++ {
+			if err = gobtools.EncodeString(buf, r.productCopyFiles[val5]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if r.kernelModuleCopyFiles == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.kernelModuleCopyFiles))); err != nil {
+			return err
+		}
+		for val6 := 0; val6 < len(r.kernelModuleCopyFiles); val6++ {
+			if err = gobtools.EncodeString(buf, r.kernelModuleCopyFiles[val6]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
@@ -90,7 +132,7 @@ func (r *ComplianceMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val1 > 0 {
+	if val1 != -1 {
 		r.properties = make(map[string]string, val1)
 		for val2 := 0; val2 < int(val1); val2++ {
 			var k string
@@ -112,7 +154,7 @@ func (r *ComplianceMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val6 > 0 {
+	if val6 != -1 {
 		r.filesContained = make([]string, val6)
 		for val7 := 0; val7 < int(val6); val7++ {
 			err = gobtools.DecodeString(buf, &r.filesContained[val7])
@@ -127,7 +169,7 @@ func (r *ComplianceMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val10 > 0 {
+	if val10 != -1 {
 		r.buildOutputPathsOfFilesContained = make([]string, val10)
 		for val11 := 0; val11 < int(val10); val11++ {
 			err = gobtools.DecodeString(buf, &r.buildOutputPathsOfFilesContained[val11])
@@ -142,7 +184,7 @@ func (r *ComplianceMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val14 > 0 {
+	if val14 != -1 {
 		r.prebuiltFilesCopied = make([]string, val14)
 		for val15 := 0; val15 < int(val14); val15++ {
 			err = gobtools.DecodeString(buf, &r.prebuiltFilesCopied[val15])
@@ -157,7 +199,7 @@ func (r *ComplianceMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val18 > 0 {
+	if val18 != -1 {
 		r.platformGeneratedFiles = make([]string, val18)
 		for val19 := 0; val19 < int(val18); val19++ {
 			err = gobtools.DecodeString(buf, &r.platformGeneratedFiles[val19])
@@ -172,7 +214,7 @@ func (r *ComplianceMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val22 > 0 {
+	if val22 != -1 {
 		r.productCopyFiles = make([]string, val22)
 		for val23 := 0; val23 < int(val22); val23++ {
 			err = gobtools.DecodeString(buf, &r.productCopyFiles[val23])
@@ -187,7 +229,7 @@ func (r *ComplianceMetadataInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val26 > 0 {
+	if val26 != -1 {
 		r.kernelModuleCopyFiles = make([]string, val26)
 		for val27 := 0; val27 < int(val26); val27++ {
 			err = gobtools.DecodeString(buf, &r.kernelModuleCopyFiles[val27])

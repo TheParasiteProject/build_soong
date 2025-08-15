@@ -14,19 +14,31 @@ func init() {
 func (r ModulePhonyInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Phonies))); err != nil {
-		return err
-	}
-	for k, v := range r.Phonies {
-		if err = gobtools.EncodeString(buf, k); err != nil {
+	if r.Phonies == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
 		}
-		if err = gobtools.EncodeSimple(buf, int32(len(v))); err != nil {
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Phonies))); err != nil {
 			return err
 		}
-		for val1 := 0; val1 < len(v); val1++ {
-			if err = gobtools.EncodeInterface(ctx, buf, v[val1]); err != nil {
+		for k, v := range r.Phonies {
+			if err = gobtools.EncodeString(buf, k); err != nil {
 				return err
+			}
+			if v == nil {
+				if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+					return err
+				}
+			} else {
+				if err = gobtools.EncodeSimple(buf, int32(len(v))); err != nil {
+					return err
+				}
+				for val1 := 0; val1 < len(v); val1++ {
+					if err = gobtools.EncodeInterface(ctx, buf, v[val1]); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
@@ -41,7 +53,7 @@ func (r *ModulePhonyInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) err
 	if err != nil {
 		return err
 	}
-	if val1 > 0 {
+	if val1 != -1 {
 		r.Phonies = make(map[string]Paths, val1)
 		for val2 := 0; val2 < int(val1); val2++ {
 			var k string
@@ -55,7 +67,7 @@ func (r *ModulePhonyInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) err
 			if err != nil {
 				return err
 			}
-			if val6 > 0 {
+			if val6 != -1 {
 				v = make([]Path, val6)
 				for val7 := 0; val7 < int(val6); val7++ {
 					if val9, err := gobtools.DecodeInterface(ctx, buf); err != nil {

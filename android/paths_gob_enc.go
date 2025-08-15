@@ -65,12 +65,18 @@ func (r OptionalPath) GetTypeId() int16 {
 func (r Paths) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r); val1++ {
-		if err = gobtools.EncodeInterface(ctx, buf, r[val1]); err != nil {
+	if r == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r); val1++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r[val1]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
@@ -84,7 +90,7 @@ func (r *Paths) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	if err != nil {
 		return err
 	}
-	if val2 > 0 {
+	if val2 != -1 {
 		(*r) = make([]Path, val2)
 		for val3 := 0; val3 < int(val2); val3++ {
 			if val5, err := gobtools.DecodeInterface(ctx, buf); err != nil {

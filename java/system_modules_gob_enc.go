@@ -15,12 +15,18 @@ func init() {
 func (r SystemModulesProviderInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.HeaderJars))); err != nil {
-		return err
-	}
-	for val1 := 0; val1 < len(r.HeaderJars); val1++ {
-		if err = gobtools.EncodeInterface(ctx, buf, r.HeaderJars[val1]); err != nil {
+	if r.HeaderJars == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.HeaderJars))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r.HeaderJars); val1++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r.HeaderJars[val1]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -28,12 +34,18 @@ func (r SystemModulesProviderInfo) Encode(ctx gobtools.EncContext, buf *bytes.Bu
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.OutputDirDeps))); err != nil {
-		return err
-	}
-	for val2 := 0; val2 < len(r.OutputDirDeps); val2++ {
-		if err = gobtools.EncodeInterface(ctx, buf, r.OutputDirDeps[val2]); err != nil {
+	if r.OutputDirDeps == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.OutputDirDeps))); err != nil {
+			return err
+		}
+		for val2 := 0; val2 < len(r.OutputDirDeps); val2++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r.OutputDirDeps[val2]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -45,12 +57,18 @@ func (r SystemModulesProviderInfo) Encode(ctx gobtools.EncContext, buf *bytes.Bu
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Libs))); err != nil {
-		return err
-	}
-	for val3 := 0; val3 < len(r.Libs); val3++ {
-		if err = gobtools.EncodeString(buf, r.Libs[val3]); err != nil {
+	if r.Libs == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Libs))); err != nil {
+			return err
+		}
+		for val3 := 0; val3 < len(r.Libs); val3++ {
+			if err = gobtools.EncodeString(buf, r.Libs[val3]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
@@ -64,7 +82,7 @@ func (r *SystemModulesProviderInfo) Decode(ctx gobtools.EncContext, buf *bytes.R
 	if err != nil {
 		return err
 	}
-	if val3 > 0 {
+	if val3 != -1 {
 		r.HeaderJars = make([]android.Path, val3)
 		for val4 := 0; val4 < int(val3); val4++ {
 			if val6, err := gobtools.DecodeInterface(ctx, buf); err != nil {
@@ -90,7 +108,7 @@ func (r *SystemModulesProviderInfo) Decode(ctx gobtools.EncContext, buf *bytes.R
 	if err != nil {
 		return err
 	}
-	if val11 > 0 {
+	if val11 != -1 {
 		r.OutputDirDeps = make([]android.Path, val11)
 		for val12 := 0; val12 < int(val11); val12++ {
 			if val14, err := gobtools.DecodeInterface(ctx, buf); err != nil {
@@ -117,7 +135,7 @@ func (r *SystemModulesProviderInfo) Decode(ctx gobtools.EncContext, buf *bytes.R
 	if err != nil {
 		return err
 	}
-	if val18 > 0 {
+	if val18 != -1 {
 		r.Libs = make([]string, val18)
 		for val19 := 0; val19 < int(val18); val19++ {
 			err = gobtools.DecodeString(buf, &r.Libs[val19])
