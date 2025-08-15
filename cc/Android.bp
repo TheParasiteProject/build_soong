@@ -48,6 +48,7 @@ bootstrap_go_package {
         "sanitize.go",
         "sanitize_gob_enc.go",
         "sabi.go",
+        "sabi_gob_enc.go",
         "sdk.go",
         "snapshot_prebuilt.go",
         "stl.go",

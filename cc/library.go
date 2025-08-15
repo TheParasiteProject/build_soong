@@ -1588,6 +1588,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 		var llndkDump, apexVariantDump android.Path
 		tags := classifySourceAbiDump(ctx.Module().(*Module))
 		optInTags := []lsdumpTag{}
+		lsDumps := TaggedLsDumpsInfo{}
 		for _, tag := range tags {
 			if tag == llndkLsdumpTag && currVendorVersion != "" {
 				if llndkDump == nil {
@@ -1603,7 +1604,7 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 						headerAbiChecker.Exclude_symbol_tags,
 						nativeClampedApiLevel(ctx, sdkVersion).String())
 				}
-				addLsdumpPath(ctx.Config(), tag, llndkDump)
+				lsDumps = append(lsDumps, taggedLsDump{tag, llndkDump})
 			} else if tag == apexLsdumpTag {
 				if apexVariantDump == nil {
 					apexVariantDump = library.linkApexSAbiDumpFiles(ctx,
@@ -1612,14 +1613,15 @@ func (library *libraryDecorator) linkSAbiDumpFiles(ctx ModuleContext, deps PathD
 						headerAbiChecker.Exclude_symbol_tags,
 						currSdkVersion)
 				}
-				addLsdumpPath(ctx.Config(), tag, apexVariantDump)
+				lsDumps = append(lsDumps, taggedLsDump{tag, apexVariantDump})
 			} else {
 				if tag.dirName() == "" {
 					optInTags = append(optInTags, tag)
 				}
-				addLsdumpPath(ctx.Config(), tag, implDump)
+				lsDumps = append(lsDumps, taggedLsDump{tag, implDump})
 			}
 		}
+		android.SetProvider(ctx, TaggedLsDumpsInfoProvider, lsDumps)
 
 		// Diff source dumps and reference dumps.
 		for _, tag := range tags {
