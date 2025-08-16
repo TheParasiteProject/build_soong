@@ -656,6 +656,26 @@ func (d *dexpreoptBootJars) GenerateAndroidBuildActions(ctx android.ModuleContex
 				artBootImageHostInstalls = append(artBootImageHostInstalls, variant.vdexInstalls...)
 			}
 		}
+		// Install boot images for testing on host.
+		symbolsInstallDir := android.PathForModuleInPartitionInstall(ctx, "", "symbols")
+		symbolsInstallHostDir := android.PathForHostInstall(ctx, "", "symbols")
+		for _, variant := range config.variants {
+			for _, install := range variant.unstrippedInstalls {
+				var dst android.WritablePath
+				if variant.target.Os.Class == android.Host {
+					dst = symbolsInstallHostDir.Join(ctx, strings.TrimPrefix(install.To, "/"))
+				} else {
+					dst = symbolsInstallDir.Join(ctx, strings.TrimPrefix(install.To, "/"))
+				}
+				ctx.Build(pctx, android.BuildParams{
+					Rule:   android.Cp,
+					Input:  install.From,
+					Output: dst,
+				})
+				// Add the install to dexpreopt_bootjar.$name_$arch phony
+				ctx.Phony(fmt.Sprintf("dexpreopt_bootjar.%s_%s", config.name, variant.target.Arch.ArchType), dst)
+			}
+		}
 	}
 	if len(profileInstalls) > 0 {
 		android.SetProvider(ctx, profileInstallInfoProvider, profileInstallInfo{

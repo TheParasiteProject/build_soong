@@ -1757,6 +1757,7 @@ func (a *AndroidTest) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		CompatibilitySupportFiles: a.data,
 		NeedsArchFolder:           true,
 		PerTestcaseDirectory:      proptools.Bool(a.testProperties.Per_testcase_directory),
+		IsUnitTest:                Bool(a.testProperties.Test_options.Unit_test),
 	})
 
 	android.SetProvider(ctx, tradefed.BaseTestProviderKey, tradefed.BaseTestProviderData{

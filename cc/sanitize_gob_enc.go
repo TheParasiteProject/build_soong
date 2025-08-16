@@ -74,12 +74,18 @@ func (r SanitizeUserProps) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) er
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Misc_undefined))); err != nil {
-		return err
-	}
-	for val7 := 0; val7 < len(r.Misc_undefined); val7++ {
-		if err = gobtools.EncodeString(buf, r.Misc_undefined[val7]); err != nil {
+	if r.Misc_undefined == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Misc_undefined))); err != nil {
+			return err
+		}
+		for val7 := 0; val7 < len(r.Misc_undefined); val7++ {
+			if err = gobtools.EncodeString(buf, r.Misc_undefined[val7]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -223,21 +229,33 @@ func (r SanitizeUserProps) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) er
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Diag.Misc_undefined))); err != nil {
-		return err
-	}
-	for val22 := 0; val22 < len(r.Diag.Misc_undefined); val22++ {
-		if err = gobtools.EncodeString(buf, r.Diag.Misc_undefined[val22]); err != nil {
+	if r.Diag.Misc_undefined == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Diag.Misc_undefined))); err != nil {
+			return err
+		}
+		for val22 := 0; val22 < len(r.Diag.Misc_undefined); val22++ {
+			if err = gobtools.EncodeString(buf, r.Diag.Misc_undefined[val22]); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Diag.No_recover))); err != nil {
-		return err
-	}
-	for val23 := 0; val23 < len(r.Diag.No_recover); val23++ {
-		if err = gobtools.EncodeString(buf, r.Diag.No_recover[val23]); err != nil {
+	if r.Diag.No_recover == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Diag.No_recover))); err != nil {
+			return err
+		}
+		for val23 := 0; val23 < len(r.Diag.No_recover); val23++ {
+			if err = gobtools.EncodeString(buf, r.Diag.No_recover[val23]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -251,12 +269,18 @@ func (r SanitizeUserProps) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) er
 		}
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Recover))); err != nil {
-		return err
-	}
-	for val25 := 0; val25 < len(r.Recover); val25++ {
-		if err = gobtools.EncodeString(buf, r.Recover[val25]); err != nil {
+	if r.Recover == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Recover))); err != nil {
+			return err
+		}
+		for val25 := 0; val25 < len(r.Recover); val25++ {
+			if err = gobtools.EncodeString(buf, r.Recover[val25]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -358,7 +382,7 @@ func (r *SanitizeUserProps) Decode(ctx gobtools.EncContext, buf *bytes.Reader) e
 	if err != nil {
 		return err
 	}
-	if val20 > 0 {
+	if val20 != -1 {
 		r.Misc_undefined = make([]string, val20)
 		for val21 := 0; val21 < int(val20); val21++ {
 			err = gobtools.DecodeString(buf, &r.Misc_undefined[val21])
@@ -555,7 +579,7 @@ func (r *SanitizeUserProps) Decode(ctx gobtools.EncContext, buf *bytes.Reader) e
 	if err != nil {
 		return err
 	}
-	if val67 > 0 {
+	if val67 != -1 {
 		r.Diag.Misc_undefined = make([]string, val67)
 		for val68 := 0; val68 < int(val67); val68++ {
 			err = gobtools.DecodeString(buf, &r.Diag.Misc_undefined[val68])
@@ -570,7 +594,7 @@ func (r *SanitizeUserProps) Decode(ctx gobtools.EncContext, buf *bytes.Reader) e
 	if err != nil {
 		return err
 	}
-	if val71 > 0 {
+	if val71 != -1 {
 		r.Diag.No_recover = make([]string, val71)
 		for val72 := 0; val72 < int(val71); val72++ {
 			err = gobtools.DecodeString(buf, &r.Diag.No_recover[val72])
@@ -598,7 +622,7 @@ func (r *SanitizeUserProps) Decode(ctx gobtools.EncContext, buf *bytes.Reader) e
 	if err != nil {
 		return err
 	}
-	if val79 > 0 {
+	if val79 != -1 {
 		r.Recover = make([]string, val79)
 		for val80 := 0; val80 < int(val79); val80++ {
 			err = gobtools.DecodeString(buf, &r.Recover[val80])

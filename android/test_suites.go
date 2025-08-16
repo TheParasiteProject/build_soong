@@ -58,6 +58,9 @@ type TestSuiteInfo struct {
 
 	// Eqivalent of LOCAL_DISABLE_TEST_CONFIG in make
 	DisableTestConfig bool
+
+	// Eqivalent of LOCAL_IS_UNIT_TEST in make
+	IsUnitTest bool
 }
 
 var TestSuiteInfoProvider = blueprint.NewProvider[TestSuiteInfo]()

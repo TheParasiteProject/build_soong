@@ -140,12 +140,18 @@ func (r FuzzPackagedModuleInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffe
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Corpus))); err != nil {
-		return err
-	}
-	for val2 := 0; val2 < len(r.Corpus); val2++ {
-		if err = gobtools.EncodeInterface(ctx, buf, r.Corpus[val2]); err != nil {
+	if r.Corpus == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Corpus))); err != nil {
+			return err
+		}
+		for val2 := 0; val2 < len(r.Corpus); val2++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r.Corpus[val2]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -153,12 +159,18 @@ func (r FuzzPackagedModuleInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffe
 		return err
 	}
 
-	if err = gobtools.EncodeSimple(buf, int32(len(r.Data))); err != nil {
-		return err
-	}
-	for val3 := 0; val3 < len(r.Data); val3++ {
-		if err = gobtools.EncodeInterface(ctx, buf, r.Data[val3]); err != nil {
+	if r.Data == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
 			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.Data))); err != nil {
+			return err
+		}
+		for val3 := 0; val3 < len(r.Data); val3++ {
+			if err = gobtools.EncodeInterface(ctx, buf, r.Data[val3]); err != nil {
+				return err
+			}
 		}
 	}
 	return err
@@ -192,7 +204,7 @@ func (r *FuzzPackagedModuleInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val8 > 0 {
+	if val8 != -1 {
 		r.Corpus = make([]android.Path, val8)
 		for val9 := 0; val9 < int(val8); val9++ {
 			if val11, err := gobtools.DecodeInterface(ctx, buf); err != nil {
@@ -218,7 +230,7 @@ func (r *FuzzPackagedModuleInfo) Decode(ctx gobtools.EncContext, buf *bytes.Read
 	if err != nil {
 		return err
 	}
-	if val16 > 0 {
+	if val16 != -1 {
 		r.Data = make([]android.Path, val16)
 		for val17 := 0; val17 < int(val16); val17++ {
 			if val19, err := gobtools.DecodeInterface(ctx, buf); err != nil {
