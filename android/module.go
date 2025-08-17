@@ -86,6 +86,7 @@ type Module interface {
 	InstallInSanitizerDir() bool
 	InstallInRamdisk() bool
 	InstallInVendorRamdisk() bool
+	InstallPathSkipFirstStageRamdisk() bool
 	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
 	InstallInRecovery() bool
@@ -415,6 +416,9 @@ type commonProperties struct {
 
 	// Whether this module is installed to vendor ramdisk
 	Vendor_ramdisk *bool
+
+	// Whether the install path skips first_stage_ramdisk subdirectory.
+	Install_path_skip_first_stage_ramdisk_dir *bool
 
 	// Whether this module is installed to vendor kernel ramdisk
 	Vendor_kernel_ramdisk *bool
@@ -1583,6 +1587,10 @@ func (m *ModuleBase) InstallInRamdisk() bool {
 
 func (m *ModuleBase) InstallInVendorRamdisk() bool {
 	return Bool(m.commonProperties.Vendor_ramdisk)
+}
+
+func (m *ModuleBase) InstallPathSkipFirstStageRamdisk() bool {
+	return Bool(m.commonProperties.Install_path_skip_first_stage_ramdisk_dir)
 }
 
 func (m *ModuleBase) InstallInVendorKernelRamdisk() bool {
