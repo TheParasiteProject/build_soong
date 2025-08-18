@@ -393,7 +393,7 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, kernel android.Path)
 
 	ramdiskName := proptools.String(b.properties.Ramdisk_module)
 	if ramdiskName != "" {
-		ramdisk := ctx.GetDirectDepWithTag(ramdiskName, bootimgRamdiskDep)
+		ramdisk := ctx.GetDirectDepProxyWithTag(ramdiskName, bootimgRamdiskDep)
 		if fsInfo, ok := android.OtherModuleProvider(ctx, ramdisk, FilesystemProvider); ok {
 			flag := "--ramdisk "
 			if b.bootImageType.isVendorBoot() || b.bootImageType.isVendorKernelBoot() {

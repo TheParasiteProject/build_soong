@@ -625,7 +625,7 @@ func CheckModuleHasDependency(t *testing.T, ctx *android.TestContext, name, vari
 func CheckModuleHasDependencyWithTag(t *testing.T, ctx *android.TestContext, name, variant string, desiredTag blueprint.DependencyTag, expected string) bool {
 	module := ctx.ModuleForTests(t, name, variant).Module()
 	found := false
-	ctx.VisitDirectDepsWithTags(module, func(m blueprint.Module, tag blueprint.DependencyTag) {
+	ctx.VisitDirectDepsProxiesWithTags(module, func(m blueprint.ModuleProxy, tag blueprint.DependencyTag) {
 		if tag == desiredTag && m.Name() == expected {
 			found = true
 		}
