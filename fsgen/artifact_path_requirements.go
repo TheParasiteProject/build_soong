@@ -57,7 +57,15 @@ func ArtifactPathRequirementsVerifierFactory() android.Singleton {
 
 // Replace the Make-defined path place-holder. Add a wildcard suffix if paths are prefixes.
 func resolveMakeRelativePaths(cfg android.DeviceConfig, paths []string, suffix string) (ret []string) {
-	replacer := strings.NewReplacer("||VENDOR-PATH-PH||", cfg.VendorPath(), "||PRODUCT-PATH-PH||", cfg.ProductPath(), "||SYSTEM_EXT-PATH-PH||", cfg.SystemExtPath(), "||ODM-PATH-PH||", cfg.OdmPath())
+	replacer := strings.NewReplacer(
+		"||VENDOR-PATH-PH||", cfg.VendorPath(),
+		"||PRODUCT-PATH-PH||", cfg.ProductPath(),
+		"||SYSTEM_EXT-PATH-PH||", cfg.SystemExtPath(),
+		"||ODM-PATH-PH||", cfg.OdmPath(),
+		"||VENDOR_DLKM-PATH-PH||", cfg.VendorDlkmPath(),
+		"||ODM_DLKM-PATH-PH||", cfg.OdmDlkmPath(),
+		"||SYSTEM_DLKM-PATH-PH||", cfg.SystemDlkmPath(),
+	)
 	for _, path := range paths {
 		ret = append(ret, replacer.Replace(path)+suffix)
 	}

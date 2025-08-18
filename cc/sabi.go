@@ -20,22 +20,13 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 
 	"android/soong/android"
 	"android/soong/cc/config"
+	"github.com/google/blueprint"
 )
 
-var (
-	lsdumpPathsLock sync.Mutex
-	lsdumpKey       = android.NewOnceKey("lsdump")
-)
-
-func lsdumpPaths(config android.Config) *[]taggedLsDump {
-	return config.Once(lsdumpKey, func() any {
-		return &[]taggedLsDump{}
-	}).(*[]taggedLsDump)
-}
+//go:generate go run ../../blueprint/gobtools/codegen/gob_gen.go
 
 type lsdumpTag string
 
@@ -59,10 +50,16 @@ func (tag *lsdumpTag) dirName() string {
 	}
 }
 
+// @auto-generate: gob
 type taggedLsDump struct {
 	tag      lsdumpTag
 	dumpFile android.Path
 }
+
+// @auto-generate: gob
+type TaggedLsDumpsInfo []taggedLsDump
+
+var TaggedLsDumpsInfoProvider = blueprint.NewProvider[TaggedLsDumpsInfo]()
 
 // Properties for ABI compatibility checker in Android.bp.
 type headerAbiCheckerProperties struct {
@@ -305,21 +302,13 @@ func (s *sabiTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, varia
 	}
 }
 
-// Add an entry to the global list of lsdump. Any prebuilt lsdump files that aren't also
-// available when building from source (as determined by this list) will trigger an error in
-// check-abi-dump-list.
-func addLsdumpPath(config android.Config, tag lsdumpTag, lsdumpPath android.Path) {
-	lsdumpPaths := lsdumpPaths(config)
-	lsdumpPathsLock.Lock()
-	defer lsdumpPathsLock.Unlock()
-	*lsdumpPaths = append(*lsdumpPaths, taggedLsDump{
-		tag:      tag,
-		dumpFile: lsdumpPath,
-	})
-}
-
 func checkAbiDumpList(ctx android.SingletonContext, stubLibraries []string) {
-	lsdumpPaths := *lsdumpPaths(ctx.Config())
+	lsdumpPaths := TaggedLsDumpsInfo{}
+	ctx.VisitAllModuleProxies(func(module android.ModuleProxy) {
+		if lsDumps, ok := android.OtherModuleProvider(ctx, module, TaggedLsDumpsInfoProvider); ok {
+			lsdumpPaths = append(lsdumpPaths, lsDumps...)
+		}
+	})
 	// Need to sort lsdumpPaths because many threads add to it in a random order
 	sort.Slice(lsdumpPaths, func(i, j int) bool {
 		tagCompare := strings.Compare(string(lsdumpPaths[i].tag), string(lsdumpPaths[j].tag))
