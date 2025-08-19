@@ -19,8 +19,6 @@ import (
 	"runtime"
 	"strings"
 
-	_ "github.com/google/blueprint/bootstrap"
-
 	"android/soong/android"
 	"android/soong/remoteexec"
 )
@@ -78,8 +76,6 @@ var (
 )
 
 func init() {
-	pctx.Import("github.com/google/blueprint/bootstrap")
-
 	pctx.StaticVariable("JavacHeapSize", "4096M")
 	pctx.StaticVariable("JavacHeapFlags", "-J-Xmx${JavacHeapSize}")
 
