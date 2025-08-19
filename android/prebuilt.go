@@ -546,7 +546,7 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 			// But all prebuilts have the same value of the provider, so this should be idempontent.
 			psi, _ = OtherModuleProvider(ctx, am, PrebuiltSelectionInfoProvider)
 		})
-		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
+		ctx.visitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
 			p := GetEmbeddedPrebuilt(prebuiltModule)
 			if p.usePrebuilt(ctx, s, prebuiltModule) {
 				// skip the check when the source module is `override_X` because it's only a placeholder
@@ -568,7 +568,7 @@ func PrebuiltSelectModuleMutator(ctx BottomUpMutatorContext) {
 		// Add source
 		allModules := []Module{s}
 		// Add each prebuilt
-		ctx.VisitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
+		ctx.visitDirectDepsWithTag(PrebuiltDepTag, func(prebuiltModule Module) {
 			allModules = append(allModules, prebuiltModule)
 		})
 		hideUnflaggedModules(ctx, psi, allModules)
