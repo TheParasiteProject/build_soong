@@ -294,6 +294,16 @@ java_import {
 	android.AssertBoolEquals(t, "prebuiltA should not appear in deps because it has been overridden by prebuiltB. The latter is listed in PRODUCT_PACKAGES", false, prebuiltAInDeps)
 }
 
+func getModuleProp[T string | bool](m android.Module, matcher func(actual interface{}) T) T {
+	var defaultVal T
+	for _, prop := range m.GetProperties() {
+		if str := matcher(prop); str != defaultVal {
+			return str
+		}
+	}
+	return defaultVal
+}
+
 func TestPrebuiltEtcModuleGen(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		android.PrepareForIntegrationTestWithAndroid,
@@ -315,6 +325,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 				"device/sample/firmware/firmware.bin:recovery/root/firmware-2.bin",
 				"device/sample/firmware/firmware.bin:recovery/root/lib/firmware/firmware.bin",
 				"device/sample/firmware/firmware.bin:recovery/root/lib/firmware/firmware-2.bin",
+				"packages/services/Car/car_product/init/init.car.rc:root/init.car.rc",
 			}
 			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.PartitionQualifiedVariables =
 				map[string]android.PartitionQualifiedVariablesType{
@@ -337,21 +348,12 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 			"frameworks/base/data/keyboards/Vendor_0079_Product_18d4.kl": nil,
 			"device/sample/etc/apns-full-conf.xml":                       nil,
 			"device/sample/firmware/firmware.bin":                        nil,
+			"packages/services/Car/car_product/init/init.car.rc":         nil,
 		}),
 	).RunTest(t)
 
-	getModuleProp := func(m android.Module, matcher func(actual interface{}) string) string {
-		for _, prop := range m.GetProperties() {
-
-			if str := matcher(prop); str != "" {
-				return str
-			}
-		}
-		return ""
-	}
-
 	// check generated prebuilt_* module type install path and install partition
-	generatedModule := result.ModuleForTests(t, "system-frameworks_base_config-etc-0", "android_arm64_armv8-a").Module()
+	generatedModule := result.ModuleForTests(t, "system-frameworks_base_config-system_etc-0", "android_arm64_armv8-a").Module()
 	etcModule := generatedModule.(*etc.PrebuiltEtc)
 	android.AssertStringEquals(
 		t,
@@ -369,7 +371,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 	)
 
 	// check generated prebuilt_* module specifies correct relative_install_path property
-	generatedModule = result.ModuleForTests(t, "system-frameworks_base_data_keyboards-usr_keylayout_subdir-0", "android_arm64_armv8-a").Module()
+	generatedModule = result.ModuleForTests(t, "system-frameworks_base_data_keyboards-system_usr_keylayout_subdir-0", "android_arm64_armv8-a").Module()
 	etcModule = generatedModule.(*etc.PrebuiltEtc)
 	android.AssertStringEquals(
 		t,
@@ -418,7 +420,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 	)
 
 	// check that duplicate src file can exist in PRODUCT_COPY_FILES and generates separate modules
-	generatedModule0 := result.ModuleForTests(t, "product-device_sample_etc-etc-0", "android_arm64_armv8-a").Module()
+	generatedModule0 := result.ModuleForTests(t, "product-device_sample_etc-product_etc-0", "android_arm64_armv8-a").Module()
 	generatedModule1 := result.ModuleForTests(t, "product-device_sample_etc-etc-1", "android_arm64_armv8-a").Module()
 
 	// check that generated prebuilt_* module sets correct srcs and dsts property
@@ -483,7 +485,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 		}),
 	)
 
-	generatedModule0 = result.ModuleForTests(t, "system-device_sample_etc-foo-0", "android_common").Module()
+	generatedModule0 = result.ModuleForTests(t, "system-device_sample_etc-system_foo-0", "android_common").Module()
 	generatedModule1 = result.ModuleForTests(t, "system-device_sample_etc-foo-1", "android_common").Module()
 
 	// check that generated prebuilt_* module sets correct srcs and dsts property
@@ -549,7 +551,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 		}),
 	)
 
-	generatedModule0 = result.ModuleForTests(t, "recovery-device_sample_firmware-0", "android_recovery_arm64_armv8-a").Module()
+	generatedModule0 = result.ModuleForTests(t, "recovery-device_sample_firmware-recovery_root-0", "android_recovery_arm64_armv8-a").Module()
 	generatedModule1 = result.ModuleForTests(t, "recovery-device_sample_firmware-1", "android_recovery_common").Module()
 
 	// check generated prebuilt_* module specifies correct install path and relative install path
@@ -616,7 +618,7 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 		}),
 	)
 
-	generatedModule0 = result.ModuleForTests(t, "recovery-device_sample_firmware-lib_firmware-0", "android_recovery_common").Module()
+	generatedModule0 = result.ModuleForTests(t, "recovery-device_sample_firmware-recovery_root_lib_firmware-0", "android_recovery_common").Module()
 	generatedModule1 = result.ModuleForTests(t, "recovery-device_sample_firmware-lib_firmware-1", "android_recovery_common").Module()
 
 	// check generated prebuilt_* module specifies correct install path and relative install path
@@ -680,6 +682,20 @@ func TestPrebuiltEtcModuleGen(t *testing.T) {
 				}
 			}
 			return ""
+		}),
+	)
+
+	generatedModule0 = result.ModuleForTests(t, "system-packages_services_Car_car_product_init-root-0", "android_arm64_armv8-a").Module()
+
+	android.AssertBoolEquals(
+		t,
+		"module expected to set install_in_root property",
+		true,
+		getModuleProp(generatedModule0, func(actual interface{}) bool {
+			if p, ok := actual.(*etc.PrebuiltRootProperties); ok {
+				return proptools.Bool(p.Install_in_root)
+			}
+			return false
 		}),
 	)
 }
