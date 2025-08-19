@@ -116,6 +116,7 @@ fun BTACompilation(opts: ClientOptions): CompilationResult {
             kotlincArgs.add("-module-name")
             kotlincArgs.add(opts.buildFileModuleName!!)
         }
+        kotlincArgs.add("-Xfriend-paths=" + opts.buildFileFriendDirs.joinToString(","))
     }
     kotlincArgs.add("-d=${opts.outputDir.absolutePath}")
     kotlincArgs.addAll(opts.passThroughArgs)
