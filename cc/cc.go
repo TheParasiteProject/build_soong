@@ -304,6 +304,8 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 	})
 
 	ctx.PostDepsMutators(func(ctx android.RegisterMutatorsContext) {
+		ctx.BottomUp("sanitize_markapexes", markSanitizableApexesMutator)
+
 		for _, san := range Sanitizers {
 			san.registerMutators(ctx)
 		}
