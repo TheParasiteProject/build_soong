@@ -382,10 +382,13 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, kernel android.Path)
 		ctx.PropertyErrorf("header_version", "%q is not a number", headerVersion)
 		return output
 	}
-	if verNum < 3 {
-		ctx.PropertyErrorf("header_version", "must be 3 or higher for vendor_boot")
-		return output
+	if b.bootImageType.isVendorBoot() {
+		if verNum < 3 {
+			ctx.PropertyErrorf("header_version", "must be 3 or higher for vendor_boot")
+			return output
+		}
 	}
+
 	cmd.FlagWithArg("--header_version ", headerVersion)
 
 	ramdiskName := proptools.String(b.properties.Ramdisk_module)
