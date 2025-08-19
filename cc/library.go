@@ -2536,7 +2536,7 @@ func (versionTransitionMutator) Mutate(ctx android.BottomUpMutatorContext, varia
 			}
 		}
 	} else if ok && m.SplitPerApiLevel() && m.IsSdkVariant() {
-		m.SetSdkVersion(variation)
+		m.SetSdkVersion(StringPtr(variation))
 		m.SetMinSdkVersion(variation)
 	}
 }
