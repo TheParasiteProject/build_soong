@@ -112,6 +112,8 @@ type filesystem struct {
 
 	selinuxFc android.Path
 	avbKey    android.Path
+
+	overriddenModulesPackagingSpecs map[string]depset.DepSet[android.PackagingSpec]
 }
 
 type filesystemBuilder interface {
@@ -126,6 +128,10 @@ type filesystemBuilder interface {
 	// Function to check if the filesystem should not use `vintf_fragments` property,
 	// but use `vintf_fragment` module type instead
 	ShouldUseVintfFragmentModuleOnly() bool
+
+	// Function to filter overridden modules' transtive packaging specs DepSet in
+	// PackagingBase.GatherPackagingSpecs()
+	FilterOverriddenModulesTransitivePackagingSpecs(depset.DepSet[android.PackagingSpec]) depset.DepSet[android.PackagingSpec]
 }
 
 var _ filesystemBuilder = (*filesystem)(nil)
@@ -629,6 +635,25 @@ func (f *filesystem) ModifyPackagingSpec(ps *android.PackagingSpec) {
 	}
 }
 
+func (f *filesystem) FilterOverriddenModulesTransitivePackagingSpecs(transitivePackagingSpecs depset.DepSet[android.PackagingSpec]) depset.DepSet[android.PackagingSpec] {
+
+	// We cannot naively set minus all depset of overridden modules, as that might lead to
+	// removing transitive deps that are referenced by other modules. Instead, find whether
+	// the owner of the transitive packaging specs match any of the modules listed in
+	// `overridden_deps` and then perform set minus on the discovered overridden transitive deps.
+	var overriddenModulesForDepSet []string
+	for _, ps := range transitivePackagingSpecs.ToList() {
+		if _, ok := f.overriddenModulesPackagingSpecs[ps.Owner()]; ok {
+			overriddenModulesForDepSet = append(overriddenModulesForDepSet, ps.Owner())
+		}
+	}
+
+	for _, overriddenModuleName := range overriddenModulesForDepSet {
+		transitivePackagingSpecs = transitivePackagingSpecs.SetMinus(f.overriddenModulesPackagingSpecs[overriddenModuleName])
+	}
+	return transitivePackagingSpecs
+}
+
 func buildInstalledFiles(ctx android.ModuleContext, partition string, rootDir android.Path, image android.Path) InstalledFilesStruct {
 	fileName := "installed-files"
 	if len(partition) > 0 {
@@ -672,6 +697,13 @@ func (f *filesystem) updateAvbInFsInfo(ctx android.ModuleContext, fsInfo *Filesy
 	}
 }
 
+func (f *filesystem) gatherOverriddenModulesPackagingSpecs(ctx android.ModuleContext) {
+	f.overriddenModulesPackagingSpecs = make(map[string]depset.DepSet[android.PackagingSpec])
+	ctx.VisitDirectDepsProxyWithTag(android.OverriddenModuleDepTag, func(proxy android.ModuleProxy) {
+		f.overriddenModulesPackagingSpecs[proxy.Name()] = android.OtherModuleProviderOrDefault(ctx, proxy, android.InstallFilesProvider).TransitivePackagingSpecs
+	})
+}
+
 func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	validatePartitionType(ctx, f)
 	if f.filesystemBuilder.ShouldUseVintfFragmentModuleOnly() {
@@ -691,6 +723,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Wipe the root dir to get rid of leftover files from prior builds
 	builder.Command().Textf("rm -rf %s && mkdir -p %s", rootDir, rootDir)
+	f.gatherOverriddenModulesPackagingSpecs(ctx)
 	specs := f.gatherFilteredPackagingSpecs(ctx)
 
 	var fullInstallPaths []FullInstallPathInfo
@@ -1752,7 +1785,7 @@ func (f *filesystem) SignedOutputPath() android.Path {
 // Note that "apex" module installs its contents to "apex"(fake partition) as well
 // for symbol lookup by imitating "activated" paths.
 func (f *filesystem) gatherFilteredPackagingSpecs(ctx android.ModuleContext) map[string]android.PackagingSpec {
-	return f.PackagingBase.GatherPackagingSpecsWithFilterAndModifier(ctx, f.filesystemBuilder.FilterPackagingSpec, f.filesystemBuilder.ModifyPackagingSpec)
+	return f.PackagingBase.GatherPackagingSpecsWithFilterAndModifier(ctx, f.filesystemBuilder.FilterOverriddenModulesTransitivePackagingSpecs, f.filesystemBuilder.FilterPackagingSpec, f.filesystemBuilder.ModifyPackagingSpec)
 }
 
 func (f *filesystem) gatherOwners(specs map[string]android.PackagingSpec) []InstalledModuleInfo {
@@ -1788,7 +1821,7 @@ func (f *filesystem) systemOtherFiles(ctx android.ModuleContext) map[string]andr
 		spec.SetRelPathInPackage(strings.TrimPrefix(spec.RelPathInPackage(), "system_other/"))
 		spec.SetPartition("system_other")
 	}
-	return f.PackagingBase.GatherPackagingSpecsWithFilterAndModifier(ctx, filter, modifier)
+	return f.PackagingBase.GatherPackagingSpecsWithFilterAndModifier(ctx, nil, filter, modifier)
 }
 
 func sha1sum(values []string) string {

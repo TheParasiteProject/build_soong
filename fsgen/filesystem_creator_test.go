@@ -40,6 +40,51 @@ var prepareMockRamdiksNodeList = android.FixtureMergeMockFs(android.MockFS{
 	`),
 })
 
+var prepareForTestWithDefaultSystemDeps = android.GroupFixturePreparers(
+	phony.PrepareForTestWithPhony,
+	android.FixtureMergeMockFs(android.MockFS{
+		"system/core/rootdir/etc/linker.config.json": nil,
+		"deps/Android.bp": []byte(`
+		phony {
+			name: "com.android.apex.cts.shim.v1_prebuilt",
+		}
+		phony {
+			name: "dex_bootjars",
+		}
+		phony {
+			name: "framework_compatibility_matrix.device.xml",
+		}
+		phony {
+			name: "init.environ.rc-soong",
+		}
+		phony {
+			name: "libdmabufheap",
+		}
+		phony {
+			name: "libgsi",
+		}
+		phony {
+			name: "llndk.libraries.txt",
+		}
+		phony {
+			name: "logpersist.start",
+		}
+		phony {
+			name: "notice_xml_system",
+		}
+		phony {
+			name: "system_dlkm-build.prop",
+		}
+		phony {
+			name: "update_engine_sideload",
+		}
+		phony {
+			name: "file_contexts_bin_gen",
+		}
+	`)},
+	),
+)
+
 func TestFileSystemCreatorSystemImageProps(t *testing.T) {
 	result := android.GroupFixturePreparers(
 		android.PrepareForIntegrationTestWithAndroid,
@@ -810,6 +855,75 @@ func TestCrossPartitionRequiredModules(t *testing.T) {
 		strings.Join(systemExtStagingDirImplicitDeps.Strings(), " "),
 		"mynamespace/some-permissions/android_arm64_armv8-a/default-permissions.xml",
 	)
+}
+
+func TestOverriddenDepsAreAddedToFilesystemModuleOverriddenDeps(t *testing.T) {
+	result := android.GroupFixturePreparers(
+		android.PrepareForIntegrationTestWithAndroid,
+		android.PrepareForTestWithAndroidBuildComponents,
+		android.PrepareForTestWithAllowMissingDependencies,
+		prepareForTestWithFsgenBuildComponents,
+		java.PrepareForTestWithJavaBuildComponents,
+		prepareMockRamdiksNodeList,
+		prepareForTestWithDefaultSystemDeps,
+		android.FixtureMergeMockFs(android.MockFS{
+			"external/avb/test/data/testkey_rsa4096.pem": nil,
+			"build/soong/fsgen/Android.bp": []byte(`
+			soong_filesystem_creator {
+				name: "foo",
+			}
+			`),
+			"A.java": nil,
+		}),
+		android.FixtureModifyConfig(func(config android.Config) {
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"libbar", "libbaz"})
+			config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.PartitionQualifiedVariables =
+				map[string]android.PartitionQualifiedVariablesType{
+					"system": {
+						BoardFileSystemType: "ext4",
+						BuildingImage:       true,
+					},
+					"vendor": {
+						BoardFileSystemType: "ext4",
+						BuildingImage:       true,
+					},
+				}
+		}),
+	).RunTestWithBp(t, `
+java_library {
+	name: "libfoo",
+	srcs: ["A.java"],
+	installable: true,
+}
+android_app {
+	name: "libbar",
+	srcs: ["A.java"],
+	required: ["libfoo"],
+	installable: true,
+	platform_apis: true,
+}
+java_library {
+	name: "libbaz",
+	overrides: ["libfoo"],
+	vendor: true,
+	sdk_version: "current",
+	srcs: ["A.java"],
+	installable: true,
+}
+	`)
+	systemImg := result.ModuleForTests(t, "test_product_generated_system_image", "android_common")
+	var packagingProps android.PackagingProperties
+	for _, prop := range systemImg.Module().GetProperties() {
+		if packagingPropStruct, ok := prop.(*android.PackagingProperties); ok {
+			packagingProps = *packagingPropStruct
+		}
+	}
+
+	android.AssertStringListContains(t, "Overridden module expected to be in overridden_deps", packagingProps.Overridden_deps, "libfoo")
+
+	systemImgStagingDirImplicitDeps := strings.Join(systemImg.Output("staging_dir.timestamp").Implicits.Strings(), " ")
+	android.AssertStringDoesContain(t, "system image should install libbar", systemImgStagingDirImplicitDeps, "libbar.apk")
+	android.AssertStringDoesNotContain(t, "system image should not install libfoo", systemImgStagingDirImplicitDeps, "libfoo.jar")
 }
 
 func TestCrossPartitionSharedLibDeps(t *testing.T) {
