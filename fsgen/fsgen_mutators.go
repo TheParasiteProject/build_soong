@@ -242,10 +242,11 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 					"fs_config_files_odm_dlkm": defaultDepCandidateProps(ctx.Config()),
 					"notice_xml_odm_dlkm":      defaultDepCandidateProps(ctx.Config()),
 				},
-				"ramdisk":               {},
-				"vendor_ramdisk":        {},
-				"vendor_ramdisk-debug":  {},
-				"vendor_kernel_ramdisk": {},
+				"ramdisk":                     {},
+				"vendor_ramdisk":              {},
+				"vendor_ramdisk-debug":        {},
+				"vendor_ramdisk-test-harness": {},
+				"vendor_kernel_ramdisk":       {},
 				"recovery": {
 					"sepolicy.recovery":                     defaultDepCandidateProps(ctx.Config()),
 					"plat_file_contexts.recovery":           defaultDepCandidateProps(ctx.Config()),
@@ -265,6 +266,9 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 				},
 				"debug_ramdisk": {
 					"force_debuggable": defaultDepCandidateProps(ctx.Config()),
+				}, // TODO: move this to PRODUCT_PACKAGES
+				"test_harness_ramdisk": {
+					"adb_debug.test_harness.prop": defaultDepCandidateProps(ctx.Config()),
 				}, // TODO: move this to PRODUCT_PACKAGES
 			},
 			fsDepsMutex: sync.Mutex{},
