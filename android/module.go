@@ -1789,6 +1789,11 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		phony("-phony-files", Paths{modulePhonyTarget})
 	}
 
+	if ctx.Device() && ctx.Target().Arch.ArchType != ctx.Config().DevicePrimaryArchType() {
+		// Don't check build target module defined for the 2nd arch.
+		// https://source.corp.google.com/h/googleplex-android/platform/build/+/62ad5dbbffb05d4fc8d1136f753d42f40eadccd1:core/base_rules.mk;l=641-646;drc=d535e6f290f00c86babfa006167bf5055303e4c7;bpv=1;bpt=0
+		ctx.UncheckedModule()
+	}
 	// A module's -checkbuild phony targets should
 	// not be created if the module is not exported to make.
 	// Those could depend on the build target and fail to compile

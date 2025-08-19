@@ -2739,6 +2739,12 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	if !c.hideApexVariantFromMake && !c.Properties.HideFromMake {
 		c.collectSymbolsInfo(ctx)
+	} else {
+		// Historically, make packaging has been responsible for creating the
+		// checkbuild dependencies.
+		// If a module is hidden from make, it will be hidden from checkbuild as well.
+		// Port this behavior to soong-only checkbuild.
+		ctx.UncheckedModule()
 	}
 
 	ctx.FreeModuleAfterGenerateBuildActions()
