@@ -67,8 +67,7 @@ func appendIfCorrectInstallPartition(partitionToInstallPathList []partitionToIns
 		installPath := part.installPath
 
 		if isSubdirectory(installPath, destPath) {
-			relativeInstallPath, _ := filepath.Rel(installPath, destPath)
-			relativeInstallDir := filepath.Dir(relativeInstallPath)
+			installDir := filepath.Dir(destPath)
 			var srcMap map[string][]srcBaseFileInstallBaseFileTuple
 			switch partition {
 			case "system":
@@ -87,7 +86,7 @@ func appendIfCorrectInstallPartition(partitionToInstallPathList []partitionToIns
 				srcMap = srcGroup.vendor_ramdisk
 			}
 			if srcMap != nil {
-				srcMap[relativeInstallDir] = append(srcMap[relativeInstallDir], srcBaseFileInstallBaseFileTuple{
+				srcMap[installDir] = append(srcMap[installDir], srcBaseFileInstallBaseFileTuple{
 					srcBaseFile:     filepath.Base(srcPath),
 					installBaseFile: filepath.Base(destPath),
 				})
@@ -133,10 +132,7 @@ type partitionToInstallPath struct {
 	installPath string
 }
 
-func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSrcGroupByInstallPartition {
-	// Filter out duplicate dest entries and non existing src entries
-	productCopyFileMap := uniqueExistingProductCopyFileMap(ctx)
-
+func getPartitionToInstallPathList(ctx android.LoadHookContext) []partitionToInstallPath {
 	vendorRamdiskPartition := "vendor_ramdisk"
 	if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
 		vendorRamdiskPartition = "vendor_ramdisk/first_stage_ramdisk"
@@ -151,7 +147,15 @@ func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSr
 		{name: "product", installPath: ctx.DeviceConfig().ProductPath()},
 		{name: "system_ext", installPath: ctx.DeviceConfig().SystemExtPath()},
 		{name: "system", installPath: "system"},
+		{name: "system", installPath: "root"},
 	}
+
+	return partitionToInstallPathList
+}
+
+func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSrcGroupByInstallPartition {
+	// Filter out duplicate dest entries and non existing src entries
+	productCopyFileMap := uniqueExistingProductCopyFileMap(ctx)
 
 	groupedSources := map[string]*prebuiltSrcGroupByInstallPartition{}
 	for _, src := range android.SortedKeys(productCopyFileMap) {
@@ -161,7 +165,7 @@ func processProductCopyFiles(ctx android.LoadHookContext) map[string]*prebuiltSr
 			groupedSources[srcFileDir] = newPrebuiltSrcGroupByInstallPartition()
 		}
 		for _, dest := range destFiles {
-			appendIfCorrectInstallPartition(partitionToInstallPathList, dest, filepath.Base(src), groupedSources[srcFileDir])
+			appendIfCorrectInstallPartition(getPartitionToInstallPathList(ctx), dest, filepath.Base(src), groupedSources[srcFileDir])
 		}
 	}
 
@@ -323,18 +327,6 @@ func prebuiltEtcModuleProps(ctx android.LoadHookContext, moduleName, partition, 
 func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition, srcDir, destDir string, destFiles []srcBaseFileInstallBaseFileTuple) (moduleNames []string) {
 	groupedDestFiles, maxLen := groupDestFilesBySrc(destFiles)
 
-	// Find out the most appropriate module type to generate
-	var etcInstallPathKey string
-	for _, etcInstallPath := range android.SortedKeys(etcInstallPathToFactoryList) {
-		// Do not break when found but iterate until the end to find a module with more
-		// specific install path
-		if strings.HasPrefix(destDir, etcInstallPath) {
-			etcInstallPathKey = etcInstallPath
-		}
-	}
-	moduleFactory := etcInstallPathToFactoryList[etcInstallPathKey]
-	relDestDirFromInstallDirBase, _ := filepath.Rel(etcInstallPathKey, destDir)
-
 	for fileIndex := range maxLen {
 		srcTuple := []srcBaseFileInstallBaseFileTuple{}
 		for _, srcFile := range android.SortedKeys(groupedDestFiles) {
@@ -345,6 +337,28 @@ func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition,
 		}
 
 		moduleName := generatedPrebuiltEtcModuleName(partition, srcDir, destDir, fileIndex)
+
+		var firstInstallPath string
+		for _, pi := range getPartitionToInstallPathList(ctx) {
+			if isSubdirectory(pi.installPath, destDir) {
+				destDir, _ = filepath.Rel(pi.installPath, destDir)
+				firstInstallPath = pi.installPath
+				break
+			}
+		}
+
+		// Find out the most appropriate module type to generate
+		var etcInstallPathKey string
+		for _, etcInstallPath := range android.SortedKeys(etcInstallPathToFactoryList) {
+			// Do not break when found but iterate until the end to find a module with more
+			// specific install path
+			if strings.HasPrefix(destDir, etcInstallPath) {
+				etcInstallPathKey = etcInstallPath
+			}
+		}
+		moduleFactory := etcInstallPathToFactoryList[etcInstallPathKey]
+		relDestDirFromInstallDirBase, _ := filepath.Rel(etcInstallPathKey, destDir)
+
 		moduleProps := prebuiltEtcModuleProps(ctx, moduleName, partition, destDir)
 		modulePropsPtr := &moduleProps
 		propsList := []interface{}{modulePropsPtr}
@@ -363,7 +377,8 @@ func createPrebuiltEtcModulesInDirectory(ctx android.LoadHookContext, partition,
 		// default (See modulePartition() in android/paths.go). If the destination file
 		// directory is not `recovery/root/system/...`, it should set install_in_root to true
 		// to prevent being installed in `recovery/root/system`.
-		if partition == "recovery" && !strings.HasPrefix(destDir, "system") {
+		if (partition == "recovery" && !strings.HasPrefix(destDir, "system")) ||
+			(partition == "system" && firstInstallPath == "root" && destDir == ".") {
 			propsList = append(propsList, &prebuiltInstallInRootProperties{
 				Install_in_root: proptools.BoolPtr(true),
 			})
