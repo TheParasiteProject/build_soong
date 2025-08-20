@@ -117,6 +117,7 @@ type ModuleInstallPathContext interface {
 	InstallPathSkipFirstStageRamdisk() bool
 	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
+	InstallInTestHarnessRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallInOdm() bool
@@ -164,6 +165,10 @@ func (ctx *baseModuleContextToModuleInstallPathContext) InstallInVendorKernelRam
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInDebugRamdisk() bool {
 	return ctx.Module().InstallInDebugRamdisk()
+}
+
+func (ctx *baseModuleContextToModuleInstallPathContext) InstallInTestHarnessRamdisk() bool {
+	return ctx.Module().InstallInTestHarnessRamdisk()
 }
 
 func (ctx *baseModuleContextToModuleInstallPathContext) InstallInRecovery() bool {
@@ -2095,6 +2100,8 @@ func modulePartition(ctx ModuleInstallPathContext, device bool) string {
 			partition = ctx.DeviceConfig().OdmDlkmPath()
 		} else if ctx.InstallInVendorKernelRamdisk() {
 			partition = "vendor_kernel_ramdisk"
+		} else if ctx.InstallInTestHarnessRamdisk() {
+			partition = "test_harness_ramdisk"
 		} else {
 			partition = "system"
 		}
@@ -2343,6 +2350,10 @@ func (m testModuleInstallPathContext) InstallInVendorKernelRamdisk() bool {
 
 func (m testModuleInstallPathContext) InstallInDebugRamdisk() bool {
 	return m.inDebugRamdisk
+}
+
+func (m testModuleInstallPathContext) InstallInTestHarnessRamdisk() bool {
+	return false
 }
 
 func (m testModuleInstallPathContext) InstallInRecovery() bool {
