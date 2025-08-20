@@ -10,10 +10,10 @@ java\.lang
 java\.lang\.annotation
 java\.lang\.constant
 java\.lang\.invoke
+java\.lang\.foreign
 java\.lang\.ref
 java\.lang\.reflect
 java\.lang\.runtime
-java\.lang\.foreign
 java\.math
 java\.net
 java\.nio
@@ -76,11 +76,11 @@ javax\.xml\.xpath
 jdk\.internal
 jdk\.internal\.access
 jdk\.internal\.event
+jdk\.internal\.foreign
 jdk\.internal\.invoke
 jdk\.internal\.math
 jdk\.internal\.misc
 jdk\.internal\.ref
-jdk\.internal\.foreign
 jdk\.internal\.reflect
 jdk\.internal\.util
 jdk\.internal\.util\.jar
