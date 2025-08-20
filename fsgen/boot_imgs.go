@@ -264,6 +264,68 @@ func createVendorBootDebugImage(ctx android.LoadHookContext, dtbImg dtbImg) bool
 	return true
 }
 
+// Same as vendor_boot-debug, with the exception of some additional properties in the installed adb_debug.prop file.
+func createVendorBootTestHarnessImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
+	partitionVariables := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse
+
+	bootImageName := generatedModuleNameForPartition(ctx.Config(), "vendor_boot-test-harness")
+
+	avbInfo := getAvbInfo(ctx.Config(), "vendor_boot")
+
+	var dtbPrebuilt *string
+	if dtbImg.include && dtbImg.imgType == "vendor_boot" {
+		dtbPrebuilt = proptools.StringPtr(":" + dtbImg.name)
+	}
+
+	cmdline := partitionVariables.InternalKernelCmdline
+
+	var vendorBootConfigImg *string
+	if name := getVendorBootConfigImgName(ctx); name != "" {
+		vendorBootConfigImg = proptools.StringPtr(":" + name)
+	}
+
+	var partitionSize *int64
+	if partitionVariables.BoardVendorBootimagePartitionSize != "" {
+		// Base of zero will allow base 10 or base 16 if starting with 0x
+		parsed, err := strconv.ParseInt(partitionVariables.BoardVendorBootimagePartitionSize, 0, 64)
+		if err != nil {
+			ctx.ModuleErrorf("BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE must be an int, got %s", partitionVariables.BoardVendorBootimagePartitionSize)
+		}
+		partitionSize = &parsed
+	}
+
+	ctx.CreateModule(
+		filesystem.BootimgFactory,
+		&filesystem.BootimgProperties{
+			Ramdisk_module: proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk-test-harness")),
+			Dtb_prebuilt:   dtbPrebuilt,
+			Cmdline:        cmdline,
+			Bootconfig:     vendorBootConfigImg,
+			Stem:           proptools.StringPtr("vendor_boot-test-harness.img"),
+		},
+		&filesystem.CommonBootimgProperties{
+			Boot_image_type:             proptools.StringPtr("vendor_boot"),
+			Partition_name:              proptools.StringPtr("vendor_boot"),
+			Header_version:              proptools.StringPtr(partitionVariables.BoardBootHeaderVersion),
+			Partition_size:              partitionSize,
+			Use_avb:                     avbInfo.avbEnable,
+			Avb_mode:                    avbInfo.avbMode,
+			Avb_private_key:             avbInfo.avbkeyFilegroup,
+			Avb_rollback_index:          avbInfo.avbRollbackIndex,
+			Avb_rollback_index_location: avbInfo.avbRollbackIndexLocation,
+		},
+
+		&struct {
+			Name       *string
+			Visibility []string
+		}{
+			Name:       proptools.StringPtr(bootImageName),
+			Visibility: []string{"//visibility:public"},
+		},
+	)
+	return true
+}
+
 func createVendorKernelBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 	vendorKernelBootVariables, exists := ctx.Config().ProductVariables().PartitionVarsForSoongMigrationOnlyDoNotUse.PartitionQualifiedVariables["vendor_kernel_boot"]
 	if !exists {

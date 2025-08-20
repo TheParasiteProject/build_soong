@@ -293,7 +293,7 @@ var (
 
 		// http://b/72331526 Disable -Wtautological-* until the instances detected by these
 		// new warnings are fixed.
-		"-Wno-tautological-constant-compare",
+		"-Wno-error=tautological-constant-compare",
 		// http://b/145211066
 		"-Wno-implicit-int-float-conversion",
 		// New warnings to be fixed after clang-r377782.
@@ -357,6 +357,7 @@ var (
 		"-Wno-unused",
 		"-Wno-unused-but-set-variable",
 		"-Wno-deprecated",
+		"-Wno-tautological-constant-compare",
 	}
 
 	// Similar to noOverrideGlobalCflags, but applies only to third-party code

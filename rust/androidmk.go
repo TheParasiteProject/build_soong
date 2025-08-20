@@ -15,6 +15,8 @@
 package rust
 
 import (
+	"fmt"
+	"io"
 	"path/filepath"
 
 	"android/soong/android"
@@ -48,7 +50,6 @@ func (mod *Module) AndroidMkSuffix() string {
 
 func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 	if mod.Properties.HideFromMake || mod.hideApexVariantFromMake {
-
 		return []android.AndroidMkEntries{{Disabled: true}}
 	}
 
@@ -69,6 +70,31 @@ func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
 				} else if mod.InProduct() {
 					entries.SetBool("LOCAL_IN_PRODUCT", true)
 				}
+				if mod.Properties.SdkAndPlatformVariantVisibleToMake {
+					// Add the unsuffixed name to SOONG_SDK_VARIANT_MODULES so that Make can rewrite
+					// dependencies to the .sdk suffix when building a module that uses the SDK.
+					entries.SetString("SOONG_SDK_VARIANT_MODULES",
+						"$(SOONG_SDK_VARIANT_MODULES) $(patsubst %.sdk,%,$(LOCAL_MODULE))")
+				}
+				entries.SetBoolIfTrue("LOCAL_UNINSTALLABLE_MODULE", mod.IsSkipInstall())
+			},
+		},
+		ExtraFooters: []android.AndroidMkExtraFootersFunc{
+			func(w io.Writer, name, prefix, moduleDir string) {
+				// The footer info comes at the last step, previously it was achieved by
+				// calling some extra footer function that were added earlier. Because we no
+				// longer use these extra footer functions, we need to put this step at the
+				// last one.
+				if mod.Properties.IsSdkVariant && mod.Properties.SdkAndPlatformVariantVisibleToMake &&
+					mod.Shared() {
+					// Using the SDK variant as a JNI library needs a copy of the .so that
+					// is not named .sdk.so so that it can be packaged into the APK with
+					// the right name.
+					fmt.Fprintf(w, "%s %s %s", "$(eval $(call copy-one-file,",
+						"$(LOCAL_BUILT_MODULE),",
+						"$(patsubst %.sdk.so,%.so,$(LOCAL_BUILT_MODULE))))")
+				}
+
 			},
 		},
 	}
@@ -150,6 +176,10 @@ func (library *libraryDecorator) AndroidMk(ctx AndroidMkContext, ret *android.An
 		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
 			if library.tocFile.Valid() {
 				entries.SetString("LOCAL_SOONG_TOC", library.tocFile.String())
+			}
+			if entries.OutputFile.Valid() {
+				_, _, ext := android.SplitFileExt(entries.OutputFile.Path().Base())
+				entries.SetString("LOCAL_BUILT_MODULE_STEM", "$(LOCAL_MODULE)"+ext)
 			}
 		})
 }

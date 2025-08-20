@@ -13,6 +13,7 @@ java\.lang\.invoke
 java\.lang\.ref
 java\.lang\.reflect
 java\.lang\.runtime
+java\.lang\.foreign
 java\.math
 java\.net
 java\.nio
@@ -79,6 +80,7 @@ jdk\.internal\.invoke
 jdk\.internal\.math
 jdk\.internal\.misc
 jdk\.internal\.ref
+jdk\.internal\.foreign
 jdk\.internal\.reflect
 jdk\.internal\.util
 jdk\.internal\.util\.jar

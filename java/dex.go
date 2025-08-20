@@ -540,6 +540,10 @@ func (d *dexer) dexCommonFlags(ctx android.ModuleContext,
 		}
 	}
 
+	if ctx.Config().UseR8MinimizedSyntheticNames() {
+		flags = append([]string{"-JDcom.android.tools.r8.desugar.minimizeSyntheticNames=1"}, flags...)
+	}
+
 	// Enable a safe form of list iteration rewriting for D8/R8, though note that D8 impact is
 	// conditional on the use of release mode. We *prepend* this flag to ensure application
 	// to the JVM environment, before other args that are passed along to D8/R8.

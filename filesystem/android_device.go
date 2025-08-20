@@ -43,6 +43,8 @@ type PartitionNameProperties struct {
 	Vendor_boot_partition_name *string
 	// Name of the vendor boot debug partition filesystem module
 	Vendor_boot_debug_partition_name *string
+	// Name of the vendor boot test harness partition filesystem module
+	Vendor_boot_test_harness_partition_name *string
 	// Name of the vendor kernel boot partition filesystem module
 	Vendor_kernel_boot_partition_name *string
 	// Name of the init boot partition filesystem module
@@ -236,6 +238,7 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined(a.partitionProps.Init_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.Vendor_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.Vendor_boot_debug_partition_name)
+	addDependencyIfDefined(a.partitionProps.Vendor_boot_test_harness_partition_name)
 	addDependencyIfDefined(a.partitionProps.Vendor_kernel_boot_partition_name)
 	addDependencyIfDefined(a.partitionProps.System_partition_name)
 	addDependencyIfDefined(a.partitionProps.System_ext_partition_name)
@@ -653,6 +656,12 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 		// vendor_boot-debug
 		if a.partitionProps.Vendor_boot_debug_partition_name != nil {
 			bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_boot_debug_partition_name), filesystemDepTag)
+			bootImgInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, BootimgInfoProvider)
+			ctx.DistForGoal("droidcore-unbundled", bootImgInfo.Output)
+		}
+		// vendor_boot-test-harness
+		if a.partitionProps.Vendor_boot_test_harness_partition_name != nil {
+			bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_boot_test_harness_partition_name), filesystemDepTag)
 			bootImgInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, BootimgInfoProvider)
 			ctx.DistForGoal("droidcore-unbundled", bootImgInfo.Output)
 		}

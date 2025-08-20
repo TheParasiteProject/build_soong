@@ -184,6 +184,7 @@ type ModuleContext interface {
 	InstallPathSkipFirstStageRamdisk() bool
 	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
+	InstallInTestHarnessRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallInOdm() bool
@@ -542,6 +543,10 @@ func (m *moduleContext) InstallInVendorKernelRamdisk() bool {
 
 func (m *moduleContext) InstallInDebugRamdisk() bool {
 	return m.module.InstallInDebugRamdisk()
+}
+
+func (m *moduleContext) InstallInTestHarnessRamdisk() bool {
+	return m.module.InstallInTestHarnessRamdisk()
 }
 
 func (m *moduleContext) InstallInRecovery() bool {

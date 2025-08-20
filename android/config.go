@@ -2443,6 +2443,10 @@ func (c *config) UseR8GlobalCheckNotNullFlags() bool {
 	return c.productVariables.GetBuildFlagBool("RELEASE_R8_GLOBAL_CHECK_NOT_NULL_FLAGS")
 }
 
+func (c *config) UseR8MinimizedSyntheticNames() bool {
+	return c.productVariables.GetBuildFlagBool("RELEASE_R8_MINIMIZE_SYNTHETIC_NAMES")
+}
+
 func (c *config) UseDexV41() bool {
 	return c.productVariables.GetBuildFlagBool("RELEASE_USE_DEX_V41")
 }

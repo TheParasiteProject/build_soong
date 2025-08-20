@@ -89,6 +89,7 @@ type Module interface {
 	InstallPathSkipFirstStageRamdisk() bool
 	InstallInVendorKernelRamdisk() bool
 	InstallInDebugRamdisk() bool
+	InstallInTestHarnessRamdisk() bool
 	InstallInRecovery() bool
 	InstallInRoot() bool
 	InstallInOdm() bool
@@ -425,6 +426,9 @@ type commonProperties struct {
 
 	// Whether this module is installed to debug ramdisk
 	Debug_ramdisk *bool
+
+	// Whether this module is installed to test harness ramdisk
+	Test_harness_ramdisk *bool
 
 	// Install to partition system_dlkm when set to true.
 	System_dlkm_specific *bool
@@ -1455,6 +1459,8 @@ func (m *ModuleBase) PartitionTag(config DeviceConfig) string {
 		partition = "vendor_dlkm"
 	} else if m.InstallInDebugRamdisk() {
 		partition = "debug_ramdisk"
+	} else if m.InstallInTestHarnessRamdisk() {
+		partition = "test_harness_ramdisk"
 	}
 	return partition
 }
@@ -1599,6 +1605,10 @@ func (m *ModuleBase) InstallInVendorKernelRamdisk() bool {
 
 func (m *ModuleBase) InstallInDebugRamdisk() bool {
 	return Bool(m.commonProperties.Debug_ramdisk)
+}
+
+func (m *ModuleBase) InstallInTestHarnessRamdisk() bool {
+	return Bool(m.commonProperties.Test_harness_ramdisk)
 }
 
 func (m *ModuleBase) InstallInRecovery() bool {
@@ -1789,6 +1799,11 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 		phony("-phony-files", Paths{modulePhonyTarget})
 	}
 
+	if ctx.Device() && ctx.Target().Arch.ArchType != ctx.Config().DevicePrimaryArchType() {
+		// Don't check build target module defined for the 2nd arch.
+		// https://source.corp.google.com/h/googleplex-android/platform/build/+/62ad5dbbffb05d4fc8d1136f753d42f40eadccd1:core/base_rules.mk;l=641-646;drc=d535e6f290f00c86babfa006167bf5055303e4c7;bpv=1;bpt=0
+		ctx.UncheckedModule()
+	}
 	// A module's -checkbuild phony targets should
 	// not be created if the module is not exported to make.
 	// Those could depend on the build target and fail to compile
