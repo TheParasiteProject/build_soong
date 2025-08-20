@@ -42,6 +42,7 @@ var fixture = android.GroupFixturePreparers(
 	java.PrepareForTestWithJavaDefaultModules,
 	phony.PrepareForTestWithPhony,
 	PrepareForTestWithFilesystemBuildComponents,
+	prepareForTestWithAndroidDeviceComponents,
 )
 
 func TestFileSystemDeps(t *testing.T) {
@@ -916,4 +917,57 @@ func TestCrossPartitionVintfInstalls(t *testing.T) {
 		}
 	}
 	android.AssertBoolEquals(t, "Could not find vintf manifest", true, found)
+}
+
+func TestRamdiskFragmentInBootImg(t *testing.T) {
+	result := fixture.RunTestWithBp(t, `
+android_filesystem {
+	name: "vendor_ramdisk",
+	type: "compressed_cpio",
+}
+android_filesystem {
+	name: "vendor_ramdisk_fragment",
+	type: "compressed_cpio",
+	ramdisk_fragment_name: "dlkm",
+}
+bootimg {
+	name: "vendor_boot",
+	boot_image_type: "vendor_boot",
+	header_version: "4",
+	ramdisk_module: "vendor_ramdisk",
+	ramdisk_fragment_modules: ["vendor_ramdisk_fragment"],
+}`)
+
+	vendorBootImg := result.ModuleForTests(t, "vendor_boot", "android_arm64_armv8-a")
+	mkBootimgCmd := vendorBootImg.Rule("build_bootimg").RuleParams.Command
+	android.AssertStringDoesContain(t, "Did not find vendor_ramdisk_fragment when building bootimg", mkBootimgCmd, "--ramdisk_name dlkm --vendor_ramdisk_fragment out/soong/.intermediates/vendor_ramdisk_fragment/android_common/vendor_ramdisk_fragment.img")
+}
+
+func TestRamdiskFragmentInTargetFiles(t *testing.T) {
+	result := fixture.RunTestWithBp(t, `
+android_filesystem {
+	name: "vendor_ramdisk",
+	type: "compressed_cpio",
+}
+android_filesystem {
+	name: "vendor_ramdisk_fragment",
+	type: "compressed_cpio",
+	ramdisk_fragment_name: "dlkm",
+}
+bootimg {
+	name: "vendor_boot",
+	boot_image_type: "vendor_boot",
+	header_version: "4",
+	ramdisk_module: "vendor_ramdisk",
+	ramdisk_fragment_modules: ["vendor_ramdisk_fragment"],
+}
+android_device {
+	name: "test_device",
+	vendor_boot_partition_name: "vendor_boot",
+}
+`)
+
+	vendorBootImg := result.ModuleForTests(t, "test_device", "android_arm64_armv8-a")
+	mkBootimgCmd := vendorBootImg.Rule("target_files_dir").RuleParams.Command
+	android.AssertStringDoesContain(t, "Did not find dlkm in vendor_ramdisk_fragments file used for target_files.zip creation", mkBootimgCmd, "echo dlkm > out/soong/.intermediates/test_device/android_arm64_armv8-a/target_files_dir/VENDOR_BOOT/vendor_ramdisk_fragments")
 }
