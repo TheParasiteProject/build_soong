@@ -170,14 +170,19 @@ func createVendorBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 		partitionSize = &parsed
 	}
 
+	var ramdiskFragmentModules []string
+	if buildingVendorRamdiskFragmentDlkm(ctx, partitionVariables) {
+		ramdiskFragmentModules = append(ramdiskFragmentModules, generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk_fragment_dlkm"))
+	}
 	ctx.CreateModule(
 		filesystem.BootimgFactory,
 		&filesystem.BootimgProperties{
-			Ramdisk_module: proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk")),
-			Dtb_prebuilt:   dtbPrebuilt,
-			Cmdline:        cmdline,
-			Bootconfig:     vendorBootConfigImg,
-			Stem:           proptools.StringPtr("vendor_boot.img"),
+			Ramdisk_module:           proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk")),
+			Ramdisk_fragment_modules: ramdiskFragmentModules,
+			Dtb_prebuilt:             dtbPrebuilt,
+			Cmdline:                  cmdline,
+			Bootconfig:               vendorBootConfigImg,
+			Stem:                     proptools.StringPtr("vendor_boot.img"),
 		},
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("vendor_boot"),
@@ -232,14 +237,19 @@ func createVendorBootDebugImage(ctx android.LoadHookContext, dtbImg dtbImg) bool
 		partitionSize = &parsed
 	}
 
+	var ramdiskFragmentModules []string
+	if buildingVendorRamdiskFragmentDlkm(ctx, partitionVariables) {
+		ramdiskFragmentModules = append(ramdiskFragmentModules, generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk_fragment_dlkm"))
+	}
 	ctx.CreateModule(
 		filesystem.BootimgFactory,
 		&filesystem.BootimgProperties{
-			Ramdisk_module: proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk-debug")),
-			Dtb_prebuilt:   dtbPrebuilt,
-			Cmdline:        cmdline,
-			Bootconfig:     vendorBootConfigImg,
-			Stem:           proptools.StringPtr("vendor_boot-debug.img"),
+			Ramdisk_module:           proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk-debug")),
+			Ramdisk_fragment_modules: ramdiskFragmentModules,
+			Dtb_prebuilt:             dtbPrebuilt,
+			Cmdline:                  cmdline,
+			Bootconfig:               vendorBootConfigImg,
+			Stem:                     proptools.StringPtr("vendor_boot-debug.img"),
 		},
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("vendor_boot"),
@@ -294,14 +304,19 @@ func createVendorBootTestHarnessImage(ctx android.LoadHookContext, dtbImg dtbImg
 		partitionSize = &parsed
 	}
 
+	var ramdiskFragmentModules []string
+	if buildingVendorRamdiskFragmentDlkm(ctx, partitionVariables) {
+		ramdiskFragmentModules = append(ramdiskFragmentModules, generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk_fragment_dlkm"))
+	}
 	ctx.CreateModule(
 		filesystem.BootimgFactory,
 		&filesystem.BootimgProperties{
-			Ramdisk_module: proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk-test-harness")),
-			Dtb_prebuilt:   dtbPrebuilt,
-			Cmdline:        cmdline,
-			Bootconfig:     vendorBootConfigImg,
-			Stem:           proptools.StringPtr("vendor_boot-test-harness.img"),
+			Ramdisk_module:           proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk-test-harness")),
+			Ramdisk_fragment_modules: ramdiskFragmentModules,
+			Dtb_prebuilt:             dtbPrebuilt,
+			Cmdline:                  cmdline,
+			Bootconfig:               vendorBootConfigImg,
+			Stem:                     proptools.StringPtr("vendor_boot-test-harness.img"),
 		},
 		&filesystem.CommonBootimgProperties{
 			Boot_image_type:             proptools.StringPtr("vendor_boot"),
@@ -484,6 +499,16 @@ func buildingDebugRamdiskImage(partitionVars android.PartitionVariables) bool {
 func buildingVendorKernelBootImage(partitionVars android.PartitionVariables) bool {
 	vendorKernelBootVariables, exists := partitionVars.PartitionQualifiedVariables["vendor_kernel_boot"]
 	return exists && vendorKernelBootVariables.BuildingImage
+}
+
+func buildingVendorRamdiskFragmentDlkm(ctx android.EarlyModuleContext, partitionVars android.PartitionVariables) bool {
+	if len(partitionVars.BoardVendorRamdiskFragments) == 0 {
+		return false
+	}
+	if len(partitionVars.BoardVendorRamdiskFragments) > 1 || partitionVars.BoardVendorRamdiskFragments[0] != "dlkm" {
+		ctx.ModuleErrorf("Multiple vendor ramdisk fragments is currently not supported in soong only builds")
+	}
+	return true
 }
 
 // Derived from: https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/board_config.mk;l=480;drc=5b55f926830963c02ab1d2d91e46442f04ba3af0

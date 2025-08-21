@@ -1360,6 +1360,12 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	// ramdisk uses `compressed_cpio` fs_type
 	// https://cs.android.com/android/_/android/platform/build/+/30f05352c3e6f4333c77d4af66c253572d3ea6c9:core/Makefile;l=5923-5925;drc=519f75666431ee2926e0ec8991c682b28a4c9521;bpv=1;bpt=0
 	if _, ok := fsInfos["ramdisk"]; ok {
+		// http://b/428047677#comment3
+		// TODO: Consider using `BOARD_RAMDISK_USE_LZ4` instead.
+		builder.Command().Textf("echo lz4_ramdisks=true >> %s", miscInfo)
+	} else if _, ok := fsInfos["vendor_ramdisk"]; ok {
+		// http://b/428047677#comment3
+		// TODO: Consider using `BOARD_RAMDISK_USE_LZ4` instead.
 		builder.Command().Textf("echo lz4_ramdisks=true >> %s", miscInfo)
 	}
 	// recovery_mount_options

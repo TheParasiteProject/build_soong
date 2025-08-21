@@ -237,6 +237,9 @@ func generatedPartitions(ctx android.EarlyModuleContext) allGeneratedPartitionDa
 	if buildingVendorBootImage(partitionVars) {
 		addGenerated("vendor_ramdisk")
 	}
+	if buildingVendorRamdiskFragmentDlkm(ctx, partitionVars) {
+		addGenerated("vendor_ramdisk_fragment_dlkm")
+	}
 	if buildingDebugVendorBootImage(partitionVars) {
 		addGenerated("vendor_ramdisk-debug")
 		addGenerated("vendor_ramdisk-test-harness")
@@ -944,6 +947,8 @@ func partitionSpecificFsProps(ctx android.EarlyModuleContext, partitions allGene
 		fsProps.Stem = proptools.StringPtr("vendor_ramdisk-test-harness.img")
 	case "vendor_kernel_ramdisk":
 		fsProps.Stem = proptools.StringPtr("vendor_kernel_ramdisk.img")
+	case "vendor_ramdisk_fragment_dlkm":
+		fsProps.Ramdisk_fragment_name = proptools.StringPtr("dlkm")
 	}
 }
 
@@ -956,6 +961,7 @@ var (
 		"vendor_ramdisk-debug",
 		"vendor_ramdisk-test-harness",
 		"vendor_kernel_ramdisk",
+		"vendor_ramdisk_fragment_dlkm",
 	}
 )
 
@@ -984,6 +990,9 @@ func (f *filesystemCreator) createPartition(ctx android.LoadHookContext, partiti
 
 	if android.InList(partitionType, partitionsWithKernelModules) {
 		f.createPrebuiltKernelModules(ctx, partitionType)
+	}
+	if partitionType == "vendor_ramdisk_fragment_dlkm" {
+		partitionType = "vendor_ramdisk"
 	}
 
 	var module android.Module
@@ -1151,8 +1160,13 @@ func (f *filesystemCreator) createPrebuiltKernelModules(ctx android.LoadHookCont
 			props.Blocklist_file = proptools.StringPtr(blocklistFile)
 		}
 		props.Strip_debug_symbols = proptools.BoolPtr(false)
-	case "vendor_ramdisk", "vendor_ramdisk-debug", "vendor_ramdisk-test-harness":
-		props.Srcs = android.ExistentPathsForSources(ctx, partitionVars.VendorRamdiskKernelModules).Strings()
+	case "vendor_ramdisk", "vendor_ramdisk-debug", "vendor_ramdisk-test-harness", "vendor_ramdisk_fragment_dlkm":
+		if partitionType == "vendor_ramdisk" && buildingVendorRamdiskFragmentDlkm(ctx, partitionVars) {
+			// Skip including the kernel modules in vendor_ramdisk.
+			// The kernel modules will come from the dlkm ramdisk fragment.
+		} else {
+			props.Srcs = android.ExistentPathsForSources(ctx, partitionVars.VendorRamdiskKernelModules).Strings()
+		}
 		props.Vendor_ramdisk = proptools.BoolPtr(true)
 		if blocklistFile := partitionVars.VendorRamdiskKernelBlocklistFile; blocklistFile != "" {
 			props.Blocklist_file = proptools.StringPtr(blocklistFile)
