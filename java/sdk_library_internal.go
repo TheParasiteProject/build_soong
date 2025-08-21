@@ -199,7 +199,7 @@ func (module *SdkLibrary) createDroidstubs(mctx android.DefaultableHookContext, 
 		Name                             *string
 		Enabled                          proptools.Configurable[bool]
 		Visibility                       []string
-		Srcs                             []string
+		Srcs                             proptools.Configurable[[]string]
 		Installable                      *bool
 		Sdk_version                      *string
 		Api_surface                      *string
@@ -241,8 +241,8 @@ func (module *SdkLibrary) createDroidstubs(mctx android.DefaultableHookContext, 
 	props.Name = proptools.StringPtr(name)
 	props.Enabled = module.EnabledProperty()
 	props.Visibility = childModuleVisibility(module.sdkLibraryProperties.Stubs_source_visibility)
-	props.Srcs = append(props.Srcs, module.properties.Srcs...)
-	props.Srcs = append(props.Srcs, module.sdkLibraryProperties.Api_srcs...)
+	props.Srcs = module.properties.Srcs.Clone()
+	props.Srcs.AppendSimpleValue(module.sdkLibraryProperties.Api_srcs)
 	props.Sdk_version = module.deviceProperties.Sdk_version
 	props.Api_surface = module.getApiSurfaceForScope(apiScope)
 	props.System_modules = module.deviceProperties.System_modules
