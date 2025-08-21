@@ -53,6 +53,7 @@ func (l *StringList) String() string {
 
 // Read the stringlist from a file containing one or more lines which contain
 // space separated values to add to the StringList.
+// Processing of a line stops if a "#" is found.
 func (l *StringList) ReadFromFile(fileName string) error {
 	// Do not include this file as part of the hash.  Reading the StringList from
 	// a file is a shorthand for command line arguments, which are not part of the
@@ -62,6 +63,8 @@ func (l *StringList) ReadFromFile(fileName string) error {
 		return err
 	}
 	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
+		// Allow # comments on lines in the file.
+		line = strings.SplitN(line, "#", 2)[0]
 		for m := range strings.SplitSeq(strings.TrimSpace(line), " ") {
 			l.Set(m)
 		}
