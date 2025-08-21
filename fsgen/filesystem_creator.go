@@ -1692,11 +1692,7 @@ func generateBpContent(ctx android.EarlyModuleContext, partitionType string) str
 	baseProps := generateBaseProps(proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), partitionType)), ctx.Config())
 	deps := fsGenState.fsDeps[partitionType]
 	highPriorityDeps := fsGenState.generatedPrebuiltEtcModuleNames
-	var overriddenDeps []string
-	if deps, ok := fsGenState.overriddenModuleNames[partitionType]; ok {
-		overriddenDeps = deps
-	}
-	depProps := generateDepStruct(*deps, highPriorityDeps, overriddenDeps)
+	depProps := generateDepStruct(*deps, highPriorityDeps)
 
 	result, err := proptools.RepackProperties([]interface{}{baseProps, fsProps, depProps})
 	if err != nil {
