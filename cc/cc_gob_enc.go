@@ -2138,6 +2138,10 @@ func (r LinkableInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	if err = gobtools.EncodeString(buf, r.ImplementationModuleName); err != nil {
 		return err
 	}
+
+	if err = gobtools.EncodeString(buf, r.SelectedStl); err != nil {
+		return err
+	}
 	return err
 }
 
@@ -2428,6 +2432,11 @@ func (r *LinkableInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error 
 	}
 
 	err = gobtools.DecodeString(buf, &r.ImplementationModuleName)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeString(buf, &r.SelectedStl)
 	if err != nil {
 		return err
 	}

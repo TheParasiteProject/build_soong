@@ -20,8 +20,8 @@ import (
 	"android/soong/android"
 )
 
-func getNdkStlFamily(m LinkableInterface) string {
-	family, _ := getNdkStlFamilyAndLinkType(m)
+func getNdkStlFamily(stl string) string {
+	family, _ := getNdkStlFamilyAndLinkType(stl)
 	return family
 }
 
@@ -35,8 +35,7 @@ func deduplicateStlInput(stl string) string {
 	return stl
 }
 
-func getNdkStlFamilyAndLinkType(m LinkableInterface) (string, string) {
-	stl := m.SelectedStl()
+func getNdkStlFamilyAndLinkType(stl string) (string, string) {
 	switch stl {
 	case "ndk_libc++_shared", "libc++":
 		return "libc++", "shared"

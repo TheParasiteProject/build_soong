@@ -94,7 +94,6 @@ var PrepareForTestWithGenNotice = FixtureRegisterWithContext(RegisterGenNoticeBu
 func registerLicenseMutators(ctx RegistrationContext) {
 	ctx.PreArchMutators(RegisterLicensesPackageMapper)
 	ctx.PreArchMutators(RegisterLicensesPropertyGatherer)
-	ctx.PostDepsMutators(RegisterLicensesDependencyChecker)
 }
 
 var PrepareForTestWithLicenseDefaultModules = GroupFixturePreparers(
