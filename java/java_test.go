@@ -511,7 +511,7 @@ func TestArchSpecific(t *testing.T) {
 
 func TestBinary(t *testing.T) {
 	t.Parallel()
-	ctx, _ := testJava(t, `
+	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		java_library_host {
 			name: "foo",
 			srcs: ["a.java"],
@@ -554,7 +554,7 @@ func TestBinary(t *testing.T) {
 
 func TestTest(t *testing.T) {
 	t.Parallel()
-	ctx, _ := testJava(t, `
+	ctx, _ := testJava(t, cc.GatherRequiredDepsForTest(android.Android)+`
 		java_test_host {
 			name: "foo",
 			srcs: ["a.java"],
