@@ -2942,12 +2942,12 @@ func (al *ApiLibrary) ClassLoaderContexts() dexpreopt.ClassLoaderContextMap {
 // Most java_api_library constitues the sdk, but there are some java_api_library that
 // does not contribute to the api surface. Such modules are allowed to set sdk_version
 // other than "none"
-func (al *ApiLibrary) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (al *ApiLibrary) SdkVersion(ctx android.ConfigContext) android.SdkSpec {
 	return android.SdkSpecFrom(ctx, proptools.String(al.properties.Sdk_version))
 }
 
 // java_api_library is always at "current". Return FutureApiLevel
-func (al *ApiLibrary) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (al *ApiLibrary) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return al.SdkVersion(ctx).ApiLevel
 }
 
@@ -3093,7 +3093,7 @@ func (j *Import) PermittedPackagesForUpdatableBootJars() []string {
 	return j.properties.Permitted_packages
 }
 
-func (j *Import) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (j *Import) SdkVersion(ctx android.ConfigContext) android.SdkSpec {
 	return android.SdkSpecFrom(ctx, String(j.properties.Sdk_version))
 }
 
@@ -3101,7 +3101,7 @@ func (j *Import) SystemModules() string {
 	return "none"
 }
 
-func (j *Import) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (j *Import) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	if j.properties.Min_sdk_version != nil {
 		return android.ApiLevelFrom(ctx, *j.properties.Min_sdk_version)
 	}

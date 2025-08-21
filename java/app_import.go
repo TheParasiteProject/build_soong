@@ -658,11 +658,11 @@ func (m AppImportDepInSameApexChecker) OutgoingDepIsInSameApex(tag blueprint.Dep
 	return false
 }
 
-func (a *AndroidAppImport) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (a *AndroidAppImport) SdkVersion(ctx android.ConfigContext) android.SdkSpec {
 	return android.SdkSpecPrivate
 }
 
-func (a *AndroidAppImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (a *AndroidAppImport) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return android.SdkSpecPrivate.ApiLevel
 }
 

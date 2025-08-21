@@ -2268,7 +2268,7 @@ func (module *SdkLibraryImport) UniqueApexVariations() bool {
 }
 
 // MinSdkVersion - Implements hiddenAPIModule
-func (module *SdkLibraryImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (module *SdkLibraryImport) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return android.NoneApiLevel
 }
 
@@ -2528,7 +2528,7 @@ type scopeProperties struct {
 }
 
 type SdkVersionContext interface {
-	SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
+	SdkVersion(ctx android.ConfigContext) android.SdkSpec
 	SystemModules() string
 }
 
@@ -2536,7 +2536,7 @@ type SdkVersionContextProviderImpl struct {
 	javaInfo *JavaInfo
 }
 
-func (s *SdkVersionContextProviderImpl) SdkVersion(_ android.EarlyModuleContext) android.SdkSpec {
+func (s *SdkVersionContextProviderImpl) SdkVersion(_ android.ConfigContext) android.SdkSpec {
 	return s.javaInfo.SdkVersion
 }
 func (s *SdkVersionContextProviderImpl) SystemModules() string {

@@ -1259,7 +1259,7 @@ type AARImport struct {
 	classLoaderContexts dexpreopt.ClassLoaderContextMap
 }
 
-func (a *AARImport) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (a *AARImport) SdkVersion(ctx android.ConfigContext) android.SdkSpec {
 	return android.SdkSpecFrom(ctx, String(a.properties.Sdk_version))
 }
 
@@ -1267,7 +1267,7 @@ func (a *AARImport) SystemModules() string {
 	return ""
 }
 
-func (a *AARImport) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (a *AARImport) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	if a.properties.Min_sdk_version != nil {
 		return android.ApiLevelFrom(ctx, *a.properties.Min_sdk_version)
 	}
