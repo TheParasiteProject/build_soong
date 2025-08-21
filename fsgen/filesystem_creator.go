@@ -551,6 +551,9 @@ func (f *filesystemCreator) createDeviceModule(
 	if f.properties.Vendor_boot_debug_image != "" {
 		partitionProps.Vendor_boot_debug_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_boot-debug"))
 	}
+	if f.properties.Vendor_boot_test_harness_image != "" {
+		partitionProps.Vendor_boot_test_harness_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "vendor_boot-test-harness"))
+	}
 	if f.properties.Init_boot_image != "" {
 		partitionProps.Init_boot_partition_name = proptools.StringPtr(generatedModuleNameForPartition(ctx.Config(), "init_boot"))
 	} else if partitionVars.BuildingRamdiskImage {
