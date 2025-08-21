@@ -53,6 +53,7 @@ func registerBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("avb_add_hash_footer_defaults", avbAddHashFooterDefaultsFactory)
 	ctx.RegisterModuleType("avb_gen_vbmeta_image", avbGenVbmetaImageFactory)
 	ctx.RegisterModuleType("avb_gen_vbmeta_image_defaults", avbGenVbmetaImageDefaultsFactory)
+	ctx.RegisterModuleType("bootimg", BootimgFactory)
 }
 
 func registerMutators(ctx android.RegistrationContext) {
@@ -276,6 +277,9 @@ type FilesystemProperties struct {
 
 	// Used by build_image
 	Share_dup_blocks *bool
+
+	// Name to use as `--ramdisk_name` when included as a fragment in a bootimg.
+	Ramdisk_fragment_name *string
 }
 
 type AndroidFilesystemDeps struct {
@@ -863,6 +867,14 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, android.PartitionTypeInfoProvider, android.PartitionTypeInfo{
 		PartitionType: f.PartitionType(),
 	})
+
+	if f.properties.Ramdisk_fragment_name != nil {
+		android.SetProvider(ctx, ramdiskFragmentInfoProvider, ramdiskFragmentInfo{
+			Output:       f.OutputPath(),
+			Ramdisk_name: proptools.String(f.properties.Ramdisk_fragment_name),
+			RootDir:      rootDir,
+		})
+	}
 
 	f.fileListFile = fileListFile
 

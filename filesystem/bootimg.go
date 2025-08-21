@@ -25,10 +25,6 @@ import (
 	"android/soong/android"
 )
 
-func init() {
-	android.RegisterModuleType("bootimg", BootimgFactory)
-}
-
 type bootimg struct {
 	android.ModuleBase
 
@@ -50,6 +46,10 @@ type BootimgProperties struct {
 
 	// Filesystem module that is used as ramdisk
 	Ramdisk_module *string
+
+	// Filesystem module that is used as --vendor_ramdisk_fragment for mkbootimg
+	// Only supported for vendor_boot partition type.
+	Ramdisk_fragment_modules []string
 
 	// Path to the device tree blob (DTB) prebuilt file to add to this boot image
 	Dtb_prebuilt *string `android:"arch_variant,path"`
@@ -182,11 +182,15 @@ type bootimgDep struct {
 }
 
 var bootimgRamdiskDep = bootimgDep{kind: "ramdisk"}
+var bootimgRamdiskFragmentDep = bootimgDep{kind: "ramdisk_fragment"}
 
 func (b *bootimg) DepsMutator(ctx android.BottomUpMutatorContext) {
 	ramdisk := proptools.String(b.properties.Ramdisk_module)
 	if ramdisk != "" {
 		ctx.AddDependency(ctx.Module(), bootimgRamdiskDep, ramdisk)
+	}
+	for _, fragment := range b.properties.Ramdisk_fragment_modules {
+		ctx.AddDependency(ctx.Module(), bootimgRamdiskFragmentDep, fragment)
 	}
 }
 
@@ -202,6 +206,9 @@ func (b *bootimg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	b.bootImageType = toBootImageType(ctx, proptools.StringDefault(b.commonProperties.Boot_image_type, "boot"))
 	if b.bootImageType == unsupported {
 		return
+	}
+	if !b.bootImageType.isVendorBoot() && len(b.properties.Ramdisk_fragment_modules) > 0 {
+		ctx.PropertyErrorf("ramdisk_fragment_modules", "Ramdisk_fragment_modules is only supported for vendor_boot partition type.")
 	}
 
 	kernelProp := b.properties.Kernel_prebuilt.GetOrDefault(ctx, "")
@@ -316,6 +323,24 @@ type BootimgInfo struct {
 	IsPrebuilt          bool
 }
 
+type ramdiskFragmentInfo struct {
+	// Path to the vendor ramdisk fragment.
+	// Will be used as --vendor_ramdisk_fragment
+	Output android.Path
+
+	// Name of the ramdisk fragment.
+	// Will be used as --ramdisk_name
+	Ramdisk_name string
+
+	// The root staging directory of the filesystem.
+	RootDir android.Path
+}
+
+type ramdiskFragmentsInfo []ramdiskFragmentInfo
+
+var ramdiskFragmentInfoProvider = blueprint.NewProvider[ramdiskFragmentInfo]()
+var ramdiskFragmentsInfoProvider = blueprint.NewProvider[ramdiskFragmentsInfo]()
+
 func (b *bootimg) getKernelPath(ctx android.ModuleContext) android.Path {
 	var kernelPath android.Path
 	kernelName := b.properties.Kernel_prebuilt.GetOrDefault(ctx, "")
@@ -419,6 +444,18 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, kernel android.Path)
 		cmd.FlagWithInput("--vendor_bootconfig ", android.PathForModuleSrc(ctx, bootconfig))
 	}
 
+	var rfi ramdiskFragmentsInfo
+	for _, fragment := range b.properties.Ramdisk_fragment_modules {
+		fragmentModule := ctx.GetDirectDepProxyWithTag(fragment, bootimgRamdiskFragmentDep)
+		if info, exists := android.OtherModuleProvider(ctx, fragmentModule, ramdiskFragmentInfoProvider); exists {
+			cmd.FlagWithArg("--ramdisk_name ", info.Ramdisk_name)
+			cmd.FlagWithInput("--vendor_ramdisk_fragment ", info.Output)
+			rfi = append(rfi, info)
+		} else {
+			ctx.ModuleErrorf("%s does not set RamdiskFragmentInfo", fragment)
+		}
+	}
+
 	// Output flag for boot.img and init_boot.img
 	flag := "--output "
 	if b.bootImageType.isVendorBoot() || b.bootImageType.isVendorKernelBoot() {
@@ -429,6 +466,8 @@ func (b *bootimg) buildBootImage(ctx android.ModuleContext, kernel android.Path)
 	if b.commonProperties.Partition_size != nil {
 		assertMaxImageSize(builder, output, *b.commonProperties.Partition_size, proptools.Bool(b.commonProperties.Use_avb))
 	}
+
+	android.SetProvider(ctx, ramdiskFragmentsInfoProvider, rfi)
 
 	builder.Build("build_bootimg", fmt.Sprintf("Creating %s", b.BaseModuleName()))
 	return output
