@@ -9,6 +9,8 @@ import (
 
 func init() {
 	SanitizeUserPropsGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SanitizeUserProps) })
+	PlatformSanitizeableInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(PlatformSanitizeableInfo) })
+	SanitizerRuntimeDepInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(SanitizerRuntimeDepInfo) })
 }
 
 func (r SanitizeUserProps) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
@@ -652,4 +654,86 @@ var SanitizeUserPropsGobRegId int16
 
 func (r SanitizeUserProps) GetTypeId() int16 {
 	return SanitizeUserPropsGobRegId
+}
+
+func (r PlatformSanitizeableInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+	var err error
+
+	if r.IsSanitizerEnabled == nil {
+		if err = gobtools.EncodeSimple(buf, int32(-1)); err != nil {
+			return err
+		}
+	} else {
+		if err = gobtools.EncodeSimple(buf, int32(len(r.IsSanitizerEnabled))); err != nil {
+			return err
+		}
+		for val1 := 0; val1 < len(r.IsSanitizerEnabled); val1++ {
+			if err = gobtools.EncodeSimple(buf, r.IsSanitizerEnabled[val1]); err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
+
+func (r *PlatformSanitizeableInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+	var err error
+
+	var val2 int32
+	err = gobtools.DecodeSimple[int32](buf, &val2)
+	if err != nil {
+		return err
+	}
+	if val2 != -1 {
+		r.IsSanitizerEnabled = make([]bool, val2)
+		for val3 := 0; val3 < int(val2); val3++ {
+			err = gobtools.DecodeSimple[bool](buf, &r.IsSanitizerEnabled[val3])
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return err
+}
+
+var PlatformSanitizeableInfoGobRegId int16
+
+func (r PlatformSanitizeableInfo) GetTypeId() int16 {
+	return PlatformSanitizeableInfoGobRegId
+}
+
+func (r SanitizerRuntimeDepInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+	var err error
+
+	if err = gobtools.EncodeSimple(buf, r.MinimalRuntimeNeeded); err != nil {
+		return err
+	}
+
+	if err = gobtools.EncodeSimple(buf, r.UbsanRuntimeNeeded); err != nil {
+		return err
+	}
+	return err
+}
+
+func (r *SanitizerRuntimeDepInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+	var err error
+
+	err = gobtools.DecodeSimple[bool](buf, &r.MinimalRuntimeNeeded)
+	if err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.UbsanRuntimeNeeded)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+var SanitizerRuntimeDepInfoGobRegId int16
+
+func (r SanitizerRuntimeDepInfo) GetTypeId() int16 {
+	return SanitizerRuntimeDepInfoGobRegId
 }
