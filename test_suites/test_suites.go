@@ -978,6 +978,7 @@ type testSuitePackageProperties struct {
 type testSuitePackage struct {
 	android.ModuleBase
 	properties testSuitePackageProperties
+	outputFile android.Path
 }
 
 var testSuitePackageProvider = blueprint.NewProvider[testSuiteConfig]()
@@ -1014,8 +1015,25 @@ func (t *testSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext
 		hostJavaToolFiles: toolFiles,
 	})
 
+	t.outputFile = pathForPackaging(ctx, t.Name()+".zip")
+
 	if ctx.Config().JavaCoverageEnabled() {
 		jacocoJar := pathForPackaging(ctx, t.Name()+"_jacoco_report_classes.jar")
 		ctx.SetOutputFiles(android.Paths{jacocoJar}, ".jacoco")
+	}
+}
+
+// Some things (like the module phony and disting) still need an AndroidMkEntries() function
+// despite this module not being used from make.
+func (p *testSuitePackage) AndroidMkEntries() []android.AndroidMkEntries {
+	return []android.AndroidMkEntries{
+		android.AndroidMkEntries{
+			Class:      "ETC",
+			OutputFile: android.OptionalPathForPath(p.outputFile),
+			ExtraEntries: []android.AndroidMkExtraEntriesFunc{
+				func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
+					entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
+				}},
+		},
 	}
 }
