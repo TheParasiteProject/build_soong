@@ -397,7 +397,6 @@ type SanitizeProperties struct {
 	SanitizerEnabled bool `blueprint:"mutated"`
 
 	MinimalRuntimeDep bool     `blueprint:"mutated"`
-	BuiltinsDep       bool     `blueprint:"mutated"`
 	UbsanRuntimeDep   bool     `blueprint:"mutated"`
 	InSanitizerDir    bool     `blueprint:"mutated"`
 	Sanitizers        []string `blueprint:"mutated"`
@@ -1391,10 +1390,6 @@ func sanitizerRuntimeDepsMutator(mctx android.BottomUpMutatorContext) {
 					return false
 				}
 
-				if c.Os() == android.Linux {
-					c.sanitize.Properties.BuiltinsDep = true
-				}
-
 				return true
 			}
 
@@ -1580,9 +1575,6 @@ func sanitizerRuntimeMutator(mctx android.BottomUpMutatorContext) {
 
 		if enableMinimalRuntime(c.sanitize) || c.sanitize.Properties.MinimalRuntimeDep {
 			addStaticDeps(config.UndefinedBehaviorSanitizerMinimalRuntimeLibrary(), true)
-		}
-		if c.sanitize.Properties.BuiltinsDep {
-			addStaticDeps(config.BuiltinsRuntimeLibrary(), true)
 		}
 
 		if runtimeSharedLibrary != "" && (toolchain.Bionic() || toolchain.Musl()) {
