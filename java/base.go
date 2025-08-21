@@ -51,7 +51,7 @@ import (
 type CommonProperties struct {
 	// list of source files used to compile the Java module.  May be .java, .kt, .logtags, .proto,
 	// or .aidl files.
-	Srcs []string `android:"path,arch_variant"`
+	Srcs proptools.Configurable[[]string] `android:"path,arch_variant"`
 
 	// list Kotlin of source files containing Kotlin code that should be treated as common code in
 	// a codebase that supports Kotlin multiplatform.  See
@@ -940,11 +940,11 @@ func (j *Module) deps(ctx android.BottomUpMutatorContext) {
 	ctx.AddFarVariationDependencies(ctx.Config().BuildOSCommonTarget.Variations(), exportedPluginTag, j.properties.Exported_plugins...)
 
 	android.ProtoDeps(ctx, &j.protoProperties)
-	if j.hasSrcExt(".proto") {
+	if j.hasSrcExt(ctx, ".proto") {
 		protoDeps(ctx, &j.protoProperties)
 	}
 
-	if j.hasSrcExt(".kt") {
+	if j.hasSrcExt(ctx, ".kt") {
 		// TODO(ccross): move this to a mutator pass that can tell if generated sources contain
 		// Kotlin files
 		tag := staticLibTag
@@ -989,8 +989,8 @@ func hasSrcExt(srcs []string, ext string) bool {
 	return false
 }
 
-func (j *Module) hasSrcExt(ext string) bool {
-	return hasSrcExt(j.properties.Srcs, ext)
+func (j *Module) hasSrcExt(ctx android.ConfigurableEvaluatorContext, ext string) bool {
+	return hasSrcExt(j.properties.Srcs.GetOrDefault(j.ConfigurableEvaluator(ctx), nil), ext)
 }
 
 func (j *Module) individualAidlFlags(ctx android.ModuleContext, aidlFile android.Path) string {
@@ -1230,13 +1230,13 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 	flags := j.collectBuilderFlags(ctx, deps)
 
 	if flags.javaVersion.usesJavaModules() {
-		j.properties.Srcs = append(j.properties.Srcs, j.properties.Openjdk9.Srcs...)
+		j.properties.Srcs.AppendSimpleValue(j.properties.Openjdk9.Srcs)
 	} else if len(j.properties.Openjdk9.Javacflags) > 0 {
 		// java version defaults higher than openjdk 9, these conditionals should no longer be necessary
 		ctx.PropertyErrorf("openjdk9.srcs", "JDK version defaults to higher than 9")
 	}
 
-	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs.GetOrDefault(ctx, nil), j.properties.Exclude_srcs)
 	j.sourceExtensions = []string{}
 	for _, ext := range []string{".kt", ".proto", ".aidl", ".java", ".logtags"} {
 		if hasSrcExt(srcFiles.Strings(), ext) {
@@ -2487,7 +2487,7 @@ func (j *Module) CompilerDeps() []string {
 }
 
 func (j *Module) hasCode(ctx android.ModuleContext) bool {
-	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs, j.properties.Exclude_srcs)
+	srcFiles := android.PathsForModuleSrcExcludes(ctx, j.properties.Srcs.GetOrDefault(ctx, nil), j.properties.Exclude_srcs)
 	return len(srcFiles) > 0 || len(ctx.GetDirectDepsProxyWithTag(staticLibTag)) > 0
 }
 

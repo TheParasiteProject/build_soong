@@ -1841,7 +1841,7 @@ func (module *SdkLibrary) getApiDir() string {
 // runtime libs and xml file. If requested, the stubs and docs are created twice
 // once for public API level and once for system API level
 func (module *SdkLibrary) CreateInternalModules(mctx android.DefaultableHookContext) {
-	if len(module.properties.Srcs) == 0 {
+	if len(module.properties.Srcs.GetOrDefault(module.ConfigurableEvaluator(mctx), nil)) == 0 {
 		mctx.PropertyErrorf("srcs", "java_sdk_library must specify srcs")
 		return
 	}
