@@ -900,7 +900,7 @@ func (library *libraryDecorator) rustdoc(ctx ModuleContext, flags Flags,
 	// (https://doc.rust-lang.org/rustdoc/advanced-features.html#cfgdoc-documenting-platform-specific-or-feature-specific-information),
 	// so we generate the rustdoc for only the primary module so that we have a
 	// single set of docs to refer to.
-	if ctx.Module() != ctx.PrimaryModule() {
+	if !ctx.IsPrimaryModule() {
 		return android.OptionalPath{}
 	}
 
