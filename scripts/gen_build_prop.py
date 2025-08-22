@@ -412,6 +412,9 @@ def append_additional_vendor_props(args):
   if config["RecoveryPixelFormat"]:
     props.append(f"ro.minui.pixel_format={config['RecoveryPixelFormat']}")
 
+  if "RecoveryNoInitialModsetFlush" in config:
+    props.append(f"ro.minui.no_initial_modset_flush={'true' if config['RecoveryNoInitialModsetFlush'] else 'false'}")
+
   if "UseDynamicPartitions" in config:
     props.append(f"ro.boot.dynamic_partitions={'true' if config['UseDynamicPartitions'] else 'false'}")
 
