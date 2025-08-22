@@ -1293,10 +1293,10 @@ func (a *androidDevice) createFastbootInfo(ctx android.ModuleContext) android.Pa
 // TODO (b/399788119): Complete the migration of misc_info.txt
 func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	buildType := func() string {
-		if ctx.Config().Debuggable() {
-			return "userdebug"
-		} else if ctx.Config().Eng() {
+		if ctx.Config().Eng() {
 			return "eng"
+		} else if ctx.Config().Debuggable() {
+			return "userdebug"
 		} else {
 			return "user"
 		}
