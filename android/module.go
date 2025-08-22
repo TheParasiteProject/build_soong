@@ -2468,7 +2468,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		IsNonPrimaryImageVariation:                   m.commonProperties.IsNonPrimaryImageVariation,
 	}
 	if mm, ok := m.module.(interface {
-		MinSdkVersion(ctx EarlyModuleContext) ApiLevel
+		MinSdkVersion(ctx MinSdkVersionFromValueContext) ApiLevel
 	}); ok {
 		ver := mm.MinSdkVersion(ctx)
 		commonData.MinSdkVersion.ApiLevel = &ver
@@ -2484,7 +2484,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	if mm, ok := m.module.(interface {
-		SdkVersion(ctx EarlyModuleContext) ApiLevel
+		SdkVersion(ctx ConfigContext) ApiLevel
 	}); ok {
 		ver := mm.SdkVersion(ctx)
 		if !ver.IsNone() {
@@ -2882,7 +2882,6 @@ type ConfigContext interface {
 }
 
 type ConfigurableEvaluatorContext interface {
-	OtherModuleProviderContext
 	Config() Config
 	OtherModulePropertyErrorf(module ModuleOrProxy, property string, fmt string, args ...interface{})
 	HasMutatorFinished(mutatorName string) bool

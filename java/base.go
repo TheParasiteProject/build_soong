@@ -831,7 +831,7 @@ func (j *Module) setApiMapper(value bool) {
 	j.properties.ApiMapper = value
 }
 
-func (j *Module) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (j *Module) SdkVersion(ctx android.ConfigContext) android.SdkSpec {
 	return android.SdkSpecFrom(ctx, String(j.deviceProperties.Sdk_version))
 }
 
@@ -839,7 +839,7 @@ func (j *Module) SystemModules() string {
 	return proptools.String(j.deviceProperties.System_modules)
 }
 
-func (j *Module) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (j *Module) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	if j.overridableProperties.Min_sdk_version != nil {
 		return android.ApiLevelFrom(ctx, *j.overridableProperties.Min_sdk_version)
 	}
