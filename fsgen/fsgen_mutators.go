@@ -71,7 +71,7 @@ func (m *multilibDeps) SortedFullyQualifiedNames() []string {
 }
 
 type moduleToInstallationProps struct {
-	// Map of _all_ soong module names to their corresponding installation properties
+	// Map of _all_ soong module fully qualified names to their corresponding installation properties
 	// Should not be accessed directly to add entries; Use AddToMap instead.
 	moduleToPropsMap map[string]installationProperties
 
@@ -88,12 +88,34 @@ func (m *moduleToInstallationProps) Get(ctx android.BottomUpMutatorContext) (ins
 	return m.GetFromFullyQualifiedModuleName(fullyQualifiedModuleName(ctx.ModuleName(), ctx.Namespace().Path))
 }
 
-func (m *moduleToInstallationProps) GetFromFullyQualifiedModuleName(name string) (installationProperties, bool) {
-	prop, ok := m.moduleToPropsMap[name]
+func (m *moduleToInstallationProps) GetFromFullyQualifiedModuleName(fullyQualifiedModuleName string) (installationProperties, bool) {
+	prop, ok := m.moduleToPropsMap[fullyQualifiedModuleName]
 	if ok {
 		return prop, ok
 	}
 	return installationProperties{}, ok
+}
+
+func (m *moduleToInstallationProps) GetFromModuleName(name string) (string, installationProperties, bool) {
+	if len(name) == 0 {
+		return "", installationProperties{}, false
+	}
+	// If the name has a fully qualified module name format, get it from the fully qualified module name
+	if strings.HasPrefix("//", name) {
+		prop, ok := m.GetFromFullyQualifiedModuleName(name)
+		return name, prop, ok
+	}
+
+	// Input name is not in fully qualified name format, but the module may be in a namespace
+	if props, ok := m.baseModuleNameToPropsMap[name]; ok {
+		for _, prop := range props {
+			fullyQualifiedName := fullyQualifiedModuleName(name, prop.Namespace)
+			if discoveredProp, ok := m.GetFromFullyQualifiedModuleName(fullyQualifiedName); ok {
+				return fullyQualifiedName, discoveredProp, ok
+			}
+		}
+	}
+	return "", installationProperties{}, false
 }
 
 func (m *moduleToInstallationProps) SortedKeys() []string {
@@ -122,6 +144,10 @@ type FsGenState struct {
 
 	// Name of the generated recovery fstab module name
 	recoveryFstabModuleName string
+
+	// Mapping of the partition type to the list of overridden modules that will be listed as
+	// `Overridden_modules` in the generated filesystem modules
+	overriddenModuleNames map[string][]string
 }
 
 type installationProperties struct {
@@ -280,6 +306,7 @@ func createFsGenState(ctx android.LoadHookContext, generatedPrebuiltEtcModuleNam
 			generatedPrebuiltEtcModuleNames: generatedPrebuiltEtcModuleNames,
 			avbKeyFilegroups:                map[string]string{},
 			nativeBridgeModules:             map[string]bool{},
+			overriddenModuleNames:           map[string][]string{},
 		}
 
 		if avbpubkeyGenerated {
@@ -451,7 +478,7 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 	}
 
 	if mctx.Target().NativeBridge == android.NativeBridgeEnabled {
-		fsGenState.nativeBridgeModules[mctx.ModuleName()] = true
+		fsGenState.nativeBridgeModules[fullyQualifiedModuleName(mctx.ModuleName(), mctx.Namespace().Path)] = true
 	}
 }
 
@@ -469,6 +496,7 @@ type multilibDepsStruct struct {
 }
 
 type packagingPropsStruct struct {
+	Overridden_deps    []string
 	High_priority_deps []string
 	Deps               []string
 	Multilib           multilibDepsStruct
@@ -533,11 +561,17 @@ func setDepsMutator(mctx android.BottomUpMutatorContext) {
 			// Handwritten image, don't modify it
 			return
 		}
+
+		var overriddenDeps []string
+		if deps, ok := fsGenState.overriddenModuleNames[partition]; ok {
+			overriddenDeps = deps
+		}
+
 		backgroundRecoveryImageGenerator, _ := getRecoveryBackgroundPicturesGeneratorModuleName(mctx)
 		// backgroundRecoveryImageGenerator generates additional images which takes precedence over images files
 		// created by other deps of recovery.img.
 		// Use this in highPriorityDeps
-		depsStruct := generateDepStruct(*fsDeps[partition], append([]string{backgroundRecoveryImageGenerator}, fsGenState.generatedPrebuiltEtcModuleNames...))
+		depsStruct := generateDepStruct(*fsDeps[partition], append([]string{backgroundRecoveryImageGenerator}, fsGenState.generatedPrebuiltEtcModuleNames...), overriddenDeps)
 		if err := proptools.AppendMatchingProperties(m.GetProperties(), depsStruct, nil); err != nil {
 			mctx.ModuleErrorf(err.Error())
 		}
@@ -588,6 +622,8 @@ func updatePartitionsOfOverrideModules(mctx android.BottomUpMutatorContext) {
 
 // removeOverriddenDeps collects PRODUCT_PACKAGES and (transitive) required deps.
 // it then removes any modules which appear in `overrides` of the above list.
+// Returns the list of names of the overridden modules. These are passed as `Overridden_modules`
+// when generating the filesystem modules.
 func removeOverriddenDeps(mctx android.BottomUpMutatorContext) {
 	mctx.Config().Once(fsGenRemoveOverridesOnceKey, func() interface{} {
 		fsGenState := mctx.Config().Get(fsGenStateOnceKey).(*FsGenState)
@@ -638,6 +674,15 @@ func removeOverriddenDeps(mctx android.BottomUpMutatorContext) {
 				delete(*fsDeps[partition], overridden)
 			}
 		}
+
+		filteredOverriddenDepsMap := make(map[string][]string)
+		for _, overriddenDep := range android.SortedKeys(overridden) {
+			if fullyQualifiedModuleName, prop, ok := fsGenState.moduleToInstallationProps.GetFromModuleName(overriddenDep); ok {
+				filteredOverriddenDepsMap[prop.Partition] = append(filteredOverriddenDepsMap[prop.Partition], fullyQualifiedModuleName)
+			}
+		}
+
+		fsGenState.overriddenModuleNames = filteredOverriddenDepsMap
 		return nil
 	})
 }
@@ -778,7 +823,7 @@ func isHighPriorityDep(depName string) bool {
 	return false
 }
 
-func generateDepStruct(deps map[string]*depCandidateProps, highPriorityDeps []string) *packagingPropsStruct {
+func generateDepStruct(deps map[string]*depCandidateProps, highPriorityDeps []string, overriddenDeps []string) *packagingPropsStruct {
 	depsStruct := packagingPropsStruct{}
 	for depName, depProps := range deps {
 		if _, ok := depProps.NativeBridgeSupport[android.NativeBridgeDisabled]; !ok {
@@ -838,6 +883,7 @@ func generateDepStruct(deps map[string]*depCandidateProps, highPriorityDeps []st
 	depsStruct.Multilib.Common.Deps = android.SortedUniqueStrings(depsStruct.Multilib.Common.Deps)
 	depsStruct.Multilib.Native_bridge.Deps = android.SortedUniqueStrings(nativeBridgeDeps)
 	depsStruct.High_priority_deps = android.SortedUniqueStrings(depsStruct.High_priority_deps)
+	depsStruct.Overridden_deps = android.SortedUniqueStrings(overriddenDeps)
 
 	return &depsStruct
 }
