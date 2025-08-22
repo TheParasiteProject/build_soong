@@ -292,6 +292,10 @@ type ErofsProperties struct {
 	Compress_hints *string `android:"path"`
 
 	Sparse *bool
+
+	Pcluster_size *int64
+
+	Block_size *int64
 }
 
 // Additional properties required to generate f2fs FS partitions.
@@ -1321,6 +1325,15 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 			// https://source.corp.google.com/h/googleplex-android/platform/build/+/88b1c67239ca545b11580237242774b411f2fed9:core/Makefile;l=2292;bpv=1;bpt=0;drc=ea8f34bc1d6e63656b4ec32f2391e9d54b3ebb6b
 			addStr("erofs_sparse_flag", "-s")
 		}
+
+		if f.properties.Erofs.Pcluster_size != nil {
+			addStr("erofs_pcluster_size", fmt.Sprintf("%d", *f.properties.Erofs.Pcluster_size))
+		}
+
+		if f.properties.Erofs.Block_size != nil {
+			addStr("erofs_blocksize", fmt.Sprintf("%d", *f.properties.Erofs.Block_size))
+		}
+
 	case f2fsType:
 		if proptools.BoolDefault(f.properties.F2fs.Sparse, true) {
 			// https://source.corp.google.com/h/googleplex-android/platform/build/+/88b1c67239ca545b11580237242774b411f2fed9:core/Makefile;l=2294;drc=ea8f34bc1d6e63656b4ec32f2391e9d54b3ebb6b;bpv=1;bpt=0
@@ -1412,6 +1425,15 @@ func (f *filesystem) buildPropFileForMiscInfo(ctx android.ModuleContext) android
 			// https://source.corp.google.com/h/googleplex-android/platform/build/+/88b1c67239ca545b11580237242774b411f2fed9:core/Makefile;l=2292;bpv=1;bpt=0;drc=ea8f34bc1d6e63656b4ec32f2391e9d54b3ebb6b
 			addStr("erofs_sparse_flag", "-s")
 		}
+
+		if f.properties.Erofs.Pcluster_size != nil {
+			addStr(f.partitionName()+"_erofs_pcluster_size", fmt.Sprintf("%d", *f.properties.Erofs.Pcluster_size))
+		}
+
+		if f.properties.Erofs.Block_size != nil {
+			addStr(f.partitionName()+"_erofs_blocksize", fmt.Sprintf("%d", *f.properties.Erofs.Block_size))
+		}
+
 	case f2fsType:
 		if proptools.BoolDefault(f.properties.F2fs.Sparse, true) {
 			// https://source.corp.google.com/h/googleplex-android/platform/build/+/88b1c67239ca545b11580237242774b411f2fed9:core/Makefile;l=2294;drc=ea8f34bc1d6e63656b4ec32f2391e9d54b3ebb6b;bpv=1;bpt=0
