@@ -610,6 +610,12 @@ func (f *filesystem) FilterPackagingSpec(ps android.PackagingSpec) bool {
 	}
 	if proptools.Bool(f.properties.Is_auto_generated) { // TODO (spandandas): Remove this.
 		pt := f.PartitionType()
+
+		// Due to the partition name of filesystem for data is 'userdata' but for PackagingSpec it is 'data'.
+		if pt == "userdata" && ps.Partition() == "data" {
+			return true
+		}
+
 		return ps.Partition() == pt || strings.HasPrefix(ps.Partition(), pt+"/")
 	}
 	return true

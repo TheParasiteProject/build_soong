@@ -387,6 +387,14 @@ func collectDepsMutator(mctx android.BottomUpMutatorContext) {
 
 	if _, ok := fsGenState.depCandidatesMap[moduleName]; ok {
 		installPartition := m.PartitionTag(mctx.DeviceConfig())
+
+		// For partition tag value it use properties in commonProperties to indicate the module is Vendor, Soc_specific, System_ext_specific, etc.
+		// But there's no dedicate property to set this module is for data partition, this should be decide by different module type like cc_test,
+		// android_test, etc. For module_base instance the InstallInData() is always return false which could not reflect the real install location.
+		if m.InstallInData() {
+			installPartition = "userdata"
+		}
+
 		// Only add the module as dependency when:
 		// - its enabled
 		// - its namespace is included in PRODUCT_SOONG_NAMESPACES

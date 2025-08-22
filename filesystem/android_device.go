@@ -717,6 +717,7 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		targetFilesZipCopy{a.partitionProps.Ramdisk_partition_name, "BOOT/RAMDISK"}, // For products without init_boot
 		targetFilesZipCopy{a.partitionProps.Vendor_boot_partition_name, "VENDOR_BOOT/RAMDISK"},
 		targetFilesZipCopy{a.partitionProps.Vendor_kernel_boot_partition_name, "VENDOR_KERNEL_BOOT/RAMDISK"},
+		targetFilesZipCopy{a.partitionProps.Userdata_partition_name, "DATA"},
 	}
 
 	filesystemsToCopy := []targetFilesystemZipCopy{}
