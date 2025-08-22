@@ -1144,6 +1144,7 @@ func (a *androidDevice) copyMetadataToTargetZip(ctx android.ModuleContext, build
 	// Pack dynamic_partitions_info.txt to target-file.
 	superPartitionName := a.partitionProps.Super_partition_name
 	if superPartitionName == nil {
+		// Even if a super partition isn't actually built, its information needs to be included in misc_info.txt if dynamic partitioning is enabled. This is for its later use with merge_target_files alongside other targets.
 		superPartitionName = a.deviceProps.InfoPartitionProps.Super_partition_name
 	}
 	if superPartitionName != nil {
@@ -1377,8 +1378,12 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 		builder.Command().Textf("echo boot_images=boot.img >> %s", miscInfo)
 	}
 
-	if a.partitionProps.Super_partition_name != nil {
-		superPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Super_partition_name, superPartitionDepTag)
+	superPartitionName := a.partitionProps.Super_partition_name
+	if superPartitionName == nil {
+		superPartitionName = a.deviceProps.InfoPartitionProps.Super_partition_name
+	}
+	if superPartitionName != nil {
+		superPartition := ctx.GetDirectDepProxyWithTag(*superPartitionName, superPartitionDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, superPartition, SuperImageProvider); ok {
 			// cat dynamic_partition_info.txt
 			builder.Command().Text("cat").Input(info.DynamicPartitionsInfo).Textf(" >> %s", miscInfo)
