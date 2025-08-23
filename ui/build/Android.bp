@@ -72,6 +72,7 @@ bootstrap_go_package {
         "sandbox_config.go",
         "soong.go",
         "test_build.go",
+        "update_api.go",
         "upload.go",
         "util.go",
     ],

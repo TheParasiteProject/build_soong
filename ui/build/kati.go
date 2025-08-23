@@ -84,6 +84,14 @@ func writeValueIfChanged(ctx Context, filePath string, value string) {
 	}
 }
 
+func copyFileIfChanged(ctx Context, from, to string) {
+	fromContents, err := os.ReadFile(from)
+	if err != nil {
+		ctx.Fatalf("Failed to read %s: ", err)
+	}
+	writeValueIfChanged(ctx, to, string(fromContents))
+}
+
 // Base function to construct and run the Kati command line with additional
 // arguments, and a custom function closure to mutate the environment Kati runs
 // in.

@@ -396,6 +396,8 @@ func Build(ctx Context, config Config) {
 		partialCompileCleanIfNecessary(ctx, config)
 		runNinjaForBuild(ctx, config)
 		updateBuildIdDir(ctx, config)
+
+		runUpdateApi(ctx, config)
 	}
 
 	if what&RunDistActions != 0 {
