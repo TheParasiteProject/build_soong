@@ -70,8 +70,7 @@ func genKatiSuffix(ctx Context, config Config) {
 	}
 }
 
-func writeValueIfChanged(ctx Context, config Config, dir string, filename string, value string) {
-	filePath := filepath.Join(dir, filename)
+func writeValueIfChanged(ctx Context, filePath string, value string) {
 	previousValue := ""
 	rawPreviousValue, err := os.ReadFile(filePath)
 	if err == nil {
