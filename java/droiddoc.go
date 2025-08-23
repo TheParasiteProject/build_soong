@@ -249,7 +249,7 @@ func JavadocHostFactory() android.Module {
 	return module
 }
 
-func (j *Javadoc) SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec {
+func (j *Javadoc) SdkVersion(ctx android.ConfigContext) android.SdkSpec {
 	return android.SdkSpecFrom(ctx, String(j.properties.Sdk_version))
 }
 
@@ -257,7 +257,7 @@ func (j *Javadoc) SystemModules() string {
 	return proptools.String(j.properties.System_modules)
 }
 
-func (j *Javadoc) MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel {
+func (j *Javadoc) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
 	return j.SdkVersion(ctx).ApiLevel
 }
 

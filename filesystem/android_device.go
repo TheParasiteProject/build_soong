@@ -981,6 +981,8 @@ func (a *androidDevice) copyPrebuiltImages(ctx android.ModuleContext, builder *a
 // partial implementation of vendor ramdisk fragments in target_files.zip
 func (a *androidDevice) copyVendorRamdiskFragments(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.Path) {
 	var vendorRamdiskFragments []string
+	// TODO (b/428047677): Re-implement 16k as a vendor ramdisk fragment.
+	// TODO (b/435530838): Verify vendor_boot.img in $ANDROID_PRODUCT_OUT is bit-identical.
 	if a.deviceProps.Ramdisk_16k != nil {
 		vendorRamdiskFragments = append(vendorRamdiskFragments, "16K")
 		ramdisk16k := ctx.GetDirectDepProxyWithTag(proptools.String(a.deviceProps.Ramdisk_16k), ramdisk16kDepTag)
@@ -994,9 +996,33 @@ func (a *androidDevice) copyVendorRamdiskFragments(ctx android.ModuleContext, bu
 		builder.Command().
 			Textf("echo --ramdisk_name 16K > %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/16K/mkbootimg_args", targetFilesDir)
 	}
+	if a.partitionProps.Vendor_boot_partition_name != nil {
+		vendorBootPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Vendor_boot_partition_name, filesystemDepTag)
+		if info, ok := android.OtherModuleProvider(ctx, vendorBootPartition, ramdiskFragmentsInfoProvider); ok {
+			for _, fragmentInfo := range info {
+				vendorRamdiskFragments = append(vendorRamdiskFragments, fragmentInfo.Ramdisk_name)
+				// Copy the files to VENDOR_BOOT/RAMDISK_FRAGMENTS
+				builder.Command().
+					Textf("mkdir -p %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/RAMDISK && ", targetFilesDir, fragmentInfo.Ramdisk_name).
+					BuiltTool("acp").
+					Textf("-rd %s/. %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/RAMDISK", fragmentInfo.RootDir.String(), targetFilesDir, fragmentInfo.Ramdisk_name).
+					Implicit(fragmentInfo.Output) // so that the staging dir is built
+				// Create a file for mkbootimg
+				builder.Command().Textf(
+					"echo \"--ramdisk_type %s --ramdisk_name %s\" > %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/mkbootimg_args",
+					strings.ToUpper(fragmentInfo.Ramdisk_name),
+					fragmentInfo.Ramdisk_name,
+					targetFilesDir,
+					fragmentInfo.Ramdisk_name,
+				)
+			}
+		} else {
+			ctx.ModuleErrorf("Vendor boot partition %s does set BootimgInfoProvider\n", vendorBootPartition.Name())
+		}
+	}
 
 	if len(vendorRamdiskFragments) > 0 {
-		builder.Command().Textf("echo %s > %s/VENDOR_BOOT/vendor_ramdisk_fragments", strings.Join(vendorRamdiskFragments, ""), targetFilesDir)
+		builder.Command().Textf("echo %s > %s/VENDOR_BOOT/vendor_ramdisk_fragments", strings.Join(vendorRamdiskFragments, " "), targetFilesDir)
 	}
 }
 
@@ -1334,6 +1360,12 @@ func (a *androidDevice) addMiscInfo(ctx android.ModuleContext) android.Path {
 	// ramdisk uses `compressed_cpio` fs_type
 	// https://cs.android.com/android/_/android/platform/build/+/30f05352c3e6f4333c77d4af66c253572d3ea6c9:core/Makefile;l=5923-5925;drc=519f75666431ee2926e0ec8991c682b28a4c9521;bpv=1;bpt=0
 	if _, ok := fsInfos["ramdisk"]; ok {
+		// http://b/428047677#comment3
+		// TODO: Consider using `BOARD_RAMDISK_USE_LZ4` instead.
+		builder.Command().Textf("echo lz4_ramdisks=true >> %s", miscInfo)
+	} else if _, ok := fsInfos["vendor_ramdisk"]; ok {
+		// http://b/428047677#comment3
+		// TODO: Consider using `BOARD_RAMDISK_USE_LZ4` instead.
 		builder.Command().Textf("echo lz4_ramdisks=true >> %s", miscInfo)
 	}
 	// recovery_mount_options

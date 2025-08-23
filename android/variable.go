@@ -682,6 +682,7 @@ type PartitionVariables struct {
 	BoardKernelModulesLoad16K         []string `json:",omitempty"`
 	BuildingDebugBootImage            bool     `json:",omitempty"`
 	BuildingDebugVendorBootImage      bool     `json:",omitempty"`
+	BoardVendorRamdiskFragments       []string `json:",omitempty"`
 
 	// Radio stuff
 	AbOtaRadioPartitions      []string `json:",omitempty"`

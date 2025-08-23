@@ -273,6 +273,7 @@ type LinkableInfo struct {
 	HasLLNDKStubs            bool
 	IsLLNDKMovedToApex       bool
 	ImplementationModuleName string
+	SelectedStl              string
 }
 
 // @auto-generate: gob
@@ -322,8 +323,6 @@ func RegisterCCBuildComponents(ctx android.RegistrationContext) {
 		ctx.Transition("orderfile", &orderfileTransitionMutator{})
 
 		ctx.Transition("lto", &ltoTransitionMutator{})
-
-		ctx.BottomUp("check_linktype", checkLinkTypeMutator)
 	})
 
 	ctx.PostApexMutators(func(ctx android.RegisterMutatorsContext) {
@@ -2555,6 +2554,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	buildComplianceMetadataInfo(ctx, c, deps)
 
+	c.checkLinkType(ctx)
 	c.checkDoubleLoadableLibraries(ctx)
 
 	if b, ok := c.compiler.(*baseCompiler); ok {
@@ -2818,6 +2818,7 @@ func CreateCommonLinkableInfo(ctx android.ModuleContext, mod VersionedLinkableIn
 		Symlinks:                        mod.Symlinks(),
 		Header:                          mod.Header(),
 		IsVndkPrebuiltLibrary:           mod.IsVndkPrebuiltLibrary(),
+		SelectedStl:                     mod.SelectedStl(),
 	}
 
 	vi := mod.VersionedInterface()
@@ -3481,9 +3482,15 @@ func BeginMutator(ctx android.BottomUpMutatorContext) {
 
 // Whether a module can link to another module, taking into
 // account NDK linking.
-func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to LinkableInterface,
-	tag blueprint.DependencyTag) {
+func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to android.ModuleProxy) {
+	toLinkableInfo, ok := android.OtherModuleProvider(ctx, to, LinkableInfoProvider)
+	if !ok {
+		return
+	}
 
+	toCommonInfo := android.OtherModulePointerProviderOrDefault(ctx, to, android.CommonModuleInfoProvider)
+
+	tag := ctx.OtherModuleDependencyTag(to)
 	switch t := tag.(type) {
 	case dependencyTag:
 		if t != vndkExtDepTag {
@@ -3515,25 +3522,21 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 		// Recovery code is not NDK
 		return
 	}
-	// Change this to LinkableInterface if Rust gets NDK support, which stubDecorators are for
-	if c, ok := to.(*Module); ok {
-		if c.StubDecorator() {
-			// These aren't real libraries, but are the stub shared libraries that are included in
-			// the NDK.
-			return
-		}
+
+	if toLinkableInfo.IsNdk {
+		return
 	}
 
-	if strings.HasPrefix(ctx.ModuleName(), "libclang_rt.") && to.Module().Name() == "libc++" {
+	if strings.HasPrefix(ctx.ModuleName(), "libclang_rt.") && to.Name() == "libc++" {
 		// Bug: http://b/121358700 - Allow libclang_rt.* shared libraries (with sdk_version)
 		// to link to libc++ (non-NDK and without sdk_version).
 		return
 	}
 
-	if to.SdkVersion() == "" {
+	if toCommonInfo.SdkVersion == "" {
 		// NDK code linking to platform code is never okay.
 		ctx.ModuleErrorf("depends on non-NDK-built library %q",
-			ctx.OtherModuleName(to.Module()))
+			ctx.OtherModuleName(to))
 		return
 	}
 
@@ -3545,10 +3548,10 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 	// Current can link against anything.
 	if from.SdkVersion() != "current" {
 		// Otherwise we need to check.
-		if to.SdkVersion() == "current" {
+		if toCommonInfo.SdkVersion == "current" {
 			// Current can't be linked against by anything else.
 			ctx.ModuleErrorf("links %q built against newer API version %q",
-				ctx.OtherModuleName(to.Module()), "current")
+				ctx.OtherModuleName(to), "current")
 		} else {
 			fromApi, err := android.ApiLevelFromUserWithConfig(ctx.Config(), from.SdkVersion())
 			if err != nil {
@@ -3556,46 +3559,40 @@ func checkLinkType(ctx android.BaseModuleContext, from LinkableInterface, to Lin
 					"Invalid sdk_version value (must be int, preview or current): %q",
 					from.SdkVersion())
 			}
-			toApi, err := android.ApiLevelFromUserWithConfig(ctx.Config(), to.SdkVersion())
+			toApi, err := android.ApiLevelFromUserWithConfig(ctx.Config(), toCommonInfo.SdkVersion)
 			if err != nil {
 				ctx.PropertyErrorf("sdk_version",
 					"Invalid sdk_version value (must be int, preview or current): %q",
-					to.SdkVersion())
+					toCommonInfo.SdkVersion)
 			}
 
 			if toApi.GreaterThan(fromApi) {
 				ctx.ModuleErrorf("links %q built against newer API version %q",
-					ctx.OtherModuleName(to.Module()), to.SdkVersion())
+					ctx.OtherModuleName(to), toCommonInfo.SdkVersion)
 			}
 		}
 	}
 
 	// Also check that the two STL choices are compatible.
 	fromStl := from.SelectedStl()
-	toStl := to.SelectedStl()
+	toStl := toLinkableInfo.SelectedStl
 	if fromStl == "" || toStl == "" {
 		// Libraries that don't use the STL are unrestricted.
 	} else if fromStl == "ndk_system" || toStl == "ndk_system" {
 		// We can be permissive with the system "STL" since it is only the C++
 		// ABI layer, but in the future we should make sure that everyone is
 		// using either libc++ or nothing.
-	} else if getNdkStlFamily(from) != getNdkStlFamily(to) {
+	} else if getNdkStlFamily(fromStl) != getNdkStlFamily(toStl) {
 		ctx.ModuleErrorf("uses %q and depends on %q which uses incompatible %q",
-			from.SelectedStl(), ctx.OtherModuleName(to.Module()),
-			to.SelectedStl())
+			fromStl, ctx.OtherModuleName(to),
+			toStl)
 	}
 }
 
-func checkLinkTypeMutator(ctx android.BottomUpMutatorContext) {
-	if c, ok := ctx.Module().(*Module); ok {
-		ctx.VisitDirectDeps(func(dep android.Module) {
-			depTag := ctx.OtherModuleDependencyTag(dep)
-			ccDep, ok := dep.(LinkableInterface)
-			if ok {
-				checkLinkType(ctx, c, ccDep, depTag)
-			}
-		})
-	}
+func (c *Module) checkLinkType(ctx android.ModuleContext) {
+	ctx.VisitDirectDepsProxy(func(dep android.ModuleProxy) {
+		checkLinkType(ctx, c, dep)
+	})
 }
 
 // Tests whether the dependent library is okay to be double loaded inside a single process.

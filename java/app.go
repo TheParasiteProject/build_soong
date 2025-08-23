@@ -1230,8 +1230,8 @@ func (a *AndroidApp) setOutputFiles(ctx android.ModuleContext) {
 }
 
 type appDepsInterface interface {
-	SdkVersion(ctx android.EarlyModuleContext) android.SdkSpec
-	MinSdkVersion(ctx android.EarlyModuleContext) android.ApiLevel
+	SdkVersion(ctx android.ConfigContext) android.SdkSpec
+	MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel
 	RequiresStableAPIs(ctx android.BaseModuleContext) bool
 }
 
