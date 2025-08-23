@@ -447,13 +447,20 @@ func (v *vbmeta) buildPropFileForMiscInfo(ctx android.ModuleContext) android.Pat
 		addStr(fmt.Sprintf("avb_%s", v.partitionName()), strings.Join(android.SortedUniqueStrings(partitionDepNames), " "))
 	}
 
-	includeDescriptors := ""
-	if len(bootloaderPartitions) > 0 {
-		for _, p := range bootloaderPartitions {
-			includeDescriptors += fmt.Sprintf("--include_descriptors_from_image %s ", p.String())
-		}
+	var args []string
+	for _, p := range bootloaderPartitions {
+		args = append(args, "--include_descriptors_from_image "+p.String())
 	}
-	addStr(fmt.Sprintf("avb_%s_args", v.partitionName()), fmt.Sprintf("%s--padding_size 4096 --rollback_index %s", includeDescriptors, v.rollbackIndexString(ctx)))
+	args = append(args, "--padding_size 4096")
+
+	// We only need the flag in top-level vbmeta.img.
+	// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=4917;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b
+	if ctx.Config().Eng() && v.partitionName() == "vbmeta" {
+		args = append(args, "--set_hashtree_disabled_flag")
+	}
+
+	args = append(args, "--rollback_index "+v.rollbackIndexString(ctx))
+	addStr(fmt.Sprintf("avb_%s_args", v.partitionName()), strings.Join(args, " "))
 
 	sort.Strings(lines)
 

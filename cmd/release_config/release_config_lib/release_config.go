@@ -15,6 +15,7 @@
 package release_config_lib
 
 import (
+	"bytes"
 	"cmp"
 	"fmt"
 	"os"
@@ -527,27 +528,29 @@ func (config *ReleaseConfig) WriteMakefile(outFile, targetRelease string, config
 	//   _ALL_RELEASE_FLAGS.PARTITIONS.*
 	//   all _ALL_RELEASE_FLAGS.*, sorted by name
 	//   Final flag values, sorted by name.
-	data := fmt.Sprintf("# TARGET_RELEASE=%s\n", config.Name)
+	var sb bytes.Buffer
+
+	fmt.Fprintf(&sb, "# TARGET_RELEASE=%s\n", config.Name)
 	if targetRelease != config.Name {
-		data += fmt.Sprintf("# User specified TARGET_RELEASE=%s\n", targetRelease)
+		fmt.Fprintf(&sb, "# User specified TARGET_RELEASE=%s\n", targetRelease)
 	}
 	// As it stands this list is not per-product, but conceptually it is, and will be.
-	data += fmt.Sprintf("ALL_RELEASE_CONFIGS_FOR_PRODUCT :=$= %s\n", strings.Join(configs.GetAllReleaseNames(), " "))
+	fmt.Fprintf(&sb, "ALL_RELEASE_CONFIGS_FOR_PRODUCT :=$= %s\n", strings.Join(configs.GetAllReleaseNames(), " "))
 	if config.DisallowLunchUse {
-		data += fmt.Sprintf("_disallow_lunch_use :=$= true\n")
+		fmt.Fprintf(&sb, "_disallow_lunch_use :=$= true\n")
 	}
-	data += fmt.Sprintf("_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
+	fmt.Fprintf(&sb, "_ALL_RELEASE_FLAGS :=$= %s\n", strings.Join(names, " "))
 	for _, pName := range pNames {
-		data += fmt.Sprintf("_ALL_RELEASE_FLAGS.PARTITIONS.%s :=$= %s\n", pName, strings.Join(partitions[pName], " "))
+		fmt.Fprintf(&sb, "_ALL_RELEASE_FLAGS.PARTITIONS.%s :=$= %s\n", pName, strings.Join(partitions[pName], " "))
 	}
 	for _, vName := range vNames {
-		data += fmt.Sprintf("%s :=$= %s\n", vName, makeVars[vName])
+		fmt.Fprintf(&sb, "%s :=$= %s\n", vName, makeVars[vName])
 	}
-	data += "\n\n# Values for all build flags\n"
+	fmt.Fprintf(&sb, "\n\n# Values for all build flags\n")
 	for _, name := range names {
-		data += fmt.Sprintf("%s :=$= %s\n", name, makeVars[name])
+		fmt.Fprintf(&sb, "%s :=$= %s\n", name, makeVars[name])
 	}
-	return os.WriteFile(outFile, []byte(data), 0644)
+	return os.WriteFile(outFile, sb.Bytes(), 0644)
 }
 
 func (config *ReleaseConfig) WritePartitionBuildFlags(product string, outDir string) error {
