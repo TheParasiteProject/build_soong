@@ -31,6 +31,15 @@ import (
 
 var (
 	pctx = android.NewPackageContext("android/soong/test_suites")
+
+	_ = pctx.HostBinToolVariable("buildLicenseMetadataCmd", "build_license_metadata")
+
+	licenseMetadataRule = pctx.AndroidStaticRule("licenseMetadataRule", blueprint.RuleParams{
+		Command:        "${buildLicenseMetadataCmd} -o $out @${out}.rsp",
+		CommandDeps:    []string{"${buildLicenseMetadataCmd}"},
+		Rspfile:        "${out}.rsp",
+		RspfileContent: "${args}",
+	}, "args")
 )
 
 func init() {
@@ -811,7 +820,7 @@ func buildCompatibilitySuitePackage(
 		cmd.
 			FlagWithArg("-e ", subdir+"/lib64/"+hostSharedLib.Base()).
 			FlagWithInput("-f ", hostSharedLib)
-		copyTool(hostSharedLib)
+		builder.Command().Text("cp").Input(hostSharedLib).Output(hostOutSuite.Join(ctx, subdir, "lib64", hostSharedLib.Base()))
 	}
 
 	licenceInfos := slices.Concat(android.GetNoticeModuleInfos(ctx, testSuiteModules), suite.ToolNoticeInfo)
@@ -860,6 +869,10 @@ func buildCompatibilitySuitePackage(
 		ctx.DistForGoal(testSuiteName, out)
 	}
 
+	if suite.BuildSharedReport {
+		buildSharedReport(ctx, suite, testSuiteFiles, testSuiteModules, testSuiteLibs, subdir, out)
+	}
+
 	if suite.BuildTestList == true {
 		// Original compatibility_tests_list_zip in build/make/core/tasks/tools/compatibility.mk
 		// output is $(HOST_OUT)/$(test_suite_name)/android-$(test_suite_name)-tests_list.zip
@@ -905,6 +918,104 @@ func buildCompatibilitySuitePackage(
 	}
 }
 
+func buildSharedReport(
+	ctx android.SingletonContext,
+	suite compatibilitySuitePackageInfo,
+	testSuiteFiles android.Paths,
+	testSuiteModules []android.ModuleProxy,
+	testSuiteLibs android.Paths,
+	subdir string,
+	out android.InstallPath,
+) {
+	testSuiteName := suite.Name
+	hostOutSuite := android.PathForHostInstall(ctx, testSuiteName)
+	hostOutSubDir := hostOutSuite.String() + "/" + subdir + "/"
+
+	compatibilityOutput := android.PathForOutput(ctx, "compatibility_test_suites", testSuiteName)
+	metaLicOutput := compatibilityOutput.Join(ctx, "meta_lic")
+	// Aggregate license metadata from all component modules into a single file.
+	var componentMetadataFiles android.Paths
+	meta_builder := android.NewRuleBuilder(pctx, ctx)
+	for _, mod := range testSuiteModules {
+		if provider, ok := android.OtherModuleProvider(ctx, mod, android.LicenseMetadataProvider); ok && provider.LicenseMetadataPath != nil {
+			if testSuiteInstalls, ok := android.OtherModuleProvider(ctx, mod, android.TestSuiteInstallsInfoProvider); ok {
+				for _, f := range testSuiteInstalls.Files {
+					if strings.Contains(f.Dst.String(), mod.Name()) && strings.HasPrefix(f.Dst.String(), hostOutSubDir) {
+						if f.Dst.Ext() == ".jar" || f.Dst.Ext() == ".apk" {
+							subdir_meta_file := strings.TrimPrefix(f.Dst.String(), hostOutSubDir) + ".meta_lic"
+							target_meta_file := metaLicOutput.Join(ctx, subdir_meta_file)
+							meta_builder.Command().Text("cp").
+								Input(provider.LicenseMetadataPath).
+								Output(target_meta_file)
+							componentMetadataFiles = append(componentMetadataFiles, target_meta_file)
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var toolFilenames []string
+	for _, f := range suite.ToolFiles {
+		toolFilenames = append(toolFilenames, f.Base())
+	}
+	for _, info := range suite.ToolNoticeInfo {
+		if info.LicenseMetadataFile != nil {
+			var installed_files []string
+			for _, filename := range toolFilenames {
+				fname := strings.SplitN(filename, ".", 2)
+				if fname[0] == info.Name {
+					installed_files = append(installed_files, filename)
+				}
+			}
+			for _, f := range installed_files {
+				target_tool_file := metaLicOutput.Join(ctx, "tools", f+".meta_lic")
+				meta_builder.Command().Text("cp").
+					Input(info.LicenseMetadataFile).
+					Output(target_tool_file)
+				componentMetadataFiles = append(componentMetadataFiles, target_tool_file)
+			}
+		}
+	}
+	meta_builder.Build("cp_meta_lic_"+testSuiteName, fmt.Sprintf("cp meta lic %q", testSuiteName))
+	componentMetadataFiles = android.SortedUniquePaths(componentMetadataFiles)
+
+	// Also include all the files that are directly included in the zip as sources.
+	allSources := slices.Concat(testSuiteFiles, testSuiteLibs)
+	allSources = android.SortedUniquePaths(allSources)
+	metaLic := android.PathForOutput(ctx, out.Base()+".meta_lic")
+	var args []string
+	args = append(args, "-mn ", out.Base())
+	args = append(args, "-mt compatibility_test_suite_package")
+	args = append(args, "--is_container")
+	args = append(args, android.JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(componentMetadataFiles.Strings()), "-d "))
+	args = append(args, android.JoinWithPrefix(proptools.NinjaAndShellEscapeListIncludingSpaces(allSources.Strings()), "-s "))
+	ctx.Build(pctx, android.BuildParams{
+		Rule:        licenseMetadataRule,
+		Output:      metaLic,
+		Implicits:   append(componentMetadataFiles, allSources...),
+		Description: fmt.Sprintf("aggregate %q license metadata", testSuiteName),
+		Args: map[string]string{
+			"args": strings.Join(args, " "),
+		},
+	})
+
+	// Only gts build shared report. The output is gts-shared-report.txt.
+	gtsReportBuilder := android.NewRuleBuilder(pctx, ctx)
+	reportCmd := gtsReportBuilder.Command().BuiltTool("generate_gts_shared_report")
+	reportCmd.FlagWithInput("--checkshare ", ctx.Config().HostToolPath(ctx, "compliance_checkshare"))
+	shared_report := hostOutSuite.Join(ctx, "gts-shared-report.txt")
+	reportCmd.FlagWithOutput("-o ", shared_report)
+	reportCmd.FlagWithInput("--gts-test-metalic ", metaLic)
+	reportCmd.FlagWithArg("--gts-test-dir ", "compatibility_test_suites/"+testSuiteName+"/meta_lic")
+	reportCmd.Implicit(out)
+	gtsReportBuilder.Build("gen_"+testSuiteName+"_shared_report", "generate gts_shared_report.txt")
+
+	ctx.Phony(testSuiteName, shared_report)
+	ctx.DistForGoal(testSuiteName, shared_report)
+}
+
 func addJdkToZip(ctx android.SingletonContext, command *android.RuleBuilderCommand, subdir string) {
 	jdkHome := filepath.Dir(ctx.Config().Getenv("ANDROID_JAVA_HOME")) + "/linux-x86"
 	glob := jdkHome + "/**/*"
@@ -937,13 +1048,14 @@ func compatibilityTestSuitePackageFactory() android.Module {
 }
 
 type compatibilityTestSuitePackageProperties struct {
-	Tradefed         *string
-	Readme           *string `android:"path"`
-	Tools            []string
-	Dynamic_config   *string `android:"path"`
-	Host_shared_libs []string
-	Build_test_list  *bool
-	Build_metadata   *bool
+	Tradefed            *string
+	Readme              *string `android:"path"`
+	Tools               []string
+	Dynamic_config      *string `android:"path"`
+	Host_shared_libs    []string
+	Build_test_list     *bool
+	Build_metadata      *bool
+	Build_shared_report *bool
 	// If true, the test suite will not be included in the dist-for-goal method.
 	No_dist *bool
 	// If set, this will override the name property used in the zip file. This is useful when the test suite
@@ -958,16 +1070,17 @@ type compatibilityTestSuitePackage struct {
 }
 
 type compatibilitySuitePackageInfo struct {
-	Name            string
-	Readme          android.Path
-	DynamicConfig   android.Path
-	ToolFiles       android.Paths
-	ToolNoticeInfo  android.NoticeModuleInfos
-	HostSharedLibs  android.Paths
-	BuildTestList   bool
-	BuildMetadata   bool
-	NoDist          bool
-	TestSuiteSubdir string
+	Name              string
+	Readme            android.Path
+	DynamicConfig     android.Path
+	ToolFiles         android.Paths
+	ToolNoticeInfo    android.NoticeModuleInfos
+	HostSharedLibs    android.Paths
+	BuildTestList     bool
+	BuildMetadata     bool
+	BuildSharedReport bool
+	NoDist            bool
+	TestSuiteSubdir   string
 }
 
 var compatibilitySuitePackageProvider = blueprint.NewProvider[compatibilitySuitePackageInfo]()
@@ -1079,16 +1192,17 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 	}
 
 	android.SetProvider(ctx, compatibilitySuitePackageProvider, compatibilitySuitePackageInfo{
-		Name:            suiteName,
-		Readme:          readme,
-		DynamicConfig:   dynamicConfig,
-		ToolFiles:       toolFiles,
-		ToolNoticeInfo:  toolNoticeinfo,
-		HostSharedLibs:  hostSharedLibs,
-		BuildTestList:   proptools.BoolDefault(m.properties.Build_test_list, true),
-		BuildMetadata:   proptools.Bool(m.properties.Build_metadata),
-		NoDist:          proptools.Bool(m.properties.No_dist),
-		TestSuiteSubdir: proptools.String(m.properties.Test_suite_subdir),
+		Name:              suiteName,
+		Readme:            readme,
+		DynamicConfig:     dynamicConfig,
+		ToolFiles:         toolFiles,
+		ToolNoticeInfo:    toolNoticeinfo,
+		HostSharedLibs:    hostSharedLibs,
+		BuildTestList:     proptools.BoolDefault(m.properties.Build_test_list, true),
+		BuildMetadata:     proptools.Bool(m.properties.Build_metadata),
+		BuildSharedReport: proptools.Bool(m.properties.Build_shared_report),
+		NoDist:            proptools.Bool(m.properties.No_dist),
+		TestSuiteSubdir:   proptools.String(m.properties.Test_suite_subdir),
 	})
 
 	// Make compatibility_test_suite_package a SourceFileProducer so that it can be used by other modules.
