@@ -378,9 +378,11 @@ class OmitSymbolTest(unittest.TestCase):
         f_arm = self.filter
         s_none = Symbol('foo', Tags())
         s_platform_only = Symbol('foo', Tags.from_strs(['platform-only']))
+        s_draft = Symbol('foo', Tags.from_strs(['draft']))
 
         self.assertInclude(f_arm, s_none)
         self.assertOmit(f_arm, s_platform_only)
+        self.assertOmit(f_arm, s_draft)
 
     def test_omit_arch(self) -> None:
         f_arm = self.filter

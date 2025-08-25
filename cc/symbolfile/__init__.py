@@ -49,6 +49,7 @@ ALL_ARCHITECTURES = (
 # TODO: it would be nice to dedupe with 'has_*_tag' property methods
 SUPPORTED_TAGS = ALL_ARCHITECTURES + (
     Tag('apex'),
+    Tag('draft'),
     Tag('llndk'),
     Tag('platform-only'),
     Tag('systemapi'),
@@ -108,7 +109,7 @@ class Tags:
     @property
     def has_platform_only_tags(self) -> bool:
         """Returns True if any platform-only tags are set."""
-        return 'platform-only' in self.tags
+        return 'platform-only' in self.tags or 'draft' in self.tags
 
 
 @dataclass
