@@ -244,6 +244,8 @@ class Filter:
 
         This defines the rules shared between version tagging and symbol tagging.
         """
+        if tags.has_platform_only_tags:
+            return True
         # The apex and llndk tags will only exclude APIs from other modes. If in
         # APEX or LLNDK mode and neither tag is provided, we fall back to the
         # default behavior because all NDK symbols are implicitly available to
@@ -266,8 +268,6 @@ class Filter:
         symbols for certain architectures.
         """
         if version.is_private:
-            return True
-        if version.tags.has_platform_only_tags:
             return True
         return self._should_omit_tags(version.tags)
 

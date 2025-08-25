@@ -374,6 +374,14 @@ class OmitSymbolTest(unittest.TestCase):
         self.assertInclude(f, s_apex)
         self.assertInclude(f, s_systemapi)
 
+    def test_omit_private(self) -> None:
+        f_arm = self.filter
+        s_none = Symbol('foo', Tags())
+        s_platform_only = Symbol('foo', Tags.from_strs(['platform-only']))
+
+        self.assertInclude(f_arm, s_none)
+        self.assertOmit(f_arm, s_platform_only)
+
     def test_omit_arch(self) -> None:
         f_arm = self.filter
         s_none = Symbol('foo', Tags())
