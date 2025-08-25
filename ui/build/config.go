@@ -732,6 +732,9 @@ func buildConfig(config Config) *smpb.BuildConfig {
 	if value, ok := config.environ.Get("SOONG_USE_PARTIAL_COMPILE"); ok {
 		ensure().UsePartialCompile = proto.String(value)
 	}
+	if value, ok := config.environ.Get("NETWORK_FILE_SYSTEM_TYPE"); ok {
+		ensure().NetworkFileSystemType = proto.String(value)
+	}
 	c := &smpb.BuildConfig{
 		UseRbe:                proto.Bool(config.UseRBE()),
 		NinjaWeightListSource: getNinjaWeightListSourceInMetric(config.NinjaWeightListSource()),

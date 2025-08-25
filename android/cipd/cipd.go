@@ -136,7 +136,7 @@ func (p *cipdPackageModule) GenerateAndroidBuildActions(ctx android.ModuleContex
 			"tempZipDir": tempZipDir.String(),
 		},
 	})
-	ctx.SetOutputFiles(android.Paths{outputZipFile}, "zip")
+	ctx.SetOutputFiles(android.Paths{outputZipFile}, ".zip")
 }
 
 // cipd_package module installs the given CIPD package version.

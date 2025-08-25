@@ -190,6 +190,9 @@ message SoongEnvVars {
 
   // SOONG_USE_PARTIAL_COMPILE
   optional string use_partial_compile = 2;
+
+  // NETWORK_FILE_SYSTEM_TYPE - Used to compare performance of Cog, CartFS, etc.
+  optional string network_file_system_type = 3;
 }
 
 message SystemResourceInfo {
