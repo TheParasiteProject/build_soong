@@ -114,25 +114,21 @@ type BaseModuleContext interface {
 	// This method shouldn't be used directly, prefer the type-safe android.SetProvider instead.
 	setProvider(provider blueprint.AnyProviderKey, value any)
 
-	GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module
-
 	GetDirectDepsProxyWithTag(tag blueprint.DependencyTag) []ModuleProxy
 
-	// GetDirectDepWithTag returns the Module the direct dependency with the specified name, or nil if
-	// none exists.  It panics if the dependency does not have the specified tag.  It skips any
-	// dependencies that are not an android.Module.
-	GetDirectDepWithTag(name string, tag blueprint.DependencyTag) Module
-
+	// GetDirectDepProxyWithTag returns the ModuleProxy for the direct dependency with the specified
+	// name, or an empty ModuleProxy if none exists.  It panics if the dependency does not have the
+	// specified tag.
 	GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) ModuleProxy
 
-	// VisitDirectDeps calls visit for each direct dependency.  If there are multiple
+	// visitDirectDeps calls visit for each direct dependency.  If there are multiple
 	// direct dependencies on the same module visit will be called multiple times on that module
 	// and OtherModuleDependencyTag will return a different tag for each.  It raises an error if any of the
 	// dependencies are disabled.
 	//
 	// The Module passed to the visit function should not be retained outside of the visit
 	// function, it may be invalidated by future mutators.
-	VisitDirectDeps(visit func(Module))
+	visitDirectDeps(visit func(Module))
 
 	// VisitDirectDepsProxy calls visit for each direct dependency.  If there are multiple
 	// direct dependencies on the same module visit will be called multiple times on that module
@@ -151,18 +147,9 @@ type BaseModuleContext interface {
 	// invalidated by future mutators.
 	VisitDirectDepsProxyAllowDisabled(visit func(proxy ModuleProxy))
 
-	VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module))
+	visitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module))
 
 	VisitDirectDepsProxyWithTag(tag blueprint.DependencyTag, visit func(proxy ModuleProxy))
-
-	// VisitDirectDepsIf calls pred for each direct dependency, and if pred returns true calls visit.  If there are
-	// multiple direct dependencies on the same module pred and visit will be called multiple times on that module and
-	// OtherModuleDependencyTag will return a different tag for each.  It skips any
-	// dependencies that are not an android.Module.
-	//
-	// The Module passed to the visit function should not be retained outside of the visit function, it may be
-	// invalidated by future mutators.
-	VisitDirectDepsIf(pred func(Module) bool, visit func(Module))
 
 	// WalkDeps calls visit for each transitive dependency, traversing the dependency tree in top down order.  visit may
 	// be called multiple times for the same (child, parent) pair if there are multiple direct dependencies between the
@@ -172,7 +159,7 @@ type BaseModuleContext interface {
 	//
 	// The Modules passed to the visit function should not be retained outside of the visit function, they may be
 	// invalidated by future mutators.
-	WalkDeps(visit func(child, parent Module) bool)
+	walkDeps(visit func(child, parent Module) bool)
 
 	// WalkDepsProxy calls visit for each transitive dependency, traversing the dependency tree in top down order.  visit may
 	// be called multiple times for the same (child, parent) pair if there are multiple direct dependencies between the
@@ -183,19 +170,9 @@ type BaseModuleContext interface {
 	// invalidated by future mutators.
 	WalkDepsProxy(visit func(child, parent ModuleProxy) bool)
 
-	// GetWalkPath is supposed to be called in visit function passed in WalkDeps()
-	// and returns a top-down dependency path from a start module to current child module.
-	GetWalkPath() []Module
-
 	// GetProxyWalkPath is supposed to be called in visit function passed in WalkDepsProxy()
 	// and returns a top-down dependency path from a start module to current child module.
 	GetProxyWalkPath() []ModuleProxy
-
-	// PrimaryModule returns the first variant of the current module.  Variants of a module are always visited in
-	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
-	// Module returned by PrimaryModule without data races.  This can be used to perform singleton actions that are
-	// only done once for all variants of a module.
-	PrimaryModule() Module
 
 	// IsPrimaryModule returns if the current module is the first variant.  Variants of a module are always visited in
 	// order by mutators and GenerateBuildActions, so the data created by the current mutator can be read from the
@@ -404,7 +381,7 @@ func (b *baseModuleContext) validateAndroidModuleProxy(
 
 func (b *baseModuleContext) getDirectDepsInternal(name string, tag blueprint.DependencyTag) []Module {
 	var deps []Module
-	b.VisitDirectDeps(func(module Module) {
+	b.visitDirectDeps(func(module Module) {
 		if module.base().BaseModuleName() == name {
 			returnedTag := b.bp.OtherModuleDependencyTag(module)
 			if tag == nil || returnedTag == tag {
@@ -430,7 +407,7 @@ func (b *baseModuleContext) getDirectDepsProxyInternal(name string, tag blueprin
 
 func (b *baseModuleContext) GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module {
 	var deps []Module
-	b.VisitDirectDeps(func(module Module) {
+	b.visitDirectDeps(func(module Module) {
 		if b.bp.OtherModuleDependencyTag(module) == tag {
 			deps = append(deps, module)
 		}
@@ -448,7 +425,7 @@ func (b *baseModuleContext) GetDirectDepsProxyWithTag(tag blueprint.DependencyTa
 	return deps
 }
 
-func (b *baseModuleContext) VisitDirectDeps(visit func(Module)) {
+func (b *baseModuleContext) visitDirectDeps(visit func(Module)) {
 	b.bp.VisitDirectDeps(func(module blueprint.Module) {
 		if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
 			visit(aModule)
@@ -468,7 +445,7 @@ func (b *baseModuleContext) VisitDirectDepsProxyAllowDisabled(visit func(proxy M
 	b.bp.VisitDirectDepsProxy(visitProxyAdaptor(visit))
 }
 
-func (b *baseModuleContext) VisitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
+func (b *baseModuleContext) visitDirectDepsWithTag(tag blueprint.DependencyTag, visit func(Module)) {
 	b.bp.VisitDirectDeps(func(module blueprint.Module) {
 		if b.bp.OtherModuleDependencyTag(module) == tag {
 			if aModule := b.validateAndroidModule(module, tag, b.strictVisitDeps); aModule != nil {
@@ -504,7 +481,7 @@ func (b *baseModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func
 		})
 }
 
-func (b *baseModuleContext) WalkDeps(visit func(Module, Module) bool) {
+func (b *baseModuleContext) walkDeps(visit func(Module, Module) bool) {
 	b.walkPath = []Module{b.Module()}
 	b.proxyWalkPath = nil
 	b.tagPath = []blueprint.DependencyTag{}

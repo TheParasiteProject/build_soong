@@ -91,7 +91,6 @@ func GlobFiles(ctx EarlyModulePathContext, globPattern string, excludes []string
 type ModuleWithDepsPathContext interface {
 	EarlyModulePathContext
 	OtherModuleProviderContext
-	VisitDirectDeps(visit func(Module))
 	VisitDirectDepsProxy(visit func(ModuleProxy))
 	VisitDirectDepsProxyWithTag(tag blueprint.DependencyTag, visit func(ModuleProxy))
 	OtherModuleDependencyTag(m ModuleOrProxy) blueprint.DependencyTag
@@ -724,30 +723,6 @@ func GetModuleProxyFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag st
 	expectedTag := sourceOrOutputDepTag(moduleName, tag)
 	ctx.VisitDirectDepsProxyWithTag(expectedTag, func(module ModuleProxy) {
 		found = module
-	})
-	return found
-}
-
-// Deprecated: use GetModuleProxyFromPathDep
-func GetModuleFromPathDep(ctx ModuleWithDepsPathContext, moduleName, tag string) blueprint.Module {
-	var found blueprint.Module
-	// The sourceOrOutputDepTag uniquely identifies the module dependency as it contains both the
-	// module name and the tag. Dependencies added automatically for properties tagged with
-	// `android:"path"` are deduped so are guaranteed to be unique. It is possible for duplicate
-	// dependencies to be added manually using ExtractSourcesDeps or ExtractSourceDeps but even then
-	// it will always be the case that the dependencies will be identical, i.e. the same tag and same
-	// moduleName referring to the same dependency module.
-	//
-	// It does not matter whether the moduleName is a fully qualified name or if the module
-	// dependency is a prebuilt module. All that matters is the same information is supplied to
-	// create the tag here as was supplied to create the tag when the dependency was added so that
-	// this finds the matching dependency module.
-	expectedTag := sourceOrOutputDepTag(moduleName, tag)
-	ctx.VisitDirectDeps(func(module Module) {
-		depTag := ctx.OtherModuleDependencyTag(module)
-		if depTag == expectedTag {
-			found = module
-		}
 	})
 	return found
 }

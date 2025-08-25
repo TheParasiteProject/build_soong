@@ -573,7 +573,7 @@ func AvailableToSameApexes(mod1, mod2 ApexModule) bool {
 // variant.
 func UpdateUniqueApexVariationsForDeps(mctx BottomUpMutatorContext, am ApexModule) {
 	// If any of the dependencies requires unique apex variations, so does this module.
-	mctx.VisitDirectDeps(func(dep Module) {
+	mctx.visitDirectDeps(func(dep Module) {
 		if depApexModule, ok := dep.(ApexModule); ok {
 			if IsDepInSameApex(mctx, am, depApexModule) &&
 				(depApexModule.UniqueApexVariations() ||
