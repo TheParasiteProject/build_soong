@@ -52,6 +52,17 @@ type StubsSrcInfo struct {
 
 var StubsSrcInfoProvider = blueprint.NewProvider[StubsSrcInfo]()
 
+// Marker provider that indicates this module has files to update on an `m update-api`.
+type UpdateApiInfo struct {
+	Name                 string
+	SourceApiFile        android.Path
+	GeneratedApiFile     android.Path
+	SourceRemovedFile    android.Path
+	GeneratedRemovedFile android.Path
+}
+
+var UpdateApiProvider = blueprint.NewProvider[UpdateApiInfo]()
+
 // The values allowed for Droidstubs' Api_levels_sdk_type
 var allowedApiLevelSdkTypes = []string{"public", "system", "module-lib", "system-server"}
 
@@ -101,6 +112,8 @@ func RegisterStubsBuildComponents(ctx android.RegistrationContext) {
 	ctx.RegisterModuleType("droidstubs_host", DroidstubsHostFactory)
 
 	ctx.RegisterModuleType("prebuilt_stubs_sources", PrebuiltStubsSourcesFactory)
+
+	ctx.RegisterParallelSingletonType("update_api_singleton", UpdateApiSingletonFactory)
 }
 
 type stubsArtifacts struct {
@@ -121,7 +134,6 @@ type Droidstubs struct {
 	removedApiFile android.Path
 
 	checkCurrentApiTimestamp      android.WritablePath
-	updateCurrentApiTimestamp     android.WritablePath
 	checkLastReleasedApiTimestamp android.WritablePath
 	apiLintTimestamp              android.WritablePath
 	apiLintReport                 android.WritablePath
@@ -1258,10 +1270,6 @@ func (d *Droidstubs) setPhonyRules(ctx android.ModuleContext) {
 		ctx.Phony(fmt.Sprintf("%s-check-current-api", d.Name()), d.checkCurrentApiTimestamp)
 		ctx.Phony("checkapi", d.checkCurrentApiTimestamp)
 	}
-	if d.updateCurrentApiTimestamp != nil {
-		ctx.Phony(fmt.Sprintf("%s-update-current-api", d.Name()), d.updateCurrentApiTimestamp)
-		ctx.Phony("update-api", d.updateCurrentApiTimestamp)
-	}
 	if d.checkLastReleasedApiTimestamp != nil {
 		ctx.Phony(fmt.Sprintf("%s-check-last-released-api", d.Name()), d.checkLastReleasedApiTimestamp)
 	}
@@ -1418,34 +1426,13 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		}
 		rule.Build("metalavaCurrentApiCheck", "check current API")
 
-		d.updateCurrentApiTimestamp = android.PathForModuleOut(ctx, Everything.String(), "update_current_api.timestamp")
-
-		// update API rule
-		rule = android.NewRuleBuilder(pctx, ctx)
-
-		rule.Command().Text("( true")
-
-		rule.Command().
-			Text("cp").Flag("-f").
-			Input(d.apiFile).Flag(apiFile.String())
-
-		rule.Command().
-			Text("cp").Flag("-f").
-			Input(d.removedApiFile).Flag(removedApiFile.String())
-
-		msg = "failed to update public API"
-		if ctx.Config().GetBuildFlagBool("RELEASE_SRC_DIR_IS_READ_ONLY") {
-			msg += ". You may need `BUILD_BROKEN_SRC_DIR_IS_WRITABLE=true`"
-		}
-
-		rule.Command().
-			Text("touch").Output(d.updateCurrentApiTimestamp).
-			Text(") || (").
-			Text("echo").Flag("-e").Flag(`"` + msg + `"`).
-			Text("; exit 38").
-			Text(")")
-
-		rule.Build("metalavaCurrentApiUpdate", "update current API")
+		android.SetProvider(ctx, UpdateApiProvider, UpdateApiInfo{
+			Name:                 d.Name(),
+			SourceApiFile:        apiFile,
+			GeneratedApiFile:     d.apiFile,
+			SourceRemovedFile:    removedApiFile,
+			GeneratedRemovedFile: d.removedApiFile,
+		})
 	}
 
 	droidInfo := DroidStubsInfo{
@@ -1701,4 +1688,38 @@ func PrebuiltStubsSourcesFactory() android.Module {
 	android.InitPrebuiltModule(module, &module.properties.Srcs)
 	InitDroiddocModule(module, android.HostAndDeviceSupported)
 	return module
+}
+
+func UpdateApiSingletonFactory() android.Singleton {
+	return &updateApiSingleton{}
+}
+
+type updateApiSingleton struct{}
+
+func (u *updateApiSingleton) GenerateBuildActions(ctx android.SingletonContext) {
+	updateApiModulesFile := android.PathForOutput(ctx, "update_api.txt")
+
+	// Write an update_api.txt file that has essentially the value of all the UpdateApiInfos.
+	// Soong_ui will read this file after the build finishes and copy the generated api files
+	// to the source tree, as the source tree is read-only during the build.
+	var modulesFileBuilder strings.Builder
+	ctx.VisitAllModuleProxies(func(m android.ModuleProxy) {
+		if info, ok := android.OtherModuleProvider(ctx, m, UpdateApiProvider); ok {
+			ctx.Phony(fmt.Sprintf("%s-update-current-api", info.Name), info.GeneratedApiFile, info.GeneratedRemovedFile, updateApiModulesFile)
+			ctx.Phony("update-api", info.GeneratedApiFile, info.GeneratedRemovedFile)
+			modulesFileBuilder.WriteString(info.Name)
+			modulesFileBuilder.WriteString("\n")
+			modulesFileBuilder.WriteString(info.GeneratedApiFile.String())
+			modulesFileBuilder.WriteString("\n")
+			modulesFileBuilder.WriteString(info.SourceApiFile.String())
+			modulesFileBuilder.WriteString("\n")
+			modulesFileBuilder.WriteString(info.GeneratedRemovedFile.String())
+			modulesFileBuilder.WriteString("\n")
+			modulesFileBuilder.WriteString(info.SourceRemovedFile.String())
+			modulesFileBuilder.WriteString("\n")
+		}
+	})
+
+	android.WriteFileRuleVerbatim(ctx, updateApiModulesFile, modulesFileBuilder.String())
+	ctx.Phony("update-api", updateApiModulesFile)
 }

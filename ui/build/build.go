@@ -61,19 +61,19 @@ func SetupOutDir(ctx Context, config Config) {
 	// causes unnecessary rebuilds for local development.
 	buildNumber, ok := config.environ.Get("BUILD_NUMBER")
 	if ok {
-		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", buildNumber)
+		writeValueIfChanged(ctx, filepath.Join(config.OutDir(), "file_name_tag.txt"), buildNumber)
 	} else {
 		var username string
 		if username, ok = config.environ.Get("BUILD_USERNAME"); !ok {
 			ctx.Fatalln("Missing BUILD_USERNAME")
 		}
 		buildNumber = fmt.Sprintf("eng.%.6s", username)
-		writeValueIfChanged(ctx, config, config.OutDir(), "file_name_tag.txt", username)
+		writeValueIfChanged(ctx, filepath.Join(config.OutDir(), "file_name_tag.txt"), username)
 	}
 	// Write the build number to a file so it can be read back in
 	// without changing the command line every time.  Avoids rebuilds
 	// when using ninja.
-	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_number.txt", buildNumber)
+	writeValueIfChanged(ctx, filepath.Join(config.SoongOutDir(), "build_number.txt"), buildNumber)
 
 	hostname, ok := config.environ.Get("BUILD_HOSTNAME")
 	if !ok {
@@ -84,7 +84,7 @@ func SetupOutDir(ctx Context, config Config) {
 			hostname = "unknown"
 		}
 	}
-	writeValueIfChanged(ctx, config, config.SoongOutDir(), "build_hostname.txt", hostname)
+	writeValueIfChanged(ctx, filepath.Join(config.SoongOutDir(), "build_hostname.txt"), hostname)
 }
 
 // SetupTempDir makes sure config.TempDir() exists and is empty.
@@ -396,6 +396,8 @@ func Build(ctx Context, config Config) {
 		partialCompileCleanIfNecessary(ctx, config)
 		runNinjaForBuild(ctx, config)
 		updateBuildIdDir(ctx, config)
+
+		runUpdateApi(ctx, config)
 	}
 
 	if what&RunDistActions != 0 {
