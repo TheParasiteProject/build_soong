@@ -103,6 +103,10 @@ func (r PackagingSpec) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error 
 		return err
 	}
 
+	if err = gobtools.EncodeSimple(buf, r.installInSanitizerDir); err != nil {
+		return err
+	}
+
 	if err = gobtools.EncodeString(buf, r.variation); err != nil {
 		return err
 	}
@@ -221,6 +225,11 @@ func (r *PackagingSpec) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error
 	}
 
 	if err = r.fullInstallPath.Decode(ctx, buf); err != nil {
+		return err
+	}
+
+	err = gobtools.DecodeSimple[bool](buf, &r.installInSanitizerDir)
+	if err != nil {
 		return err
 	}
 

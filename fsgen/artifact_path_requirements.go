@@ -159,7 +159,7 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 
 		if installInfo, ok := android.OtherModuleProvider(ctx, m, android.InstallFilesProvider); ok {
 			for _, ps := range installInfo.TransitivePackagingSpecs.ToList() {
-				if ps.SkipInstall() || ps.Partition() == "" {
+				if ps.SkipInstall() || ps.Partition() == "" || ps.InstallInSanitizerDir() {
 					continue
 				}
 				installedFile := filepath.Join(ps.Partition(), ps.RelPathInPackage())
