@@ -1375,6 +1375,7 @@ func (j *Library) createApiXmlFile(ctx android.ModuleContext) {
 			Output: j.apiXmlFile,
 		})
 		ctx.DistForGoal("dist_files", j.apiXmlFile)
+		ctx.SetOutputFiles(android.Paths{j.apiXmlFile}, ".api.xml")
 	}
 }
 
