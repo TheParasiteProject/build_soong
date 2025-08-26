@@ -222,6 +222,11 @@ func installCleanIfNecessary(ctx Context, config Config) {
 // all files which were potentially built with partial compile, so that they
 // get rebuilt with that turned off.
 func partialCompileCleanIfNecessary(ctx Context, config Config) {
+	// No need to ever clean unless TARGET_BUILD_VARIANT=eng.
+	if config.TargetBuildVariant() != "eng" {
+		return
+	}
+
 	configFile := config.DevicePreviousUsePartialCompile()
 	currentValue, _ := config.Environment().Get("SOONG_USE_PARTIAL_COMPILE")
 

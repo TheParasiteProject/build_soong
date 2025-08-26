@@ -1364,7 +1364,8 @@ func (c *configImpl) TargetBuildVariant() string {
 	if v, ok := c.environ.Get("TARGET_BUILD_VARIANT"); ok {
 		return v
 	}
-	panic("TARGET_BUILD_VARIANT is not defined")
+	// By default, TARGET_BUILD_VARIANT=eng.
+	return "eng"
 }
 
 func (c *configImpl) KatiArgs() []string {

@@ -70,8 +70,7 @@ func genKatiSuffix(ctx Context, config Config) {
 	}
 }
 
-func writeValueIfChanged(ctx Context, config Config, dir string, filename string, value string) {
-	filePath := filepath.Join(dir, filename)
+func writeValueIfChanged(ctx Context, filePath string, value string) {
 	previousValue := ""
 	rawPreviousValue, err := os.ReadFile(filePath)
 	if err == nil {
@@ -83,6 +82,14 @@ func writeValueIfChanged(ctx Context, config Config, dir string, filename string
 			ctx.Fatalf("Failed to write: %v", err)
 		}
 	}
+}
+
+func copyFileIfChanged(ctx Context, from, to string) {
+	fromContents, err := os.ReadFile(from)
+	if err != nil {
+		ctx.Fatalf("Failed to read %s: ", err)
+	}
+	writeValueIfChanged(ctx, to, string(fromContents))
 }
 
 // Base function to construct and run the Kati command line with additional
