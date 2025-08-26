@@ -75,6 +75,9 @@ type PackagingSpec struct {
 	// inside of the build. Will be nil if this module doesn't require a "full install".
 	fullInstallPath InstallPath
 
+	// True if this module is installed in the sanitizer dir which is /data/asan/{partition}.
+	installInSanitizerDir bool
+
 	// String representation of the variation of the module where this packaging spec is output of
 	variation string
 
@@ -157,6 +160,11 @@ func (p *PackagingSpec) GetAconfigPaths() Paths {
 // inside of the build. Will be nil if this module doesn't require a "full install".
 func (p *PackagingSpec) FullInstallPath() InstallPath {
 	return p.fullInstallPath
+}
+
+// True if this module is installed in the sanitizer dir which is /data/asan/{partition}.
+func (p *PackagingSpec) InstallInSanitizerDir() bool {
+	return p.installInSanitizerDir
 }
 
 // If the ninja rule creating the FullInstallPath has already been emitted or not. Do not use,

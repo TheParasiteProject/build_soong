@@ -690,6 +690,7 @@ func (m *moduleContext) packageFile(fullInstallPath InstallPath, srcPath Path, e
 		owner:                 owner,
 		requiresFullInstall:   requiresFullInstall,
 		fullInstallPath:       fullInstallPath,
+		installInSanitizerDir: m.InstallInSanitizerDir(),
 		variation:             m.ModuleSubDir(),
 		prebuilt:              IsModulePrebuilt(m, m.Module()),
 	}
@@ -834,20 +835,21 @@ func (m *moduleContext) InstallSymlink(installPath InstallPath, name string, src
 
 	owner, overrides := m.getOwnerAndOverrides()
 	m.packagingSpecs = append(m.packagingSpecs, PackagingSpec{
-		relPathInPackage:    Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
-		srcPath:             nil,
-		symlinkTarget:       relPath,
-		executable:          false,
-		partition:           fullInstallPath.partition,
-		skipInstall:         m.skipInstall(),
-		aconfigPaths:        uniquelist.Make(m.getAconfigPaths()),
-		archType:            m.target.Arch.ArchType,
-		overrides:           uniquelist.Make(overrides),
-		owner:               owner,
-		requiresFullInstall: m.requiresFullInstall(),
-		fullInstallPath:     fullInstallPath,
-		variation:           m.ModuleSubDir(),
-		prebuilt:            IsModulePrebuilt(m, m.Module()),
+		relPathInPackage:      Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
+		srcPath:               nil,
+		symlinkTarget:         relPath,
+		executable:            false,
+		partition:             fullInstallPath.partition,
+		skipInstall:           m.skipInstall(),
+		aconfigPaths:          uniquelist.Make(m.getAconfigPaths()),
+		archType:              m.target.Arch.ArchType,
+		overrides:             uniquelist.Make(overrides),
+		owner:                 owner,
+		requiresFullInstall:   m.requiresFullInstall(),
+		fullInstallPath:       fullInstallPath,
+		installInSanitizerDir: m.InstallInSanitizerDir(),
+		variation:             m.ModuleSubDir(),
+		prebuilt:              IsModulePrebuilt(m, m.Module()),
 	})
 
 	return fullInstallPath
@@ -886,20 +888,21 @@ func (m *moduleContext) InstallAbsoluteSymlink(installPath InstallPath, name str
 
 	owner, overrides := m.getOwnerAndOverrides()
 	m.packagingSpecs = append(m.packagingSpecs, PackagingSpec{
-		relPathInPackage:    Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
-		srcPath:             nil,
-		symlinkTarget:       absPath,
-		executable:          false,
-		partition:           fullInstallPath.partition,
-		skipInstall:         m.skipInstall(),
-		aconfigPaths:        uniquelist.Make(m.getAconfigPaths()),
-		archType:            m.target.Arch.ArchType,
-		overrides:           uniquelist.Make(overrides),
-		owner:               owner,
-		requiresFullInstall: m.requiresFullInstall(),
-		fullInstallPath:     fullInstallPath,
-		variation:           m.ModuleSubDir(),
-		prebuilt:            IsModulePrebuilt(m, m.Module()),
+		relPathInPackage:      Rel(m, fullInstallPath.PartitionDir(), fullInstallPath.String()),
+		srcPath:               nil,
+		symlinkTarget:         absPath,
+		executable:            false,
+		partition:             fullInstallPath.partition,
+		skipInstall:           m.skipInstall(),
+		aconfigPaths:          uniquelist.Make(m.getAconfigPaths()),
+		archType:              m.target.Arch.ArchType,
+		overrides:             uniquelist.Make(overrides),
+		owner:                 owner,
+		requiresFullInstall:   m.requiresFullInstall(),
+		fullInstallPath:       fullInstallPath,
+		installInSanitizerDir: m.InstallInSanitizerDir(),
+		variation:             m.ModuleSubDir(),
+		prebuilt:              IsModulePrebuilt(m, m.Module()),
 	})
 
 	return fullInstallPath
