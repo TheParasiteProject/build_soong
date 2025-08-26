@@ -687,10 +687,11 @@ type PartitionVariables struct {
 	BoardVendorRamdiskFragments       []string `json:",omitempty"`
 
 	// Radio stuff
-	AbOtaRadioPartitions      []string `json:",omitempty"`
-	BootloaderFilePath        string   `json:",omitempty"`
-	AbOtaBootloaderPartitions []string `json:",omitempty"`
-	BoardRadioImagePath       string   `json:",omitempty"`
+	AbOtaRadioPartitions       []string `json:",omitempty"`
+	BootloaderFilePath         string   `json:",omitempty"`
+	AbOtaBootloaderPartitions  []string `json:",omitempty"`
+	BoardRadioImagePath        string   `json:",omitempty"`
+	BoardPrebuiltTzswImagePath string   `json:",omitempty"`
 
 	// pvmfw stuff
 	BoardUsesPvmfwImage              bool   `json:",omitempty"`

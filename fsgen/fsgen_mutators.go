@@ -576,6 +576,11 @@ func setDepsMutator(mctx android.BottomUpMutatorContext) {
 			overriddenDeps = deps
 		}
 
+		if partition == "tzsw" {
+			// tzsw is a prebuilt file, and does not use android_filesystem module type.
+			return
+		}
+
 		backgroundRecoveryImageGenerator, _ := getRecoveryBackgroundPicturesGeneratorModuleName(mctx)
 		// backgroundRecoveryImageGenerator generates additional images which takes precedence over images files
 		// created by other deps of recovery.img.

@@ -50,6 +50,7 @@ var avbPartitions = []string{
 	"vbmeta_system",
 	"vbmeta_vendor",
 	"bootloader",
+	"tzsw",
 }
 
 // Creates the vbmeta partition and the chained vbmeta partitions. Returns the list of module names
@@ -202,6 +203,8 @@ func (f *filesystemCreator) createVbmetaPartitions(ctx android.LoadHookContext, 
 			return partitionQualifiedVars.BuildingImage || partitionQualifiedVars.PrebuiltImage
 		case "pvmfw":
 			return partitionVars.BoardUsesPvmfwImage
+		case "tzsw":
+			return partitionVars.BoardPrebuiltTzswImagePath != ""
 		case "dtbo":
 			return getDtboModuleName(ctx) != ""
 		case "recovery":
