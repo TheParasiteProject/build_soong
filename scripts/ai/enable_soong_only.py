@@ -216,19 +216,21 @@ def commit_changes_in_projects(branch_name, commit_message):
 
     logging.info("Finished processing all modified projects.")
 
-def clean_workspace():
+def clean_workspace(head_branch):
     """Resets all repos and applies a specific local change in build/soong."""
     logging.info("--- 🧹 Cleaning workspace for next iteration ---")
 
-    # 1. Reset all repositories to a clean state.
-    cleanup_cmd_str = "\'git restore . && git checkout goog/main\'"
-    cleanup_cmd = ["repo", "forall", "-q", "--ignore-missing", "-c", cleanup_cmd_str]
+    # 1. Reset all repositories to a clean state, checking out the specified head branch.
+    cleanup_cmd_str = f"git reset -q --hard HEAD && git clean -q -fdx && git checkout -q {head_branch} || true"
+
+    cleanup_cmd = ["repo", "forall", "-q", "-e", "-c", cleanup_cmd_str]
     try:
         run_command(cleanup_cmd)
         logging.info("✅ Workspace cleaned successfully.")
     except Exception as e:
         logging.error(f"CRITICAL: Failed to clean the workspace: {e}")
         raise SystemExit("Workspace cleanup failed.")
+
 
 def main():
     """Main function to parse arguments and orchestrate the workflow."""
@@ -242,6 +244,12 @@ def main():
         type=str,
         nargs='+',
         help="A list of product names to process (e.g., aosp_arm aosp_x86_64)."
+    )
+    parser.add_argument(
+        "--head-branch",
+        type=str,
+        required=True,
+        help="The name of the main branch to check out and rebase onto during cleanup."
     )
     args = parser.parse_args()
 
@@ -281,7 +289,8 @@ Test: build/soong/scripts/soong_only_diff_test.py {product}
             logging.error(f"Skipping to cleanup for '{product}'.")
 
         finally:
-            clean_workspace()
+            # Pass the head_branch argument to the cleanup function.
+            clean_workspace(args.head_branch)
 
     logging.info("--- All products processed. ---")
 
