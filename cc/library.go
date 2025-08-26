@@ -2458,7 +2458,7 @@ func (versionTransitionMutator) Split(ctx android.BaseModuleContext) []string {
 			setStubsVersions(ctx, m)
 			return append(slices.Clone(m.VersionedInterface().AllStubsVersions()), "")
 		} else if m.SplitPerApiLevel() && m.IsSdkVariant() {
-			return perApiVersionVariations(ctx, m.MinSdkVersion())
+			return perApiVersionVariations(ctx, m.MinSdkVersion(ctx))
 		}
 	}
 

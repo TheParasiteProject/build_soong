@@ -565,7 +565,7 @@ type BaseProperties struct {
 	// defaults to the value of sdk_version.  When this is set to "apex_inherit", this tracks
 	// min_sdk_version of the containing APEX. When the module
 	// is not built for an APEX, "apex_inherit" defaults to sdk_version.
-	Min_sdk_version *string
+	Min_sdk_version proptools.Configurable[string] `android:"replace_instead_of_append"`
 
 	// If true, always create an sdk variant and don't create a platform variant.
 	Sdk_variant_only *bool
@@ -1313,8 +1313,8 @@ func (c *Module) SdkVersion() string {
 	return String(c.Properties.Sdk_version)
 }
 
-func (c *Module) MinSdkVersion() string {
-	return String(c.Properties.Min_sdk_version)
+func (c *Module) MinSdkVersion(ctx android.ConfigurableEvaluatorContext) string {
+	return c.Properties.Min_sdk_version.GetOrDefault(c.ConfigurableEvaluator(ctx), "")
 }
 
 func (c *Module) SetSdkVersion(s *string) {
@@ -1330,7 +1330,7 @@ func (c *Module) SetSdkVariant() {
 }
 
 func (c *Module) SetMinSdkVersion(s string) {
-	c.Properties.Min_sdk_version = StringPtr(s)
+	c.Properties.Min_sdk_version = proptools.NewSimpleConfigurable(s)
 }
 
 func (c *Module) SetStl(s string) {
@@ -1843,10 +1843,10 @@ func (ctx *moduleContextImpl) sdkVersion() string {
 	return ""
 }
 
-func MinSdkVersion(mod VersionedLinkableInterface, ctxIsForPlatform bool, device bool,
+func MinSdkVersion(ctx android.ConfigurableEvaluatorContext, mod VersionedLinkableInterface, ctxIsForPlatform bool, device bool,
 	platformSdkVersion string) string {
 
-	ver := mod.MinSdkVersion()
+	ver := mod.MinSdkVersion(ctx)
 	if ver == "apex_inherit" && !ctxIsForPlatform {
 		ver = mod.ApexSdkVersion().String()
 	}
@@ -1900,7 +1900,7 @@ func (ctx *moduleContextImpl) minSdkVersion() string {
 	if ctx.ctx.Device() {
 		platformSdkVersion = ctx.ctx.Config().PlatformSdkVersion().String()
 	}
-	return MinSdkVersion(ctx.mod, CtxIsForPlatform(ctx.ctx), ctx.ctx.Device(), platformSdkVersion)
+	return MinSdkVersion(ctx.ctx, ctx.mod, CtxIsForPlatform(ctx.ctx), ctx.ctx.Device(), platformSdkVersion)
 }
 
 func (ctx *moduleContextImpl) isSdkVariant() bool {
@@ -3111,7 +3111,7 @@ func GetCrtVariations(ctx android.BottomUpMutatorContext,
 	}
 	if m.UseSdk() {
 		// Choose the CRT that best satisfies the min_sdk_version requirement of this module
-		minSdkVersion := m.MinSdkVersion()
+		minSdkVersion := m.MinSdkVersion(ctx)
 		if minSdkVersion == "" || minSdkVersion == "apex_inherit" {
 			minSdkVersion = m.SdkVersion()
 		}
@@ -4577,7 +4577,7 @@ func (c *Module) MinSdkVersionSupported(ctx android.BaseModuleContext) android.A
 		return android.MinApiLevel
 	}
 
-	minSdkVersion := c.MinSdkVersion()
+	minSdkVersion := c.MinSdkVersion(ctx)
 	if minSdkVersion == "apex_inherit" {
 		return android.MinApiLevel
 	}

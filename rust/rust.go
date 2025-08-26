@@ -2299,13 +2299,13 @@ func (m *Module) CanHaveApexVariants() bool {
 	}
 }
 
-func (mod *Module) MinSdkVersion() string {
+func (mod *Module) MinSdkVersion(ctx android.ConfigurableEvaluatorContext) string {
 	return String(mod.Properties.Min_sdk_version)
 }
 
 // Implements android.ApexModule
 func (mod *Module) MinSdkVersionSupported(ctx android.BaseModuleContext) android.ApiLevel {
-	minSdkVersion := mod.MinSdkVersion()
+	minSdkVersion := mod.MinSdkVersion(ctx)
 	if minSdkVersion == "apex_inherit" {
 		return android.MinApiLevel
 	}

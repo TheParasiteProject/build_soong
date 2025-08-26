@@ -854,7 +854,7 @@ func (library *libraryDecorator) getApiStubsCcFlags(ctx ModuleContext) cc.Flags 
 	if ctx.Device() {
 		platformSdkVersion = ctx.Config().PlatformSdkVersion().String()
 	}
-	minSdkVersion := cc.MinSdkVersion(ctx.RustModule(), cc.CtxIsForPlatform(ctx), ctx.Device(), platformSdkVersion)
+	minSdkVersion := cc.MinSdkVersion(ctx, ctx.RustModule(), cc.CtxIsForPlatform(ctx), ctx.Device(), platformSdkVersion)
 
 	// Collect common CC compilation flags
 	ccFlags = cc.CommonLinkerFlags(ctx, ccFlags, toolchain, false)
