@@ -295,9 +295,9 @@ func generateCtsCoverageReports(ctx android.SingletonContext, allTestSuiteSrcs m
 	var ctsVerifierApiMapFile android.Path
 
 	// Collect apk and jar paths in {suite}_api_map_files.txt as input for coverage report.
-	for suite, suiteSrcs := range allTestSuiteSrcs {
+	for _, suite := range android.SortedKeys(allTestSuiteSrcs) {
 		if slices.Contains(ctsReportModules, suite) {
-			allTestSuiteSrcs[suite] = android.SortedUniquePaths(suiteSrcs)
+			allTestSuiteSrcs[suite] = android.SortedUniquePaths(allTestSuiteSrcs[suite])
 			var apkJarSrcs android.Paths
 			for _, srcPath := range allTestSuiteSrcs[suite] {
 				if srcPath.Ext() == ".apk" || srcPath.Ext() == ".jar" {
