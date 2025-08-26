@@ -658,12 +658,21 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 			bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_boot_debug_partition_name), filesystemDepTag)
 			bootImgInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, BootimgInfoProvider)
 			ctx.DistForGoal("droidcore-unbundled", bootImgInfo.Output)
+			ramdiskInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, FilesystemProvider)
+			if ramdiskInfo.Output != nil {
+				ctx.DistForGoal("droidcore-unbundled", ramdiskInfo.Output)
+			}
+
 		}
 		// vendor_boot-test-harness
 		if a.partitionProps.Vendor_boot_test_harness_partition_name != nil {
 			bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Vendor_boot_test_harness_partition_name), filesystemDepTag)
 			bootImgInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, BootimgInfoProvider)
 			ctx.DistForGoal("droidcore-unbundled", bootImgInfo.Output)
+			ramdiskInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, FilesystemProvider)
+			if ramdiskInfo.Output != nil {
+				ctx.DistForGoal("droidcore-unbundled", ramdiskInfo.Output)
+			}
 		}
 
 		if a.withLicenseFile != nil {
