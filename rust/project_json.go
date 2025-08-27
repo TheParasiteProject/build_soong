@@ -48,19 +48,25 @@ type rustProjectDep struct {
 }
 
 type rustProjectCrate struct {
-	DisplayName    string            `json:"display_name"`
-	RootModule     string            `json:"root_module"`
-	Edition        string            `json:"edition,omitempty"`
-	Deps           []rustProjectDep  `json:"deps"`
-	Cfg            []string          `json:"cfg"`
-	Env            map[string]string `json:"env"`
-	ProcMacro      bool              `json:"is_proc_macro"`
-	ProcMacroDylib *string           `json:"proc_macro_dylib_path"`
+	DisplayName    string                 `json:"display_name"`
+	RootModule     string                 `json:"root_module"`
+	Edition        string                 `json:"edition,omitempty"`
+	Deps           []rustProjectDep       `json:"deps"`
+	Cfg            []string               `json:"cfg"`
+	Env            map[string]string      `json:"env"`
+	ProcMacro      bool                   `json:"is_proc_macro"`
+	ProcMacroDylib *string                `json:"proc_macro_dylib_path"`
+	Source         rustProjectIncludeDirs `json:"source"`
 }
 
 type rustProjectJson struct {
 	Sysroot string             `json:"sysroot"`
 	Crates  []rustProjectCrate `json:"crates"`
+}
+
+type rustProjectIncludeDirs struct {
+	Include_dirs []string `json:"include_dirs"`
+	Exclude_dirs []string `json:"exclude_dirs"`
 }
 
 // crateInfo is used during the processing to keep track of the known crates.
@@ -155,6 +161,10 @@ func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContex
 		Env:            make(map[string]string),
 		ProcMacro:      procMacroDylib != nil,
 		ProcMacroDylib: procMacroDylib,
+		Source: rustProjectIncludeDirs{
+			Include_dirs: []string{},
+			Exclude_dirs: []string{},
+		}, // TODO: What should this value be?
 	}
 
 	if cargoOutDir := rustInfo.CompilerInfo.CargoOutDir; cargoOutDir.Valid() {
