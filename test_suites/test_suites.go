@@ -27,6 +27,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/java"
+	"android/soong/phony"
 )
 
 var (
@@ -295,9 +296,9 @@ func generateCtsCoverageReports(ctx android.SingletonContext, allTestSuiteSrcs m
 	var ctsVerifierApiMapFile android.Path
 
 	// Collect apk and jar paths in {suite}_api_map_files.txt as input for coverage report.
-	for suite, suiteSrcs := range allTestSuiteSrcs {
+	for _, suite := range android.SortedKeys(allTestSuiteSrcs) {
 		if slices.Contains(ctsReportModules, suite) {
-			allTestSuiteSrcs[suite] = android.SortedUniquePaths(suiteSrcs)
+			allTestSuiteSrcs[suite] = android.SortedUniquePaths(allTestSuiteSrcs[suite])
 			var apkJarSrcs android.Paths
 			for _, srcPath := range allTestSuiteSrcs[suite] {
 				if srcPath.Ext() == ".apk" || srcPath.Ext() == ".jar" {
@@ -1062,6 +1063,7 @@ type compatibilityTestSuitePackageProperties struct {
 	// requires post-processing, so the module name does not conflict with the original test suite name.
 	Test_suite_name   *string `json:"test_suite_name"`
 	Test_suite_subdir *string
+	phony.PhonyProperties
 }
 
 type compatibilityTestSuitePackage struct {
@@ -1207,6 +1209,9 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 
 	// Make compatibility_test_suite_package a SourceFileProducer so that it can be used by other modules.
 	ctx.SetOutputFiles(android.Paths{android.PathForHostInstall(ctx, suiteName, fmt.Sprintf("android-%s.zip", suiteName))}, "")
+	for _, dep := range m.properties.Phony_deps.GetOrDefault(ctx, nil) {
+		ctx.Phony(m.Name(), android.PathForPhony(ctx, dep))
+	}
 }
 
 func testSuitePackageFactory() android.Module {

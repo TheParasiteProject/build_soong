@@ -2472,8 +2472,10 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}); ok {
 		ver := mm.MinSdkVersion(ctx)
 		commonData.MinSdkVersion.ApiLevel = &ver
-	} else if mm, ok := m.module.(interface{ MinSdkVersion() string }); ok {
-		ver := mm.MinSdkVersion()
+	} else if mm, ok := m.module.(interface {
+		MinSdkVersion(ctx ConfigurableEvaluatorContext) string
+	}); ok {
+		ver := mm.MinSdkVersion(ctx)
 		// Compile against the current platform
 		if ver == "" {
 			commonData.MinSdkVersion.IsPlatform = true

@@ -20,6 +20,7 @@ import (
 	"sort"
 
 	"github.com/google/blueprint"
+	"github.com/google/blueprint/depset"
 	"github.com/google/blueprint/proptools"
 	"github.com/google/blueprint/uniquelist"
 )
@@ -195,7 +196,7 @@ type PackageModule interface {
 	// GatherPackagingSpecs gathers PackagingSpecs of transitive dependencies.
 	GatherPackagingSpecs(ctx ModuleContext) map[string]PackagingSpec
 	GatherPackagingSpecsWithFilter(ctx ModuleContext, filter func(PackagingSpec) bool) map[string]PackagingSpec
-	GatherPackagingSpecsWithFilterAndModifier(ctx ModuleContext, filter func(PackagingSpec) bool, modifier func(*PackagingSpec)) map[string]PackagingSpec
+	GatherPackagingSpecsWithFilterAndModifier(ctx ModuleContext, setFilter func(depset.DepSet[PackagingSpec]) depset.DepSet[PackagingSpec], filter func(PackagingSpec) bool, modifier func(*PackagingSpec)) map[string]PackagingSpec
 
 	// CopyDepsToZip zips the built artifacts of the dependencies into the given zip file and
 	// returns zip entries in it. This is expected to be called in GenerateAndroidBuildActions,
@@ -236,6 +237,10 @@ type DepsProperty struct {
 
 	// Modules to include in this package
 	Deps proptools.Configurable[[]string] `android:"arch_variant"`
+
+	// Product specific list of modules that are overridden by other partitions. Install files
+	// of the modules listed here and its transitive dependencies are not packaged.
+	Overridden_deps []string `android:"arch_variant"`
 }
 
 type packagingMultilibProperties struct {
@@ -277,14 +282,16 @@ func (p *PackagingBase) packagingBase() *PackagingBase {
 // multi target, deps is selected for each of the targets and is NOT selected for the current
 // architecture which would be Common.
 // It returns two lists, the normal and high priority deps, respectively.
-func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) ([]string, []string) {
+func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) ([]string, []string, []string) {
 	arch := target.Arch.ArchType
 	var normalDeps []string
 	var highPriorityDeps []string
+	var overriddenDeps []string
 
 	get := func(prop DepsProperty) {
 		normalDeps = append(normalDeps, prop.Deps.GetOrDefault(ctx, nil)...)
 		highPriorityDeps = append(highPriorityDeps, prop.High_priority_deps...)
+		overriddenDeps = append(overriddenDeps, prop.Overridden_deps...)
 	}
 	has := func(prop DepsProperty) bool {
 		return len(prop.Deps.GetOrDefault(ctx, nil)) > 0 || len(prop.High_priority_deps) > 0
@@ -292,7 +299,7 @@ func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) (
 
 	if target.NativeBridge == NativeBridgeEnabled {
 		get(p.properties.Multilib.Native_bridge)
-		return FirstUniqueStrings(normalDeps), FirstUniqueStrings(highPriorityDeps)
+		return FirstUniqueStrings(normalDeps), FirstUniqueStrings(highPriorityDeps), FirstUniqueStrings(overriddenDeps)
 	} else if arch == ctx.Target().Arch.ArchType && len(ctx.MultiTargets()) == 0 {
 		get(p.properties.DepsProperty)
 	} else if arch.Multilib == "lib32" {
@@ -308,6 +315,11 @@ func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) (
 				highPriorityDeps = append(highPriorityDeps, dep)
 			}
 		}
+		for _, dep := range p.properties.Multilib.Prefer32.Overridden_deps {
+			if checkIfOtherModuleSupportsLib32(ctx, dep) {
+				overriddenDeps = append(overriddenDeps, dep)
+			}
+		}
 	} else if arch.Multilib == "lib64" {
 		get(p.properties.Multilib.Lib64)
 		// multilib.prefer32.deps are added for lib64 only when they don't support 32-bit arch
@@ -319,6 +331,11 @@ func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) (
 		for _, dep := range p.properties.Multilib.Prefer32.High_priority_deps {
 			if !checkIfOtherModuleSupportsLib32(ctx, dep) {
 				highPriorityDeps = append(highPriorityDeps, dep)
+			}
+		}
+		for _, dep := range p.properties.Multilib.Prefer32.Overridden_deps {
+			if !checkIfOtherModuleSupportsLib32(ctx, dep) {
+				overriddenDeps = append(overriddenDeps, dep)
 			}
 		}
 	} else if arch == Common {
@@ -370,7 +387,7 @@ func (p *PackagingBase) getDepsForTarget(ctx BaseModuleContext, target Target) (
 		ctx.ModuleErrorf("Usage of high_priority_deps is not allowed for %s module type", ctx.ModuleType())
 	}
 
-	return FirstUniqueStrings(normalDeps), FirstUniqueStrings(highPriorityDeps)
+	return FirstUniqueStrings(normalDeps), FirstUniqueStrings(highPriorityDeps), FirstUniqueStrings(overriddenDeps)
 }
 
 func getSupportedTargets(ctx BaseModuleContext) []Target {
@@ -432,9 +449,34 @@ type highPriorityDepTag struct {
 	PackagingItemAlwaysDepTag
 }
 
+type overriddenModuleDepTag struct {
+	blueprint.BaseDependencyTag
+}
+
+var _ PackagingItem = (*overriddenModuleDepTag)(nil)
+var _ ExcludeFromVisibilityEnforcementTag = (*overriddenModuleDepTag)(nil)
+
+// overridden module is added as a dep of the packaging module, but will not be packaged.
+func (overriddenModuleDepTag) IsPackagingItem() bool {
+	return false
+}
+
+func (overriddenModuleDepTag) ExcludeFromVisibilityEnforcement() {}
+
+var OverriddenModuleDepTag = overriddenModuleDepTag{}
+
+// enum type to distinguish the types of dependencies added to the packaging module
+type depType int
+
+const (
+	regular      depType = iota // regular dependency
+	highPriority                // high priority dependency
+	overridden                  // overridden module dependency
+)
+
 // See PackageModule.AddDeps
 func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.DependencyTag) {
-	addDep := func(t Target, dep string, highPriority bool) {
+	addDep := func(t Target, dep string, depType depType) {
 		if p.IgnoreMissingDependencies && !ctx.OtherModuleExists(dep) {
 			return
 		}
@@ -457,27 +499,37 @@ func (p *PackagingBase) AddDeps(ctx BottomUpMutatorContext, depTag blueprint.Dep
 			targetVariation = append(targetVariation, rustLibDylibVariation)
 		}
 
-		depTagToUse := depTag
-		if highPriority {
+		var depTagToUse blueprint.DependencyTag
+		switch depType {
+		case regular:
+			depTagToUse = depTag
+		case highPriority:
 			depTagToUse = highPriorityDepTag{}
+		case overridden:
+			depTagToUse = overriddenModuleDepTag{}
+		default:
+			ctx.ModuleErrorf("depType must provide an associated depTag")
 		}
 
 		ctx.AddFarVariationDependencies(targetVariation, depTagToUse, dep)
 	}
 	for _, t := range getSupportedTargets(ctx) {
-		normalDeps, highPriorityDeps := p.getDepsForTarget(ctx, t)
+		normalDeps, highPriorityDeps, overriddenDeps := p.getDepsForTarget(ctx, t)
 		for _, dep := range normalDeps {
-			addDep(t, dep, false)
+			addDep(t, dep, regular)
 		}
 		for _, dep := range highPriorityDeps {
-			addDep(t, dep, true)
+			addDep(t, dep, highPriority)
+		}
+		for _, dep := range overriddenDeps {
+			addDep(t, dep, overridden)
 		}
 	}
 }
 
 // See PackageModule.GatherPackagingSpecs
 // Registers transitive UniqueVintfFragmentsPaths as a side-effect.
-func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleContext, filter func(PackagingSpec) bool, modifier func(*PackagingSpec)) map[string]PackagingSpec {
+func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleContext, setFilter func(depset.DepSet[PackagingSpec]) depset.DepSet[PackagingSpec], filter func(PackagingSpec) bool, modifier func(*PackagingSpec)) map[string]PackagingSpec {
 	// packaging specs gathered from the dep that are not high priorities.
 	var regularPriorities []PackagingSpec
 
@@ -511,14 +563,21 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 		return commonInfo.Target.NativeBridge == NativeBridgeEnabled
 	}
 
+	filteredTransitivePackagingSpecs := func(transitivePackagingSpecs depset.DepSet[PackagingSpec]) depset.DepSet[PackagingSpec] {
+		if setFilter == nil {
+			return transitivePackagingSpecs
+		}
+		return setFilter(transitivePackagingSpecs)
+	}
+
 	// find all overridden modules and packaging specs
 	ctx.VisitDirectDepsProxy(func(child ModuleProxy) {
 		depTag := ctx.OtherModuleDependencyTag(child)
 		if pi, ok := depTag.(PackagingItem); !ok || !pi.IsPackagingItem() {
 			return
 		}
-		for _, ps := range OtherModuleProviderOrDefault(
-			ctx, child, InstallFilesProvider).TransitivePackagingSpecs.ToList() {
+		for _, ps := range filteredTransitivePackagingSpecs(OtherModuleProviderOrDefault(
+			ctx, child, InstallFilesProvider).TransitivePackagingSpecs).ToList() {
 			if !filterArch(ps) {
 				continue
 			}
@@ -571,6 +630,10 @@ func (p *PackagingBase) GatherPackagingSpecsWithFilterAndModifier(ctx ModuleCont
 	modulesToVintfFragmentsPaths := make(map[string]Paths)
 	ctx.WalkDepsProxy(func(child, parent ModuleProxy) bool {
 		depTag := ctx.OtherModuleDependencyTag(child)
+		// Skip collecting vintf fragments of modules added as overridden_deps
+		if _, ok := depTag.(overriddenModuleDepTag); ok {
+			return false
+		}
 		if interPartitionDepTag, ok := depTag.(InterPartitionIncludeVintfsInterface); ok {
 			return interPartitionDepTag.IncludeVintfs()
 		}
@@ -648,7 +711,7 @@ func getVintFragmentsPaths(ctx ModuleContext, m ModuleProxy) Paths {
 
 // See PackageModule.GatherPackagingSpecs
 func (p *PackagingBase) GatherPackagingSpecsWithFilter(ctx ModuleContext, filter func(PackagingSpec) bool) map[string]PackagingSpec {
-	return p.GatherPackagingSpecsWithFilterAndModifier(ctx, filter, nil)
+	return p.GatherPackagingSpecsWithFilterAndModifier(ctx, nil, filter, nil)
 }
 
 // See PackageModule.GatherPackagingSpecs
