@@ -27,6 +27,7 @@ import (
 
 	"android/soong/android"
 	"android/soong/java"
+	"android/soong/phony"
 )
 
 var (
@@ -1062,6 +1063,7 @@ type compatibilityTestSuitePackageProperties struct {
 	// requires post-processing, so the module name does not conflict with the original test suite name.
 	Test_suite_name   *string `json:"test_suite_name"`
 	Test_suite_subdir *string
+	phony.PhonyProperties
 }
 
 type compatibilityTestSuitePackage struct {
@@ -1207,6 +1209,9 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 
 	// Make compatibility_test_suite_package a SourceFileProducer so that it can be used by other modules.
 	ctx.SetOutputFiles(android.Paths{android.PathForHostInstall(ctx, suiteName, fmt.Sprintf("android-%s.zip", suiteName))}, "")
+	for _, dep := range m.properties.Phony_deps.GetOrDefault(ctx, nil) {
+		ctx.Phony(m.Name(), android.PathForPhony(ctx, dep))
+	}
 }
 
 func testSuitePackageFactory() android.Module {

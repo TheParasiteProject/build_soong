@@ -11,6 +11,7 @@ bootstrap_go_package {
         "soong",
         "soong-android",
         "soong-java",
+        "soong-phony",
     ],
     srcs: [
         "test_suites.go",
