@@ -228,7 +228,7 @@ func (singleton *projectGeneratorSingleton) GenerateBuildActions(ctx android.Sin
 			FlagWithInput("-project_json ", jsonPath).
 			FlagWithOutput("-output ", kzipPath).
 			FlagWithArg("-corpus ", ctx.Config().XrefCorpusName()).
-			FlagWithArg("-root ", "$PWD").
+			FlagWithArg("-root ", ".").
 			FlagWithInput("-vnames_json_path ", vnames)
 		ruleName := "rust3-extraction"
 		rule.Build(ruleName, "Turning Rust project into kzips")
