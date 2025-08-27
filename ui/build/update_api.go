@@ -34,7 +34,7 @@ func runUpdateApi(ctx Context, config Config) {
 			break
 		}
 		if strings.HasSuffix(ninjaArg, "-update-current-api") {
-			wantedModules[strings.TrimPrefix(ninjaArg, "-update-current-api")] = true
+			wantedModules[strings.TrimSuffix(ninjaArg, "-update-current-api")] = true
 		}
 	}
 	if !wantAllModules && len(wantedModules) == 0 {
