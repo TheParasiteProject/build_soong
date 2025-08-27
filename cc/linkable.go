@@ -202,7 +202,7 @@ type LinkableInterface interface {
 	SubName() string
 
 	SdkVersion() string
-	MinSdkVersion() string
+	MinSdkVersion(ctx android.ConfigurableEvaluatorContext) string
 	AlwaysSdk() bool
 	IsSdkVariant() bool
 	Multilib() string
