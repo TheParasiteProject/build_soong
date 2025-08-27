@@ -115,11 +115,12 @@ def enable_soong_only_in_makefile(product_name, makefile_path):
 
     logging.info("Successfully modified makefile.")
 
-def debug_and_fix_diffs_with_gemini(product_name, diff_log):
+def debug_and_fix_diffs_with_gemini(product_name, diff_log, explain_mode=False):
     """Runs pre-checks, prepares context, and invokes the Gemini tool."""
-    logging.warning(f"🤖 Soong-only diff test failed. Preparing to run Gemini for '{product_name}'...")
+    mode_string = "explain" if explain_mode else "fix"
+    logging.warning(f"🤖 Soong-only diff test failed. Preparing to run Gemini in '{mode_string}' mode for '{product_name}'...")
 
-    # 1. Run the pre-processing `pack` command.
+    # 1. Run the pre-processing `pack` command (common for both modes).
     logging.info("Running pre-Gemini packaging command...")
     try:
         files_to_pack = [
@@ -158,13 +159,17 @@ def debug_and_fix_diffs_with_gemini(product_name, diff_log):
         raise FileNotFoundError(f"Diff report missing for product: {product_name}")
     logging.info("✅ Diff report found.")
 
-    # 3. Read the instructions and append dynamic context for the Gemini prompt.
-    logging.info(f"Invoking Gemini CLI to fix diffs for '{product_name}'...")
-    instructions_path = os.path.join(AOSP_ROOT, "build/soong/scripts/ai/GEMINI_INSTRUCTIONS.md")
+    # 3. Select the correct instruction file based on the mode.
+    if explain_mode:
+        instructions_filename = "ai/GEMINI_EXPLAIN_INSTRUCTIONS.md"
+    else:
+        instructions_filename = "ai/GEMINI_DEBUG_INSTRUCTIONS.md"
+
+    instructions_path = os.path.join(AOSP_ROOT, "build/soong/scripts", instructions_filename)
+    logging.info(f"Loading Gemini instructions from '{instructions_path}'...")
     try:
         with open(instructions_path, 'r') as f:
             prompt_content = f.read()
-        logging.info(f"Successfully loaded instructions from '{instructions_path}'.")
     except FileNotFoundError:
         logging.error(f"FATAL: Gemini instructions file not found at '{instructions_path}'. Cannot proceed.")
         raise
@@ -177,14 +182,13 @@ def debug_and_fix_diffs_with_gemini(product_name, diff_log):
     prompt_content += additional_context
     logging.info("Appended dynamic product context to Gemini prompt.")
 
-    # 4. Invoke the Gemini CLI tool with the enhanced prompt.
+    # 4. Invoke the Gemini CLI tool with the appropriate prompt.
     gemini_cmd = ["gemini", "--yolo", "-p", prompt_content]
     try:
         run_command(gemini_cmd)
-        logging.info("Gemini tool executed successfully and may have modified files.")
+        logging.info("Gemini tool executed successfully.")
     except Exception as e:
         logging.error(f"Error during Gemini execution: {e}")
-        logging.error("Automated fixing failed. Manual intervention is likely required.")
         raise
 
 def commit_changes_in_projects(branch_name, commit_message):
@@ -216,19 +220,21 @@ def commit_changes_in_projects(branch_name, commit_message):
 
     logging.info("Finished processing all modified projects.")
 
-def clean_workspace():
+def clean_workspace(head_branch):
     """Resets all repos and applies a specific local change in build/soong."""
     logging.info("--- 🧹 Cleaning workspace for next iteration ---")
 
-    # 1. Reset all repositories to a clean state.
-    cleanup_cmd_str = "\'git restore . && git checkout goog/main\'"
-    cleanup_cmd = ["repo", "forall", "-q", "--ignore-missing", "-c", cleanup_cmd_str]
+    # 1. Reset all repositories to a clean state, checking out the specified head branch.
+    cleanup_cmd_str = f"git reset -q --hard HEAD && git clean -q -fdx && git checkout -q {head_branch} || true"
+
+    cleanup_cmd = ["repo", "forall", "-q", "-e", "-c", cleanup_cmd_str]
     try:
         run_command(cleanup_cmd)
         logging.info("✅ Workspace cleaned successfully.")
     except Exception as e:
         logging.error(f"CRITICAL: Failed to clean the workspace: {e}")
         raise SystemExit("Workspace cleanup failed.")
+
 
 def main():
     """Main function to parse arguments and orchestrate the workflow."""
@@ -243,6 +249,17 @@ def main():
         nargs='+',
         help="A list of product names to process (e.g., aosp_arm aosp_x86_64)."
     )
+    parser.add_argument(
+        "--head-branch",
+        type=str,
+        required=True,
+        help="Required: The name of the main branch to check out and rebase onto during cleanup."
+    )
+    parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="Run in explain mode. This will generate a report from Gemini without making code changes or cleaning the workspace."
+    )
     args = parser.parse_args()
 
     for product in args.products:
@@ -253,7 +270,17 @@ def main():
             passed, diff_output = run_soong_only_diff_test(product)
             commit_msg = ""
 
-            if passed:
+            if not passed:
+                # Diffs were found, decide whether to fix or explain.
+                debug_and_fix_diffs_with_gemini(product, diff_output, explain_mode=args.explain)
+                if not args.explain:
+                    # Only set a commit message if we are NOT in explain mode.
+                    commit_msg = (
+                        f"fix: Fix Soong-only diffs for {product}\n\n"
+                        "Applied automated fixes generated by the Gemini tool."
+                    )
+            elif not args.explain:
+                # Test passed AND we are in the standard "fix" mode.
                 makefile = find_product_makefile(product)
                 if makefile:
                     enable_soong_only_in_makefile(product, makefile)
@@ -265,12 +292,10 @@ Bug: 427983604
 Test: build/soong/scripts/soong_only_diff_test.py {product}
 """
             else:
-                debug_and_fix_diffs_with_gemini(product, diff_output)
-                commit_msg = (
-                    f"fix: Fix Soong-only diffs for {product}\n\n"
-                    "Applied automated fixes generated by the Gemini tool."
-                )
+                # Test passed AND we are in "explain" mode.
+                logging.info(f"✅ No diffs found for '{product}'. Nothing to explain.")
 
+            # This block only runs if a commit_msg was generated (i.e., not in explain mode).
             if commit_msg:
                 commit_changes_in_projects(branch_name, commit_msg)
 
@@ -281,7 +306,8 @@ Test: build/soong/scripts/soong_only_diff_test.py {product}
             logging.error(f"Skipping to cleanup for '{product}'.")
 
         finally:
-            clean_workspace()
+            if not args.explain:
+                clean_workspace(args.head_branch)
 
     logging.info("--- All products processed. ---")
 
