@@ -280,6 +280,10 @@ type FilesystemProperties struct {
 
 	// Name to use as `--ramdisk_name` when included as a fragment in a bootimg.
 	Ramdisk_fragment_name *string
+
+	// Name of android_prebuilt_system_module. This is only for experiment as of now and must not be
+	// used for any release.
+	Prebuilt_module_name *string
 }
 
 type AndroidFilesystemDeps struct {
@@ -431,6 +435,10 @@ func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
 	for _, partition := range f.properties.Include_files_of {
 		ctx.AddDependency(ctx.Module(), interPartitionInstallDependencyTag, partition)
 	}
+	// TODO: remove this once android_system_image_prebuilt is fully implemented.
+	if f.properties.Prebuilt_module_name != nil {
+		ctx.AddDependency(ctx.Module(), android.PrebuiltDepTag, proptools.String(f.properties.Prebuilt_module_name))
+	}
 }
 
 type fsType int
@@ -537,6 +545,8 @@ type FilesystemInfo struct {
 
 	// Results of check_vintf
 	checkVintfLog android.Path
+
+	Prebuilt bool
 }
 
 // FullInstallPathInfo contains information about the "full install" paths of all the files
@@ -766,18 +776,38 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	builder.Build("assemble_filesystem_staging_dir", fmt.Sprintf("Assemble filesystem staging dir %s", f.BaseModuleName()))
 
 	// Create a new rule builder for build_image
+	f.installDir = android.PathForModuleInstall(ctx, "etc")
+
+	// TODO: remove this once android_system_image_prebuilt is fully implemented.
+	usePrebuilt := false
+	var prebuiltInfo FilesystemInfo
+	ctx.VisitDirectDepsProxyWithTag(android.PrebuiltDepTag, func(m android.ModuleProxy) {
+		if fsProvider, ok := android.OtherModuleProvider(ctx, m, FilesystemProvider); ok {
+			usePrebuilt = true
+			prebuiltInfo = fsProvider
+		} else {
+			ctx.PropertyErrorf("prebuilt_module_name", "must provide filesystem")
+		}
+	})
+
 	builder = android.NewRuleBuilder(pctx, ctx)
 	var buildImagePropFile android.Path
 	var buildImagePropFileDeps android.Paths
 	var extraRootDirs android.Paths
 	var propFileForMiscInfo android.Path
+
 	switch f.fsType(ctx) {
 	case ext4Type, erofsType, f2fsType:
 		buildImagePropFile, buildImagePropFileDeps = f.buildPropFile(ctx)
 		propFileForMiscInfo = f.buildPropFileForMiscInfo(ctx)
-		output := android.PathForModuleOut(ctx, f.installFileName())
-		f.buildImageUsingBuildImage(ctx, builder, buildImageParams{rootDir, buildImagePropFile, buildImagePropFileDeps, output})
-		f.output = output
+		// TODO: remove this once android_system_image_prebuilt correctly implements prop files.
+		if !usePrebuilt {
+			output := android.PathForModuleOut(ctx, f.installFileName())
+			f.buildImageUsingBuildImage(ctx, builder, buildImageParams{rootDir, buildImagePropFile, buildImagePropFileDeps, output})
+			f.output = output
+		} else {
+			f.output = prebuiltInfo.Output
+		}
 	case compressedCpioType:
 		f.output, extraRootDirs = f.buildCpioImage(ctx, builder, rootDir, true)
 	case cpioType:
@@ -786,7 +816,6 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
-	f.installDir = android.PathForModuleInstall(ctx, "etc")
 	ctx.InstallFile(f.installDir, f.installFileName(), f.output)
 	ctx.SetOutputFiles([]android.Path{f.output}, "")
 
@@ -814,27 +843,33 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		erofsCompressHints = android.PathForModuleSrc(ctx, *f.properties.Erofs.Compress_hints)
 	}
 
-	installedFilesStructList := []InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rebasedDir, f.output)}
-	if f.partitionName() == "system" {
-		rootDirForInstalledFiles := android.PathForModuleOut(ctx, "root_for_installed_files", "root")
-		copyToRootTimestamp := android.PathForModuleOut(ctx, "root_copy_timestamp")
+	var installedFilesStructList []InstalledFilesStruct
+	if !usePrebuilt {
+		installedFilesStructList := []InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rebasedDir, f.output)}
+		if f.partitionName() == "system" {
+			rootDirForInstalledFiles := android.PathForModuleOut(ctx, "root_for_installed_files", "root")
+			copyToRootTimestamp := android.PathForModuleOut(ctx, "root_copy_timestamp")
 
-		builder := android.NewRuleBuilder(pctx, ctx)
-		builder.Command().Text("touch").Text(copyToRootTimestamp.String())
-		builder.Command().Text("rm -rf").Text(rootDirForInstalledFiles.String())
-		builder.Command().Text("mkdir -p").Text(rootDirForInstalledFiles.String())
-		builder.Command().
-			Text("rsync").
-			Flag("-a").
-			Flag("--checksum").
-			Flag("--exclude='system/'").
-			Text(rootDir.String() + "/").
-			Text(rootDirForInstalledFiles.String()).
-			Implicit(f.output).
-			ImplicitOutput(copyToRootTimestamp)
-		builder.Build("system_root_dir", "Construct system partition root dir")
+			builder := android.NewRuleBuilder(pctx, ctx)
+			builder.Command().Text("touch").Text(copyToRootTimestamp.String())
+			builder.Command().Text("rm -rf").Text(rootDirForInstalledFiles.String())
+			builder.Command().Text("mkdir -p").Text(rootDirForInstalledFiles.String())
+			builder.Command().
+				Text("rsync").
+				Flag("-a").
+				Flag("--checksum").
+				Flag("--exclude='system/'").
+				Text(rootDir.String() + "/").
+				Text(rootDirForInstalledFiles.String()).
+				Implicit(f.output).
+				ImplicitOutput(copyToRootTimestamp)
+			builder.Build("system_root_dir", "Construct system partition root dir")
 
-		installedFilesStructList = append(installedFilesStructList, buildInstalledFiles(ctx, "root", rootDirForInstalledFiles, copyToRootTimestamp))
+			installedFilesStructList = append(installedFilesStructList, buildInstalledFiles(ctx, "root", rootDirForInstalledFiles, copyToRootTimestamp))
+		}
+	} else {
+		// TODO: remove this once android_system_image_prebuilt correctly implements FilesystemInfo.
+		rootDir = prebuiltInfo.RootDir
 	}
 
 	fsInfo := FilesystemInfo{
@@ -869,6 +904,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		HasOrIsRecovery:     f.hasOrIsRecovery(ctx),
 		NoFlashall:          proptools.Bool(f.properties.No_flashall),
 		checkVintfLog:       checkVintfLog,
+		Prebuilt:            usePrebuilt,
 	}
 	f.updateAvbInFsInfo(ctx, &fsInfo)
 
