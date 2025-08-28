@@ -988,3 +988,101 @@ cc_library_shared {
 		xPartitionSharedLib.Arch[0].String(),
 	)
 }
+
+func TestRemoveOverriddenTransitiveDeps(t *testing.T) {
+	t.Run("case 1", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			android.PrepareForIntegrationTestWithAndroid,
+			android.PrepareForTestWithAndroidBuildComponents,
+			android.PrepareForTestWithAllowMissingDependencies,
+			prepareForTestWithFsgenBuildComponents,
+			java.PrepareForTestWithJavaBuildComponents,
+			prepareMockRamdiksNodeList,
+			android.FixtureMergeMockFs(android.MockFS{
+				"A.java": nil,
+				"build/soong/fsgen/Android.bp": []byte(`
+				soong_filesystem_creator {
+					name: "filesystem_creator",
+				}
+				`),
+			}),
+			android.FixtureModifyConfig(func(config android.Config) {
+				config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"bar", "baz"})
+			}),
+		).RunTestWithBp(t, `
+	java_library {
+		name: "foo",
+		product_specific: true,
+		srcs: ["A.java"],
+	}
+	java_library {
+		name: "bar",
+		vendor: true,
+		required: ["foo"],
+		srcs: ["A.java"],
+		sdk_version: "current",
+	}
+	java_library {
+		name: "baz",
+		overrides: ["bar"],
+		srcs: ["A.java"],
+	}
+	java_library {
+		name: "qux",
+		required: ["foo"],
+		srcs: ["A.java"],
+	}
+		`)
+		resolvedProductDeps := result.TestContext.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps["product"]
+		_, fooInDeps := (*resolvedProductDeps)["foo"]
+		android.AssertBoolEquals(t, "foo should not be in deps", false, fooInDeps)
+	})
+
+	t.Run("case 2", func(t *testing.T) {
+		result := android.GroupFixturePreparers(
+			android.PrepareForIntegrationTestWithAndroid,
+			android.PrepareForTestWithAndroidBuildComponents,
+			android.PrepareForTestWithAllowMissingDependencies,
+			prepareForTestWithFsgenBuildComponents,
+			java.PrepareForTestWithJavaBuildComponents,
+			prepareMockRamdiksNodeList,
+			android.FixtureMergeMockFs(android.MockFS{
+				"A.java": nil,
+				"build/soong/fsgen/Android.bp": []byte(`
+				soong_filesystem_creator {
+					name: "filesystem_creator",
+				}
+				`),
+			}),
+			android.FixtureModifyConfig(func(config android.Config) {
+				config.TestProductVariables.PartitionVarsForSoongMigrationOnlyDoNotUse.ProductPackagesSet = createProductPackagesSet([]string{"bar", "baz", "qux"})
+			}),
+		).RunTestWithBp(t, `
+	java_library {
+		name: "foo",
+		product_specific: true,
+		srcs: ["A.java"],
+	}
+	java_library {
+		name: "bar",
+		vendor: true,
+		required: ["foo"],
+		srcs: ["A.java"],
+		sdk_version: "current",
+	}
+	java_library {
+		name: "baz",
+		overrides: ["bar"],
+		srcs: ["A.java"],
+	}
+	java_library {
+		name: "qux",
+		required: ["foo"],
+		srcs: ["A.java"],
+	}
+		`)
+		resolvedProductDeps := result.TestContext.Config().Get(fsGenStateOnceKey).(*FsGenState).fsDeps["product"]
+		_, fooInDeps := (*resolvedProductDeps)["foo"]
+		android.AssertBoolEquals(t, "foo should be in deps", true, fooInDeps)
+	})
+}

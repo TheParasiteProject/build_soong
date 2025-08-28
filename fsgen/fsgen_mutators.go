@@ -15,6 +15,7 @@
 package fsgen
 
 import (
+	"container/list"
 	"fmt"
 	"slices"
 	"strings"
@@ -118,6 +119,13 @@ func (m *moduleToInstallationProps) GetFromModuleName(name string) (string, inst
 	return "", installationProperties{}, false
 }
 
+func (m *moduleToInstallationProps) ModuleNameToFullyQualifiedModuleName(name string) string {
+	if fullyQualifiedName, _, ok := m.GetFromModuleName(name); ok {
+		return fullyQualifiedName
+	}
+	return name
+}
+
 func (m *moduleToInstallationProps) SortedKeys() []string {
 	return android.SortedKeys(m.moduleToPropsMap)
 }
@@ -151,7 +159,8 @@ type FsGenState struct {
 }
 
 type installationProperties struct {
-	Required            []string
+	Required            []string // Modules that should be installed alongside
+	RequiredBy          []string // List of modules (or PRODUCT_PACKAGES) that require this module to be installed
 	Overrides           []string
 	CcAndRustSharedLibs []string
 	Partition           string
@@ -511,7 +520,7 @@ type packagingPropsStruct struct {
 }
 
 func fullyQualifiedModuleName(moduleName, namespace string) string {
-	if namespace == "." {
+	if namespace == "." || strings.HasPrefix(moduleName, "//") {
 		return moduleName
 	}
 	return fmt.Sprintf("//%s:%s", namespace, moduleName)
@@ -628,6 +637,29 @@ func updatePartitionsOfOverrideModules(mctx android.BottomUpMutatorContext) {
 	}
 }
 
+type queue struct {
+	internalQueue *list.List
+}
+
+func (q *queue) Pop() string {
+	ret := q.internalQueue.Front()
+	if ret == nil {
+		return ""
+	}
+	q.internalQueue.Remove(ret)
+	return ret.Value.(string)
+}
+
+func (q *queue) Add(inputs ...string) {
+	for _, input := range inputs {
+		q.internalQueue.PushBack(input)
+	}
+}
+
+func (q *queue) Len() int {
+	return q.internalQueue.Len()
+}
+
 // removeOverriddenDeps collects PRODUCT_PACKAGES and (transitive) required deps.
 // it then removes any modules which appear in `overrides` of the above list.
 // Returns the list of names of the overridden modules. These are passed as `Overridden_modules`
@@ -652,6 +684,15 @@ func removeOverriddenDeps(mctx android.BottomUpMutatorContext) {
 			}
 		}
 
+		// Record all modules' required rdeps (i.e. modules that set the module as a required
+		// dependency) and whether if the module is installed as a top level module.
+		moduleToRequiredRdepsMap := map[string][]string{}
+		for _, productPackagesEntry := range productInstalledModules(mctx, "all") {
+			if moduleName, _, ok := fsGenState.moduleToInstallationProps.GetFromModuleName(productPackagesEntry); ok {
+				moduleToRequiredRdepsMap[moduleName] = append(moduleToRequiredRdepsMap[moduleName], "PRODUCT_PACKAGES")
+			}
+		}
+
 		// Step 2: Process the queue, and add required modules to the queue.
 		i := 0
 		for {
@@ -671,23 +712,85 @@ func removeOverriddenDeps(mctx android.BottomUpMutatorContext) {
 				}
 				overridden[overrides] = true
 			}
+			for _, requiredModule := range props.Required {
+				if requiredModuleName, _, ok := fsGenState.moduleToInstallationProps.GetFromModuleName(requiredModule); ok {
+					moduleToRequiredRdepsMap[requiredModuleName] = append(moduleToRequiredRdepsMap[requiredModuleName], depName)
+				}
+			}
+
 			// add required dep to the queue.
 			allDeps = append(allDeps, props.Required...)
 			i += 1
 		}
 
-		// Step 3: Delete all the overridden modules.
-		for overridden, _ := range overridden {
-			for partition, _ := range fsDeps {
-				delete(*fsDeps[partition], overridden)
+		fullyQualifiedOverriddenModuleNames := map[string]installationProperties{}
+		for overridden := range overridden {
+			if fullyQualifiedModuleName, props, ok := fsGenState.moduleToInstallationProps.GetFromModuleName(overridden); ok {
+				fullyQualifiedOverriddenModuleNames[fullyQualifiedModuleName] = props
+			}
+		}
+
+		removeModuleFromFsDeps := func(moduleName string) {
+			for partition := range fsDeps {
+				delete(*fsDeps[partition], moduleName)
+			}
+		}
+
+		// isOverriddenModule returns true if the module itself is overridden by another module,
+		// or is transitively overridden as all of its required reverse dependencies are overridden.
+		// The module is not overridden if it is listed in PRODUCT_PACKAGES, even all of its
+		// required reverse dependencies are overridden
+		isOverriddenModule := func(moduleName string) bool {
+			// check if the module itself is overridden
+			if _, ok := fullyQualifiedOverriddenModuleNames[moduleName]; ok {
+				return true
+			}
+
+			// check if all of its required reverse dependencies are overridden
+			rdeps, ok := moduleToRequiredRdepsMap[moduleName]
+			if !ok {
+				return false
+			}
+			for _, rdep := range rdeps {
+				// The module cannot be transitively overridden if it is listed in PRODUCT_PACKAGES
+				if rdep == "PRODUCT_PACKAGES" {
+					return false
+				} else if _, ok := fullyQualifiedOverriddenModuleNames[rdep]; !ok {
+					return false
+				}
+			}
+
+			return true
+		}
+
+		// Step 3: Delete all the overridden modules and its required deps.
+		// The module is removed only if all of its required rdeps are overridden.
+		// e.g. if the module is referenced by multiple modules as a required dependency
+		// and if any of the rdep modules are not overridden, the module should be installed.
+		for _, overridden := range android.SortedKeys(fullyQualifiedOverriddenModuleNames) {
+			requiredQueue := queue{internalQueue: list.New()}
+			requiredQueue.Add(overridden)
+
+			// Iterate over overridden module and its rdeps until the queue is empty.
+			// Rdeps are added to the queue if the module is overridden
+			for requiredQueue.Len() > 0 {
+				requiredModule := requiredQueue.Pop()
+				if isOverriddenModule(requiredModule) {
+					removeModuleFromFsDeps(requiredModule)
+					requiredModuleProp, _ := fsGenState.moduleToInstallationProps.GetFromFullyQualifiedModuleName(requiredModule)
+					for _, requiredDep := range requiredModuleProp.Required {
+						if fullyQualifiedRequiredDepName, _, ok := fsGenState.moduleToInstallationProps.GetFromModuleName(requiredDep); ok {
+							requiredQueue.Add(fullyQualifiedRequiredDepName)
+						}
+					}
+				}
 			}
 		}
 
 		filteredOverriddenDepsMap := make(map[string][]string)
-		for _, overriddenDep := range android.SortedKeys(overridden) {
-			if fullyQualifiedModuleName, prop, ok := fsGenState.moduleToInstallationProps.GetFromModuleName(overriddenDep); ok {
-				filteredOverriddenDepsMap[prop.Partition] = append(filteredOverriddenDepsMap[prop.Partition], fullyQualifiedModuleName)
-			}
+		for _, overriddenDep := range android.SortedKeys(fullyQualifiedOverriddenModuleNames) {
+			prop := fullyQualifiedOverriddenModuleNames[overriddenDep]
+			filteredOverriddenDepsMap[prop.Partition] = append(filteredOverriddenDepsMap[prop.Partition], overriddenDep)
 		}
 
 		fsGenState.overriddenModuleNames = filteredOverriddenDepsMap
