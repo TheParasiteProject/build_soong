@@ -115,7 +115,7 @@ def enable_soong_only_in_makefile(product_name, makefile_path):
 
     logging.info("Successfully modified makefile.")
 
-def debug_and_fix_diffs_with_gemini(product_name, diff_log, explain_mode=False):
+def debug_and_fix_diffs_with_gemini(product_name, gemini_path, explain_mode=False):
     """Runs pre-checks, prepares context, and invokes the Gemini tool."""
     mode_string = "explain" if explain_mode else "fix"
     logging.warning(f"🤖 Soong-only diff test failed. Preparing to run Gemini in '{mode_string}' mode for '{product_name}'...")
@@ -182,8 +182,8 @@ def debug_and_fix_diffs_with_gemini(product_name, diff_log, explain_mode=False):
     prompt_content += additional_context
     logging.info("Appended dynamic product context to Gemini prompt.")
 
-    # 4. Invoke the Gemini CLI tool with the appropriate prompt.
-    gemini_cmd = ["gemini", "--yolo", "-p", prompt_content]
+    # 4. Invoke the Gemini CLI tool using the provided path.
+    gemini_cmd = [gemini_path, "--yolo", "-p", prompt_content]
     try:
         run_command(gemini_cmd)
         logging.info("Gemini tool executed successfully.")
@@ -256,6 +256,12 @@ def main():
         help="Required: The name of the main branch to check out and rebase onto during cleanup."
     )
     parser.add_argument(
+        "--gemini-path",
+        type=str,
+        required=True,
+        help="Required: The absolute path to the Gemini CLI executable."
+    )
+    parser.add_argument(
         "--explain",
         action="store_true",
         help="Run in explain mode. This will generate a report from Gemini without making code changes or cleaning the workspace."
@@ -267,12 +273,11 @@ def main():
         branch_name = f"soong_only_{product}"
 
         try:
-            passed, diff_output = run_soong_only_diff_test(product)
+            passed, _ = run_soong_only_diff_test(product)
             commit_msg = ""
 
             if not passed:
-                # Diffs were found, decide whether to fix or explain.
-                debug_and_fix_diffs_with_gemini(product, diff_output, explain_mode=args.explain)
+                debug_and_fix_diffs_with_gemini(product, args.gemini_path, args.explain)
                 if not args.explain:
                     # Only set a commit message if we are NOT in explain mode.
                     commit_msg = (
