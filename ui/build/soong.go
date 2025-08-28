@@ -513,6 +513,11 @@ func fixOutDirSymlinks(ctx Context, config Config, outDir string) error {
 
 	// Record the .top as the very last thing in the function.
 	tf := filepath.Join(outDir, ".top")
+	defer func() {
+		if err := os.WriteFile(tf, []byte(cwd), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to log CWD: %v", err)
+		}
+	}()
 
 	// Find the previous working directory if it was recorded.
 	var prevCWD string
@@ -542,10 +547,6 @@ func fixOutDirSymlinks(ctx Context, config Config, outDir string) error {
 	}
 	symlinkWg.Wait()
 	ctx.Println(fmt.Sprintf("Updated %d/%d symlinks in dir %v", numUpdated, numFound, outDir))
-
-	if err := os.WriteFile(tf, []byte(cwd), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to log CWD: %v", err)
-	}
 
 	return nil
 }
