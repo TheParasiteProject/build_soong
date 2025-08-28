@@ -157,15 +157,13 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 
 	hostSharedLibs := gatherHostSharedLibs(ctx, sharedLibRoots, sharedLibGraph)
 
-	if !ctx.Config().KatiEnabled() {
-		for _, testSuite := range android.SortedKeys(testSuiteModules) {
-			testSuiteSymbolsZipFile := android.PathForHostInstall(ctx, fmt.Sprintf("%s-symbols.zip", testSuite))
-			testSuiteMergedMappingProtoFile := android.PathForHostInstall(ctx, fmt.Sprintf("%s-symbols-mapping.textproto", testSuite))
-			android.BuildSymbolsZip(ctx, testSuiteModules[testSuite], testSuiteSymbolsZipFile, testSuiteMergedMappingProtoFile)
+	for _, testSuite := range android.SortedKeys(testSuiteModules) {
+		testSuiteSymbolsZipFile := android.PathForHostInstall(ctx, fmt.Sprintf("%s-symbols.zip", testSuite))
+		testSuiteMergedMappingProtoFile := android.PathForHostInstall(ctx, fmt.Sprintf("%s-symbols-mapping.textproto", testSuite))
+		android.BuildSymbolsZip(ctx, testSuiteModules[testSuite], testSuiteSymbolsZipFile, testSuiteMergedMappingProtoFile)
 
-			ctx.DistForGoalWithFilenameTag(testSuite, testSuiteSymbolsZipFile, testSuiteSymbolsZipFile.Base())
-			ctx.DistForGoalWithFilenameTag(testSuite, testSuiteMergedMappingProtoFile, testSuiteMergedMappingProtoFile.Base())
-		}
+		ctx.DistForGoalWithFilenameTag(testSuite, testSuiteSymbolsZipFile, testSuiteSymbolsZipFile.Base())
+		ctx.DistForGoalWithFilenameTag(testSuite, testSuiteMergedMappingProtoFile, testSuiteMergedMappingProtoFile.Base())
 	}
 
 	// https://source.corp.google.com/h/googleplex-android/platform/superproject/main/+/main:build/make/core/main.mk;l=674;drc=46bd04e115d34fd62b3167128854dfed95290eb0
