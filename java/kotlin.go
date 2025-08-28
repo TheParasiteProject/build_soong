@@ -33,7 +33,11 @@ type KotlinCompileData struct {
 }
 
 const inputDeltaCmd = `${config.FindInputDeltaCmd} --target "$out" ` +
-	`--inputs_file "$out.rsp" --new_state "$newStateFile" --prior_state "$priorStateFile" > $sourceDeltaFile`
+	`--inputs_file "$out.rsp" ` +
+	`--new_state "$newStateFile" ` +
+	`--prior_state "$priorStateFile" ` +
+	`--version 2 ` +
+	`> $sourceDeltaFile`
 
 const nonIncKotlinCmd = `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "$kotlinBuildFile" "$emptyDir" && ` +
 	`mkdir -p "$classesDir" "$headerClassesDir" "$srcJarDir" "$emptyDir" && ` +
