@@ -182,16 +182,10 @@ func Banner(config Config, make_vars map[string]string) string {
 			fmt.Fprintf(b, "%s=%s\n", name, make_vars[name])
 		}
 	}
-	if config.partialCompileRequested {
+
+	if use, _ := config.environ.Get("SOONG_USE_PARTIAL_COMPILE"); use == "true" {
 		if partialCompile, ok := config.environ.Get("SOONG_PARTIAL_COMPILE"); ok {
-			// If we are only dumping variables, do not say that partial compile is disabled.
-			if config.disableUsePartialCompile && !config.isDumpVar {
-				fmt.Fprintf(b,
-					"SOONG_PARTIAL_COMPILE=%s # Inactive because of build arguments\n",
-					partialCompile)
-			} else {
-				fmt.Fprintf(b, "SOONG_PARTIAL_COMPILE=%s\n", partialCompile)
-			}
+			fmt.Fprintf(b, "SOONG_PARTIAL_COMPILE=%s\n", partialCompile)
 		}
 	}
 
