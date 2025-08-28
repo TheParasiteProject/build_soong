@@ -1421,7 +1421,9 @@ func (m *ModuleBase) RequiresStableAPIs(ctx BaseModuleContext) bool {
 
 func (m *ModuleBase) PartitionTag(config DeviceConfig) string {
 	partition := "system"
-	if m.SocSpecific() {
+	if m.module.InstallInData() {
+		partition = "userdata"
+	} else if m.SocSpecific() {
 		// A SoC-specific module could be on the vendor partition at
 		// "vendor" or the system partition at "system/vendor".
 		if config.VendorPath() == "vendor" {

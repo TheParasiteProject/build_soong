@@ -77,6 +77,8 @@ var (
 		// Making deprecated usages an error causes extreme pain when trying to
 		// deprecate anything.
 		"-Wno-error=deprecated-declarations",
+		// http://b/315246135 temporarily disabled
+		"-Wno-error=unused-variable",
 
 		// Warnings disabled by default.
 
@@ -284,8 +286,6 @@ var (
 		// also controls -Wvoid-pointer-to-int-cast, -Wpointer-to-enum-cast
 		// and -Wvoid-pointer-to-enum-cast
 		"-Wno-pointer-to-int-cast",
-		// http://b/315246135 temporarily disabled
-		"-Wno-error=unused-variable",
 		// Disabled because it produces many false positives. http://b/323050926
 		"-Wno-missing-field-initializers",
 		// http://b/323050889
