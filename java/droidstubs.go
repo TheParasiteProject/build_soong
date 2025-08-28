@@ -1063,7 +1063,7 @@ func (d *Droidstubs) everythingOptionalCmd(ctx android.ModuleContext, cmd *andro
 		if d.Name() != "android.car-system-stubs-docs" &&
 			d.Name() != "android.car-stubs-docs" {
 			treatDocumentationIssuesAsErrors = true
-			cmd.Flag("--warnings-as-errors") // Most lints are actually warnings.
+			cmd.Flag("--treat-as-error").Flag("warning") // Most lints are actually warnings.
 		}
 
 		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Api_lint.Baseline_file)
