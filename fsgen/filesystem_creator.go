@@ -585,6 +585,7 @@ func (f *filesystemCreator) createDeviceModule(
 		Precompiled_sepolicy_without_vendor: proptools.StringPtr(":precompiled_sepolicy_without_vendor"),
 		Vendor_blobs_license:                vendorBlobsLicenseProp,
 		InfoPartitionProps:                  *infoPartitionProps,
+		Minimal_font_footprint:              proptools.BoolPtr(partitionVars.MinimalFontFootprint),
 	}
 
 	if buildingInitBootImage(partitionVars) {

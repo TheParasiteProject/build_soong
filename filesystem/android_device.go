@@ -128,6 +128,9 @@ type DeviceProperties struct {
 	// For saving those partition filesystems being created which are for gathering filesystem
 	// infos but not going to create images for the device.
 	InfoPartitionProps PartitionNameProperties
+
+	// This is used for fontchain_lint, it will not check emoji if Minimal_font_footprint is true.
+	Minimal_font_footprint *bool
 }
 
 type PvmfwProperties struct {
@@ -468,6 +471,7 @@ func (a *androidDevice) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.hostInitVerifierCheck(ctx)
 	a.findSharedUIDViolation(ctx)
 	a.checkPartitionSizes(ctx)
+	a.fontchainLint(ctx)
 }
 
 func buildComplianceMetadata(ctx android.ModuleContext, tags ...blueprint.DependencyTag) {
