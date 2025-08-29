@@ -16,6 +16,8 @@ package android
 
 import (
 	"fmt"
+	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -70,9 +72,51 @@ func (p *phonySingleton) GenerateBuildActions(ctx SingletonContext) {
 		}
 	})
 
-	p.phonyList = SortedKeys(p.phonyMap)
-	for _, phony := range p.phonyList {
-		p.phonyMap[phony] = SortedUniquePaths(p.phonyMap[phony])
+	// We will sort phonyList in parallel with other stuff later, but for now copy it into
+	// a slice in series so that we don't read and write to phonyMap concurrently.
+	p.phonyList = make([]string, 0, len(p.phonyMap))
+	for phony := range p.phonyMap {
+		p.phonyList = append(p.phonyList, phony)
+	}
+
+	type phonyDef struct {
+		name string
+		deps Paths
+	}
+
+	sortChan := make(chan phonyDef, len(p.phonyMap))
+	resultsChan := make(chan phonyDef)
+	var wg sync.WaitGroup
+
+	// Sorting the phony deps in parallel saves about 2 seconds. Nothing runs in parallel with
+	// the phony singleton so it's time off of wall clock.
+	for i := 0; i < 2*runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func() {
+			for toSort := range sortChan {
+				toSort.deps = SortedUniquePaths(toSort.deps)
+				resultsChan <- toSort
+			}
+			wg.Done()
+		}()
+	}
+
+	go func() {
+		sort.Strings(p.phonyList)
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	for phony, deps := range p.phonyMap {
+		sortChan <- phonyDef{
+			name: phony,
+			deps: deps,
+		}
+	}
+	close(sortChan)
+
+	for result := range resultsChan {
+		p.phonyMap[result.name] = result.deps
 	}
 
 	if !ctx.Config().KatiEnabled() {
