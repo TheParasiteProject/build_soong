@@ -1,4 +1,4 @@
-// Copyright 2025 Google Inc. All rights reserved.
+// Copyright 2017 Google Inc. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@ package build
 
 import (
 	"bytes"
-	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -88,96 +86,4 @@ func areFilesSame(ctx Context, a, b string) bool {
 		ctx.Fatalf("Failed to read %s", b)
 	}
 	return bytes.Equal(aContents, bContents)
-}
-
-func runUpdateAidlApi(ctx Context, config Config) {
-	wantUpdateModules := make(map[string]bool)
-	wantFreezeModules := make(map[string]bool)
-	allFreezes := false
-	for _, ninjaArg := range config.NinjaArgs() {
-		if ninjaArg == "aidl-freeze-api" {
-			allFreezes = true
-		}
-		if strings.HasSuffix(ninjaArg, "-update-api") {
-			wantUpdateModules[strings.TrimSuffix(ninjaArg, "-update-api")] = true
-		} else if strings.HasSuffix(ninjaArg, "-freeze-api") {
-			wantFreezeModules[strings.TrimSuffix(ninjaArg, "-freeze-api")] = true
-		}
-	}
-	if !allFreezes && len(wantUpdateModules) == 0 && len(wantFreezeModules) == 0 {
-		return
-	}
-
-	// Remove the transitive freeze file because it will be filled out while running other freeze
-	// scripts.
-	transitiveFreezeFile := filepath.Join(config.OutDir(), "soong", "aidl_transitive_freeze_apis.txt")
-	if err := os.Remove(transitiveFreezeFile); err != nil && !errors.Is(err, os.ErrNotExist) {
-		ctx.Fatalf("Failed to remove %s: %s", transitiveFreezeFile, err)
-	}
-
-	updateApiFile := filepath.Join(config.OutDir(), "soong", "aidl_update_api.txt")
-	contents, err := os.ReadFile(updateApiFile)
-	if err != nil {
-		ctx.Fatalf("Failed to read %s: %s", updateApiFile, err)
-	}
-	lines := strings.Split(strings.TrimSpace(string(contents)), "\n")
-	if len(lines)%4 != 0 {
-		ctx.Fatalf("Invalid aidl update api file: %s", updateApiFile)
-	}
-	ranFreezeScripts := make(map[string]bool)
-
-	runFreezeScript := func(freezeScript string) {
-		cmd := exec.Command(freezeScript)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			ctx.Fatalf("freeze api failed")
-		}
-		ranFreezeScripts[freezeScript] = true
-	}
-
-	for i := 0; i < len(lines); i += 4 {
-		if wantUpdateModules[lines[i]] {
-			updateScript := lines[i+2]
-			cmd := exec.Command(updateScript)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				ctx.Fatalf("update api failed")
-			}
-		}
-		if wantFreezeModules[lines[i]] || (allFreezes && lines[i+1] == "true") {
-			freezeScript := lines[i+3]
-			runFreezeScript(freezeScript)
-		}
-	}
-
-	// Freeze scripts can request that other freeze scripts from their transitive deps be run.
-	// Each freeze script should only be run once, so they can't just run their deps' scripts
-	// directly or else some scripts may be run multiple times. Instead, they dump the transitive
-	// scripts they want to run into aidl_transitive_freeze_apis.txt, which we read here and run
-	// the scripts if they haven't been run yet.
-	newFreezes := len(ranFreezeScripts) > 0
-	for newFreezes {
-		contents, err := os.ReadFile(transitiveFreezeFile)
-		if errors.Is(err, os.ErrNotExist) {
-			break
-		} else if err != nil {
-			ctx.Fatalf("Failed to read %s: %s", transitiveFreezeFile, err)
-		}
-		transitiveFreezes := strings.Split(strings.TrimSpace(string(contents)), "\n")
-
-		// Delete the file so we don't waste time rereading old lines that we've already processed.
-		if err := os.Remove(transitiveFreezeFile); err != nil && !errors.Is(err, os.ErrNotExist) {
-			ctx.Fatalf("Failed to remove %s: %s", transitiveFreezeFile, err)
-		}
-
-		newFreezes = false
-		for _, freezeScript := range transitiveFreezes {
-			if !ranFreezeScripts[freezeScript] {
-				newFreezes = true
-				runFreezeScript(freezeScript)
-			}
-		}
-	}
 }

@@ -398,7 +398,6 @@ func Build(ctx Context, config Config) {
 		updateBuildIdDir(ctx, config)
 
 		runUpdateApi(ctx, config)
-		runUpdateAidlApi(ctx, config)
 	}
 
 	if what&RunDistActions != 0 {
