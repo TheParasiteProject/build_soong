@@ -32,6 +32,7 @@ bootstrap_go_package {
         "dtboimg.go",
         "filesystem.go",
         "find_shareduid_violation_check.go",
+        "fontchain_lint.go",
         "fsverity_metadata.go",
         "host_init_verifier_check.go",
         "logical_partition.go",
