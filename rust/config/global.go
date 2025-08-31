@@ -27,7 +27,7 @@ import (
 var (
 	pctx = android.NewPackageContext("android/soong/rust/config")
 
-	RustDefaultVersion = "1.87.0"
+	RustDefaultVersion = "1.88.0"
 	RustDefaultBase    = "prebuilts/rust/"
 	DefaultEdition     = "2021"
 	Stdlibs            = []string{
@@ -39,8 +39,8 @@ var (
 		"liballoc.rust_sysroot",
 	}
 
-	// Rust versions usually look like "1.87.0", but might also get a
-	// letter or non-numeric suffix when testing (i.e. "1.87.0.test")
+	// Rust versions usually look like "1.88.0", but might also get a
+	// letter or non-numeric suffix when testing (i.e. "1.88.0.test")
 	RustVersionRe = regexp.MustCompile(`^(\d+\.\d+\.\d+).*$`)
 
 	// Mapping between Soong internal arch types and std::env constants.
