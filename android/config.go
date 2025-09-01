@@ -1097,6 +1097,10 @@ func (c *config) TargetsJava21() bool {
 	return c.productVariables.GetBuildFlagBool("RELEASE_TARGET_JAVA_21")
 }
 
+func (c *config) BuildWithJdk25() bool {
+	return c.productVariables.GetBuildFlagBool("RELEASE_BUILD_WITH_JDK_25")
+}
+
 // EnvDeps returns the environment variables this build depends on. The first
 // call to this function blocks future reads from the environment.
 func (c *config) EnvDeps() map[string]string {
