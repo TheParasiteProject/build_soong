@@ -306,6 +306,7 @@ func runMakeProductConfig(ctx Context, config Config) {
 		"RELEASE_BUILD_EXECUTION_METRICS",
 		"RELEASE_SRC_DIR_IS_READ_ONLY",
 		"RELEASE_USE_RKATI",
+		"RELEASE_BUILD_WITH_JDK_25",
 	}, exportEnvVars...), BannerVars...)
 
 	makeVars, err := dumpMakeVars(ctx, config, config.Arguments(), allVars, true, "")
@@ -321,6 +322,11 @@ func runMakeProductConfig(ctx Context, config Config) {
 		} else {
 			env.Set(name, makeVars[name])
 		}
+	}
+
+	config.useJdk25 = makeVars["RELEASE_BUILD_WITH_JDK_25"] == "true"
+	if config.useJdk25 {
+		ConfigJavaEnvironment(ctx, config.configImpl)
 	}
 
 	config.SetKatiArgs(strings.Fields(makeVars["KATI_GOALS"]))

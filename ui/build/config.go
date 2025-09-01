@@ -153,6 +153,9 @@ type configImpl struct {
 
 	// Whether the user requested partial compile.
 	partialCompileRequested bool
+
+	// Control which JDK is used for builds
+	useJdk25 bool
 }
 
 // Some of the speed optimizations (such as using d8 instead of r8) used in partial
@@ -517,38 +520,7 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 		ctx.Fatalln("Directory names containing spaces are not supported")
 	}
 
-	// Configure Java-related variables, including adding it to $PATH
-	java8Home := filepath.Join("prebuilts/jdk/jdk8", ret.HostPrebuiltTag())
-	java21Home := filepath.Join("prebuilts/jdk/jdk21", ret.HostPrebuiltTag())
-	javaHome := func() string {
-		if override, ok := ret.environ.Get("OVERRIDE_ANDROID_JAVA_HOME"); ok {
-			return override
-		}
-		if toolchain11, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN"); ok && toolchain11 != "true" {
-			ctx.Fatalln("The environment variable EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN is no longer supported. An OpenJDK 21 toolchain is now the global default.")
-		}
-		if toolchain17, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK17_TOOLCHAIN"); ok && toolchain17 != "true" {
-			ctx.Fatalln("The environment variable EXPERIMENTAL_USE_OPENJDK17_TOOLCHAIN is no longer supported. An OpenJDK 21 toolchain is now the global default.")
-		}
-		if toolchain21, ok := ret.environ.Get("EXPERIMENTAL_USE_OPENJDK21_TOOLCHAIN"); ok && toolchain21 != "true" {
-			ctx.Fatalln("The environment variable EXPERIMENTAL_USE_OPENJDK21_TOOLCHAIN is no longer supported. An OpenJDK 21 toolchain is now the global default.")
-		}
-		return java21Home
-	}()
-	absJavaHome := absPath(ctx, javaHome)
-
-	ret.configureLocale(ctx)
-
-	newPath := []string{filepath.Join(absJavaHome, "bin")}
-	if path, ok := ret.environ.Get("PATH"); ok && path != "" {
-		newPath = append(newPath, path)
-	}
-
-	ret.environ.Unset("OVERRIDE_ANDROID_JAVA_HOME")
-	ret.environ.Set("JAVA_HOME", ret.sandboxPath(wd, absJavaHome))
-	ret.environ.Set("ANDROID_JAVA_HOME", ret.sandboxPath(wd, javaHome))
-	ret.environ.Set("ANDROID_JAVA8_HOME", ret.sandboxPath(wd, java8Home))
-	ret.environ.Set("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
+	ConfigJavaEnvironment(ctx, ret)
 
 	// b/286885495, https://bugzilla.redhat.com/show_bug.cgi?id=2227130: some versions of Fedora include patches
 	// to unzip to enable zipbomb detection that incorrectly handle zip64 and data descriptors and fail on large
@@ -585,6 +557,48 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 	c := Config{ret}
 	storeConfigMetrics(ctx, c)
 	return c
+}
+
+func ConfigJavaEnvironment(ctx Context, config *configImpl) {
+	// Configure Java-related variables, including adding it to $PATH
+	java8Home := filepath.Join("prebuilts/jdk/jdk8", config.HostPrebuiltTag())
+	java21Home := filepath.Join("prebuilts/jdk/jdk21", config.HostPrebuiltTag())
+	java25Home := filepath.Join("prebuilts/jdk/jdk25", config.HostPrebuiltTag())
+	javaHome := func() string {
+		if override, ok := config.environ.Get("OVERRIDE_ANDROID_JAVA_HOME"); ok {
+			return override
+		}
+		if toolchain11, ok := config.environ.Get("EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN"); ok && toolchain11 != "true" {
+			ctx.Fatalln("The environment variable EXPERIMENTAL_USE_OPENJDK11_TOOLCHAIN is no longer supported. An OpenJDK 21 toolchain is now the global default.")
+		}
+		if toolchain17, ok := config.environ.Get("EXPERIMENTAL_USE_OPENJDK17_TOOLCHAIN"); ok && toolchain17 != "true" {
+			ctx.Fatalln("The environment variable EXPERIMENTAL_USE_OPENJDK17_TOOLCHAIN is no longer supported. An OpenJDK 21 toolchain is now the global default.")
+		}
+		if toolchain21, ok := config.environ.Get("EXPERIMENTAL_USE_OPENJDK21_TOOLCHAIN"); ok && toolchain21 != "true" {
+			ctx.Fatalln("The environment variable EXPERIMENTAL_USE_OPENJDK21_TOOLCHAIN is no longer supported. An OpenJDK 21 toolchain is now the global default.")
+		}
+		if config.useJdk25 {
+			return java25Home
+		}
+		return java21Home
+	}()
+	absJavaHome := absPath(ctx, javaHome)
+
+	config.configureLocale(ctx)
+
+	newPath := []string{filepath.Join(absJavaHome, "bin")}
+	if path, ok := config.environ.Get("PATH"); ok && path != "" {
+		newPath = append(newPath, path)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		ctx.Fatalln("Failed to get working directory:", err)
+	}
+	config.environ.Set("JAVA_HOME", config.sandboxPath(wd, absJavaHome))
+	config.environ.Set("ANDROID_JAVA_HOME", config.sandboxPath(wd, javaHome))
+	config.environ.Set("ANDROID_JAVA8_HOME", config.sandboxPath(wd, java8Home))
+	config.environ.Set("PATH", strings.Join(newPath, string(filepath.ListSeparator)))
 }
 
 // NewBuildActionConfig returns a build configuration based on the build action. The arguments are

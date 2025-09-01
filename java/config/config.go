@@ -139,6 +139,9 @@ func init() {
 		if override := ctx.Config().Getenv("OVERRIDE_JLINK_VERSION_NUMBER"); override != "" {
 			return override
 		}
+		if ctx.Config().BuildWithJdk25() {
+			return "25"
+		}
 		return "21"
 	})
 
