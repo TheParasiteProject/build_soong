@@ -196,6 +196,7 @@ var (
 		"-fuse-ld=lld",
 		"-Wl,--icf=safe",
 		"-Wl,--no-demangle",
+		"-Wl,--build-id=md5",
 	}
 
 	deviceGlobalCppflags = []string{
@@ -207,7 +208,6 @@ var (
 		"-Wl,-z,noexecstack",
 		"-Wl,-z,relro",
 		"-Wl,-z,now",
-		"-Wl,--build-id=md5",
 		"-Wl,--fatal-warnings",
 		"-Wl,--no-undefined-version",
 		// TODO: Eventually we should link against a libunwind.a with hidden symbols, and then these
