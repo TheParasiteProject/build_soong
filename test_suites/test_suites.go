@@ -69,6 +69,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 	sharedLibGraph := make(map[string][]string)
 	allTestSuiteInstalls := make(map[string]android.Paths)
 	allTestSuiteSrcs := make(map[string]android.Paths)
+	seenSymlinks := make(map[string]bool)
 	var toInstall []android.FilePair
 	var oneVariantInstalls []android.FilePair
 	var allCompatibilitySuitePackages []compatibilitySuitePackageInfo
@@ -251,7 +252,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 	for _, testSuiteConfig := range allTestSuiteConfigs {
 		files := allTestSuiteInstalls[testSuiteConfig.name]
 		sharedLibs := testInstalledSharedLibs[testSuiteConfig.name]
-		packageTestSuite(ctx, testSuiteModules[testSuiteConfig.name], files, sharedLibs, testSuiteConfig)
+		packageTestSuite(ctx, testSuiteModules[testSuiteConfig.name], files, sharedLibs, testSuiteConfig, hostSharedLibs[testSuiteConfig.name], seenSymlinks)
 	}
 
 	for _, suite := range allCompatibilitySuitePackages {
@@ -550,7 +551,14 @@ func pathForTestCases(ctx android.PathContext) android.InstallPath {
 	return android.PathForHostInstall(ctx, "testcases")
 }
 
-func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProxy, files, sharedLibs android.Paths, suiteConfig testSuiteConfig) {
+func packageTestSuite(
+	ctx android.SingletonContext,
+	modules []android.ModuleProxy,
+	files android.Paths,
+	sharedLibs android.Paths,
+	suiteConfig testSuiteConfig,
+	hostSharedLibs android.Paths,
+	seenSymlinks map[string]bool) {
 	hostOutTestCases := android.PathForHostInstall(ctx, "testcases")
 	targetOutTestCases := android.PathForDeviceFirstInstall(ctx, "testcases")
 	hostOut := filepath.Dir(hostOutTestCases.String())
@@ -619,36 +627,38 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 
 	if suiteConfig.includeCommonHostSharedLibsSymlinksInMainZip {
 		commonHostSharedLibsForSymlinks := gatherCommonHostSharedLibsForSymlinks(ctx, suiteConfig.name)
-		intermediatesDirForSuite := pathForPackaging(ctx, suiteConfig.name)
-		seen := make(map[string]bool)
 		for _, moduleName := range android.SortedKeys(commonHostSharedLibsForSymlinks) {
-			var symlinksPerModule []android.WritablePath
+			var symlinksForModuleTarget []android.Path
 			for _, common := range commonHostSharedLibsForSymlinks[moduleName] {
-				var symlink android.WritablePath
+				if !android.InList(common, hostSharedLibs) {
+					continue
+				}
+				var symlink, libInTestCase android.WritablePath
 				var symlinkTargetPrefix string
 				if strings.Contains(common.String(), "/lib64/") {
-					symlink = intermediatesDirForSuite.Join(ctx, "x86_64", "shared_libs", common.Base())
+					symlink = android.PathForHostInstall(ctx, "testcases", moduleName, "x86_64", "shared_libs", common.Base())
 					symlinkTargetPrefix = "../../../lib64"
+					libInTestCase = android.PathForHostInstall(ctx, "testcases", "lib64", common.Base())
 				} else {
-					symlink = intermediatesDirForSuite.Join(ctx, "x86", "shared_libs", common.Base())
+					symlink = android.PathForHostInstall(ctx, "testcases", moduleName, "x86", "shared_libs", common.Base())
 					symlinkTargetPrefix = "../../../lib"
+					libInTestCase = android.PathForHostInstall(ctx, "testcases", "lib", common.Base())
 				}
 
-				// the symlink could be referenced by multiple modules, so they still
-				// need to be compiled in the soong_zip command if they're already
-				// deduplicated.
-				symlinksPerModule = append(symlinksPerModule, symlink)
+				testsZipCmdHostFileInputContent = append(testsZipCmdHostFileInputContent, symlink.String())
+				testsZipCmd.Implicit(symlink)
+
+				symlinksForModuleTarget = append(symlinksForModuleTarget, symlink, libInTestCase)
 
 				// Adding host shared libs symbolic links to general-tests-files-list, e.g.,
 				// out/host/linux-x86/testcases/hello_world_test/x86_64/shared_libs/libc++.so
-				relativePath, _ := filepath.Rel(intermediatesDirForSuite.String(), symlink.String())
-				filesListLines = append(filesListLines, fmt.Sprintf("%s/%s/%s", hostOutTestCases, moduleName, relativePath))
-				hostFilesListLines = append(hostFilesListLines, fmt.Sprintf("%s/%s/%s", hostOutTestCases, moduleName, relativePath))
+				filesListLines = append(filesListLines, symlink.String())
+				hostFilesListLines = append(hostFilesListLines, symlink.String())
 
-				if _, exists := seen[symlink.String()]; exists {
+				if _, exists := seenSymlinks[symlink.String()]; exists {
 					continue
 				}
-				seen[symlink.String()] = true
+				seenSymlinks[symlink.String()] = true
 				ctx.Build(pctx, android.BuildParams{
 					Rule:   android.Symlink,
 					Output: symlink,
@@ -657,12 +667,8 @@ func packageTestSuite(ctx android.SingletonContext, modules []android.ModuleProx
 					},
 				})
 			}
-			if len(symlinksPerModule) != 0 {
-				testsZipCmd.FlagWithArg("-C ", intermediatesDirForSuite.String())
-				testsZipCmd.FlagWithArg("-P ", fmt.Sprintf("host/testcases/%s/", moduleName))
-				for _, symlink := range symlinksPerModule {
-					testsZipCmd.FlagWithInput("-f ", symlink)
-				}
+			if len(symlinksForModuleTarget) != 0 {
+				ctx.Phony(moduleName, android.SortedUniquePaths(symlinksForModuleTarget)...)
 			}
 		}
 	}
