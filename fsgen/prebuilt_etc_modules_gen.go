@@ -133,17 +133,13 @@ type partitionToInstallPath struct {
 }
 
 func getPartitionToInstallPathList(ctx android.LoadHookContext) []partitionToInstallPath {
-	vendorRamdiskPartition := "vendor_ramdisk"
-	if ctx.DeviceConfig().BoardMoveRecoveryResourcesToVendorBoot() {
-		vendorRamdiskPartition = "vendor_ramdisk/first_stage_ramdisk"
-	}
 	// System is intentionally added at the last to consider the scenarios where
 	// non-system partitions are installed as part of the system partition
 	partitionToInstallPathList := []partitionToInstallPath{
 		{name: "recovery", installPath: "recovery/root"},
 		{name: "vendor", installPath: ctx.DeviceConfig().VendorPath()},
 		{name: "vendor_dlkm", installPath: ctx.DeviceConfig().VendorDlkmPath()},
-		{name: "vendor_ramdisk", installPath: vendorRamdiskPartition},
+		{name: "vendor_ramdisk", installPath: "vendor_ramdisk"},
 		{name: "product", installPath: ctx.DeviceConfig().ProductPath()},
 		{name: "system_ext", installPath: ctx.DeviceConfig().SystemExtPath()},
 		{name: "system", installPath: "system"},
@@ -177,14 +173,15 @@ type prebuiltModuleProperties struct {
 
 	From_product_copy_files *bool
 
-	Soc_specific         *bool
-	Product_specific     *bool
-	System_ext_specific  *bool
-	Vendor_dlkm_specific *bool
-	Recovery             *bool
-	Ramdisk              *bool
-	Vendor_ramdisk       *bool
-	Install_in_root      *bool
+	Soc_specific                              *bool
+	Product_specific                          *bool
+	System_ext_specific                       *bool
+	Vendor_dlkm_specific                      *bool
+	Recovery                                  *bool
+	Ramdisk                                   *bool
+	Vendor_ramdisk                            *bool
+	Install_in_root                           *bool
+	Install_path_skip_first_stage_ramdisk_dir *bool
 
 	Srcs []string
 
@@ -225,7 +222,7 @@ var (
 		"first_stage_ramdisk": etc.PrebuiltFirstStageRamdiskFactory,
 		"fonts":               etc.PrebuiltFontFactory,
 		"framework":           etc.PrebuiltFrameworkFactory,
-		"lib":                 etc.PrebuiltRenderScriptBitcodeFactory,
+		"lib":                 etc.PrebuiltLibFactory,
 		"lib64":               etc.PrebuiltRenderScriptBitcodeFactory,
 		"lib/rfsa":            etc.PrebuiltRFSAFactory,
 		"media":               etc.PrebuiltMediaFactory,
@@ -301,12 +298,9 @@ func prebuiltEtcModuleProps(ctx android.LoadHookContext, moduleName, partition, 
 		moduleProps.Vendor_dlkm_specific = proptools.BoolPtr(true)
 	case "vendor_ramdisk":
 		moduleProps.Vendor_ramdisk = proptools.BoolPtr(true)
-		if destDir == "." {
-			moduleProps.Install_in_root = proptools.BoolPtr(true)
-		} else {
-			// TODO: handle PRODUCT_COPY_FILES which install file
-			// to a location that is _not_ vendor_ramdisk/first_stage_ramdisk.
-		}
+		// Enforce partition path to be "TARGET_COPY_OUT_VENDOR_RAMDISK" by skipping "first_stage_ramdisk".
+		moduleProps.Install_path_skip_first_stage_ramdisk_dir = proptools.BoolPtr(true)
+		moduleProps.Install_in_root = proptools.BoolPtr(true)
 	case "recovery":
 		// To match the logic in modulePartition() in android/paths.go
 		if ctx.DeviceConfig().BoardUsesRecoveryAsBoot() && strings.HasPrefix(destDir, "first_stage_ramdisk") {
