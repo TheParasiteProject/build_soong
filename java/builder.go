@@ -926,7 +926,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 	// if it is too long.
 	const classpathLimit = 64 * 1024
 	if len(classpathArg) > classpathLimit {
-		classpathRspFile := outputFile.ReplaceExtension(ctx, "classpath")
+		classpathRspFile := outputFile.AddExtension(ctx, "classpath")
 		android.WriteFileRule(ctx, classpathRspFile, classpathArg)
 		deps = append(deps, classpathRspFile)
 		classpathArg = "@" + classpathRspFile.String()

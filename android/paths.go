@@ -321,7 +321,11 @@ type WritablePath interface {
 	// but it allows a struct to distinguish between whether or not it implements the WritablePath interface
 	writablePath()
 
+	// ReplaceExtension creates a new OutputPath with the extension replaced with ext.
 	ReplaceExtension(ctx PathContext, ext string) OutputPath
+
+	// AddExtension creates a new OutputPath with a "." and ext added to the file name.
+	AddExtension(ctx PathContext, ext string) OutputPath
 }
 
 type genPathProvider interface {
@@ -1526,6 +1530,16 @@ func (p OutputPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
 	return ret
 }
 
+// AddExtension creates a new OutputPath with ext added to the extension.
+func (p OutputPath) AddExtension(ctx PathContext, ext string) OutputPath {
+	if strings.Contains(ext, "/") {
+		ReportPathErrorf(ctx, "extension %q cannot contain /", ext)
+	}
+	ret := PathForOutput(ctx, p.path+"."+ext)
+	ret.rel = p.rel + "." + ext
+	return ret
+}
+
 // InSameDir creates a new OutputPath from the directory of the current OutputPath joined with the elements in paths.
 func (p OutputPath) InSameDir(ctx PathContext, paths ...string) OutputPath {
 	path, err := validatePath(paths...)
@@ -1846,6 +1860,9 @@ func (p InstallPath) getSoongOutDir() string {
 }
 
 func (p InstallPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
+	panic("Not implemented")
+}
+func (p InstallPath) AddExtension(ctx PathContext, ext string) OutputPath {
 	panic("Not implemented")
 }
 
@@ -2194,6 +2211,9 @@ func (p PhonyPath) WithoutRel() Path {
 }
 
 func (p PhonyPath) ReplaceExtension(ctx PathContext, ext string) OutputPath {
+	panic("Not implemented")
+}
+func (p PhonyPath) AddExtension(ctx PathContext, ext string) OutputPath {
 	panic("Not implemented")
 }
 
