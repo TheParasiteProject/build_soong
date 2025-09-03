@@ -132,9 +132,13 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 	a.createComplianceMetadataTimestamp(ctx, depsNoImg)
 
 	// List all individual files to be copied to PRODUCT_OUT here
-	if a.deviceProps.Bootloader != nil {
-		bootloader := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Bootloader, bootloaderDepTag)
-		files := android.OutputFilesForModule(ctx, bootloader, "")
+	bootloaderDepTags := []blueprint.DependencyTag{bootloaderDepTag, tzswDepTag}
+	ctx.VisitDirectDepsProxy(func(child android.ModuleProxy) {
+		tag := ctx.OtherModuleDependencyTag(child)
+		if !android.InList(tag, bootloaderDepTags) {
+			return
+		}
+		files := android.OutputFilesForModule(ctx, child, "")
 		for _, file := range files {
 			installPath := android.PathForModuleInPartitionInstall(ctx, "", file.Base())
 			ctx.Build(pctx, android.BuildParams{
@@ -144,7 +148,7 @@ func (a *androidDevice) copyFilesToProductOutForSoongOnly(ctx android.ModuleCont
 			})
 			deps = append(deps, installPath)
 		}
-	}
+	})
 
 	copyBootImg := func(prop *string, type_ string) {
 		if proptools.String(prop) != "" {

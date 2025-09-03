@@ -845,7 +845,7 @@ func (f *filesystem) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	var installedFilesStructList []InstalledFilesStruct
 	if !usePrebuilt {
-		installedFilesStructList := []InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rebasedDir, f.output)}
+		installedFilesStructList = []InstalledFilesStruct{buildInstalledFiles(ctx, partitionNameForInstalledFiles, rebasedDir, f.output)}
 		if f.partitionName() == "system" {
 			rootDirForInstalledFiles := android.PathForModuleOut(ctx, "root_for_installed_files", "root")
 			copyToRootTimestamp := android.PathForModuleOut(ctx, "root_copy_timestamp")

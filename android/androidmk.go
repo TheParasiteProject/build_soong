@@ -306,7 +306,7 @@ type distContributions struct {
 
 // getCopiesForGoals returns a copiesForGoals into which copy instructions that
 // must be processed when building one or more of those goals can be added.
-func (d *distContributions) getCopiesForGoals(goals string) *copiesForGoals {
+func (d *distContributions) getCopiesForGoals(goals []string) *copiesForGoals {
 	copiesForGoals := &copiesForGoals{goals: goals}
 	d.copiesForGoals = append(d.copiesForGoals, copiesForGoals)
 	return copiesForGoals
@@ -315,9 +315,8 @@ func (d *distContributions) getCopiesForGoals(goals string) *copiesForGoals {
 // Associates a list of dist copy instructions with a set of goals for which they
 // should be run.
 type copiesForGoals struct {
-	// goals are a space separated list of build targets that will trigger the
-	// copy instructions.
-	goals string
+	// goals are build targets that will trigger the copy instructions.
+	goals []string
 
 	// A list of instructions to copy a module's output files to somewhere in the
 	// dist directory.
@@ -383,7 +382,7 @@ func getDistContributions(ctx ConfigAndOtherModuleProviderContext, mod ModuleOrP
 	// Iterate over this module's dist structs, merged from the dist and dists properties.
 	for _, dist := range commonInfo.Dists {
 		// Get the list of goals this dist should be enabled for. e.g. sdk, droidcore
-		goals := strings.Join(dist.Targets, " ")
+		goals := dist.Targets
 
 		// Get the tag representing the output files to be dist'd. e.g. ".jar", ".proguard_map"
 		var tag string
@@ -472,7 +471,8 @@ func getDistContributions(ctx ConfigAndOtherModuleProviderContext, mod ModuleOrP
 func generateDistContributionsForMake(distContributions *distContributions) []string {
 	var ret []string
 	for _, d := range distContributions.copiesForGoals {
-		ret = append(ret, fmt.Sprintf(".PHONY: %s", d.goals))
+		goals := strings.Join(d.goals, " ")
+		ret = append(ret, fmt.Sprintf(".PHONY: %s", goals))
 		// Create dist-for-goals calls for each of the copy instructions.
 		for _, c := range d.copies {
 			if distContributions.licenseMetadataFile != nil {
@@ -483,7 +483,7 @@ func generateDistContributionsForMake(distContributions *distContributions) []st
 			}
 			ret = append(
 				ret,
-				fmt.Sprintf("$(call dist-for-goals,%s,%s:%s)", d.goals, c.from.String(), c.dest))
+				fmt.Sprintf("$(call dist-for-goals,%s,%s:%s)", goals, c.from.String(), c.dest))
 		}
 	}
 
@@ -812,7 +812,7 @@ func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContex
 		ctx.Phony("droidcore-unbundled", moduleInfoJSONPath)
 		allDistContributions = append(allDistContributions, distContributions{
 			copiesForGoals: []*copiesForGoals{{
-				goals: "general-tests droidcore-unbundled haiku module-info",
+				goals: []string{"general-tests", "droidcore-unbundled", "haiku", "module-info"},
 				copies: []distCopy{{
 					from: moduleInfoJSONPath,
 					dest: "module-info.json",
@@ -828,9 +828,8 @@ func (so *soongOnlyAndroidMkSingleton) soongOnlyBuildActions(ctx SingletonContex
 	var srcDstPairs []string
 	for _, contributions := range allDistContributions {
 		for _, copiesForGoal := range contributions.copiesForGoals {
-			goals := strings.Fields(copiesForGoal.goals)
 			for _, copy := range copiesForGoal.copies {
-				for _, goal := range goals {
+				for _, goal := range copiesForGoal.goals {
 					goalOutputPairs = append(goalOutputPairs, fmt.Sprintf(" %s:%s", goal, copy.dest))
 				}
 				srcDstPairs = append(srcDstPairs, fmt.Sprintf(" %s:%s", copy.from.String(), copy.dest))
@@ -879,12 +878,10 @@ func distsToDistContributions(dists []dist) *distContributions {
 
 	copyGoals := []*copiesForGoals{}
 	for _, dist := range dists {
-		for _, goal := range dist.goals {
-			copyGoals = append(copyGoals, &copiesForGoals{
-				goals:  goal,
-				copies: dist.paths,
-			})
-		}
+		copyGoals = append(copyGoals, &copiesForGoals{
+			goals:  dist.goals,
+			copies: dist.paths,
+		})
 	}
 
 	return &distContributions{

@@ -447,7 +447,9 @@ type config struct {
 }
 
 type partialCompileFlags struct {
-	// Whether to use d8 instead of r8
+	// Whether to use d8 instead of r8.
+	// Known issue (b/428178183): Super Partition overflow is probable when
+	// many outputs are built with this flag.
 	Use_d8 bool
 
 	// Whether to disable stub validation for partial compile builds.
@@ -473,12 +475,12 @@ type partialCompileFlags struct {
 	// Add others as needed.
 }
 
-// These are the flags when `SOONG_PARTIAL_COMPILE=default`.
-var defaultPartialCompileFlags = partialCompileFlags{}
+// These are the flags when `SOONG_PARTIAL_COMPILE=false`.
+var falsePartialCompileFlags = partialCompileFlags{}
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=true`.
-var enabledPartialCompileFlags = partialCompileFlags{
-	Use_d8:                         true,
+var truePartialCompileFlags = partialCompileFlags{
+	Use_d8:                         false,
 	Disable_stub_validation:        true,
 	Enable_inc_kotlin:              true,
 	Enable_inc_javac:               true,
@@ -488,15 +490,17 @@ var enabledPartialCompileFlags = partialCompileFlags{
 }
 
 // These are the flags when `SOONG_PARTIAL_COMPILE=all`.
-var allPartialCompileFlags = partialCompileFlags{
-	Use_d8:                         true,
-	Disable_stub_validation:        true,
-	Enable_inc_javac:               true,
-	Enable_inc_kotlin:              true,
-	Enable_inc_d8:                  true,
-	Enable_inc_kotlin_java_dep:     true,
-	Enable_inc_d8_outside_platform: true,
-}
+// Include everything from `SOONG_PARTIAL_COMPILE=true`, and flags
+// that have known issues.
+var allPartialCompileFlags = func() (flags partialCompileFlags) {
+	flags = truePartialCompileFlags
+	// b/428178183
+	flags.Use_d8 = true
+	return
+}()
+
+// These are the flags when `SOONG_PARTIAL_COMPILE=default`.
+var defaultPartialCompileFlags = falsePartialCompileFlags
 
 type deviceConfig struct {
 	config *config
@@ -573,11 +577,11 @@ func (c *config) parsePartialCompileFlags(isEngBuild bool) (partialCompileFlags,
 		switch tok {
 		// Big toggle switches.
 		case "false":
-			ret = partialCompileFlags{}
+			ret = falsePartialCompileFlags
 		case "default":
 			ret = defaultPartialCompileFlags
 		case "true":
-			ret = enabledPartialCompileFlags
+			ret = truePartialCompileFlags
 		case "all":
 			ret = allPartialCompileFlags
 

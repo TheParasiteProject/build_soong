@@ -148,30 +148,8 @@ type configImpl struct {
 	// Which builder are we using
 	ninjaCommand ninjaCommandType
 
-	// Whether this build has a target that needs to disable SOONG_USE_PARTIAL_COMPILE.
-	disableUsePartialCompile bool
-
-	// Whether the user requested partial compile.
-	partialCompileRequested bool
-
 	// Control which JDK is used for builds
 	useJdk25 bool
-}
-
-// Some of the speed optimizations (such as using d8 instead of r8) used in partial
-// compile cause the size of image to become too large.  To avoid this, some ninja
-// targets force SOONG_USE_PARTIAL_COMPILE=false.
-// This list is missing a great many targets which could cause the image to be too
-// large.  Rather than try to be complete, it only includes targets which we know
-// are commonly used by Java/Kotlin developers.
-//
-// Without this automation, the developer would do an initial build -- which would
-// fail -- and then need to run `SOONG_USE_PARTIAL_COMPILE=false m ...` to rebuild
-// before beginning their inner loop work.  See also b/409810224.
-var disableUsePartialCompileArgs = map[string]bool{
-	"droid":       true,
-	"sync":        true,
-	"systemimage": true,
 }
 
 type NinjaWeightListSource uint
@@ -371,17 +349,7 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 	// This simplifies the generated Ninja rules, so that they only need to check for the empty string.
 	if value, ok := ret.environ.Get("SOONG_USE_PARTIAL_COMPILE"); ok {
 		if value == "true" || value == "1" || value == "y" || value == "yes" {
-			ret.partialCompileRequested = true
 			value = "true"
-			if ret.disableUsePartialCompile {
-				// Allow the user to try using partial compile when we would normally force it off to avoid
-				// superpartition overflow.
-				if ret.environ.IsEnvTrue("SOONG_HONOR_USE_PARTIAL_COMPILE") {
-					ret.disableUsePartialCompile = false
-				} else {
-					value = ""
-				}
-			}
 		} else {
 			value = ""
 		}
@@ -749,6 +717,9 @@ func buildConfig(config Config) *smpb.BuildConfig {
 	if value, ok := config.environ.Get("NETWORK_FILE_SYSTEM_TYPE"); ok {
 		ensure().NetworkFileSystemType = proto.String(value)
 	}
+	if value, ok := config.environ.Get("METRICS_BUILD_TRIGGER"); ok {
+		ensure().BuildTrigger = proto.String(value)
+	}
 	c := &smpb.BuildConfig{
 		UseRbe:                proto.Bool(config.UseRBE()),
 		NinjaWeightListSource: getNinjaWeightListSourceInMetric(config.NinjaWeightListSource()),
@@ -1101,15 +1072,8 @@ func (c *configImpl) parseArgs(ctx Context, args []string) {
 			if arg == "checkbuild" {
 				c.checkbuild = true
 			}
-			if disableUsePartialCompileArgs[arg] {
-				c.disableUsePartialCompile = true
-			}
 			c.arguments = append(c.arguments, arg)
 		}
-	}
-	// The default target needs disableUsePartialCompile.
-	if len(args) == 0 {
-		c.disableUsePartialCompile = true
 	}
 }
 
