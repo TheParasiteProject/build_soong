@@ -15,8 +15,9 @@
 package filesystem
 
 import (
-	"github.com/google/blueprint/proptools"
 	"strings"
+
+	"github.com/google/blueprint/proptools"
 
 	"android/soong/android"
 )
@@ -41,19 +42,43 @@ func BootOtas16kFactory() android.Module {
 	return module
 }
 
+type bootOtas16kPaths struct {
+	dtboImage    android.OptionalPath
+	dtboImage16k android.OptionalPath
+	bootImage    android.OptionalPath
+	bootImage16k android.OptionalPath
+}
+
+func (b *bootOtas16k) collectImagePaths(ctx android.ModuleContext) bootOtas16kPaths {
+	return bootOtas16kPaths{
+		dtboImage:    android.OptionalPathForModuleSrc(ctx, b.properties.Dtbo_image),
+		dtboImage16k: android.OptionalPathForModuleSrc(ctx, b.properties.Dtbo_image_16k),
+		bootImage:    android.OptionalPathForModuleSrc(ctx, b.properties.Boot_image),
+		bootImage16k: android.OptionalPathForModuleSrc(ctx, b.properties.Boot_image_16k),
+	}
+}
+
 func (b *bootOtas16k) GenerateAndroidBuildActions(ctx android.ModuleContext) {
+
+	imagePaths := b.collectImagePaths(ctx)
+
+	// At least one of the bootImage or the bootImage16k must point to a valid path
+	if !imagePaths.bootImage.Valid() && !imagePaths.bootImage16k.Valid() {
+		ctx.ModuleErrorf("Neither boot_image nor the boot_image_16k are valid; at least one of them must be a valid path")
+	}
+
 	bootOta4kZip := b.createOtaPackage(
 		ctx,
-		android.PathForModuleSrc(ctx, proptools.String(b.properties.Boot_image)),
-		android.PathForModuleSrc(ctx, proptools.String(b.properties.Boot_image_16k)),
-		android.PathForModuleSrc(ctx, proptools.String(b.properties.Dtbo_image)),
+		imagePaths.bootImage,
+		imagePaths.bootImage16k,
+		imagePaths.dtboImage,
 		"boot_ota_4k.zip",
 	)
 	bootOta16kZip := b.createOtaPackage(
 		ctx,
-		android.PathForModuleSrc(ctx, proptools.String(b.properties.Boot_image_16k)),
-		android.PathForModuleSrc(ctx, proptools.String(b.properties.Boot_image)),
-		android.PathForModuleSrc(ctx, proptools.String(b.properties.Dtbo_image_16k)),
+		imagePaths.bootImage16k,
+		imagePaths.bootImage,
+		imagePaths.dtboImage16k,
 		"boot_ota_16k.zip",
 	)
 
@@ -62,7 +87,7 @@ func (b *bootOtas16k) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	ctx.PackageFile(installDir, bootOta16kZip.Base(), bootOta16kZip)
 }
 
-func (b *bootOtas16k) createOtaPackage(ctx android.ModuleContext, primaryBootImage, secondaryBootImage, dtboImage android.Path, filename string) android.Path {
+func (b *bootOtas16k) createOtaPackage(ctx android.ModuleContext, primaryBootImage, secondaryBootImage, dtboImage android.OptionalPath, filename string) android.Path {
 	builder := android.NewRuleBuilder(pctx, ctx)
 	zip := android.PathForModuleOut(ctx, filename)
 
@@ -73,7 +98,7 @@ func (b *bootOtas16k) createOtaPackage(ctx android.ModuleContext, primaryBootIma
 		Implicit(key).
 		Textf("--max_timestamp $(cat %s)", ctx.Config().Getenv("BUILD_DATETIME_FILE"))
 
-	if dtboImage != nil {
+	if dtboImage.Valid() {
 		cmd.FlagWithArg("--partition_name ", "boot,dtbo")
 	} else {
 		cmd.FlagWithArg("--partition_name ", "boot")
@@ -83,15 +108,17 @@ func (b *bootOtas16k) createOtaPackage(ctx android.ModuleContext, primaryBootIma
 		FlagWithInput("--delta_generator_path ", ctx.Config().HostToolPath(ctx, "delta_generator"))
 
 	if proptools.Bool(b.properties.Use_ota_incremental) {
-		cmd.Textf("%s:%s", secondaryBootImage, primaryBootImage).
-			Implicit(secondaryBootImage).
-			Implicit(primaryBootImage)
+		if secondaryBootImage.Valid() && primaryBootImage.Valid() {
+			cmd.Textf("%s:%s", secondaryBootImage, primaryBootImage).
+				Implicit(secondaryBootImage.Path()).
+				Implicit(primaryBootImage.Path())
+		}
 	} else {
-		cmd.Input(primaryBootImage)
+		cmd.Input(primaryBootImage.Path())
 	}
 
-	if dtboImage != nil {
-		cmd.Input(dtboImage)
+	if dtboImage.Valid() {
+		cmd.Input(dtboImage.Path())
 	}
 
 	builder.Build(filename, filename)
