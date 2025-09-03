@@ -205,7 +205,7 @@ func main() {
 	}
 
 	defer func() {
-		emet.Finish(buildCtx)
+		emet.Finish(build.ExecutionMetricsFinishAdaptor{buildCtx})
 		stat.Finish()
 		criticalPath.WriteToMetrics(met)
 		met.Dump(soongMetricsFile)

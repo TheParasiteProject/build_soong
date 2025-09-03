@@ -635,8 +635,8 @@ func QueryProductReleaseConfigMaps(ctx Context, config Config) chan *productRele
 }
 
 func getProductReleaseConfigMaps(ctx Context, config Config, mapsCh chan *productReleaseConfigMapsInfo) {
-	ctx.BeginTrace(metrics.RunKati, "SetProductReleaseConfigMaps")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunKati, "SetProductReleaseConfigMaps")
+	defer e.End()
 
 	ret := &productReleaseConfigMapsInfo{}
 
@@ -1133,7 +1133,7 @@ func validateNinjaWeightList(weightListFilePath string) (err error) {
 }
 
 func (c *configImpl) configureLocale(ctx Context) {
-	cmd := Command(ctx, Config{c}, "locale", "locale", "-a")
+	cmd := Command(ctx, Config{c}, nil, "locale", "locale", "-a")
 	output, err := cmd.Output()
 
 	var locales []string

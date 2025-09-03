@@ -82,8 +82,8 @@ func DumpMakeVars(ctx Context, config Config, goals, vars []string) (map[string]
 }
 
 func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_vars bool, tmpDir string) (map[string]string, error) {
-	ctx.BeginTrace(metrics.RunKati, "dumpvars")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunKati, "dumpvars")
+	defer e.End()
 
 	tool := ctx.Status.StartTool()
 	if write_soong_vars {
@@ -93,7 +93,7 @@ func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_
 	}
 	defer tool.Finish()
 
-	cmd := Command(ctx, config, "dumpvars",
+	cmd := Command(ctx, config, e, "dumpvars",
 		config.KatiBin(),
 		"-f", "build/make/core/config.mk",
 		"--color_warnings",
