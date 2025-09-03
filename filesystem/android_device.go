@@ -131,6 +131,9 @@ type DeviceProperties struct {
 
 	// This is used for fontchain_lint, it will not check emoji if Minimal_font_footprint is true.
 	Minimal_font_footprint *bool
+
+	// Name of the prebuilt tzsw partition.
+	Tzsw *string
 }
 
 type PvmfwProperties struct {
@@ -199,6 +202,9 @@ type fileContextsDepTagType struct {
 type bootloaderDepTagType struct {
 	blueprint.BaseDependencyTag
 }
+type tzswDepTagType struct {
+	blueprint.BaseDependencyTag
+}
 type dtboDepTagType struct {
 	blueprint.BaseDependencyTag
 }
@@ -217,6 +223,7 @@ var filesystemDepTag partitionDepTagType
 var targetFilesMetadataDepTag targetFilesMetadataDepTagType
 var fileContextsDepTag fileContextsDepTagType
 var bootloaderDepTag bootloaderDepTagType
+var tzswDepTag tzswDepTagType
 var dtboDepTag dtboDepTagType
 var radioDepTag dtboDepTagType
 var ramdisk16kDepTag ramdisk16kDepTagType
@@ -261,6 +268,9 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	a.addDepsForTargetFilesMetadata(ctx)
 	if a.deviceProps.Bootloader != nil {
 		ctx.AddDependency(ctx.Module(), bootloaderDepTag, *a.deviceProps.Bootloader)
+	}
+	if a.deviceProps.Tzsw != nil {
+		ctx.AddDependency(ctx.Module(), tzswDepTag, *a.deviceProps.Tzsw)
 	}
 	if a.deviceProps.Dtbo_image != nil {
 		ctx.AddDependency(ctx.Module(), dtboDepTag, *a.deviceProps.Dtbo_image)
@@ -684,6 +694,12 @@ func (a *androidDevice) distFiles(ctx android.ModuleContext) {
 				ctx.DistForGoal("droidcore-unbundled", ramdiskInfo.Output)
 			}
 		}
+		// tzsw
+		if a.deviceProps.Tzsw != nil {
+			tzswImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.deviceProps.Tzsw), tzswDepTag)
+			files := android.OutputFilesForModule(ctx, tzswImg, "")
+			ctx.DistForGoal("droidcore-unbundled", files...)
+		}
 
 		if a.withLicenseFile != nil {
 			ctx.Phony("with-license", a.withLicenseFile)
@@ -868,6 +884,14 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 			builder.Command().Textf("cp ").Input(bootloaderFile[0]).Textf(" %s/IMAGES/bootloader", targetFilesDir.String())
 		}
 	}
+	if a.deviceProps.Tzsw != nil {
+		tzswImg := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Tzsw, tzswDepTag)
+		files := android.OutputFilesForModule(ctx, tzswImg, "")
+		builder.Command().
+			Textf("mkdir -p %s/RADIO && cp -t %s/RADIO ", targetFilesDir, targetFilesDir).
+			Inputs(files)
+	}
+
 	if a.partitionProps.Boot_16k_partition_name != nil {
 		bootImg := ctx.GetDirectDepProxyWithTag(proptools.String(a.partitionProps.Boot_16k_partition_name), filesystemDepTag)
 		if bootImgInfo := android.OtherModuleProviderOrDefault(ctx, bootImg, BootimgInfoProvider); bootImgInfo.Output != nil {

@@ -46,6 +46,7 @@ bootstrap_go_package {
         "system_other.go",
         "vbmeta.go",
         "testing.go",
+        "tzsw.go",
     ],
     testSrcs: [
         "filesystem_test.go",
