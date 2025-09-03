@@ -1574,20 +1574,24 @@ func (c *config) UseRBE() bool {
 	return Bool(c.productVariables.UseRBE)
 }
 
+func (c *config) UseREWrapper() bool {
+	return Bool(c.productVariables.UseREWrapper)
+}
+
 func (c *config) UseRBEJAVAC() bool {
-	return Bool(c.productVariables.UseRBEJAVAC)
+	return Bool(c.productVariables.UseRBEJAVAC) && c.UseREWrapper()
 }
 
 func (c *config) UseRBER8() bool {
-	return Bool(c.productVariables.UseRBER8)
+	return Bool(c.productVariables.UseRBER8) && c.UseREWrapper()
 }
 
 func (c *config) UseRBED8() bool {
-	return Bool(c.productVariables.UseRBED8)
+	return Bool(c.productVariables.UseRBED8) && c.UseREWrapper()
 }
 
 func (c *config) UseRemoteBuild() bool {
-	return c.UseRBE()
+	return c.UseRBE() && c.UseREWrapper()
 }
 
 func (c *config) RunErrorProne() bool {

@@ -189,6 +189,13 @@ func Banner(config Config, make_vars map[string]string) string {
 		}
 	}
 
+	// Only show USE_RBE and USE_REWRAPPER when the user has explicitly set SOONG_NINJA
+	if config.ninjaCommand != NINJA_DEFAULT {
+		fmt.Fprintf(b, "SOONG_NINJA=%s\n", config.ninjaCommand.String())
+		fmt.Fprintf(b, "USE_RBE=%t\n", config.UseRBE())
+		fmt.Fprintf(b, "USE_REWRAPPER=%t\n", config.UseRewrapper())
+	}
+
 	// Normally config.soongOnlyRequested already takes into account PRODUCT_SOONG_ONLY,
 	// except when doing `get_build_var report_config`, which is run during envsetup.
 	if config.skipKatiControlledByFlags {

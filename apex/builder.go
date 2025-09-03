@@ -968,7 +968,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 		"flags":        "-a 4096 --align-file-size", //alignment
 	}
 	implicits := android.Paths{pem, key}
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
 		rule = java.SignapkRE
 		args["implicits"] = strings.Join(implicits.Strings(), ",")
 		args["outCommaList"] = signedOutputFile.String()
@@ -1022,7 +1022,7 @@ func (a *apexBundle) buildApex(ctx android.ModuleContext) {
 		compressRule.Build("compressRule", "Generate unsigned compressed APEX file")
 
 		signedCompressedOutputFile := android.PathForModuleOut(ctx, a.Name()+imageCapexSuffix)
-		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
+		if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_SIGNAPK") {
 			args["outCommaList"] = signedCompressedOutputFile.String()
 		}
 		ctx.Build(pctx, android.BuildParams{

@@ -302,7 +302,7 @@ func Build(ctx Context, config Config) {
 
 	rbeCh := make(chan bool)
 	var rbePanic any
-	if config.StartRBE() {
+	if config.StartReproxy() {
 		cleanupRBELogsDir(ctx, config)
 		checkRBERequirements(ctx, config)
 		go func() {

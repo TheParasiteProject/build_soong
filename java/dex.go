@@ -829,8 +829,8 @@ func (d *dexer) compileDex(ctx android.ModuleContext, dexParams *compileDexParam
 	useD8 := !useR8 || ctx.Config().PartialCompileFlags().Use_d8
 	// d8Inc is applicable only when d8 is allowed.
 	useD8Inc := useD8 && ctx.Config().PartialCompileFlags().Enable_inc_d8 && incD8Compatible
-	rbeR8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_R8")
-	rbeD8 := ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_D8")
+	rbeR8 := ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_R8")
+	rbeD8 := ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_D8")
 	var rule blueprint.Rule
 	var description string
 	var artProfileOutputPath *android.OutputPath
