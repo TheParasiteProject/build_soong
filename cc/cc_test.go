@@ -3218,3 +3218,27 @@ func TestCheckConflictingExplicitVersions(t *testing.T) {
 			}
 		`)
 }
+
+func TestDeviceDataDepOfHostTest(t *testing.T) {
+	t.Parallel()
+	bp := `
+		cc_test_host {
+			name: "my_test",
+			srcs: ["foo.c"],
+			device_first_data: [":my_device_binary"],
+		}
+
+		cc_binary {
+			name: "my_device_binary",
+			srcs: ["foo.c"],
+			min_sdk_version: "S",
+		}
+	`
+	// Just verify that there are no errors from the above
+	android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+			variables.Platform_version_active_codenames = []string{"UpsideDownCake", "Tiramisu"}
+		}),
+	).RunTestWithBp(t, bp)
+}

@@ -3149,6 +3149,14 @@ func sourceOrOutputDepTag(moduleName, tag string) blueprint.DependencyTag {
 	return sourceOrOutputDependencyTag{moduleName: moduleName, tag: tag}
 }
 
+// IsSourceDepTag returns true if the supplied blueprint.DependencyTag is one that was
+// used to add dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for
+// properties tagged with `android:"path"`.
+func IsSourceDepTag(depTag blueprint.DependencyTag) bool {
+	_, ok := depTag.(sourceOrOutputDependencyTag)
+	return ok
+}
+
 // IsSourceDepTagWithOutputTag returns true if the supplied blueprint.DependencyTag is one that was
 // used to add dependencies by either ExtractSourceDeps, ExtractSourcesDeps or automatically for
 // properties tagged with `android:"path"` AND it was added using a module reference of
