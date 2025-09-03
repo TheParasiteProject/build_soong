@@ -298,8 +298,8 @@ func bootstrapEpochCleanup(ctx Context, config Config) {
 }
 
 func bootstrapBlueprint(ctx Context, config Config) {
-	ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSoong, "blueprint bootstrap")
+	defer e.End()
 
 	st := ctx.Status.StartTool()
 	defer st.Finish()
@@ -573,8 +573,8 @@ func migrateOutputSymlinks(ctx Context, config Config) error {
 }
 
 func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
-	ctx.BeginTrace(metrics.RunSoong, "soong")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSoong, "soong")
+	defer e.End()
 
 	if err := migrateOutputSymlinks(ctx, config); err != nil {
 		ctx.Fatalf("failed to migrate output directory to current TOP dir: %v", err)
@@ -604,8 +604,8 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 	}
 
 	func() {
-		ctx.BeginTrace(metrics.RunSoong, "environment check")
-		defer ctx.EndTrace()
+		e := ctx.BeginTrace(metrics.RunSoong, "environment check")
+		defer e.End()
 
 		checkEnvironmentFile(ctx, soongBuildEnv, config.UsedEnvFile(soongBuildTag))
 
@@ -619,8 +619,8 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 	}()
 
 	ninja := func(targets ...string) {
-		ctx.BeginTrace(metrics.RunSoong, "bootstrap")
-		defer ctx.EndTrace()
+		e := ctx.BeginTrace(metrics.RunSoong, "bootstrap")
+		defer e.End()
 
 		fifo := filepath.Join(config.OutDir(), ".ninja_fifo")
 		nr := status.NewNinjaReader(ctx, ctx.Status.StartTool(), fifo)
@@ -687,7 +687,7 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 
 			ninjaArgs = append(ninjaArgs, targets...)
 
-			cmd := Command(ctx, config, "soong bootstrap",
+			cmd := Command(ctx, config, e, "soong bootstrap",
 				ninjaCmd, ninjaArgs...)
 
 			var ninjaEnv Environment
@@ -771,8 +771,8 @@ func runSoong(ctx Context, config Config, enforceNoSoongOutput bool) {
 // globs, it only reruns globs whose dependencies are newer than the
 // time in the ".globs_time" file.
 func checkGlobs(ctx Context, finalOutFile string) error {
-	ctx.BeginTrace(metrics.RunSoong, "check_globs")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSoong, "check_globs")
+	defer e.End()
 	st := ctx.Status.StartTool()
 	st.Status("Running globs...")
 	defer st.Finish()
@@ -974,8 +974,8 @@ func loadSoongBuildMetrics(ctx Context, config Config, oldTimestamp time.Time) {
 }
 
 func runMicrofactory(ctx Context, config Config, name string, pkg string, mapping map[string]string) {
-	ctx.BeginTrace(metrics.RunSoong, name)
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSoong, name)
+	defer e.End()
 	cfg := microfactory.Config{TrimPath: absPath(ctx, ".")}
 	for pkgPrefix, pathPrefix := range mapping {
 		cfg.Map(pkgPrefix, pathPrefix)

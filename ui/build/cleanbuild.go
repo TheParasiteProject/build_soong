@@ -205,8 +205,8 @@ func installCleanIfNecessary(ctx Context, config Config) {
 		return
 	}
 
-	ctx.BeginTrace(metrics.PrimaryNinja, "installclean")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.PrimaryNinja, "installclean")
+	defer e.End()
 
 	previousProductAndVariant := strings.TrimPrefix(strings.TrimSuffix(previousConfig, suffix), prefix)
 	currentProductAndVariant := strings.TrimPrefix(strings.TrimSuffix(currentConfig, suffix), prefix)
@@ -257,8 +257,8 @@ func partialCompileCleanIfNecessary(ctx Context, config Config) {
 		return
 	case "true":
 		// Transitioning from on to off.  Build (phony) target: partialcompileclean.
-		ctx.BeginTrace(metrics.PrimaryNinja, "partialcompileclean")
-		defer ctx.EndTrace()
+		e := ctx.BeginTrace(metrics.PrimaryNinja, "partialcompileclean")
+		defer e.End()
 
 		ctx.Printf("SOONG_USE_PARTIAL_COMPILE turned off, forcing partialcompileclean\n")
 

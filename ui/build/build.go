@@ -188,7 +188,7 @@ func checkCaseSensitivity(ctx Context, config Config) {
 
 // help prints a help/usage message, via the build/make/help.sh script.
 func help(ctx Context, config Config) {
-	cmd := Command(ctx, config, "help.sh", "build/make/help.sh")
+	cmd := Command(ctx, config, nil, "help.sh", "build/make/help.sh")
 	cmd.Sandbox = dumpvarsSandbox
 	cmd.RunAndPrintOrFatal()
 }
@@ -221,7 +221,7 @@ func abfsBuildStarted(ctx Context, config Config) {
 	abfsBox := config.PrebuiltBuildTool("abfsbox")
 	cmdArgs := []string{"build-started", "--"}
 	cmdArgs = append(cmdArgs, config.Arguments()...)
-	cmd := Command(ctx, config, "abfsbox", abfsBox, cmdArgs...)
+	cmd := Command(ctx, config, nil, "abfsbox", abfsBox, cmdArgs...)
 	cmd.Sandbox = noSandbox
 	cmd.RunAndPrintOrFatal()
 }
@@ -234,7 +234,7 @@ func abfsBuildFinished(ctx Context, config Config, finished bool) {
 	abfsBox := config.PrebuiltBuildTool("abfsbox")
 	cmdArgs := []string{"build-finished", "-e", errMsg, "--"}
 	cmdArgs = append(cmdArgs, config.Arguments()...)
-	cmd := Command(ctx, config, "abfsbox", abfsBox, cmdArgs...)
+	cmd := Command(ctx, config, nil, "abfsbox", abfsBox, cmdArgs...)
 	cmd.RunAndPrintOrFatal()
 }
 
@@ -245,8 +245,8 @@ func Build(ctx Context, config Config) {
 	ctx.Verboseln("Starting build with args:", config.Arguments())
 	ctx.Verboseln("Environment:", config.Environment().Environ())
 
-	ctx.BeginTrace(metrics.Total, "total")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.Total, "total")
+	defer e.End()
 
 	if config.UseABFS() {
 		abfsBuildStarted(ctx, config)
@@ -408,8 +408,8 @@ func Build(ctx Context, config Config) {
 }
 
 func updateBuildIdDir(ctx Context, config Config) {
-	ctx.BeginTrace(metrics.RunShutdownTool, "update_build_id_dir")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunShutdownTool, "update_build_id_dir")
+	defer e.End()
 
 	symbolsDir := filepath.Join(config.ProductOut(), "symbols")
 	if err := elf.UpdateBuildIdDir(symbolsDir); err != nil {
@@ -473,8 +473,8 @@ var distWaitGroup sync.WaitGroup
 
 // waitForDist waits for all backgrounded distGzipFile and distFile writes to finish
 func waitForDist(ctx Context) {
-	ctx.BeginTrace("soong_ui", "dist")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace("soong_ui", "dist")
+	defer e.End()
 
 	distWaitGroup.Wait()
 }

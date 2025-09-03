@@ -45,8 +45,8 @@ func runNinjaForBuild(ctx Context, config Config) {
 // environment variables. It's important to restrict the environment Ninja runs
 // for hermeticity reasons, and to avoid spurious rebuilds.
 func runNinja(ctx Context, config Config, ninjaArgs []string) {
-	ctx.BeginTrace(metrics.PrimaryNinja, "ninja")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.PrimaryNinja, "ninja")
+	defer e.End()
 
 	// Sets up the FIFO status updater that reads the Ninja protobuf output, and
 	// translates it to the soong_ui status output, displaying real-time
@@ -118,7 +118,7 @@ func runNinja(ctx Context, config Config, ninjaArgs []string) {
 		}
 	}
 
-	cmd := Command(ctx, config, "ninja", executable, args...)
+	cmd := Command(ctx, config, e, "ninja", executable, args...)
 
 	// Set up the nsjail sandbox Ninja runs in.
 	cmd.Sandbox = ninjaSandbox
@@ -319,7 +319,7 @@ func runNinja(ctx Context, config Config, ninjaArgs []string) {
 	}()
 
 	ctx.ExecutionMetrics.Start()
-	defer ctx.ExecutionMetrics.Finish(ctx)
+	defer ctx.ExecutionMetrics.Finish(ExecutionMetricsFinishAdaptor{ctx})
 	ctx.Status.Status("Starting ninja...")
 	cmd.RunAndStreamOrFatal()
 }
@@ -351,7 +351,7 @@ func (c *ninjaStucknessChecker) check(ctx Context, config Config) {
 		// ps second
 		commandText := fmt.Sprintf("pstree -palT %v || ps -ef", os.Getpid())
 
-		cmd := Command(ctx, config, "dump process tree", "bash", "-c", commandText)
+		cmd := Command(ctx, config, nil, "dump process tree", "bash", "-c", commandText)
 		output := cmd.CombinedOutputOrFatal()
 		ctx.Verbose(string(output))
 

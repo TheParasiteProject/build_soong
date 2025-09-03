@@ -121,7 +121,7 @@ func startCIPDProxyServer(ctx Context, config Config) *cipdProxy {
 	cipdCmd := fmt.Sprintf("cipd %s", strings.Join(cipdArgs, " "))
 	ctx.Verbosef("Starting CIPD proxy server with: %s", cipdCmd)
 
-	cmd := Command(ctx, config, "cipd", cipdPath(config), cipdArgs...)
+	cmd := Command(ctx, config, nil, "cipd", cipdPath(config), cipdArgs...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatal(err)
