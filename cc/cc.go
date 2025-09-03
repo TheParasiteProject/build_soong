@@ -3771,6 +3771,10 @@ func (c *Module) depsToPaths(ctx android.ModuleContext) PathDeps {
 			return
 		}
 
+		if android.IsSourceDepTag(depTag) {
+			return
+		}
+
 		if depTag == deviceForHostDepTag {
 			if !ctx.Config().IsEnvTrue("ART_USE_SIMULATOR") {
 				ctx.ModuleErrorf("cannot be used without ART_USE_SIMULATOR set")
