@@ -82,8 +82,8 @@ func DumpMakeVars(ctx Context, config Config, goals, vars []string) (map[string]
 }
 
 func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_vars bool, tmpDir string) (map[string]string, error) {
-	ctx.BeginTrace(metrics.RunKati, "dumpvars")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunKati, "dumpvars")
+	defer e.End()
 
 	tool := ctx.Status.StartTool()
 	if write_soong_vars {
@@ -93,7 +93,7 @@ func dumpMakeVars(ctx Context, config Config, goals, vars []string, write_soong_
 	}
 	defer tool.Finish()
 
-	cmd := Command(ctx, config, "dumpvars",
+	cmd := Command(ctx, config, e, "dumpvars",
 		config.KatiBin(),
 		"-f", "build/make/core/config.mk",
 		"--color_warnings",
@@ -187,6 +187,13 @@ func Banner(config Config, make_vars map[string]string) string {
 		if partialCompile, ok := config.environ.Get("SOONG_PARTIAL_COMPILE"); ok {
 			fmt.Fprintf(b, "SOONG_PARTIAL_COMPILE=%s\n", partialCompile)
 		}
+	}
+
+	// Only show USE_RBE and USE_REWRAPPER when the user has explicitly set SOONG_NINJA
+	if config.ninjaCommand != NINJA_DEFAULT {
+		fmt.Fprintf(b, "SOONG_NINJA=%s\n", config.ninjaCommand.String())
+		fmt.Fprintf(b, "USE_RBE=%t\n", config.UseRBE())
+		fmt.Fprintf(b, "USE_REWRAPPER=%t\n", config.UseRewrapper())
 	}
 
 	// Normally config.soongOnlyRequested already takes into account PRODUCT_SOONG_ONLY,

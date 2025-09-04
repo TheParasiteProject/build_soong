@@ -1769,7 +1769,7 @@ func (j *Module) compile(ctx android.ModuleContext) *JavaInfo {
 		args := map[string]string{
 			"jarArgs": "-P META-INF/services/ " + strings.Join(proptools.NinjaAndShellEscapeList(zipargs), " "),
 		}
-		if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_ZIP") {
+		if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_ZIP") {
 			rule = zipRE
 			args["implicits"] = strings.Join(services.Strings(), ",")
 		}

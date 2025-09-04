@@ -866,7 +866,7 @@ func (r *RuleBuilder) build(name string, desc string) {
 		tools = append(tools, sboxCmd.tools...)
 		inputs = append(inputs, sboxCmd.inputs...)
 
-		if r.rbeParams != nil {
+		if r.rbeParams != nil && r.ctx.Config().UseREWrapper() {
 			// RBE needs a list of input files to copy to the remote builder.  For inputs already
 			// listed in an rsp file, pass the rsp file directly to rewrapper.  For the rest,
 			// create a new rsp file to pass to rewrapper.
@@ -924,8 +924,9 @@ func (r *RuleBuilder) build(name string, desc string) {
 	}
 
 	var pool blueprint.Pool
-	if r.ctx.Config().UseRBE() && r.remoteable.RBE {
-		// When USE_RBE=true is set and the rule is supported by RBE, use the remotePool.
+	if r.ctx.Config().UseREWrapper() && r.remoteable.RBE {
+		// When USE_REWRAPPER=true is set and the rule is supported by RBE, use the
+		// remotePool.
 		pool = remotePool
 	} else if r.highmem {
 		pool = highmemPool

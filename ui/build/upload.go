@@ -80,8 +80,8 @@ func pruneMetricsFiles(paths []string) []string {
 // to continue working. Soong communicates to the uploader through the
 // upload_proto raw protobuf file.
 func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted time.Time, paths ...string) {
-	ctx.BeginTrace(metrics.RunSetupTool, "upload_metrics")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunSetupTool, "upload_metrics")
+	defer e.End()
 
 	uploader := config.MetricsUploaderApp()
 	if uploader == "" {
@@ -136,7 +136,7 @@ func UploadMetrics(ctx Context, config Config, simpleOutput bool, buildStarted t
 
 	// Start the uploader in the background as it takes several milliseconds to start the uploader
 	// and prepare the metrics for upload. This affects small shell commands like "lunch".
-	cmd := Command(ctx, config, "upload metrics", uploader, "--upload-metrics", pbFile)
+	cmd := Command(ctx, config, e, "upload metrics", uploader, "--upload-metrics", pbFile)
 	if simpleOutput {
 		cmd.RunOrFatal()
 	} else {

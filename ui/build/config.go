@@ -56,7 +56,7 @@ func init() {
 }
 
 // Which builder are we using?
-type ninjaCommandType = int
+type ninjaCommandType int
 
 const (
 	_ = iota
@@ -65,6 +65,23 @@ const (
 	NINJA_SISO
 	NINJA_NINJAGO
 )
+
+var NINJA_DEFAULT ninjaCommandType = NINJA_NINJA
+
+func (n ninjaCommandType) String() string {
+	switch n {
+	case NINJA_NINJA:
+		return "ninja"
+	case NINJA_N2:
+		return "n2"
+	case NINJA_SISO:
+		return "siso"
+	case NINJA_NINJAGO:
+		return "ninjago"
+	default:
+		return fmt.Sprintf("%v", int(n))
+	}
+}
 
 type Config struct{ *configImpl }
 
@@ -274,6 +291,21 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 	}
 	ret.parseArgs(ctx, args)
 
+	switch os.Getenv("SOONG_NINJA") {
+	case "n2":
+		ret.ninjaCommand = NINJA_N2
+	case "siso":
+		ret.ninjaCommand = NINJA_SISO
+	case "ninjago":
+		ret.ninjaCommand = NINJA_NINJAGO
+	default:
+		if os.Getenv("SOONG_USE_N2") == "true" {
+			ret.ninjaCommand = NINJA_N2
+		} else {
+			ret.ninjaCommand = NINJA_DEFAULT
+		}
+	}
+
 	if value, ok := ret.environ.Get("SOONG_ONLY"); ok && !ret.skipKatiControlledByFlags {
 		if value == "true" || value == "1" || value == "y" || value == "yes" {
 			ret.soongOnlyRequested = true
@@ -326,6 +358,21 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 			// Explicitly set USE_RBE env variable to false when we cannot run
 			// an RBE build to avoid ninja local execution pool issues.
 			ret.environ.Set("USE_RBE", "false")
+			ret.environ.Set("USE_REWRAPPER", "false")
+		}
+	}
+
+	// If we are not using Siso, force USE_REWRAPPER to be the same as USE_RBE.
+	// These are separate only for Siso.
+	if ret.ninjaCommand != NINJA_SISO {
+		rbeValue, ok := ret.environ.Get("USE_RBE")
+		rewrapperValue, _ := ret.environ.Get("USE_REWRAPPER")
+		if rbeValue != rewrapperValue {
+			if ok {
+				ret.environ.Set("USE_REWRAPPER", rbeValue)
+			} else {
+				ret.environ.Unset("USE_REWRAPPER")
+			}
 		}
 	}
 
@@ -364,20 +411,6 @@ func newConfig(ctx Context, isDumpVar bool, args ...string) Config {
 			} else {
 				ctx.Verbosef("SOONG_RUN_CIPD_PROXY_SERVER (%q) is not a valid boolean", value)
 			}
-		}
-	}
-
-	ret.ninjaCommand = NINJA_NINJA
-	switch os.Getenv("SOONG_NINJA") {
-	case "n2":
-		ret.ninjaCommand = NINJA_N2
-	case "siso":
-		ret.ninjaCommand = NINJA_SISO
-	case "ninjago":
-		ret.ninjaCommand = NINJA_NINJAGO
-	default:
-		if os.Getenv("SOONG_USE_N2") == "true" {
-			ret.ninjaCommand = NINJA_N2
 		}
 	}
 
@@ -603,8 +636,8 @@ func QueryProductReleaseConfigMaps(ctx Context, config Config) chan *productRele
 }
 
 func getProductReleaseConfigMaps(ctx Context, config Config, mapsCh chan *productReleaseConfigMapsInfo) {
-	ctx.BeginTrace(metrics.RunKati, "SetProductReleaseConfigMaps")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.RunKati, "SetProductReleaseConfigMaps")
+	defer e.End()
 
 	ret := &productReleaseConfigMapsInfo{}
 
@@ -1097,7 +1130,7 @@ func validateNinjaWeightList(weightListFilePath string) (err error) {
 }
 
 func (c *configImpl) configureLocale(ctx Context) {
-	cmd := Command(ctx, Config{c}, "locale", "locale", "-a")
+	cmd := Command(ctx, Config{c}, nil, "locale", "locale", "-a")
 	output, err := cmd.Output()
 
 	var locales []string
@@ -1471,8 +1504,29 @@ func (c *configImpl) UseRBE() bool {
 	return false
 }
 
-func (c *configImpl) StartRBE() bool {
+func (c *configImpl) UseRewrapper() bool {
 	if !c.UseRBE() {
+		return false
+	}
+
+	v, ok := c.Environment().Get("USE_REWRAPPER")
+	v = strings.TrimSpace(v)
+	switch {
+	case v == "true":
+		return true
+	case v == "false":
+		return false
+	case !ok, v == "":
+		// SISO defaults to false, others default to true.
+		return c.ninjaCommand != NINJA_SISO
+	default:
+		return true
+	}
+}
+
+func (c *configImpl) StartReproxy() bool {
+	// Only start reproxy if we are using rewrapper.
+	if !c.UseRewrapper() {
 		return false
 	}
 

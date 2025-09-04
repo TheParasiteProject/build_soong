@@ -672,9 +672,9 @@ func (compiler *baseCompiler) crateSources(ctx ModuleContext) android.Paths {
 	crateSources := android.PathsForModuleSrc(ctx, compiler.Properties.Srcs.GetOrDefault(ctx, nil))
 
 	// By default use an expansive set of required sources.
-	// Check for UseRBE here since this isn't necessary for local builds and can
+	// Check for UseREWrapper here since this isn't necessary for local builds and can
 	// break some tests as the MockFS doesn't support globbing in all instances.
-	if BoolDefault(compiler.Properties.Use_expansive_default_srcs, true) && ctx.Config().IsEnvTrue("RBE_RUST") {
+	if BoolDefault(compiler.Properties.Use_expansive_default_srcs, true) && ctx.Config().IsEnvTrue("RBE_RUST") && ctx.Config().IsEnvTrue("USE_REWRAPPER") {
 		crateSources = append(crateSources, android.PathsForModuleSrc(ctx,
 			[]string{
 				"*.md",

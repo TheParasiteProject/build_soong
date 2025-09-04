@@ -438,7 +438,7 @@ func (l *linter) lint(ctx android.ModuleContext) {
 			android.PathForModuleOut(ctx, "lint.sbox.textproto")).
 		SandboxInputs()
 
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_LINT") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_LINT") {
 		pool := ctx.Config().GetenvWithDefault("RBE_LINT_POOL", "java16")
 		rule.Remoteable(android.RemoteRuleSupports{RBE: true})
 		rule.Rewrapper(&remoteexec.REParams{

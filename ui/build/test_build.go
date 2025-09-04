@@ -39,8 +39,8 @@ func testForDanglingRules(ctx Context, config Config) {
 		return
 	}
 
-	ctx.BeginTrace(metrics.TestRun, "test for dangling rules")
-	defer ctx.EndTrace()
+	e := ctx.BeginTrace(metrics.TestRun, "test for dangling rules")
+	defer e.End()
 
 	ts := ctx.Status.StartTool()
 	action := &status.Action{
@@ -55,7 +55,7 @@ func testForDanglingRules(ctx Context, config Config) {
 	commonArgs = append(commonArgs, "-f", config.CombinedNinjaFile())
 	args := append(commonArgs, "-t", "targets", "rule")
 
-	cmd := Command(ctx, config, "ninja", executable, args...)
+	cmd := Command(ctx, config, e, "ninja", executable, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		ctx.Fatal(err)
@@ -139,7 +139,7 @@ func testForDanglingRules(ctx Context, config Config) {
 			// It's helpful to see the reverse dependencies. ninja -t query is the
 			// best tool we got for that. Its output starts with the dependency
 			// itself.
-			queryCmd := Command(ctx, config, "ninja", executable,
+			queryCmd := Command(ctx, config, e, "ninja", executable,
 				append(commonArgs, "-t", "query", dep)...)
 			queryStdout, err := queryCmd.StdoutPipe()
 			if err != nil {

@@ -662,7 +662,7 @@ func TransformJavaToHeaderClasses(ctx android.ModuleContext, outputFile android.
 		"outputFlags":  "--output " + outputFile.String() + ".tmp",
 		"outputs":      outputFile.String(),
 	}
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_TURBINE") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_TURBINE") {
 		rule = turbineRE
 		args["rbeInputs"] = strings.Join(rbeInputs.Strings(), ",")
 		args["rbeOutputs"] = outputFile.String() + ".tmp"
@@ -701,7 +701,7 @@ func TurbineApt(ctx android.ModuleContext, outputSrcJar, outputResJar android.Wr
 		"outputFlags":  outputFlags,
 		"outputs":      strings.Join(outputs.Strings(), " "),
 	}
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_TURBINE") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_TURBINE") {
 		rule = turbineRE
 		args["rbeInputs"] = strings.Join(rbeInputs.Strings(), ",")
 		args["rbeOutputs"] = outputSrcJar.String() + ".tmp," + outputResJar.String() + ".tmp"
@@ -955,7 +955,7 @@ func transformJavaToClasses(ctx android.ModuleContext, outputFile android.Writab
 		annoDir = filepath.Join(shardDir, annoDir)
 	}
 	rule := javac
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_JAVAC") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_JAVAC") {
 		rule = javacRE
 	}
 	ctx.Build(pctx, android.BuildParams{
@@ -986,7 +986,7 @@ func TransformResourcesToJar(ctx android.ModuleContext, outputFile android.Writa
 	jarArgs []string, deps android.Paths) {
 
 	rule := jar
-	if ctx.Config().UseRBE() && ctx.Config().IsEnvTrue("RBE_JAR") {
+	if ctx.Config().UseREWrapper() && ctx.Config().IsEnvTrue("RBE_JAR") {
 		rule = jarRE
 	}
 	ctx.Build(pctx, android.BuildParams{

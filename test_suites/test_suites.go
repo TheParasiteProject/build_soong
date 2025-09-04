@@ -362,7 +362,7 @@ func generateApiMapReport(ctx android.SingletonContext, pctx android.PackageCont
 	switch reportType {
 	case apiMapReportType:
 		rule.Command().BuiltTool("cts-api-map").
-			Flag("-j 8").
+			Flag("-j 4").
 			Flag("-m api_map").
 			Flag("-m xts_annotation").
 			FlagWithArg("-a ", strings.Join(apiXmlFiles.Strings(), ",")).
@@ -374,7 +374,7 @@ func generateApiMapReport(ctx android.SingletonContext, pctx android.PackageCont
 			Implicits(dependencies)
 	case apiInheritReportType:
 		rule.Command().BuiltTool("cts-api-map").
-			Flag("-j 8").
+			Flag("-j 4").
 			Flag("-m xts_api_inherit").
 			FlagWithArg("-a ", strings.Join(apiXmlFiles.Strings(), ",")).
 			FlagWithArg("-i ", jarFilesList.String()).
@@ -1276,6 +1276,10 @@ func (t *testSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	if ctx.Config().JavaCoverageEnabled() {
 		jacocoJar := pathForPackaging(ctx, t.Name()+"_jacoco_report_classes.jar")
 		ctx.SetOutputFiles(android.Paths{jacocoJar}, ".jacoco")
+
+		// This phony is for BWYN, as it will try to "optimize" the test zip file but doesn't
+		// have logic to optimize the jacoco zip. So it just builds the jacoco zip separately.
+		ctx.Phony(ctx.ModuleName()+"-jacoco", jacocoJar)
 	}
 }
 
