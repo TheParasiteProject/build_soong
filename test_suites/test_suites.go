@@ -362,7 +362,7 @@ func generateApiMapReport(ctx android.SingletonContext, pctx android.PackageCont
 	switch reportType {
 	case apiMapReportType:
 		rule.Command().BuiltTool("cts-api-map").
-			Flag("-j 8").
+			Flag("-j 4").
 			Flag("-m api_map").
 			Flag("-m xts_annotation").
 			FlagWithArg("-a ", strings.Join(apiXmlFiles.Strings(), ",")).
@@ -374,7 +374,7 @@ func generateApiMapReport(ctx android.SingletonContext, pctx android.PackageCont
 			Implicits(dependencies)
 	case apiInheritReportType:
 		rule.Command().BuiltTool("cts-api-map").
-			Flag("-j 8").
+			Flag("-j 4").
 			Flag("-m xts_api_inherit").
 			FlagWithArg("-a ", strings.Join(apiXmlFiles.Strings(), ",")).
 			FlagWithArg("-i ", jarFilesList.String()).
