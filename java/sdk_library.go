@@ -680,11 +680,26 @@ type scopePaths struct {
 	// Includes unflagged apis and flagged apis enabled by release configurations.
 	exportableStubsDexJarPath OptionalDexJarPath
 
-	// The API specification file, e.g. system_current.txt.
+	// The API specification file, e.g. system-current.txt.
+	// This file is generated from Metalava by parsing all source Java files.
 	currentApiFilePath android.OptionalPath
 
 	// The specification of API elements removed since the last release.
 	removedApiFilePath android.OptionalPath
+
+	// The API specification file, e.g. system-current.txt file that is checked in to the tree.
+	// This file is already checked in to the tree, which is an output of the most recent
+	// update-api command. Thus, it may not correctly reflect all local API changes and may be
+	// out of date. This path can be nil if checkapi is disabled for this API scope, in which
+	// case the api file will not be generated.
+	checkedInCurrentApiFilePath android.OptionalPath
+
+	// The specification of API elements removed since the last release.
+	// This file is already checked in to the tree, which is an output of the most recent
+	// update-api command. Thus, it may not correctly reflect all local API changes and may be
+	// out of date. This path can be nil if checkapi is disabled for this API scope, in which
+	// case the api file will not be generated.
+	checkedInRemovedApiFilePath android.OptionalPath
 
 	// The stubs source jar.
 	stubsSrcJar android.OptionalPath
@@ -787,6 +802,8 @@ func (paths *scopePaths) extractApiInfoFromApiStubsProvider(provider *DroidStubs
 		paths.annotationsZip = android.OptionalPathForPath(info.AnnotationsZip)
 		paths.currentApiFilePath = android.OptionalPathForPath(info.ApiFile)
 		paths.removedApiFilePath = android.OptionalPathForPath(info.RemovedApiFile)
+		paths.checkedInCurrentApiFilePath = android.OptionalPathForPath(provider.CheckedInApiFile)
+		paths.checkedInRemovedApiFilePath = android.OptionalPathForPath(provider.CheckedInRemovedApiFile)
 	}
 	return combinedError
 }
@@ -1041,7 +1058,11 @@ const (
 
 	apiTxtComponentName = "api.txt"
 
+	checkedInApiTxtComponentName = "checked-in-api.txt"
+
 	removedApiTxtComponentName = "removed-api.txt"
+
+	checkedInRemovedApiFilePath = "checked-in-removed-api.txt"
 
 	annotationsComponentName = "annotations.zip"
 )
@@ -1056,10 +1077,12 @@ func (module *commonToSdkLibraryAndImport) setOutputFiles(ctx android.ModuleCont
 			continue
 		}
 		componentToOutput := map[string]android.OptionalPath{
-			stubsSourceComponentName:   paths.stubsSrcJar,
-			apiTxtComponentName:        paths.currentApiFilePath,
-			removedApiTxtComponentName: paths.removedApiFilePath,
-			annotationsComponentName:   paths.annotationsZip,
+			stubsSourceComponentName:     paths.stubsSrcJar,
+			apiTxtComponentName:          paths.currentApiFilePath,
+			removedApiTxtComponentName:   paths.removedApiFilePath,
+			checkedInApiTxtComponentName: paths.checkedInCurrentApiFilePath,
+			checkedInRemovedApiFilePath:  paths.checkedInRemovedApiFilePath,
+			annotationsComponentName:     paths.annotationsZip,
 		}
 		for _, component := range android.SortedKeys(componentToOutput) {
 			if componentToOutput[component].Valid() {
@@ -2310,7 +2333,9 @@ func (module *SdkLibraryImport) GenerateAndroidBuildActions(ctx android.ModuleCo
 		paths := module.getScopePathsCreateIfNeeded(apiScope)
 		paths.annotationsZip = android.OptionalPathForModuleSrc(ctx, scopeProperties.Annotations)
 		paths.currentApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Current_api)
+		paths.checkedInCurrentApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Current_api)
 		paths.removedApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Removed_api)
+		paths.checkedInRemovedApiFilePath = android.OptionalPathForModuleSrc(ctx, scopeProperties.Removed_api)
 	}
 
 	if ctx.Device() {
