@@ -53,7 +53,7 @@ var (
 	libbpfProgStripRule = pctx.AndroidStaticRule("libbpfProgStripRule",
 		blueprint.RuleParams{
 			Command: `$stripCmd --strip-unneeded --remove-section=.rel.BTF ` +
-				`--remove-section=.rel.BTF.ext --remove-section=.BTF.ext $in -o $out`,
+				`--remove-section=.rel.BTF.ext $in -o $out`,
 			CommandDeps: []string{"$stripCmd"},
 		},
 		"stripCmd")
