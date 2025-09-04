@@ -222,6 +222,20 @@ func GetSystemServerDexLocation(ctx android.PathContext, global *GlobalConfig, l
 	return fmt.Sprintf("/system/framework/%s.jar", lib)
 }
 
+// Returns the dex install location of a system server java library.
+func GetSystemServerDexInstallLocation(ctx android.ModuleContext, lib string) string {
+	global := GetGlobalConfig(ctx)
+	if apex := global.AllApexSystemServerJars(ctx).ApexOfJar(lib); apex != "" {
+		return fmt.Sprintf("/apex/%s/javalib/%s.jar", apex, lib)
+	}
+
+	if apex := global.AllPlatformSystemServerJars(ctx).ApexOfJar(lib); apex == "system_ext" {
+		return fmt.Sprintf("/%s/framework/%s.jar", ctx.DeviceConfig().SystemExtPath(), lib)
+	}
+
+	return fmt.Sprintf("/system/framework/%s.jar", lib)
+}
+
 // Returns the location to the odex file for the dex file at `path`.
 func ToOdexPath(path string, arch android.ArchType, partition string) string {
 	if strings.HasPrefix(path, "/apex/") {
