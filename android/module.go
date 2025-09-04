@@ -2047,16 +2047,14 @@ type CommonModuleInfo struct {
 	IsStubsModule       bool
 	Host                bool
 	IsApexModule        bool
-	// The primary licenses property, may be nil, records license metadata for the module.
-	PrimaryLicensesProperty *applicableLicensesProperty
-	Owner                   string
-	Vendor                  bool
-	Proprietary             bool
-	SocSpecific             bool
-	ProductSpecific         bool
-	SystemExtSpecific       bool
-	DeviceSpecific          bool
-	UseGenericConfig        bool
+	Owner               string
+	Vendor              bool
+	Proprietary         bool
+	SocSpecific         bool
+	ProductSpecific     bool
+	SystemExtSpecific   bool
+	DeviceSpecific      bool
+	UseGenericConfig    bool
 	// When set to true, this module is not installed to the full install path (ex: under
 	// out/target/product/<name>/<partition>). It can be installed only to the packaging
 	// modules like android_filesystem.
@@ -2446,7 +2444,6 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		HideFromMake:                     m.commonProperties.HideFromMake,
 		SkipInstall:                      m.commonProperties.SkipInstall,
 		Host:                             m.Host(),
-		PrimaryLicensesProperty:          m.primaryLicensesProperty,
 		Owner:                            m.module.Owner(),
 		SocSpecific:                      Bool(m.commonProperties.Soc_specific),
 		Vendor:                           Bool(m.commonProperties.Vendor),
