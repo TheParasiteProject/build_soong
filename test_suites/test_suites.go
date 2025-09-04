@@ -1276,6 +1276,10 @@ func (t *testSuitePackage) GenerateAndroidBuildActions(ctx android.ModuleContext
 	if ctx.Config().JavaCoverageEnabled() {
 		jacocoJar := pathForPackaging(ctx, t.Name()+"_jacoco_report_classes.jar")
 		ctx.SetOutputFiles(android.Paths{jacocoJar}, ".jacoco")
+
+		// This phony is for BWYN, as it will try to "optimize" the test zip file but doesn't
+		// have logic to optimize the jacoco zip. So it just builds the jacoco zip separately.
+		ctx.Phony(ctx.ModuleName()+"-jacoco", jacocoJar)
 	}
 }
 
