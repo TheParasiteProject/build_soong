@@ -747,14 +747,8 @@ type PartitionVariables struct {
 	EnforceArtifactPathRequirements             string              `json:",omitempty"`
 	ArtifactPathRequirementAllowedList          []string            `json:",omitempty"`
 	ArtifactPathRequirementProducts             []string            `json:",omitempty"`
-	ArtifactPathRequirementSyspropAllowedList   []string            `json:",omitempty"`
-	ProductSystemProperties                     []string            `json:",omitempty"`
-	ProductSystemDefaultProperties              []string            `json:",omitempty"`
 	ArtifactPathRequirementsOfMakefile          map[string][]string `json:",omitempty"`
 	ArtifactPathAllowedListOfMakefile           map[string][]string `json:",omitempty"`
-	SystemPropertiesOfMakefile                  map[string][]string `json:",omitempty"`
-	SystemDefaultPropertiesOfMakefile           map[string][]string `json:",omitempty"`
-	DeviceFcmFileOfMakefile                     map[string][]string `json:",omitempty"`
 	ArtifactPathRequirementsIsRelaxedOfMakefile map[string]bool     `json:",omitempty"`
 
 	BuildingSystemDlkmImage             bool     `json:",omitempty"`

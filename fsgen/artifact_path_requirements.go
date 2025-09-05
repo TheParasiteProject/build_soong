@@ -16,6 +16,7 @@ package fsgen
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -83,19 +84,18 @@ func matchMakePatterns(path string, patterns []string) (bool, string) {
 
 // This implements "filter" and "filter-out" make functions.
 // It also returns unused patterns to check any unused allowed list for the strict enforcement.
-func filterPatterns(patterns []string, entries []string, filterOut bool) ([]string, []string) {
+func filterPatterns(patterns []string, files map[string]bool, filterOut bool) (map[string]bool, []string) {
 	usedPatterns := make(map[string]bool)
-	var ret []string
-
-	for _, entry := range entries {
-		if ok, pattern := matchMakePatterns(entry, patterns); ok {
+	ret := make(map[string]bool)
+	for file := range files {
+		if ok, pattern := matchMakePatterns(file, patterns); ok {
 			usedPatterns[pattern] = true
 			if !filterOut {
-				ret = append(ret, entry)
+				ret[file] = true
 			}
 		} else {
 			if filterOut {
-				ret = append(ret, entry)
+				ret[file] = true
 			}
 		}
 	}
@@ -131,15 +131,15 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 	allOffendingFiles := make(map[string]bool)
 	installedModulesOfMakefile := make(map[string][]string)
 	installedFilesOfMakefile := make(map[string]map[string]bool)
-	internalOffendingFiles := make(map[string][]string)
-	externalOffendingFiles := make(map[string][]string)
-	externalOffendingProps := make(map[string][]string)
-	externalOffendingFcms := make(map[string][]string)
+	internalOffendingFiles := make(map[string]map[string]bool)
+	externalOffendingFiles := make(map[string]map[string]bool)
 	internalUnusedAllowedList := make(map[string][]string)
 	externalUnusedAllowedList := make(map[string][]string)
 	for _, makefile := range partitionVars.ArtifactPathRequirementProducts {
 		installedModulesOfMakefile[makefile] = productInstalledModules(ctx, makefile)
 		installedFilesOfMakefile[makefile] = make(map[string]bool)
+		internalOffendingFiles[makefile] = make(map[string]bool)
+		externalOffendingFiles[makefile] = make(map[string]bool)
 	}
 
 	ctx.VisitAllModulesOrProxies(func(m android.ModuleOrProxy) {
@@ -178,80 +178,52 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 
 		// Verify that the product only produces files inside its path requirements.
 		allowedPatterns := resolveMakeRelativePaths(ctx.DeviceConfig(), partitionVars.ArtifactPathAllowedListOfMakefile[makefile], "")
-		offendingFiles, _ := filterPatterns(append(pathPatterns, staticAllowedPatterns...), android.SortedKeys(installedFilesOfMakefile[makefile]), true)
+		offendingFiles, _ := filterPatterns(append(pathPatterns, staticAllowedPatterns...), installedFilesOfMakefile[makefile], true)
 		internalOffendingFiles[makefile], internalUnusedAllowedList[makefile] = filterPatterns(allowedPatterns, offendingFiles, true)
 
 		// Optionally verify that nothing else produces files inside this artifact path requirement.
 		if enforcement == "" || enforcement == "false" {
 			continue
 		}
-		extraFiles, _ := filterPatterns(android.SortedKeys(installedFilesOfMakefile[makefile]), android.SortedKeys(allInstalledFiles), true)
+		extraFiles, _ := filterPatterns(android.SortedKeys(installedFilesOfMakefile[makefile]), allInstalledFiles, true)
 		allowedPatterns = resolveMakeRelativePaths(ctx.DeviceConfig(), partitionVars.ArtifactPathRequirementAllowedList, "")
 		offendingFiles, _ = filterPatterns(pathPatterns, extraFiles, false)
-		for _, f := range offendingFiles {
-			allOffendingFiles[f] = true
-		}
+		maps.Copy(allOffendingFiles, offendingFiles)
 		externalOffendingFiles[makefile], externalUnusedAllowedList[makefile] = filterPatterns(allowedPatterns, offendingFiles, true)
-
-		// For the artifact path enforced devices, verify that no external makefiles add contents inside the 'system' artifact path.
-		if android.InList("system/%", pathPatterns) {
-			var allowedSysprops []string
-			for _, prop := range partitionVars.ArtifactPathRequirementSyspropAllowedList {
-				allowedSysprops = append(allowedSysprops, prop+"=%")
-			}
-			// Check for PRODUCT_SYSTEM_PROPERTIES
-			externalOffendingProps[makefile], _ = filterPatterns(append(partitionVars.SystemPropertiesOfMakefile[makefile], allowedSysprops...), partitionVars.ProductSystemProperties, true)
-			// Check for PRODUCT_SYSTEM_DEFAULT_PROPERTIES
-			moreOffendingEntries, _ := filterPatterns(append(partitionVars.SystemDefaultPropertiesOfMakefile[makefile], allowedSysprops...), partitionVars.ProductSystemDefaultProperties, true)
-			externalOffendingProps[makefile] = append(externalOffendingProps[makefile], moreOffendingEntries...)
-
-			// Check for DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE
-			externalOffendingFcms[makefile], _ = filterPatterns(partitionVars.DeviceFcmFileOfMakefile[makefile], ctx.Config().DeviceFrameworkCompatibilityMatrixFile(), true)
-		}
 	}
 
 	// Show offending files
 	for _, makefile := range android.SortedKeys(internalOffendingFiles) {
-		sort.Strings(internalOffendingFiles[makefile])
+		offending := internalOffendingFiles[makefile]
 		errMsg := fmt.Sprintf("%s produces files outside its artifact path requirement.\n", makefile)
 		errMsg += fmt.Sprintf("Allowed paths are %s\n", strings.Join(resolveMakeRelativePaths(ctx.DeviceConfig(), partitionVars.ArtifactPathRequirementsOfMakefile[makefile], "*"), ", "))
-		printListAndError(ctx, internalOffendingFiles[makefile], errMsg)
+		printListAndError(ctx, android.SortedKeys(offending), errMsg)
 	}
 	for _, makefile := range android.SortedKeys(internalUnusedAllowedList) {
-		sort.Strings(internalUnusedAllowedList[makefile])
+		unusedAllowedList := internalUnusedAllowedList[makefile]
+		sort.Strings(unusedAllowedList)
 		if !partitionVars.ArtifactPathRequirementsIsRelaxedOfMakefile[makefile] {
 			errMsg := fmt.Sprintf("%s includes redundant allowed entries in its artifact path requirement.\n", makefile)
 			errMsg += "If the modules are defined in Android.mk, They might be missing from the verification. Define the modules in Android.bp instead.\n"
 			errMsg += "Otherwise, remove the redundant allowed entries.\n"
-			printListAndError(ctx, internalUnusedAllowedList[makefile], errMsg)
+			printListAndError(ctx, unusedAllowedList, errMsg)
 		}
 	}
 	if enforcement != "" && enforcement != "false" {
 		for _, makefile := range android.SortedKeys(externalOffendingFiles) {
-			sort.Strings(externalOffendingFiles[makefile])
+			offending := externalOffendingFiles[makefile]
 			errMsg := fmt.Sprintf("Device makefile produces files inside %s's artifact path requirement.\n", makefile)
 			errMsg += "Consider adding these files to outside of the artifact path requirement instead.\n"
-			printListAndError(ctx, externalOffendingFiles[makefile], errMsg)
-		}
-		for _, makefile := range android.SortedKeys(externalOffendingProps) {
-			sort.Strings(externalOffendingProps[makefile])
-			errMsg := fmt.Sprintf("Device makefile has PRODUCT_SYSTEM_PROPERTIES or PRODUCT_SYSTEM_DEFAULT_PROPERTIES that add properties to the 'system' partition, which is against %s's artifact path requirement.\n", makefile)
-			errMsg += "Please use PRODUCT_PRODUCT_PROPERTIES or PRODUCT_SYSTEM_EXT_PROPERTIES to add them to a different partition instead."
-			printListAndError(ctx, externalOffendingProps[makefile], errMsg)
-		}
-		for _, makefile := range android.SortedKeys(externalOffendingFcms) {
-			sort.Strings(externalOffendingFcms[makefile])
-			errMsg := fmt.Sprintf("Device makefile has DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE that adds the FCM files to the 'system' partition, which is against %s's artifact path requirement.\n", makefile)
-			errMsg += "Please define a vintf_compatibility_matrix module for each FCM file in a different partition. Then add each of these vintf_compatibility_matrix modules to PRODUCT_PACKAGES."
-			printListAndError(ctx, externalOffendingFcms[makefile], errMsg)
+			printListAndError(ctx, android.SortedKeys(offending), errMsg)
 		}
 		if enforcement != "relaxed" {
 			for _, makefile := range android.SortedKeys(externalUnusedAllowedList) {
-				sort.Strings(externalUnusedAllowedList[makefile])
+				unusedAllowedList := externalUnusedAllowedList[makefile]
+				sort.Strings(unusedAllowedList)
 				errMsg := fmt.Sprintf("Device makefile includes redundant artifact path requirement allowed list entries in %s.\n", makefile)
 				errMsg += "If the modules are defined in Android.mk, They might be missing from the verification. Define the modules in Android.bp instead.\n"
 				errMsg += "Otherwise, remove the redundant allowed entries.\n"
-				printListAndError(ctx, externalUnusedAllowedList[makefile], errMsg)
+				printListAndError(ctx, unusedAllowedList, errMsg)
 			}
 		}
 	}
