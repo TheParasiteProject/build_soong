@@ -328,7 +328,7 @@ func (c Config) ReleaseAconfigStorageVersion() string {
 
 // TODO: b/414412266 Remove this flag after feature released.
 func (c Config) ReleaseJarjarFlagsInFramework() bool {
-	return c.config.productVariables.GetBuildFlagBool("RELEASE_JARJAR_FLAGS_IN_FRAMEWORK")
+	return c.GetBuildFlagBool("RELEASE_JARJAR_FLAGS_IN_FRAMEWORK")
 }
 
 func (c Config) ReleaseMainlineBetaNamespaceConfig() string {
@@ -337,6 +337,10 @@ func (c Config) ReleaseMainlineBetaNamespaceConfig() string {
 	} else {
 		return ""
 	}
+}
+
+func (c Config) ReleaseRemoveBetaFlagsFromAconfigFlagsPb() bool {
+	return c.GetBuildFlagBool("RELEASE_REMOVE_BETA_FLAGS_FROM_ACONFIG_FLAGS_PB")
 }
 
 // A DeviceConfig object represents the configuration for a particular device
