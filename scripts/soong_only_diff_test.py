@@ -299,18 +299,11 @@ _INSTALLED_IMG_FILES = [
 
 # TODO (b/435530838): Remove this allowlist.
 _INSTALLED_IMG_FILES_SHA_DIFF_ALLOWLIST = [
-    "product.img",
-    "system_dlkm.img",
-    "system_ext.img",
-    "system_other.img",
-    "system.img",
     "userdata.img",
     "vbmeta.img",
     "vbmeta_system.img",
     "vbmeta_vendor.img",
     "vendor_boot.img",
-    "vendor_dlkm.img",
-    "vendor.img",
     "vendor_kernel_ramdisk.img",
     "vendor_ramdisk.img",
 ]

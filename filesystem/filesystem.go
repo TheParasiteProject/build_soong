@@ -1325,6 +1325,20 @@ func (f *filesystem) buildFileContexts(ctx android.ModuleContext) android.Path {
 	return fcBin
 }
 
+// https://source.corp.google.com/h/googleplex-android/platform/build/+/15aeee21e69003e63b64c1dc678cb09b6bcc335d:tools/releasetools/build_image.py;l=745-756;drc=9a3d812e3cff4d9005fa1d4991dfa059e5d2a319;bpv=1;bpt=0
+var ro_mount_points = []string{
+	"odm",
+	"odm_dlkm",
+	"oem",
+	"product",
+	"system",
+	"system_dlkm",
+	"system_ext",
+	"system_other",
+	"vendor",
+	"vendor_dlkm",
+}
+
 func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, android.Paths) {
 	var deps android.Paths
 	var lines []string
@@ -1414,7 +1428,19 @@ func (f *filesystem) buildPropFile(ctx android.ModuleContext) (android.Path, and
 			// https://source.corp.google.com/h/googleplex-android/platform/build/+/88b1c67239ca545b11580237242774b411f2fed9:core/Makefile;l=2294;drc=ea8f34bc1d6e63656b4ec32f2391e9d54b3ebb6b;bpv=1;bpt=0
 			addStr("f2fs_sparse_flag", "-S")
 		}
+	case ext4Type:
+		// build_image.py implicitly adds some properties when mount point is not specified.
+		// Make built prop files does not specify mount_point, but Soong built prop files do.
+		// This causes some binary diffs in the final .img files.
+		// To fix this, explicitly set these properties in the prop file.
+		// https://source.corp.google.com/h/googleplex-android/platform/build/+/15aeee21e69003e63b64c1dc678cb09b6bcc335d:tools/releasetools/build_image.py;l=817-826;drc=9a3d812e3cff4d9005fa1d4991dfa059e5d2a319;bpv=0;bpt=0
+		if android.InList(f.PartitionType(), ro_mount_points) {
+			addStr("extfs_rsv_pct", "0")
+			addStr("journal_size", "0")
+			addStr("ro_mount_point", "1")
+		}
 	}
+
 	f.checkFsTypePropertyError(ctx, fst, fst.String())
 
 	if f.properties.Partition_size != nil {
