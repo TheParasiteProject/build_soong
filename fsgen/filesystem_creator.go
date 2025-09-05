@@ -693,11 +693,29 @@ func createRamdisk16k(ctx android.LoadHookContext) string {
 	if kernelPath == "" {
 		return ""
 	}
+
+	var systemDlkmModulePatterns []string
+	for _, path := range partitionVars.SystemKernelModules {
+		systemDlkmModulePatterns = append(systemDlkmModulePatterns, filepath.Base(path))
+	}
+
+	// Find kernel modules 16k that the debug symbols will be stripped. All debug symbols of the
+	// non-GKI modules will be stripped.
+	// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=1124;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b
+	var kernelModules16KWithStrip []string
+	for _, kernelModule16k := range partitionVars.BoardKernelModules16K {
+		moduleBase := filepath.Base(kernelModule16k)
+		if !android.InList(moduleBase, systemDlkmModulePatterns) {
+			kernelModules16KWithStrip = append(kernelModules16KWithStrip, kernelModule16k)
+		}
+	}
+
 	name := generatedModuleNameForPartition(ctx.Config(), "ramdisk_16k")
 	props := filesystem.Ramdisk16kImgProperties{
-		Srcs:   partitionVars.BoardKernelModules16K,
-		Load:   partitionVars.BoardKernelModulesLoad16K,
-		Kernel: proptools.StringPtr(kernelPath),
+		Srcs:              partitionVars.BoardKernelModules16K,
+		Strip_symbol_srcs: kernelModules16KWithStrip,
+		Load:              partitionVars.BoardKernelModulesLoad16K,
+		Kernel:            proptools.StringPtr(kernelPath),
 	}
 
 	ctx.CreateModuleInDirectory(
