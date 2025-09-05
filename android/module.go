@@ -1774,6 +1774,8 @@ func (m *ModuleBase) generateModuleTarget(ctx *moduleContext, testSuiteInstalls 
 			}
 			if info.InstallTarget != nil {
 				installDeps = append(installDeps, info.InstallTarget)
+			} else if info.OutputsTarget != nil {
+				installDeps = append(installDeps, info.OutputsTarget)
 			}
 		}
 	}
