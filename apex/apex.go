@@ -405,6 +405,10 @@ type overridableProperties struct {
 	// The minimum SDK version that this APEX must support at minimum. This is usually set to
 	// the SDK version that the APEX was first introduced.
 	Min_sdk_version proptools.Configurable[string] `android:"replace_instead_of_append"`
+
+	// Mainline beta namespace. Each mainline module would have a dedicated server side
+	// namespace to support flag based A/B feature testing on mainline beta population.
+	Beta_namespace *string
 }
 
 // installPair stores a path to a built object and its install location.  It is used for holding

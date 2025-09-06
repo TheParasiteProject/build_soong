@@ -37,10 +37,12 @@ type StubsInfo struct {
 }
 
 type DroidStubsInfo struct {
-	AconfigProtoFiles   android.Paths
-	CurrentApiTimestamp android.Path
-	EverythingStubsInfo StubsInfo
-	ExportableStubsInfo StubsInfo
+	CheckedInApiFile        android.Path
+	CheckedInRemovedApiFile android.Path
+	AconfigProtoFiles       android.Paths
+	CurrentApiTimestamp     android.Path
+	EverythingStubsInfo     StubsInfo
+	ExportableStubsInfo     StubsInfo
 }
 
 var DroidStubsInfoProvider = blueprint.NewProvider[DroidStubsInfo]()
@@ -1359,14 +1361,16 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		rule.Build("nullabilityWarningsCheck", "nullability warnings check")
 	}
 
+	var apiFile, removedApiFile android.Path
+
 	if apiCheckEnabled(ctx, d.properties.Check_api.Current, "current") {
 
 		if len(d.Javadoc.properties.Out) > 0 {
 			ctx.PropertyErrorf("out", "out property may not be combined with check_api")
 		}
 
-		apiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Api_file))
-		removedApiFile := android.PathForModuleSrc(ctx, String(d.properties.Check_api.Current.Removed_api_file))
+		apiFile = android.PathForModuleSrc(ctx, proptools.String(d.properties.Check_api.Current.Api_file))
+		removedApiFile = android.PathForModuleSrc(ctx, proptools.String(d.properties.Check_api.Current.Removed_api_file))
 		baselineFile := android.OptionalPathForModuleSrc(ctx, d.properties.Check_api.Current.Baseline_file)
 
 		if baselineFile.Valid() {
@@ -1441,6 +1445,14 @@ func (d *Droidstubs) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		EverythingStubsInfo: StubsInfo{},
 		ExportableStubsInfo: StubsInfo{},
 	}
+
+	if apiFile != nil {
+		droidInfo.CheckedInApiFile = apiFile
+	}
+	if removedApiFile != nil {
+		droidInfo.CheckedInRemovedApiFile = removedApiFile
+	}
+
 	setDroidInfo(ctx, d, &droidInfo.EverythingStubsInfo, Everything)
 	setDroidInfo(ctx, d, &droidInfo.ExportableStubsInfo, Exportable)
 	android.SetProvider(ctx, DroidStubsInfoProvider, droidInfo)

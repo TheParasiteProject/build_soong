@@ -59,15 +59,15 @@ val USAGE_TEXT =
 
 val ADDITIONAL_HELP =
     """
-        EXAMPLES
-        ========
-
-        kotlin-incremental-client -root-dir=/tmp/helloworld -- HelloWorld.kt
-
-        kotlin-incremental-client -root-dir=/tmp/helloworld -build-file=HelloWorldBuild.xml
-
-        kotlin-incremental-client -root-dir=/tmp/helloworld -output-dir=out -- HelloWorld.kt
-    """
+    EXAMPLES
+    ========
+    
+    kotlin-incremental-client -root-dir=/tmp/helloworld -- HelloWorld.kt
+    
+    kotlin-incremental-client -root-dir=/tmp/helloworld -build-file=HelloWorldBuild.xml
+    
+    kotlin-incremental-client -root-dir=/tmp/helloworld -output-dir=out -- HelloWorld.kt
+"""
         .trimIndent()
 
 fun main(args: Array<String>) {
@@ -183,16 +183,6 @@ fun doBtaCompilation(
         incJvmCompilationConfig.forceNonIncrementalMode(true)
     } else if (sourceDeltaFile != null) {
         sourceChanges = parseSourceChanges(sourceDeltaFile)
-
-        // If we've changed 95% or more of the files, don't bother with incremental.
-        // This may happen when a "version" change occurs in the tooling, meaning all input files
-        // are marked as changed and need to be recompiled.
-        // Better to leave some wiggle room here, rather than comparing the sizes exactly,
-        // in case of unforeseen edge cases.
-        // Setting this value to true _does_ generate incremental cache data for the next run.
-        if ((sourceChanges.modifiedFiles.size.toFloat() / sources.size.toFloat()) > 0.95) {
-            incJvmCompilationConfig.forceNonIncrementalMode(true)
-        }
     }
     compilationConfig.useIncrementalCompilation(
         workingDirectory,

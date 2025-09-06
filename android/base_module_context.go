@@ -277,13 +277,6 @@ func (b *baseModuleContext) setProvider(provider blueprint.AnyProviderKey, value
 	b.bp.SetProvider(provider, value)
 }
 
-func (b *baseModuleContext) GetDirectDepWithTag(name string, tag blueprint.DependencyTag) Module {
-	if module := b.bp.GetDirectDepWithTag(name, tag); module != nil {
-		return module.(Module)
-	}
-	return nil
-}
-
 func (b *baseModuleContext) GetDirectDepProxyWithTag(name string, tag blueprint.DependencyTag) ModuleProxy {
 	if module := b.bp.GetDirectDepProxyWithTag(name, tag); !module.IsNil() {
 		return ModuleProxy{module}
@@ -379,19 +372,6 @@ func (b *baseModuleContext) validateAndroidModuleProxy(
 	return aModule
 }
 
-func (b *baseModuleContext) getDirectDepsInternal(name string, tag blueprint.DependencyTag) []Module {
-	var deps []Module
-	b.visitDirectDeps(func(module Module) {
-		if module.base().BaseModuleName() == name {
-			returnedTag := b.bp.OtherModuleDependencyTag(module)
-			if tag == nil || returnedTag == tag {
-				deps = append(deps, module)
-			}
-		}
-	})
-	return deps
-}
-
 func (b *baseModuleContext) getDirectDepsProxyInternal(name string, tag blueprint.DependencyTag) []ModuleProxy {
 	var deps []ModuleProxy
 	b.VisitDirectDepsProxy(func(module ModuleProxy) {
@@ -400,16 +380,6 @@ func (b *baseModuleContext) getDirectDepsProxyInternal(name string, tag blueprin
 			if tag == nil || returnedTag == tag {
 				deps = append(deps, module)
 			}
-		}
-	})
-	return deps
-}
-
-func (b *baseModuleContext) GetDirectDepsWithTag(tag blueprint.DependencyTag) []Module {
-	var deps []Module
-	b.visitDirectDeps(func(module Module) {
-		if b.bp.OtherModuleDependencyTag(module) == tag {
-			deps = append(deps, module)
 		}
 	})
 	return deps
@@ -465,22 +435,6 @@ func (b *baseModuleContext) VisitDirectDepsProxyWithTag(tag blueprint.Dependency
 	})
 }
 
-func (b *baseModuleContext) VisitDirectDepsIf(pred func(Module) bool, visit func(Module)) {
-	b.bp.VisitDirectDepsIf(
-		// pred
-		func(module blueprint.Module) bool {
-			if aModule := b.validateAndroidModule(module, b.bp.OtherModuleDependencyTag(module), b.strictVisitDeps); aModule != nil {
-				return pred(aModule)
-			} else {
-				return false
-			}
-		},
-		// visit
-		func(module blueprint.Module) {
-			visit(module.(Module))
-		})
-}
-
 func (b *baseModuleContext) walkDeps(visit func(Module, Module) bool) {
 	b.walkPath = []Module{b.Module()}
 	b.proxyWalkPath = nil
@@ -524,13 +478,6 @@ func (b *baseModuleContext) WalkDepsProxy(visit func(ModuleProxy, ModuleProxy) b
 	b.proxyWalkPath = nil
 }
 
-func (b *baseModuleContext) GetWalkPath() []Module {
-	if b.walkPath == nil {
-		panic("GetWalkPath called from outside WalkDeps, did you mean GetProxyWalkPath?")
-	}
-	return slices.Clone(b.walkPath)
-}
-
 func (b *baseModuleContext) GetProxyWalkPath() []ModuleProxy {
 	if b.proxyWalkPath == nil {
 		panic("GetProxyWalkPath called from outside WalkDeps, did you mean GetWalkPath?")
@@ -540,10 +487,6 @@ func (b *baseModuleContext) GetProxyWalkPath() []ModuleProxy {
 
 func (b *baseModuleContext) GetTagPath() []blueprint.DependencyTag {
 	return b.tagPath
-}
-
-func (b *baseModuleContext) PrimaryModule() Module {
-	return b.bp.PrimaryModule().(Module)
 }
 
 func (b *baseModuleContext) IsPrimaryModule() bool {
