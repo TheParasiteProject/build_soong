@@ -1514,7 +1514,7 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod ModuleOrProx
 	a.Host_required = append(a.Host_required, commonInfo.HostRequiredModuleNames...)
 	a.Target_required = append(a.Target_required, commonInfo.TargetRequiredModuleNames...)
 
-	a.HeaderStrings = append(a.HeaderStrings, a.GetDistForGoals(ctx, mod, commonInfo)...)
+	a.HeaderStrings = append(a.HeaderStrings, a.GetDistForGoals(ctx, mod)...)
 	a.HeaderStrings = append(a.HeaderStrings, fmt.Sprintf("\ninclude $(CLEAR_VARS)  # type: %s, name: %s, variant: %s", ctx.ModuleType(mod), commonInfo.BaseModuleName, ctx.ModuleSubDir(mod)))
 
 	// Add the TestSuites from the provider to LOCAL_SOONG_PROVIDER_TEST_SUITES.
@@ -1683,7 +1683,7 @@ func (a *AndroidMkInfo) write(w io.Writer) {
 // calls from the module's dist and dists properties.
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func (a *AndroidMkInfo) GetDistForGoals(ctx fillInEntriesContext, mod ModuleOrProxy, commonInfo *CommonModuleInfo) []string {
+func (a *AndroidMkInfo) GetDistForGoals(ctx fillInEntriesContext, mod ModuleOrProxy) []string {
 	distContributions := getDistContributions(ctx, mod)
 	if distContributions == nil {
 		return nil
