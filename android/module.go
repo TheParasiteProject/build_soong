@@ -2523,7 +2523,9 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	if p, ok := m.module.(AndroidMkProviderInfoProducer); ok && !commonData.SkipAndroidMkProcessing {
-		SetProvider(ctx, AndroidMkInfoProvider, p.PrepareAndroidMKProviderInfo(ctx.Config()))
+		if info := p.PrepareAndroidMKProviderInfo(ctx.Config()); info != nil {
+			SetProvider(ctx, AndroidMkInfoProvider, info)
+		}
 	}
 
 	if s, ok := m.module.(SourceFileGenerator); ok {
