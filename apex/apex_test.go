@@ -9906,9 +9906,10 @@ func TestApexOutputFileProducer(t *testing.T) {
 				`,
 				android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
 					variables.CompressedApex = proptools.BoolPtr(true)
-				}))
+				}),
+				android.PrepareForTestWithAndroidMk)
 			javaTest := ctx.ModuleForTests(t, tc.name, "android_common").Module().(*java.Test)
-			data := android.AndroidMkEntriesForTest(t, ctx, javaTest)[0].EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
+			data := android.AndroidMkInfoForTest(t, ctx, javaTest).PrimaryInfo.EntryMap["LOCAL_COMPATIBILITY_SUPPORT_FILES"]
 			android.AssertStringPathsRelativeToTopEquals(t, "data", ctx.Config(), tc.expected_data, data)
 		})
 	}

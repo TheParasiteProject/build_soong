@@ -1537,7 +1537,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		module.dexpreopter.configPath = module.implLibraryInfo.ConfigPath
 		module.dexpreopter.outputProfilePathOnHost = module.implLibraryInfo.DexpreopterInfo.OutputProfilePathOnHost
 
-		// Properties required for Library.AndroidMkEntries
+		// Properties required for Library.PrepareAndroidMKProviderInfo
 		module.logtagsSrcs = module.implLibraryInfo.LogtagsSrcs
 		module.dexpreopter.builtInstalled = module.implLibraryInfo.BuiltInstalled
 		module.jacocoInfo = module.implLibraryInfo.JacocoInfo
@@ -1666,20 +1666,19 @@ func (module *SdkLibrary) ApexSystemServerDexJars() android.Paths {
 	return module.apexSystemServerDexJars
 }
 
-func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
-	entriesList := module.Library.androidMkEntries()
+func (module *SdkLibrary) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := module.Library.prepareAndroidMKProviderInfo(config)
 
-	if len(entriesList) > 0 {
-		entries := &entriesList[0]
-		entries.Required = append(entries.Required, module.implLibraryModuleName())
+	if info.PrimaryInfo.OutputFile.Valid() {
+		info.PrimaryInfo.Required = append(info.PrimaryInfo.Required, module.implLibraryModuleName())
 		if module.sharedLibrary() {
-			entries.Required = append(entries.Required, module.xmlPermissionsModuleName())
+			info.PrimaryInfo.Required = append(info.PrimaryInfo.Required, module.xmlPermissionsModuleName())
 		}
 	}
 
-	entriesList = append(entriesList, module.AndroidMkEntriesHostDex()...)
+	module.addHostDexAndroidMkInfo(info)
 
-	return entriesList
+	return info
 }
 
 // The dist path of the stub artifacts

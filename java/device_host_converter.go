@@ -15,8 +15,6 @@
 package java
 
 import (
-	"fmt"
-	"io"
 	"maps"
 
 	"android/soong/android"
@@ -220,19 +218,22 @@ func (d *DeviceHostConverter) ClassLoaderContexts() dexpreopt.ClassLoaderContext
 	return nil
 }
 
-func (d *DeviceHostConverter) AndroidMk() android.AndroidMkData {
-	return android.AndroidMkData{
+func (d *DeviceHostConverter) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(d.combinedImplementationJar),
 		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
-		Extra: []android.AndroidMkExtraFunc{
-			func(w io.Writer, outputFile android.Path) {
-				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
-				fmt.Fprintln(w, "LOCAL_SOONG_HEADER_JAR :=", d.combinedHeaderJar.String())
-				fmt.Fprintln(w, "LOCAL_SOONG_CLASSES_JAR :=", d.combinedImplementationJar.String())
-			},
-		},
 	}
+	info.PrimaryInfo.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
+	if d.combinedHeaderJar != nil {
+		info.PrimaryInfo.SetPath("LOCAL_SOONG_HEADER_JAR", d.combinedHeaderJar)
+	}
+	if d.combinedImplementationJar != nil {
+		info.PrimaryInfo.SetPath("LOCAL_SOONG_CLASSES_JAR", d.combinedImplementationJar)
+	}
+
+	return info
 }
 
 // implement the following interface for IDE completion.
