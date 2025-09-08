@@ -358,9 +358,11 @@ func TestDataLibsRelativeInstallPath(t *testing.T) {
 		}
  `
 
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-
-	ctx := testCcWithConfig(t, config)
+	ctx := android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.PrepareForTestWithAndroidMk).
+		RunTestWithBp(t, bp).
+		TestContext
 	testingModule := ctx.ModuleForTests(t, "main_test", "android_arm_armv7-a-neon")
 	module := testingModule.Module()
 	testBinary := module.(*Module).linker.(*testBinary)
@@ -402,13 +404,18 @@ func TestTestBinaryTestSuites(t *testing.T) {
 		}
 	`
 
-	ctx := prepareForCcTest.RunTestWithBp(t, bp).TestContext
+	ctx := android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.PrepareForTestWithAndroidMk,
+	).
+		RunTestWithBp(t, bp).
+		TestContext
 	module := ctx.ModuleForTests(t, "main_test", "android_arm_armv7-a-neon").Module()
 
 	entries := android.AndroidMkInfoForTest(t, ctx, module).PrimaryInfo
 	compatEntries := entries.EntryMap["LOCAL_COMPATIBILITY_SUITE"]
 	if len(compatEntries) != 2 {
-		t.Errorf("expected two elements in LOCAL_COMPATIBILITY_SUITE. got %d", len(compatEntries))
+		t.Fatalf("expected two elements in LOCAL_COMPATIBILITY_SUITE. got %d", len(compatEntries))
 	}
 	if compatEntries[0] != "suite_1" {
 		t.Errorf("expected LOCAL_COMPATIBILITY_SUITE to be`suite_1`,"+
@@ -434,13 +441,18 @@ func TestTestLibraryTestSuites(t *testing.T) {
 		}
 	`
 
-	ctx := prepareForCcTest.RunTestWithBp(t, bp).TestContext
+	ctx := android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.PrepareForTestWithAndroidMk,
+	).
+		RunTestWithBp(t, bp).
+		TestContext
 	module := ctx.ModuleForTests(t, "main_test_lib", "android_arm_armv7-a-neon_shared").Module()
 
 	entries := android.AndroidMkInfoForTest(t, ctx, module).PrimaryInfo
 	compatEntries := entries.EntryMap["LOCAL_COMPATIBILITY_SUITE"]
 	if len(compatEntries) != 2 {
-		t.Errorf("expected two elements in LOCAL_COMPATIBILITY_SUITE. got %d", len(compatEntries))
+		t.Fatalf("expected two elements in LOCAL_COMPATIBILITY_SUITE. got %d", len(compatEntries))
 	}
 	if compatEntries[0] != "suite_1" {
 		t.Errorf("expected LOCAL_COMPATIBILITY_SUITE to be`suite_1`,"+
@@ -1407,9 +1419,12 @@ func TestDataLibsPrebuiltSharedTestLibrary(t *testing.T) {
 		}
  `
 
-	config := TestConfig(t.TempDir(), android.Android, nil, bp, nil)
-
-	ctx := testCcWithConfig(t, config)
+	ctx := android.GroupFixturePreparers(
+		prepareForCcTest,
+		android.PrepareForTestWithAndroidMk,
+	).
+		RunTestWithBp(t, bp).
+		TestContext
 	testingModule := ctx.ModuleForTests(t, "main_test", "android_arm_armv7-a-neon")
 	module := testingModule.Module()
 	testBinary := module.(*Module).linker.(*testBinary)
