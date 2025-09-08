@@ -162,7 +162,7 @@ func (singleton *projectGeneratorSingleton) addCrate(ctx android.SingletonContex
 		ProcMacro:      procMacroDylib != nil,
 		ProcMacroDylib: procMacroDylib,
 		Source: rustProjectIncludeDirs{
-			Include_dirs: []string{},
+			Include_dirs: []string{ctx.ModuleDir(module)},
 			Exclude_dirs: []string{},
 		}, // TODO: What should this value be?
 	}
