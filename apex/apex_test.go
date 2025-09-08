@@ -9579,9 +9579,6 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 							ents := []android.AndroidMkInfo{info.PrimaryInfo}
 							ents = append(ents, info.ExtraInfo...)
 							for _, ent := range ents {
-								if ent.Disabled {
-									continue
-								}
 								entries = append(entries, &modAndMkEntries{
 									mod:       mod,
 									mkEntries: ent,
