@@ -1272,8 +1272,8 @@ func AndroidMkInfoForTest(t *testing.T, ctx *TestContext, mod Module) *AndroidMk
 	commonInfo := OtherModulePointerProviderOrDefault(ctx, mod, CommonModuleInfoProvider)
 	info.PrimaryInfo.fillInEntries(ctx, mod, commonInfo)
 	if len(info.ExtraInfo) > 0 {
-		for _, ei := range info.ExtraInfo {
-			ei.fillInEntries(ctx, mod, commonInfo)
+		for i := range info.ExtraInfo {
+			info.ExtraInfo[i].fillInEntries(ctx, mod, commonInfo)
 		}
 	}
 

@@ -87,7 +87,6 @@ func (c *Module) PrepareAndroidMKProviderInfo(config android.Config) *android.An
 			Required:     c.Properties.AndroidMkRuntimeLibs,
 			OverrideName: c.BaseModuleName(),
 			Include:      "$(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk",
-			EntryMap:     make(map[string][]string),
 		},
 	}
 
