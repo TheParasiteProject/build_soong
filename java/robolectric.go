@@ -316,7 +316,7 @@ func generateSameDirRoboTestConfigJar(ctx android.ModuleContext, outputFile andr
 }
 
 func (r *robolectricTest) AndroidMkEntries() []android.AndroidMkEntries {
-	entriesList := r.Library.AndroidMkEntries()
+	entriesList := r.Library.androidMkEntries()
 	entries := &entriesList[0]
 	entries.ExtraEntries = append(entries.ExtraEntries,
 		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {

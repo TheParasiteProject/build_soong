@@ -179,6 +179,11 @@ func (d *DeviceHostConverter) GenerateAndroidBuildActions(ctx android.ModuleCont
 		moduleInfoJSON.ClassesJar = []string{d.combinedImplementationJar.String()}
 	}
 	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+
+	if d.Os() == android.Windows {
+		// Make does not support Windows Java modules
+		d.HideFromMake()
+	}
 }
 
 func (d *DeviceHostConverter) addKSnapshot(ctx android.ModuleContext, jarFile android.Path) {
@@ -219,9 +224,7 @@ func (d *DeviceHostConverter) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(d.combinedImplementationJar),
-		// Make does not support Windows Java modules
-		Disabled: d.Os() == android.Windows,
-		Include:  "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")

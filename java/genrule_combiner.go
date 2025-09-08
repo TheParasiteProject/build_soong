@@ -184,6 +184,11 @@ func (j *GenruleCombiner) GenerateAndroidBuildActions(ctx android.ModuleContext)
 		moduleInfoJSON.ClassesJar = []string{j.combinedImplementationJar.String()}
 	}
 	moduleInfoJSON.SystemSharedLibs = []string{"none"}
+
+	if ctx.Os() == android.Windows {
+		// Make does not support Windows Java modules
+		j.HideFromMake()
+	}
 }
 
 func (j *GenruleCombiner) GeneratedSourceFiles() android.Paths {
@@ -230,9 +235,7 @@ func (j *GenruleCombiner) AndroidMk() android.AndroidMkData {
 	return android.AndroidMkData{
 		Class:      "JAVA_LIBRARIES",
 		OutputFile: android.OptionalPathForPath(j.combinedImplementationJar),
-		// Make does not support Windows Java modules
-		Disabled: j.Os() == android.Windows,
-		Include:  "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
+		Include:    "$(BUILD_SYSTEM)/soong_java_prebuilt.mk",
 		Extra: []android.AndroidMkExtraFunc{
 			func(w io.Writer, outputFile android.Path) {
 				fmt.Fprintln(w, "LOCAL_UNINSTALLABLE_MODULE := true")
