@@ -55,7 +55,9 @@ func (c ContextImpl) BeginTrace(name, desc string) *TraceEvent {
 	if c.Tracer != nil {
 		c.Tracer.Begin(desc, c.Thread)
 	}
-	e.Event = c.Metrics.Begin(name, desc)
+	if c.Metrics != nil {
+		e.Event = c.Metrics.Begin(name, desc)
+	}
 	return e
 }
 
@@ -67,6 +69,9 @@ type TraceEvent struct {
 func (e *TraceEvent) End() {
 	if e.c.Tracer != nil {
 		e.c.Tracer.End(e.c.Thread)
+	}
+	if e.c.Metrics != nil {
+		e.Event.End()
 	}
 }
 
