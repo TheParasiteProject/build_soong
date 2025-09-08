@@ -73,14 +73,6 @@ func (c *Module) subAndroidMk(config android.Config, entries *android.AndroidMkI
 var _ android.AndroidMkProviderInfoProducer = (*Module)(nil)
 
 func (c *Module) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
-	if c.hideApexVariantFromMake || c.Properties.HideFromMake {
-		return &android.AndroidMkProviderInfo{
-			PrimaryInfo: android.AndroidMkInfo{
-				Disabled: true,
-			},
-		}
-	}
-
 	providerData := android.AndroidMkProviderInfo{
 		PrimaryInfo: android.AndroidMkInfo{
 			OutputFile:   c.outputFile,
@@ -401,11 +393,6 @@ func (installer *baseInstaller) prepareAndroidMKProviderInfo(config android.Conf
 func (c *stubDecorator) prepareAndroidMKProviderInfo(config android.Config, ctx AndroidMkContext, entries *android.AndroidMkInfo) {
 	entries.SubName = ndkLibrarySuffix + "." + c.apiLevel.String()
 	entries.Class = "SHARED_LIBRARIES"
-
-	if !c.BuildStubs() {
-		entries.Disabled = true
-		return
-	}
 
 	path, file := filepath.Split(c.installPath.String())
 	stem, suffix, _ := android.SplitFileExt(file)

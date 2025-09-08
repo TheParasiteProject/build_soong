@@ -534,6 +534,7 @@ func (stub *stubDecorator) link(ctx ModuleContext, flags Flags, deps PathDeps,
 
 	if !stub.BuildStubs() {
 		// NDK libraries have no implementation variant, nothing to do
+		ctx.Module().HideFromMake()
 		return nil
 	}
 

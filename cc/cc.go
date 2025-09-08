@@ -1205,8 +1205,6 @@ type Module struct {
 	// For apex variants, this is set as apex.min_sdk_version
 	apexSdkVersion android.ApiLevel
 
-	hideApexVariantFromMake bool
-
 	logtagsPaths android.Paths
 
 	WholeRustStaticlib bool
@@ -2317,7 +2315,7 @@ func CopySymbolsAndSetSymbolsInfoProvider(ctx android.ModuleContext, symbolInfos
 }
 
 func (c *Module) collectSymbolsInfo(ctx android.ModuleContext) {
-	if !c.hideApexVariantFromMake && !c.Properties.HideFromMake {
+	if !c.Properties.HideFromMake {
 		infos := &SymbolInfos{}
 		for _, feature := range c.features {
 			infos.AppendSymbols(c.getSymbolInfo(ctx, feature, c.baseSymbolInfo(ctx)))
@@ -2385,7 +2383,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 	c.Properties.SubName = GetSubnameProperty(actx, c)
 	apexInfo, _ := android.ModuleProvider(actx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		c.hideApexVariantFromMake = true
+		c.HideFromMake()
 	}
 
 	c.makeLinkType = GetMakeLinkType(actx, c)
@@ -2550,6 +2548,10 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		if c.Properties.IsSdkVariant && c.Properties.SdkAndPlatformVariantVisibleToMake {
 			moduleInfoJSON.Uninstallable = true
 		}
+	}
+
+	if c.Properties.HideFromMake {
+		c.ModuleBase.HideFromMake()
 	}
 
 	buildComplianceMetadataInfo(ctx, c, deps)
@@ -2747,7 +2749,7 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 		android.SetProvider(ctx, CcMakeVarsInfoProvider, c.makeVarsInfo)
 	}
 
-	if !c.hideApexVariantFromMake && !c.Properties.HideFromMake {
+	if !c.Properties.HideFromMake {
 		c.collectSymbolsInfo(ctx)
 	} else {
 		// Historically, make packaging has been responsible for creating the
