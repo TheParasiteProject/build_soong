@@ -375,15 +375,14 @@ type depTagWithVisibilityEnforcementBypass struct {
 
 type interPartitionDepTag struct {
 	blueprint.BaseDependencyTag
-	includeVintfs bool
 }
 
-var interPartitionDependencyTag = interPartitionDepTag{includeVintfs: false}
+var interPartitionDependencyTag = interPartitionDepTag{}
 
-var interPartitionInstallDependencyTag = interPartitionDepTag{includeVintfs: true}
+var interPartitionInstallDependencyTag = interPartitionDepTag{}
 
 func (t interPartitionDepTag) IncludeVintfs() bool {
-	return t.includeVintfs
+	return false
 }
 
 var _ android.InterPartitionIncludeVintfsInterface = (*interPartitionDepTag)(nil)
@@ -1798,8 +1797,9 @@ func (f *filesystem) assembleVintfs(
 		return
 	}
 	pathPrefix := ""
-	if f.PartitionType() == "vendor_ramdisk" || f.PartitionType() == "recovery" {
-		pathPrefix = "system" // vintf manifests are not installed in root.
+	if f.PartitionType() == "recovery" {
+		// https://cs.android.com/android/_/android/platform/build/+/045a3d6a3e359633a14853a5a5e1e4f2a11cbdae:core/base_rules.mk;l=562;drc=41cada8d4e9b91386d9b691c4ae485425ef6a62e;bpv=1;bpt=0
+		pathPrefix = "root/system" // vintf manifests are not installed in root.
 	}
 	vintfInStagingDir := rebasedDir.Join(ctx, pathPrefix, "etc", "vintf", "manifest")
 	builder.Command().Text("mkdir").Flag("-p").Text(vintfInStagingDir.String())
