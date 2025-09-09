@@ -73,3 +73,9 @@ test_suite_package {
     include_common_host_shared_libs_symlinks_in_main_zip: true,
     include_host_shared_libs_in_main_zip: true,
 }
+
+test_suite_package {
+    name: "sdv-host-unit-tests",
+    include_common_host_shared_libs_symlinks_in_main_zip: true,
+    include_host_shared_libs_in_main_zip: true,
+}

@@ -70,6 +70,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 		"tvts",
 		"art-host-tests",
 		"host-unit-tests",
+		"sdv-host-unit-tests",
 		"camera-hal-tests",
 		"automotive-tests",
 		"automotive-general-tests",
