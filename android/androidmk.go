@@ -1649,7 +1649,7 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod ModuleOrProx
 func (a *AndroidMkInfo) mergeEntries(helperInfo *AndroidMkInfo) {
 	for _, extraEntry := range a.EntryOrder {
 		if v, ok := helperInfo.EntryMap[extraEntry]; ok {
-			v = append(v, a.EntryMap[extraEntry]...)
+			helperInfo.EntryMap[extraEntry] = append(v, a.EntryMap[extraEntry]...)
 		} else {
 			helperInfo.EntryMap[extraEntry] = a.EntryMap[extraEntry]
 			helperInfo.EntryOrder = append(helperInfo.EntryOrder, extraEntry)
