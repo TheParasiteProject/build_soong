@@ -111,6 +111,10 @@ func (p *ramdisk16kImg) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	android.SetProvider(ctx, FilesystemProvider, FilesystemInfo{
 		Output: output,
 	})
+	android.SetProvider(ctx, ramdiskFragmentInfoProvider, ramdiskFragmentInfo{
+		Output:       output,
+		Ramdisk_name: "16K",
+	})
 }
 
 func (p *ramdisk16kImg) createModulesLoadFile(ctx android.ModuleContext) android.Path {

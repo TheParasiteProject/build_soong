@@ -653,10 +653,6 @@ func (f *filesystemCreator) createDeviceModule(
 		deviceProps.Radio_partition_name = &f.properties.Radio_image
 	}
 
-	if ramdisk16kModuleName := createRamdisk16k(ctx); ramdisk16kModuleName != "" {
-		deviceProps.Ramdisk_16k = &ramdisk16kModuleName
-	}
-
 	ctx.CreateModule(filesystem.AndroidDeviceFactory, baseProps, partitionProps, deviceProps)
 }
 

@@ -174,6 +174,10 @@ func createVendorBootImage(ctx android.LoadHookContext, dtbImg dtbImg) bool {
 	if buildingVendorRamdiskFragmentDlkm(ctx, partitionVariables) {
 		ramdiskFragmentModules = append(ramdiskFragmentModules, generatedModuleNameForPartition(ctx.Config(), "vendor_ramdisk_fragment_dlkm"))
 	}
+	if ramdisk16kModuleName := createRamdisk16k(ctx); ramdisk16kModuleName != "" {
+		ramdiskFragmentModules = append(ramdiskFragmentModules, ramdisk16kModuleName)
+	}
+
 	ctx.CreateModule(
 		filesystem.BootimgFactory,
 		&filesystem.BootimgProperties{
