@@ -208,7 +208,7 @@ func (pkm *prebuiltKernelModules) installOptionsFile(ctx android.ModuleContext, 
 var (
 	pctx = android.NewPackageContext("android/soong/kernel")
 
-	stripRule = pctx.AndroidStaticRule("strip",
+	StripRule = pctx.AndroidStaticRule("strip",
 		blueprint.RuleParams{
 			Command:     "$stripCmd -o $out --strip-debug $in",
 			CommandDeps: []string{"$stripCmd"},
@@ -222,7 +222,7 @@ func stripDebugSymbols(ctx android.ModuleContext, modules android.Paths) android
 	for _, m := range modules {
 		stripped := dir.Join(ctx, filepath.Base(m.String()))
 		ctx.Build(pctx, android.BuildParams{
-			Rule:   stripRule,
+			Rule:   StripRule,
 			Input:  m,
 			Output: stripped,
 			Args: map[string]string{
