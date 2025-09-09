@@ -1370,8 +1370,15 @@ func translateAndroidMkEntriesInfoModule(ctx SingletonContext, w io.Writer, modu
 
 // Utility funcs to manipulate Android.mk variable entries.
 
+func (a *AndroidMkInfo) createMapIfNecessary() {
+	if a.EntryMap == nil {
+		a.EntryMap = make(map[string][]string)
+	}
+}
+
 // SetString sets a Make variable with the given name to the given value.
 func (a *AndroidMkInfo) SetString(name, value string) {
+	a.createMapIfNecessary()
 	if _, ok := a.EntryMap[name]; !ok {
 		a.EntryOrder = append(a.EntryOrder, name)
 	}
@@ -1380,6 +1387,7 @@ func (a *AndroidMkInfo) SetString(name, value string) {
 
 // SetPath sets a Make variable with the given name to the given path string.
 func (a *AndroidMkInfo) SetPath(name string, path Path) {
+	a.createMapIfNecessary()
 	if _, ok := a.EntryMap[name]; !ok {
 		a.EntryOrder = append(a.EntryOrder, name)
 	}
@@ -1412,6 +1420,7 @@ func (a *AndroidMkInfo) AddOptionalPath(name string, path OptionalPath) {
 
 // SetPaths sets a Make variable with the given name to a slice of the given path strings.
 func (a *AndroidMkInfo) SetPaths(name string, paths Paths) {
+	a.createMapIfNecessary()
 	if _, ok := a.EntryMap[name]; !ok {
 		a.EntryOrder = append(a.EntryOrder, name)
 	}
@@ -1428,6 +1437,7 @@ func (a *AndroidMkInfo) SetOptionalPaths(name string, paths Paths) {
 
 // AddPaths appends the given path strings to a Make variable with the given name.
 func (a *AndroidMkInfo) AddPaths(name string, paths Paths) {
+	a.createMapIfNecessary()
 	if _, ok := a.EntryMap[name]; !ok {
 		a.EntryOrder = append(a.EntryOrder, name)
 	}
@@ -1438,6 +1448,7 @@ func (a *AndroidMkInfo) AddPaths(name string, paths Paths) {
 // It is a no-op if the given flag is false.
 func (a *AndroidMkInfo) SetBoolIfTrue(name string, flag bool) {
 	if flag {
+		a.createMapIfNecessary()
 		if _, ok := a.EntryMap[name]; !ok {
 			a.EntryOrder = append(a.EntryOrder, name)
 		}
@@ -1447,6 +1458,7 @@ func (a *AndroidMkInfo) SetBoolIfTrue(name string, flag bool) {
 
 // SetBool sets a Make variable with the given name to if the given bool flag value.
 func (a *AndroidMkInfo) SetBool(name string, flag bool) {
+	a.createMapIfNecessary()
 	if _, ok := a.EntryMap[name]; !ok {
 		a.EntryOrder = append(a.EntryOrder, name)
 	}
@@ -1462,6 +1474,7 @@ func (a *AndroidMkInfo) AddStrings(name string, value ...string) {
 	if len(value) == 0 {
 		return
 	}
+	a.createMapIfNecessary()
 	if _, ok := a.EntryMap[name]; !ok {
 		a.EntryOrder = append(a.EntryOrder, name)
 	}
@@ -1486,9 +1499,7 @@ func (a *AndroidMkInfo) AddCompatibilityTestSuites(suites ...string) {
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
 func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod ModuleOrProxy, commonInfo *CommonModuleInfo) {
-	helperInfo := AndroidMkInfo{
-		EntryMap: make(map[string][]string),
-	}
+	helperInfo := AndroidMkInfo{}
 
 	name := commonInfo.BaseModuleName
 	if a.OverrideName != "" {
@@ -1503,7 +1514,7 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod ModuleOrProx
 	a.Host_required = append(a.Host_required, commonInfo.HostRequiredModuleNames...)
 	a.Target_required = append(a.Target_required, commonInfo.TargetRequiredModuleNames...)
 
-	a.HeaderStrings = append(a.HeaderStrings, a.GetDistForGoals(ctx, mod, commonInfo)...)
+	a.HeaderStrings = append(a.HeaderStrings, a.GetDistForGoals(ctx, mod)...)
 	a.HeaderStrings = append(a.HeaderStrings, fmt.Sprintf("\ninclude $(CLEAR_VARS)  # type: %s, name: %s, variant: %s", ctx.ModuleType(mod), commonInfo.BaseModuleName, ctx.ModuleSubDir(mod)))
 
 	// Add the TestSuites from the provider to LOCAL_SOONG_PROVIDER_TEST_SUITES.
@@ -1638,7 +1649,7 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod ModuleOrProx
 func (a *AndroidMkInfo) mergeEntries(helperInfo *AndroidMkInfo) {
 	for _, extraEntry := range a.EntryOrder {
 		if v, ok := helperInfo.EntryMap[extraEntry]; ok {
-			v = append(v, a.EntryMap[extraEntry]...)
+			helperInfo.EntryMap[extraEntry] = append(v, a.EntryMap[extraEntry]...)
 		} else {
 			helperInfo.EntryMap[extraEntry] = a.EntryMap[extraEntry]
 			helperInfo.EntryOrder = append(helperInfo.EntryOrder, extraEntry)
@@ -1672,7 +1683,7 @@ func (a *AndroidMkInfo) write(w io.Writer) {
 // calls from the module's dist and dists properties.
 // TODO(b/397766191): Change the signature to take ModuleProxy
 // Please only access the module's internal data through providers.
-func (a *AndroidMkInfo) GetDistForGoals(ctx fillInEntriesContext, mod ModuleOrProxy, commonInfo *CommonModuleInfo) []string {
+func (a *AndroidMkInfo) GetDistForGoals(ctx fillInEntriesContext, mod ModuleOrProxy) []string {
 	distContributions := getDistContributions(ctx, mod)
 	if distContributions == nil {
 		return nil

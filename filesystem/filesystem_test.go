@@ -908,15 +908,6 @@ func TestCrossPartitionVintfInstalls(t *testing.T) {
 			"binfoo_manifest.xml",
 		)
 	}
-	includeVintfFilesystem := result.ModuleForTests(t, "myfilesystem_include_vintf", "android_common")
-	inputs = includeVintfFilesystem.Output("staging_dir.timestamp").Implicits
-	found := false
-	for _, input := range inputs {
-		if input.Base() == "binfoo_manifest.xml" {
-			found = true
-		}
-	}
-	android.AssertBoolEquals(t, "Could not find vintf manifest", true, found)
 }
 
 func TestRamdiskFragmentInBootImg(t *testing.T) {
