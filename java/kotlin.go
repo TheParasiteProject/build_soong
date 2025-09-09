@@ -42,7 +42,7 @@ const nonIncKotlinCmd = `rm -rf "$classesDir" "$headerClassesDir" "$srcJarDir" "
 	` --out_dir "$classesDir" --srcs "$out.rsp" --srcs "$srcJarDir/list"` +
 	` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
 	`${config.KotlincCmd} ${config.KotlincGlobalFlags} ` +
-	` ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
+	` ${config.KotlincSuppressJDK9Warnings} ${config.KotlincHeapFlags} ` +
 	` $kotlincFlags -jvm-target $kotlinJvmTarget $composePluginFlag $kotlincPluginFlags -Xbuild-file=$kotlinBuildFile ` +
 	` -kotlin-home $emptyDir ` +
 	` -Xplugin=${config.KotlinAbiGenPluginJar} ` +
@@ -102,7 +102,7 @@ var kotlinIncremental = pctx.AndroidRemoteStaticRule("kotlin-incremental", andro
 			` --out_dir "$classesDir" --srcs "$out.rsp" --srcs "$srcJarDir/list"` +
 			` $commonSrcFilesArg --out "$kotlinBuildFile" && ` +
 			`${config.KotlinIncrementalClientBinary} ${config.KotlincGlobalFlags} ` +
-			` ${config.KotlincSuppressJDK9Warnings} ${config.JavacHeapFlags} ` +
+			` ${config.KotlincSuppressJDK9Warnings} ${config.KotlincHeapFlags} ` +
 			` $kotlincFlags $composeEmbeddablePluginFlag $kotlincPluginFlags ` +
 			` -jvm-target $kotlinJvmTarget -build-file=$kotlinBuildFile ` +
 			` -source-delta-file=$sourceDeltaFile` +
