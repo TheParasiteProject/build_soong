@@ -415,7 +415,6 @@ var (
 		sdkVersion:    "system_server_current",
 		annotation:    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.SYSTEM_SERVER)",
 		extraArgs: []string{
-			"--hide-annotation", "android.annotation.Hide",
 			// com.android.* classes are okay in this interface"
 			"--hide", "InternalClasses",
 		},
