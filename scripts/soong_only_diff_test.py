@@ -299,7 +299,6 @@ _INSTALLED_IMG_FILES = [
 # TODO (b/435530838): Remove this allowlist.
 _INSTALLED_IMG_FILES_SHA_DIFF_ALLOWLIST = [
     "userdata.img",
-    "vbmeta_system.img",
 ]
 
 def get_installed_img_sha(path: str) -> str:
