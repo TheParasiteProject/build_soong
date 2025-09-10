@@ -42,6 +42,23 @@ type SingletonContext interface {
 
 	otherModuleProvider(module ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool)
 
+	// setSingletonProvider sets the value for a provider for the current singleton.
+	// It panics if not called during the appropriate GenerateBuildActions pass for
+	// the provider, if the provider is not registered as a singleton provider, if the value
+	// is not of the appropriate type, or if the value has already been set. The value should not
+	// be modified after being passed to setSingletonProvider.
+	//
+	// This method shouldn't be used directly, prefer the type-safe android.SetProvider instead.
+	setSingletonProvider(provider blueprint.AnyProviderKey, value any)
+
+	// otherSingletonProvider returns the value, if any, for the provider for a singleton. If the value for the
+	// provider was not set it returns the zero value of the type of the provider, which means the
+	// return value can always be type-asserted to the type of the provider. The return value should
+	// always be considered read-only. It panics if called before the appropriate
+	// GenerateBuildActions completes for the provider on the singleton, or if the provider is not
+	// registered as a singleton provider.
+	otherSingletonProvider(singleton blueprint.SingletonProxy, provider blueprint.AnyProviderKey) (any, bool)
+
 	ModuleErrorf(module ModuleOrProxy, format string, args ...interface{})
 	Errorf(format string, args ...interface{})
 	Failed() bool
@@ -81,6 +98,8 @@ type SingletonContext interface {
 	VisitAllModuleVariants(module Module, visit func(Module))
 
 	VisitAllModuleVariantProxies(module ModuleProxy, visit func(proxy ModuleProxy))
+
+	VisitAllSingletons(visit func(singleton blueprint.SingletonProxy))
 
 	PrimaryModule(module Module) Module
 
@@ -357,6 +376,10 @@ func (s *singletonContextAdaptor) VisitAllModuleVariantProxies(module ModuleProx
 	s.SingletonContext.VisitAllModuleVariantProxies(module.ModuleProxy, visitProxyAdaptor(visit))
 }
 
+func (s *singletonContextAdaptor) VisitAllSingletons(visit func(singleton blueprint.SingletonProxy)) {
+	s.SingletonContext.VisitAllSingletons(visit)
+}
+
 func (s *singletonContextAdaptor) PrimaryModule(module Module) Module {
 	return s.SingletonContext.PrimaryModule(module).(Module)
 }
@@ -400,6 +423,14 @@ func (s *singletonContextAdaptor) ModuleVariantsFromName(referer ModuleProxy, na
 
 func (s *singletonContextAdaptor) otherModuleProvider(module ModuleOrProxy, provider blueprint.AnyProviderKey) (any, bool) {
 	return s.SingletonContext.ModuleProvider(module, provider)
+}
+
+func (s *singletonContextAdaptor) setSingletonProvider(provider blueprint.AnyProviderKey, value any) {
+	s.SingletonContext.SetSingletonProvider(provider, value)
+}
+
+func (s *singletonContextAdaptor) otherSingletonProvider(singleton blueprint.SingletonProxy, provider blueprint.AnyProviderKey) (any, bool) {
+	return s.SingletonContext.OtherSingletonProvider(singleton, provider)
 }
 
 func (s *singletonContextAdaptor) OtherModulePropertyErrorf(module ModuleOrProxy, property string, format string, args ...interface{}) {
@@ -453,4 +484,17 @@ func (s *singletonContextAdaptor) GetIncrementalAnalysis() bool {
 
 func (s *singletonContextAdaptor) OtherModuleNamespace(module ModuleOrProxy) *Namespace {
 	return s.SingletonContext.OtherModuleNamespace(module).(*Namespace)
+}
+
+func SetSingletonProvider[K any](ctx SingletonContext, provider blueprint.ProviderKey[K], value K) {
+	ctx.setSingletonProvider(provider, value)
+}
+
+func OtherSingletonProvider[K any](ctx SingletonContext, singleton blueprint.SingletonProxy, provider blueprint.ProviderKey[K]) (K, bool) {
+	value, ok := ctx.otherSingletonProvider(singleton, provider)
+	if !ok {
+		var k K
+		return k, false
+	}
+	return value.(K), ok
 }

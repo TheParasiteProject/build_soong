@@ -287,22 +287,28 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		})
 	}
 
-	sort.SliceStable(includeDescriptorsFromImages, func(i, j int) bool {
-		iName := includeDescriptorsFromImages[i].Name
-		jName := includeDescriptorsFromImages[j].Name
-		iIndex := slices.Index(includeDescriptorsFromImgOrder, iName)
-		jIndex := slices.Index(includeDescriptorsFromImgOrder, jName)
-		if iIndex < 0 && jIndex < 0 {
-			return iName < jName
-		}
-		if iIndex < 0 {
-			return false
-		}
-		if jIndex < 0 {
-			return true
-		}
-		return iIndex < jIndex
-	})
+	// This is the order that make listed the partitions in. The order is important because
+	// it ends up being encoded in the output file. Maintain the order so that the resultant
+	// files are easier to compare.
+	// https://cs.android.com/android/platform/superproject/main/+/main:build/make/core/Makefile;l=4833;drc=a951ebf0198006f7fd38073a05c442d0eb92f97b
+	if v.partitionName() == "vbmeta" {
+		sort.SliceStable(includeDescriptorsFromImages, func(i, j int) bool {
+			iName := includeDescriptorsFromImages[i].Name
+			jName := includeDescriptorsFromImages[j].Name
+			iIndex := slices.Index(includeDescriptorsFromImgOrder, iName)
+			jIndex := slices.Index(includeDescriptorsFromImgOrder, jName)
+			if iIndex < 0 && jIndex < 0 {
+				return iName < jName
+			}
+			if iIndex < 0 {
+				return false
+			}
+			if jIndex < 0 {
+				return true
+			}
+			return iIndex < jIndex
+		})
+	}
 
 	for _, partition := range includeDescriptorsFromImages {
 		cmd.FlagWithInput("--include_descriptors_from_image ", partition.Output)
