@@ -813,6 +813,13 @@ func buildCompatibilitySuitePackage(
 		copyTool(suite.Readme)
 	}
 
+	if suite.Aliases != nil {
+		cmd.
+			FlagWithArg("-e ", subdir+"/tools/aliases").
+			FlagWithInput("-f ", suite.Aliases)
+		builder.Command().Text("cp").Input(suite.Aliases).Output(hostOutTools.Join(ctx, "aliases"))
+	}
+
 	if suite.DynamicConfig != nil {
 		cmd.
 			FlagWithArg("-e ", subdir+"/testcases/"+testSuiteName+".dynamic").
@@ -1067,6 +1074,8 @@ type compatibilityTestSuitePackageProperties struct {
 	// requires post-processing, so the module name does not conflict with the original test suite name.
 	Test_suite_name   *string `json:"test_suite_name"`
 	Test_suite_subdir *string
+	// Path to the config defining command aliases for the test suite console.
+	Aliases *string `android:"path"`
 	phony.PhonyProperties
 }
 
@@ -1087,6 +1096,7 @@ type compatibilitySuitePackageInfo struct {
 	BuildSharedReport bool
 	NoDist            bool
 	TestSuiteSubdir   string
+	Aliases           android.Path
 }
 
 var compatibilitySuitePackageProvider = blueprint.NewProvider[compatibilitySuitePackageInfo]()
@@ -1197,6 +1207,11 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		dynamicConfig = android.PathForModuleSrc(ctx, *m.properties.Dynamic_config)
 	}
 
+	var aliases android.Path
+	if m.properties.Aliases != nil {
+		aliases = android.PathForModuleSrc(ctx, *m.properties.Aliases)
+	}
+
 	android.SetProvider(ctx, compatibilitySuitePackageProvider, compatibilitySuitePackageInfo{
 		Name:              suiteName,
 		Readme:            readme,
@@ -1209,6 +1224,7 @@ func (m *compatibilityTestSuitePackage) GenerateAndroidBuildActions(ctx android.
 		BuildSharedReport: proptools.Bool(m.properties.Build_shared_report),
 		NoDist:            proptools.Bool(m.properties.No_dist),
 		TestSuiteSubdir:   proptools.String(m.properties.Test_suite_subdir),
+		Aliases:           aliases,
 	})
 
 	// Make compatibility_test_suite_package a SourceFileProducer so that it can be used by other modules.
