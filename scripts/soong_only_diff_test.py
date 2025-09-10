@@ -293,18 +293,13 @@ _INSTALLED_IMG_FILES = [
     "vendor_dlkm.img",
     "vendor.img",
     "vendor_kernel_boot.img",
-    "vendor_kernel_ramdisk.img",
     "vendor_ramdisk.img",
 ]
 
 # TODO (b/435530838): Remove this allowlist.
 _INSTALLED_IMG_FILES_SHA_DIFF_ALLOWLIST = [
     "userdata.img",
-    "vbmeta.img",
     "vbmeta_system.img",
-    "vbmeta_vendor.img",
-    "vendor_boot.img",
-    "vendor_kernel_ramdisk.img",
 ]
 
 def get_installed_img_sha(path: str) -> str:

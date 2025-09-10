@@ -121,8 +121,6 @@ type DeviceProperties struct {
 
 	Pvmfw PvmfwProperties
 
-	Ramdisk_16k *string
-
 	Vendor_blobs_license *string `android:"path"`
 
 	// For saving those partition filesystems being created which are for gathering filesystem
@@ -280,9 +278,6 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	if a.deviceProps.Radio_partition_name != nil {
 		ctx.AddDependency(ctx.Module(), radioDepTag, *a.deviceProps.Radio_partition_name)
-	}
-	if a.deviceProps.Ramdisk_16k != nil {
-		ctx.AddDependency(ctx.Module(), ramdisk16kDepTag, *a.deviceProps.Ramdisk_16k)
 	}
 	if a.deviceProps.Android_info != nil {
 		ctx.AddDependency(ctx.Module(), androidInfoDepTag, *a.deviceProps.Android_info)
@@ -923,11 +918,6 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		pvbmfwAvbkey := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Avbkey))
 		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(pvbmfwAvbkey).Textf(" %s/PREBUILT_IMAGES/pvmfw_embedded.avbpubkey", targetFilesDir.String())
 	}
-	if a.deviceProps.Ramdisk_16k != nil {
-		ramdisk16k := ctx.GetDirectDepProxyWithTag(proptools.String(a.deviceProps.Ramdisk_16k), ramdisk16kDepTag)
-		info := android.OtherModuleProviderOrDefault(ctx, ramdisk16k, FilesystemProvider)
-		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(info.Output).Textf(" %s/PREBUILT_IMAGES/ramdisk_16k.img", targetFilesDir.String())
-	}
 
 	// Force copy build.prop for system partition even there's no system partition for this product to reflect the logic in make.
 	if _, exist := a.getFsInfos(ctx)["system"]; !exist {
@@ -1026,36 +1016,42 @@ func (a *androidDevice) copyPrebuiltImages(ctx android.ModuleContext, builder *a
 // partial implementation of vendor ramdisk fragments in target_files.zip
 func (a *androidDevice) copyVendorRamdiskFragments(ctx android.ModuleContext, builder *android.RuleBuilder, targetFilesDir android.Path) {
 	var vendorRamdiskFragments []string
-	// TODO (b/428047677): Re-implement 16k as a vendor ramdisk fragment.
-	// TODO (b/435530838): Verify vendor_boot.img in $ANDROID_PRODUCT_OUT is bit-identical.
-	if a.deviceProps.Ramdisk_16k != nil {
-		vendorRamdiskFragments = append(vendorRamdiskFragments, "16K")
-		ramdisk16k := ctx.GetDirectDepProxyWithTag(proptools.String(a.deviceProps.Ramdisk_16k), ramdisk16kDepTag)
-		info := android.OtherModuleProviderOrDefault(ctx, ramdisk16k, FilesystemProvider)
-		builder.Command().
-			Textf("mkdir -p %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/16K/", targetFilesDir.String()).
-			Text(" && cp").
-			Input(info.Output).
-			Textf(" %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/16K/prebuilt_ramdisk", targetFilesDir.String())
-
-		builder.Command().
-			Textf("echo --ramdisk_name 16K > %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/16K/mkbootimg_args", targetFilesDir)
-	}
 	if a.partitionProps.Vendor_boot_partition_name != nil {
 		vendorBootPartition := ctx.GetDirectDepProxyWithTag(*a.partitionProps.Vendor_boot_partition_name, filesystemDepTag)
 		if info, ok := android.OtherModuleProvider(ctx, vendorBootPartition, ramdiskFragmentsInfoProvider); ok {
 			for _, fragmentInfo := range info {
 				vendorRamdiskFragments = append(vendorRamdiskFragments, fragmentInfo.Ramdisk_name)
 				// Copy the files to VENDOR_BOOT/RAMDISK_FRAGMENTS
-				builder.Command().
-					Textf("mkdir -p %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/RAMDISK && ", targetFilesDir, fragmentInfo.Ramdisk_name).
-					BuiltTool("acp").
-					Textf("-rd %s/. %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/RAMDISK", fragmentInfo.RootDir.String(), targetFilesDir, fragmentInfo.Ramdisk_name).
-					Implicit(fragmentInfo.Output) // so that the staging dir is built
+				if fragmentInfo.RootDir == nil {
+					// Copy to prebuilt ramdisk. This is used by 16K ramdisk fragment
+					builder.Command().
+						Textf("mkdir -p %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/", targetFilesDir.String(), fragmentInfo.Ramdisk_name).
+						Text(" && cp").
+						Input(fragmentInfo.Output).
+						Textf(" %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/prebuilt_ramdisk", targetFilesDir.String(), fragmentInfo.Ramdisk_name)
+				} else {
+					builder.Command().
+						Textf("mkdir -p %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/RAMDISK && ", targetFilesDir, fragmentInfo.Ramdisk_name).
+						BuiltTool("acp").
+						Textf("-rd %s/. %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/RAMDISK", fragmentInfo.RootDir.String(), targetFilesDir, fragmentInfo.Ramdisk_name).
+						Implicit(fragmentInfo.Output) // so that the staging dir is built
+				}
+				// Special-case 16K handling
+				// 1. Copy the filesytem to PREBUILT_IMAGES/ramdisk_16k.img
+				// 2. Skip --ramdisk_type, as this is not recognized by mkbootfs
+				extraMkbootimgArgs := ""
+				if fragmentInfo.Ramdisk_name == "16K" {
+					builder.Command().
+						Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).
+						Input(fragmentInfo.Output).
+						Textf(" %s/PREBUILT_IMAGES/ramdisk_16k.img", targetFilesDir.String())
+				} else {
+					extraMkbootimgArgs = fmt.Sprintf("--ramdisk_type %s ", fragmentInfo.Ramdisk_name)
+				}
 				// Create a file for mkbootimg
 				builder.Command().Textf(
-					"echo \"--ramdisk_type %s --ramdisk_name %s\" > %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/mkbootimg_args",
-					strings.ToUpper(fragmentInfo.Ramdisk_name),
+					"echo \"%s--ramdisk_name %s\" > %s/VENDOR_BOOT/RAMDISK_FRAGMENTS/%s/mkbootimg_args",
+					extraMkbootimgArgs,
 					fragmentInfo.Ramdisk_name,
 					targetFilesDir,
 					fragmentInfo.Ramdisk_name,
