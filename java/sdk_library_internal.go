@@ -729,8 +729,6 @@ type sdkLibraryXml struct {
 	outputFilePath android.OutputPath
 	installDirPath android.InstallPath
 
-	hideApexVariantFromMake bool
-
 	usesLibrary
 }
 
@@ -948,7 +946,9 @@ func (module *sdkLibraryXml) permissionsContents(ctx android.ModuleContext) stri
 
 func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
-	module.hideApexVariantFromMake = !apexInfo.IsForPlatform()
+	if !apexInfo.IsForPlatform() {
+		module.HideFromMake()
+	}
 
 	libName := proptools.String(module.properties.Lib_name)
 	module.selfValidate(ctx)
@@ -966,12 +966,6 @@ func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleConte
 }
 
 func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
-	if module.hideApexVariantFromMake {
-		return []android.AndroidMkEntries{{
-			Disabled: true,
-		}}
-	}
-
 	return []android.AndroidMkEntries{{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(module.outputFilePath),

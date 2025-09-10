@@ -48,7 +48,6 @@ func TestLibraryHeaders(t *testing.T) {
 
 			// This duplicates the tests done in AndroidMkEntries.write. It would be
 			// better to test its output, but there are no test functions that capture that.
-			android.AssertBoolEquals(t, "AndroidMkEntries.Disabled", false, e.Disabled)
 			android.AssertBoolEquals(t, "AndroidMkEntries.OutputFile.Valid()", true, e.OutputFile.Valid())
 
 			android.AssertStringListContains(t, "LOCAL_EXPORT_CFLAGS for headers module", e.EntryMap["LOCAL_EXPORT_CFLAGS"], "-Imy_include")

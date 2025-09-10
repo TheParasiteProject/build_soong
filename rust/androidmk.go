@@ -49,10 +49,6 @@ func (mod *Module) AndroidMkSuffix() string {
 }
 
 func (mod *Module) AndroidMkEntries() []android.AndroidMkEntries {
-	if mod.Properties.HideFromMake || mod.hideApexVariantFromMake {
-		return []android.AndroidMkEntries{{Disabled: true}}
-	}
-
 	ret := android.AndroidMkEntries{
 		OutputFile: android.OptionalPathForPath(mod.UnstrippedOutputFile()),
 		Include:    "$(BUILD_SYSTEM)/soong_cc_rust_prebuilt.mk",

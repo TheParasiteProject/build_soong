@@ -983,11 +983,8 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		a.hideApexVariantFromMake = true
+		a.HideFromMake()
 	}
-	android.SetProvider(ctx, android.HideApexVariantFromMakeProvider, android.HideApexVariantFromMakeInfo{
-		HideApexVariantFromMake: a.hideApexVariantFromMake,
-	})
 
 	a.aapt.useEmbeddedNativeLibs = a.useEmbeddedNativeLibs(ctx)
 	a.aapt.useEmbeddedDex = Bool(a.appProperties.Use_embedded_dex)
@@ -1206,7 +1203,7 @@ func (a *AndroidApp) generateAndroidBuildActions(ctx android.ModuleContext) {
 		complianceMetadataInfo.AddBuiltFiles(a.outputFile.String())
 	}
 
-	if !a.hideApexVariantFromMake && !a.IsHideFromMake() {
+	if !a.IsHideFromMake() {
 		if a.embeddedJniLibs {
 			cc.CopySymbolsAndSetSymbolsInfoProvider(ctx, &cc.SymbolInfos{
 				Symbols: a.GetJniSymbolInfos(ctx, a.installPathForJNISymbols),

@@ -38,9 +38,6 @@ func (j *javacSingleton) GenerateBuildActions(ctx android.SingletonContext) {
 			if commonInfo.SkipAndroidMkProcessing {
 				return
 			}
-			if info, ok := android.OtherModuleProvider(ctx, m, android.HideApexVariantFromMakeProvider); ok && info.HideApexVariantFromMake {
-				return
-			}
 			files := buf[:0]
 			files = append(files, javaInfo.ImplementationAndResourcesJars...)
 			files = append(files, javaInfo.ImplementationJars...)
