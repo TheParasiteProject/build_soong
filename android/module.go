@@ -2425,7 +2425,7 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 	}
 
 	if len(ctx.phonies) > 0 {
-		SetProvider(ctx, ModulePhonyProvider, ModulePhonyInfo{
+		SetProvider(ctx, ModulePhonyProvider, PhonyInfo{
 			Phonies: ctx.phonies,
 		})
 	}

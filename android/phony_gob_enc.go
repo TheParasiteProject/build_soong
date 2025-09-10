@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	ModulePhonyInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(ModulePhonyInfo) })
+	PhonyInfoGobRegId = gobtools.RegisterType(func() gobtools.CustomDec { return new(PhonyInfo) })
 }
 
-func (r ModulePhonyInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
+func (r PhonyInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 	var err error
 
 	if r.Phonies == nil {
@@ -45,7 +45,7 @@ func (r ModulePhonyInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) erro
 	return err
 }
 
-func (r *ModulePhonyInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
+func (r *PhonyInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
 	var val1 int32
@@ -86,8 +86,8 @@ func (r *ModulePhonyInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) err
 	return err
 }
 
-var ModulePhonyInfoGobRegId int16
+var PhonyInfoGobRegId int16
 
-func (r ModulePhonyInfo) GetTypeId() int16 {
-	return ModulePhonyInfoGobRegId
+func (r PhonyInfo) GetTypeId() int16 {
+	return PhonyInfoGobRegId
 }
