@@ -285,6 +285,9 @@ type FilesystemProperties struct {
 	// Name of android_prebuilt_system_module. This is only for experiment as of now and must not be
 	// used for any release.
 	Prebuilt_module_name *string
+
+	// Whether to run the host_init_verifier check for this module. Defaults to true.
+	Enable_host_init_verifier_check *bool
 }
 
 type AndroidFilesystemDeps struct {
@@ -411,6 +414,10 @@ func (f *filesystem) setDevNodesDescriptionProp() {
 	}
 }
 
+func (f *filesystem) RunHostInitVerifierCheck() bool {
+	return proptools.BoolDefault(f.properties.Enable_host_init_verifier_check, true)
+}
+
 func (f *filesystem) addDepsDepTag() blueprint.DependencyTag {
 	if proptools.Bool(f.properties.Is_auto_generated) {
 		return dependencyTagWithVisibilityEnforcementBypass
@@ -439,6 +446,7 @@ func (f *filesystem) DepsMutator(ctx android.BottomUpMutatorContext) {
 	if f.properties.Prebuilt_module_name != nil {
 		ctx.AddDependency(ctx.Module(), android.PrebuiltDepTag, proptools.String(f.properties.Prebuilt_module_name))
 	}
+
 }
 
 type fsType int
@@ -1282,13 +1290,16 @@ func (f *filesystem) buildImageUsingBuildImage(
 	ctx android.ModuleContext,
 	builder *android.RuleBuilder,
 	params buildImageParams) {
-	// run host_init_verifier
-	// Ideally we should have a concept of pluggable linters that verify the generated image.
-	// While such concept is not implement this will do.
-	// TODO(b/263574231): substitute with pluggable linter.
-	builder.Command().
-		BuiltTool("host_init_verifier").
-		FlagWithArg("--out_system=", params.rootDir.String()+"/system")
+
+	if f.RunHostInitVerifierCheck() {
+		// run host_init_verifier
+		// Ideally we should have a concept of pluggable linters that verify the generated image.
+		// While such concept is not implement this will do.
+		// TODO(b/263574231): substitute with pluggable linter.
+		builder.Command().
+			BuiltTool("host_init_verifier").
+			FlagWithArg("--out_system=", params.rootDir.String())
+	}
 
 	// Most of the time, if build_image were to call a host tool, it accepts the path to the
 	// host tool in a field in the prop file. However, it doesn't have that option for fec, which
