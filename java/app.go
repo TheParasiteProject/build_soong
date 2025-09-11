@@ -537,7 +537,7 @@ func (a *AndroidApp) checkAppSdkVersions(ctx android.ModuleContext) {
 		if !a.SdkVersion(ctx).Stable() {
 			ctx.PropertyErrorf("sdk_version", "Updatable apps must use stable SDKs, found %v", a.SdkVersion(ctx))
 		}
-		if String(a.overridableProperties.Min_sdk_version) == "" {
+		if a.overridableProperties.Min_sdk_version.GetOrDefault(ctx, "") == "" {
 			ctx.PropertyErrorf("updatable", "updatable apps must set min_sdk_version.")
 		}
 

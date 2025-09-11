@@ -83,7 +83,7 @@ type RuntimeResourceOverlayProperties struct {
 
 	// if not blank, set the minimum version of the sdk that the compiled artifacts will run against.
 	// Defaults to sdk_version if not set.
-	Min_sdk_version *string
+	Min_sdk_version proptools.Configurable[string] `android:"replace_instead_of_append"`
 
 	// list of android_library modules whose resources are extracted and linked against statically
 	Static_libs proptools.Configurable[[]string]
@@ -232,8 +232,9 @@ func (r *RuntimeResourceOverlay) SystemModules() string {
 }
 
 func (r *RuntimeResourceOverlay) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
-	if r.properties.Min_sdk_version != nil {
-		return android.ApiLevelFrom(ctx, *r.properties.Min_sdk_version)
+	minSdkVersion := r.properties.Min_sdk_version.Get(r.ConfigurableEvaluator(ctx))
+	if minSdkVersion.IsPresent() {
+		return android.ApiLevelFrom(ctx, minSdkVersion.Get())
 	}
 	return r.SdkVersion(ctx).ApiLevel
 }
