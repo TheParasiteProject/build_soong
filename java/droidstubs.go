@@ -821,6 +821,9 @@ func metalavaCmd(ctx android.ModuleContext, rule *android.RuleBuilder, srcs andr
 
 	addOptionalApiSurfaceToCmd(cmd, apiSurface)
 
+	// Support using @android.annotation.Hide instead of @hide
+	cmd.Flag("--hide-annotation").Flag("android.annotation.Hide")
+
 	return cmd
 }
 

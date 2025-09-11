@@ -415,7 +415,6 @@ var (
 		sdkVersion:    "system_server_current",
 		annotation:    "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.SYSTEM_SERVER)",
 		extraArgs: []string{
-			"--hide-annotation", "android.annotation.Hide",
 			// com.android.* classes are okay in this interface"
 			"--hide", "InternalClasses",
 		},
@@ -1539,7 +1538,7 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	sdkLibInfo := module.generateCommonBuildActions(ctx)
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		module.hideApexVariantFromMake = true
+		module.HideFromMake()
 	}
 
 	if module.implLibraryInfo != nil {
@@ -1622,6 +1621,8 @@ func (module *SdkLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	if module.requiresRuntimeImplementationLibrary() && module.implLibraryInfo != nil {
 		generatingLibs = append(generatingLibs, module.implLibraryModuleName())
 		setOutputFilesFromJavaInfo(ctx, module.implLibraryInfo)
+	} else {
+		module.HideFromMake()
 	}
 
 	javaInfo := &JavaInfo{
@@ -1688,15 +1689,18 @@ func (module *SdkLibrary) ApexSystemServerDexJars() android.Paths {
 }
 
 func (module *SdkLibrary) AndroidMkEntries() []android.AndroidMkEntries {
-	if !module.requiresRuntimeImplementationLibrary() {
-		return nil
+	entriesList := module.Library.androidMkEntries()
+
+	if len(entriesList) > 0 {
+		entries := &entriesList[0]
+		entries.Required = append(entries.Required, module.implLibraryModuleName())
+		if module.sharedLibrary() {
+			entries.Required = append(entries.Required, module.xmlPermissionsModuleName())
+		}
 	}
-	entriesList := module.Library.AndroidMkEntries()
-	entries := &entriesList[0]
-	entries.Required = append(entries.Required, module.implLibraryModuleName())
-	if module.sharedLibrary() {
-		entries.Required = append(entries.Required, module.xmlPermissionsModuleName())
-	}
+
+	entriesList = append(entriesList, module.AndroidMkEntriesHostDex()...)
+
 	return entriesList
 }
 

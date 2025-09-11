@@ -9557,7 +9557,8 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 			for _, otherApexEnabled := range test.otherApexEnabled {
 				t.Run("otherapex_enabled_"+otherApexEnabled, func(t *testing.T) {
 					t.Parallel()
-					ctx := testApex(t, fmt.Sprintf(bpBase, otherApexEnabled)+test.stublibBp)
+					ctx := testApex(t, fmt.Sprintf(bpBase, otherApexEnabled)+test.stublibBp,
+						android.PrepareForTestWithAndroidMk)
 
 					type modAndMkEntries struct {
 						mod       *cc.Module
@@ -9579,9 +9580,6 @@ func TestPrebuiltStubLibDep(t *testing.T) {
 							ents := []android.AndroidMkInfo{info.PrimaryInfo}
 							ents = append(ents, info.ExtraInfo...)
 							for _, ent := range ents {
-								if ent.Disabled {
-									continue
-								}
 								entries = append(entries, &modAndMkEntries{
 									mod:       mod,
 									mkEntries: ent,

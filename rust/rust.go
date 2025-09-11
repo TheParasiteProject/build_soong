@@ -251,8 +251,6 @@ type Module struct {
 
 	docTimestampFile android.OptionalPath
 
-	hideApexVariantFromMake bool
-
 	// For apex variants, this is set as apex.min_sdk_version
 	apexSdkVersion android.ApiLevel
 
@@ -273,6 +271,7 @@ func (mod *Module) SetPreventInstall() {
 
 func (mod *Module) SetHideFromMake() {
 	mod.Properties.HideFromMake = true
+	mod.ModuleBase.HideFromMake()
 }
 
 func (mod *Module) HiddenFromMake() bool {
@@ -1089,7 +1088,7 @@ func (mod *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
 
 	apexInfo, _ := android.ModuleProvider(actx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		mod.hideApexVariantFromMake = true
+		mod.SetHideFromMake()
 	}
 
 	toolchain := mod.toolchain(ctx)
@@ -1347,7 +1346,7 @@ func (mod *Module) getSymbolInfo(ctx android.ModuleContext, t any, info *cc.Symb
 }
 
 func (mod *Module) setSymbolsInfoProvider(ctx android.ModuleContext) {
-	if !mod.Properties.HideFromMake && !mod.hideApexVariantFromMake {
+	if !mod.Properties.HideFromMake {
 		infos := &cc.SymbolInfos{}
 		if mod.compiler != nil && !mod.compiler.Disabled() {
 			infos.AppendSymbols(mod.getSymbolInfo(ctx, mod.compiler, mod.baseSymbolInfo(ctx)))

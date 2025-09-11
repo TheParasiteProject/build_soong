@@ -1184,7 +1184,7 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		j.hideApexVariantFromMake = true
+		j.HideFromMake()
 	}
 
 	j.checkSdkVersions(ctx)
@@ -1254,6 +1254,18 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 			ClassesJar:         j.implementationAndResourcesJar,
 		})
 	}
+
+	if ctx.Os() == android.Windows {
+		// Make does not support Windows Java modules
+		j.HideFromMake()
+	} else if !j.ApexModuleBase.AvailableFor(android.AvailableToPlatform) && !j.hostDexNeeded() {
+		// Platform variant.  If not available for the platform, we don't need Make module, unless
+		// hostdex is enabled, in which case only the hostdex variant is visible to make.
+		j.HideFromMake()
+	} else if proptools.Bool(j.properties.Headers_only) {
+		// If generating headers only then don't expose to Make.
+		j.HideFromMake()
+	}
 }
 
 func (j *Library) javaLibraryModuleInfoJSON(ctx android.ModuleContext) *android.ModuleInfoJSON {
@@ -1275,9 +1287,6 @@ func (j *Library) javaLibraryModuleInfoJSON(ctx android.ModuleContext) *android.
 		hostDexModuleInfoJSON.SupportedVariantsOverride = []string{"HOST"}
 	}
 
-	if j.hideApexVariantFromMake {
-		moduleInfoJSON.Disabled = true
-	}
 	return moduleInfoJSON
 }
 
@@ -3085,8 +3094,6 @@ type Import struct {
 
 	kSnapshotFiles map[string]android.Path
 
-	hideApexVariantFromMake bool
-
 	sdkVersion    android.SdkSpec
 	minSdkVersion android.ApiLevel
 
@@ -3167,7 +3174,7 @@ func (j *Import) commonBuildActions(ctx android.ModuleContext) {
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		j.hideApexVariantFromMake = true
+		j.HideFromMake()
 	}
 
 	if ctx.Windows() {
@@ -3624,8 +3631,6 @@ type DexImport struct {
 	dexJarFile OptionalDexJarPath
 
 	dexpreopter
-
-	hideApexVariantFromMake bool
 }
 
 func (j *DexImport) Prebuilt() *android.Prebuilt {
@@ -3655,7 +3660,7 @@ func (j *DexImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
 	if !apexInfo.IsForPlatform() {
-		j.hideApexVariantFromMake = true
+		j.HideFromMake()
 	}
 
 	j.dexpreopter.installPath = j.dexpreopter.getInstallPath(

@@ -592,8 +592,6 @@ type Module struct {
 	kytheFiles       android.Paths
 	kytheKotlinFiles android.Paths
 
-	hideApexVariantFromMake bool
-
 	sdkVersion    android.SdkSpec
 	minSdkVersion android.ApiLevel
 	maxSdkVersion android.ApiLevel

@@ -1053,7 +1053,9 @@ func (a *AndroidLibrary) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	maps.Copy(a.kSnapshotFiles, a.aapt.kSnapshotFiles)
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
-	a.hideApexVariantFromMake = !apexInfo.IsForPlatform()
+	if !apexInfo.IsForPlatform() {
+		a.HideFromMake()
+	}
 
 	a.stem = proptools.StringDefault(a.overridableProperties.Stem, ctx.ModuleName())
 
@@ -1247,8 +1249,6 @@ type AARImport struct {
 	resourcesNodesDepSet depset.DepSet[*resourcesNode]
 	manifestsDepSet      depset.DepSet[android.Path]
 
-	hideApexVariantFromMake bool
-
 	aarPath     android.Path
 	jniPackages android.Paths
 
@@ -1382,7 +1382,9 @@ func (a *AARImport) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	a.minSdkVersion = a.MinSdkVersion(ctx)
 
 	apexInfo, _ := android.ModuleProvider(ctx, android.ApexInfoProvider)
-	a.hideApexVariantFromMake = !apexInfo.IsForPlatform()
+	if !apexInfo.IsForPlatform() {
+		a.HideFromMake()
+	}
 
 	aarName := ctx.ModuleName() + ".aar"
 	a.aarPath = android.PathForModuleSrc(ctx, a.properties.Aars[0])

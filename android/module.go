@@ -2524,9 +2524,11 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			HostToolPath: h.HostToolPath()})
 	}
 
-	if p, ok := m.module.(AndroidMkProviderInfoProducer); ok && !commonData.SkipAndroidMkProcessing {
-		if info := p.PrepareAndroidMKProviderInfo(ctx.Config()); info != nil {
-			SetProvider(ctx, AndroidMkInfoProvider, info)
+	if ctx.Config().KatiEnabled() {
+		if p, ok := m.module.(AndroidMkProviderInfoProducer); ok && !commonData.SkipAndroidMkProcessing {
+			if info := p.PrepareAndroidMKProviderInfo(ctx.Config()); info != nil {
+				SetProvider(ctx, AndroidMkInfoProvider, info)
+			}
 		}
 	}
 
@@ -3560,9 +3562,3 @@ func CheckBlueprintSyntax(ctx BaseModuleContext, filename string, contents strin
 	bpctx := ctx.blueprintBaseModuleContext()
 	return blueprint.CheckBlueprintSyntax(bpctx.ModuleFactories(), filename, contents)
 }
-
-type HideApexVariantFromMakeInfo struct {
-	HideApexVariantFromMake bool
-}
-
-var HideApexVariantFromMakeProvider = blueprint.NewProvider[HideApexVariantFromMakeInfo]()
