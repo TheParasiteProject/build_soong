@@ -282,10 +282,6 @@ var (
 		// Disable some warnings to unblock compiler upgrades. All of the flags below
 		// should eventually be removed or moved to other sections.
 
-		// http://b/161386391 adding -Werror=pointer-to-int-cast, which
-		// also controls -Wvoid-pointer-to-int-cast, -Wpointer-to-enum-cast
-		// and -Wvoid-pointer-to-enum-cast
-		"-Wno-pointer-to-int-cast",
 		// Disabled because it produces many false positives. http://b/323050926
 		"-Wno-missing-field-initializers",
 		// http://b/323050889
@@ -384,6 +380,11 @@ var (
 		"-Wno-array-parameter",
 		"-Wno-gnu-offsetof-extensions",
 		"-Wno-pessimizing-move",
+
+		// http://b/161386391 adding -Werror=pointer-to-int-cast, which
+		// also controls -Wvoid-pointer-to-int-cast, -Wpointer-to-enum-cast
+		// and -Wvoid-pointer-to-enum-cast
+		"-Wno-pointer-to-int-cast",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
