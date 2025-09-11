@@ -90,6 +90,17 @@ func (s StubsType) String() string {
 	}
 }
 
+func (s StubsType) OutputTagPrefix() string {
+	switch s {
+	case Everything:
+		return ""
+	case Exportable:
+		return ".exportable"
+	default:
+		panic("Unsupported StubsType for OutputTagPrefix")
+	}
+}
+
 func StringToStubsType(s string) StubsType {
 	switch strings.ToLower(s) {
 	case Everything.String():
@@ -258,10 +269,6 @@ type ApiStubsProvider interface {
 	RemovedApiFilePath(StubsType) (android.Path, error)
 
 	ApiStubsSrcProvider
-}
-
-type currentApiTimestampProvider interface {
-	CurrentApiTimestamp() android.Path
 }
 
 type annotationFlagsParams struct {
@@ -1507,28 +1514,24 @@ func setDroidInfo(ctx android.ModuleContext, d *Droidstubs, info *StubsInfo, typ
 // xml file. For unsupported combinations, the default everything output file
 // is returned.
 func (d *Droidstubs) setOutputFiles(ctx android.ModuleContext) {
-	tagToOutputFileFunc := map[string]func(StubsType) (android.Path, error){
-		"":                     d.StubsSrcJar,
-		".docs.zip":            d.DocZip,
-		".api.txt":             d.ApiFilePath,
-		android.DefaultDistTag: d.ApiFilePath,
-		".removed-api.txt":     d.RemovedApiFilePath,
-		".annotations.zip":     d.AnnotationsZip,
-		".api_versions.xml":    d.ApiVersionsXmlFilePath,
-	}
-	stubsTypeToPrefix := map[StubsType]string{
-		Everything: "",
-		Exportable: ".exportable",
-	}
-	for _, tag := range android.SortedKeys(tagToOutputFileFunc) {
-		for _, stubType := range android.SortedKeys(stubsTypeToPrefix) {
-			tagWithPrefix := stubsTypeToPrefix[stubType] + tag
-			outputFile, err := tagToOutputFileFunc[tag](stubType)
-			if err == nil && outputFile != nil {
-				ctx.SetOutputFiles(android.Paths{outputFile}, tagWithPrefix)
-			}
+	addOutputFilesForStubType := func(tag string, getter func(StubsType) (android.Path, error), stubType StubsType) {
+		outputFile, err := getter(stubType)
+		if err == nil && outputFile != nil {
+			ctx.SetOutputFiles(android.Paths{outputFile}, stubType.OutputTagPrefix()+tag)
 		}
 	}
+	addOutputFiles := func(tag string, getter func(StubsType) (android.Path, error)) {
+		addOutputFilesForStubType(tag, getter, Everything)
+		addOutputFilesForStubType(tag, getter, Exportable)
+	}
+
+	addOutputFiles("", d.StubsSrcJar)
+	addOutputFiles(".docs.zip", d.DocZip)
+	addOutputFiles(".api.txt", d.ApiFilePath)
+	addOutputFiles(android.DefaultDistTag, d.ApiFilePath)
+	addOutputFiles(".removed-api.txt", d.RemovedApiFilePath)
+	addOutputFiles(".annotations.zip", d.AnnotationsZip)
+	addOutputFiles(".api_versions.xml", d.ApiVersionsXmlFilePath)
 }
 
 func (d *Droidstubs) createApiContribution(ctx android.DefaultableHookContext) {
@@ -1549,26 +1552,6 @@ func (d *Droidstubs) createApiContribution(ctx android.DefaultableHookContext) {
 
 	ctx.CreateModule(ApiContributionFactory, &props)
 }
-
-// TODO (b/262014796): Export the API contributions of CorePlatformApi
-// A map to populate the api surface of a droidstub from a substring appearing in its name
-// This map assumes that droidstubs (either checked-in or created by java_sdk_library)
-// use a strict naming convention
-var (
-	droidstubsModuleNamingToSdkKind = map[string]android.SdkKind{
-		// public is commented out since the core libraries use public in their java_sdk_library names
-		"intracore":     android.SdkIntraCore,
-		"intra.core":    android.SdkIntraCore,
-		"system_server": android.SdkSystemServer,
-		"system-server": android.SdkSystemServer,
-		"system":        android.SdkSystem,
-		"module_lib":    android.SdkModule,
-		"module-lib":    android.SdkModule,
-		"platform.api":  android.SdkCorePlatform,
-		"test":          android.SdkTest,
-		"toolchain":     android.SdkToolchain,
-	}
-)
 
 func StubsDefaultsFactory() android.Module {
 	module := &DocDefaults{}
