@@ -458,13 +458,13 @@ type JavaInfo struct {
 
 	DexpreopterInfo *DexpreopterInfo
 
-	XrefJavaFiles         android.Paths
-	XrefKotlinFiles       android.Paths
-	OverrideMinSdkVersion *string
-	CompileDex            *bool
-	SystemModules         string
-	Installable           bool
-	ApexDependencyInfo    *ApexDependencyInfo
+	XrefJavaFiles            android.Paths
+	XrefKotlinFiles          android.Paths
+	HasOverrideMinSdkVersion bool
+	CompileDex               *bool
+	SystemModules            string
+	Installable              bool
+	ApexDependencyInfo       *ApexDependencyInfo
 
 	MaxSdkVersion android.ApiLevel
 }
@@ -1156,7 +1156,8 @@ func (j *Library) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 
 	// Check min_sdk_version of the transitive dependencies if this module is created from
 	// java_sdk_library.
-	if j.overridableProperties.Min_sdk_version != nil && j.SdkLibraryName() != nil {
+	overridableMinSdkVersion := j.overridableProperties.Min_sdk_version.Get(ctx)
+	if overridableMinSdkVersion.IsPresent() && j.SdkLibraryName() != nil {
 		j.CheckDepsMinSdkVersion(ctx)
 	}
 
@@ -1478,7 +1479,7 @@ func (p *librarySdkMemberProperties) PopulateFromVariant(ctx android.SdkMemberCo
 
 	// If the min_sdk_version was set then add the canonical representation of the API level to the
 	// snapshot.
-	if javaInfo.OverrideMinSdkVersion != nil {
+	if javaInfo.HasOverrideMinSdkVersion {
 		canonical, err := android.ReplaceFinalizedCodenames(mctx.Config(), commonInfo.MinSdkVersion.ApiLevel.String())
 		if err != nil {
 			ctx.ModuleErrorf("%s", err)
@@ -3018,7 +3019,7 @@ type ImportProperties struct {
 
 	// The minimum version of the SDK that this module supports. Defaults to sdk_version if not
 	// specified.
-	Min_sdk_version *string
+	Min_sdk_version proptools.Configurable[string] `android:"replace_instead_of_append"`
 
 	// The max sdk version placeholder used to replace maxSdkVersion attributes on permission
 	// and uses-permission tags in manifest_fixer.
@@ -3115,8 +3116,9 @@ func (j *Import) SystemModules() string {
 }
 
 func (j *Import) MinSdkVersion(ctx android.MinSdkVersionFromValueContext) android.ApiLevel {
-	if j.properties.Min_sdk_version != nil {
-		return android.ApiLevelFrom(ctx, *j.properties.Min_sdk_version)
+	minSdkVersion := j.properties.Min_sdk_version.Get(j.ConfigurableEvaluator(ctx))
+	if minSdkVersion.IsPresent() {
+		return android.ApiLevelFrom(ctx, minSdkVersion.Get())
 	}
 	return j.SdkVersion(ctx).ApiLevel
 }
