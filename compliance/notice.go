@@ -77,6 +77,7 @@ func (nx *NoticeXmlModule) UseGenericConfig() bool {
 func (nx *NoticeXmlModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 	// No build action needs to be done in notice_xml module type if notice xml generation is disabled
 	if ctx.Config().DisableNoticeXmlGeneration() {
+		nx.HideFromMake()
 		return
 	}
 
