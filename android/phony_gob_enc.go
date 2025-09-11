@@ -48,34 +48,34 @@ func (r PhonyInfo) Encode(ctx gobtools.EncContext, buf *bytes.Buffer) error {
 func (r *PhonyInfo) Decode(ctx gobtools.EncContext, buf *bytes.Reader) error {
 	var err error
 
-	var val1 int32
-	err = gobtools.DecodeSimple[int32](buf, &val1)
+	var val2 int32
+	err = gobtools.DecodeSimple[int32](buf, &val2)
 	if err != nil {
 		return err
 	}
-	if val1 != -1 {
-		r.Phonies = make(map[string]Paths, val1)
-		for val2 := 0; val2 < int(val1); val2++ {
+	if val2 != -1 {
+		r.Phonies = make(map[string]Paths, val2)
+		for val3 := 0; val3 < int(val2); val3++ {
 			var k string
 			var v Paths
 			err = gobtools.DecodeString(buf, &k)
 			if err != nil {
 				return err
 			}
-			var val6 int32
-			err = gobtools.DecodeSimple[int32](buf, &val6)
+			var val7 int32
+			err = gobtools.DecodeSimple[int32](buf, &val7)
 			if err != nil {
 				return err
 			}
-			if val6 != -1 {
-				v = make([]Path, val6)
-				for val7 := 0; val7 < int(val6); val7++ {
-					if val9, err := gobtools.DecodeInterface(ctx, buf); err != nil {
+			if val7 != -1 {
+				v = make([]Path, val7)
+				for val8 := 0; val8 < int(val7); val8++ {
+					if val10, err := gobtools.DecodeInterface(ctx, buf); err != nil {
 						return err
-					} else if val9 == nil {
-						v[val7] = nil
+					} else if val10 == nil {
+						v[val8] = nil
 					} else {
-						v[val7] = val9.(Path)
+						v[val8] = val10.(Path)
 					}
 				}
 			}
