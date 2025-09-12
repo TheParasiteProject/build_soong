@@ -162,7 +162,7 @@ func (t *testSuiteFiles) GenerateBuildActions(ctx android.SingletonContext) {
 	for _, testSuite := range android.SortedKeys(testSuiteModules) {
 		testSuiteSymbolsZipFile := android.PathForHostInstall(ctx, fmt.Sprintf("%s-symbols.zip", testSuite))
 		testSuiteMergedMappingProtoFile := android.PathForHostInstall(ctx, fmt.Sprintf("%s-symbols-mapping.textproto", testSuite))
-		android.BuildSymbolsZip(ctx, testSuiteModules[testSuite], testSuiteSymbolsZipFile, testSuiteMergedMappingProtoFile)
+		android.BuildSymbolsZip(ctx, testSuiteModules[testSuite], nil, testSuiteSymbolsZipFile, testSuiteMergedMappingProtoFile)
 
 		ctx.DistForGoalWithFilenameTag(testSuite, testSuiteSymbolsZipFile, testSuiteSymbolsZipFile.Base())
 		ctx.DistForGoalWithFilenameTag(testSuite, testSuiteMergedMappingProtoFile, testSuiteMergedMappingProtoFile.Base())

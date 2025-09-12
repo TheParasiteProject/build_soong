@@ -232,7 +232,7 @@ func createOutput(ctx android.ModuleContext, pctx android.PackageContext) androi
 func createSymbolsZip(ctx android.ModuleContext, allModules []android.ModuleProxy) {
 	symbolsZipFile := android.PathForModuleOut(ctx, "symbols.zip")
 	symbolsMappingFile := android.PathForModuleOut(ctx, "symbols-mapping.textproto")
-	android.BuildSymbolsZip(ctx, allModules, symbolsZipFile, symbolsMappingFile)
+	android.BuildSymbolsZip(ctx, allModules, nil, symbolsZipFile, symbolsMappingFile)
 
 	ctx.SetOutputFiles(android.Paths{symbolsZipFile}, ".symbols")
 	ctx.SetOutputFiles(android.Paths{symbolsMappingFile}, ".elf_mapping")
