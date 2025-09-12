@@ -242,7 +242,7 @@ func (s *artifactPathRequirementsVerifierSingleton) GenerateBuildActions(ctx and
 		for _, makefile := range android.SortedKeys(externalOffendingFcms) {
 			sort.Strings(externalOffendingFcms[makefile])
 			errMsg := fmt.Sprintf("Device makefile has DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE that adds the FCM files to the 'system' partition, which is against %s's artifact path requirement.\n", makefile)
-			errMsg += "Please define a vintf_compatibility_matrix module for each FCM file in a different partition. Then add each of these vintf_compatibility_matrix modules to PRODUCT_PACKAGES."
+			errMsg += "Please define a vintf_compatibility_matrix module in Android.bp for each FCM file with 'system_ext_specific: true' or the other partition that implements the feature. Then add each of these vintf_compatibility_matrix modules to PRODUCT_PACKAGES."
 			printListAndError(ctx, externalOffendingFcms[makefile], errMsg)
 		}
 		if enforcement != "relaxed" {
