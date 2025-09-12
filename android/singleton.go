@@ -167,7 +167,10 @@ type singletonAdaptor struct {
 var _ testBuildProvider = (*singletonAdaptor)(nil)
 
 func (s *singletonAdaptor) GenerateBuildActions(ctx blueprint.SingletonContext) {
-	sctx := &singletonContextAdaptor{SingletonContext: ctx}
+	sctx := &singletonContextAdaptor{
+		SingletonContext: ctx,
+		phonies:          make(phonyMap),
+	}
 	if sctx.Config().captureBuild {
 		sctx.ruleParams = make(map[blueprint.Rule]blueprint.RuleParams)
 	}
@@ -182,6 +185,10 @@ func (s *singletonAdaptor) GenerateBuildActions(ctx blueprint.SingletonContext) 
 		dists.lock.Lock()
 		defer dists.lock.Unlock()
 		dists.dists = append(dists.dists, sctx.dists...)
+	}
+
+	if len(sctx.phonies) > 0 {
+		SetSingletonProvider(sctx, SingletonPhonyProvider, PhonyInfo{sctx.phonies})
 	}
 }
 
@@ -216,6 +223,7 @@ type singletonContextAdaptor struct {
 	buildParams []BuildParams
 	ruleParams  map[blueprint.Rule]blueprint.RuleParams
 	dists       []dist
+	phonies     phonyMap
 }
 
 func (s *singletonContextAdaptor) blueprintSingletonContext() blueprint.SingletonContext {
@@ -263,7 +271,7 @@ func (s *singletonContextAdaptor) Build(pctx PackageContext, params BuildParams)
 }
 
 func (s *singletonContextAdaptor) Phony(name string, deps ...Path) {
-	addSingletonPhony(s.Config(), name, deps...)
+	s.phonies[name] = append(s.phonies[name], deps...)
 }
 
 func (s *singletonContextAdaptor) SetOutDir(pctx PackageContext, value string) {
