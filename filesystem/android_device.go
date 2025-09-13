@@ -135,8 +135,9 @@ type DeviceProperties struct {
 }
 
 type PvmfwProperties struct {
-	Image          *string `android:"path"`
-	Binary         *string `android:"path"`
+	Image *string `android:"path"`
+	// Name of the pvmfw raw_binary module
+	Binary_name    *string
 	Avbkey         *string `android:"path"`
 	Partition_size *int64
 }
@@ -216,6 +217,10 @@ type androidInfoDepTagType struct {
 	blueprint.BaseDependencyTag
 }
 
+type pvmfwRawBinaryDepTagType struct {
+	blueprint.BaseDependencyTag
+}
+
 var superPartitionDepTag superPartitionDepTagType
 var filesystemDepTag partitionDepTagType
 var targetFilesMetadataDepTag targetFilesMetadataDepTagType
@@ -223,9 +228,10 @@ var fileContextsDepTag fileContextsDepTagType
 var bootloaderDepTag bootloaderDepTagType
 var tzswDepTag tzswDepTagType
 var dtboDepTag dtboDepTagType
-var radioDepTag dtboDepTagType
+var radioDepTag radioDepTagType
 var ramdisk16kDepTag ramdisk16kDepTagType
 var androidInfoDepTag androidInfoDepTagType
+var pvmfwRawBinaryDepTag pvmfwRawBinaryDepTagType
 
 func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	addDependencyIfDefined := func(dep *string) {
@@ -281,6 +287,9 @@ func (a *androidDevice) DepsMutator(ctx android.BottomUpMutatorContext) {
 	}
 	if a.deviceProps.Android_info != nil {
 		ctx.AddDependency(ctx.Module(), androidInfoDepTag, *a.deviceProps.Android_info)
+	}
+	if a.deviceProps.Pvmfw.Binary_name != nil {
+		ctx.AddDependency(ctx.Module(), pvmfwRawBinaryDepTag, *a.deviceProps.Pvmfw.Binary_name)
 	}
 	// Add system-build.prop even system partition is not building.
 	ctx.AddDependency(ctx.Module(), filesystemDepTag, "system-build.prop")
@@ -571,10 +580,28 @@ func (a *androidDevice) allInstalledModules(ctx android.ModuleContext, includeIn
 	return ret
 }
 
+// Returns the extra symbols and ELF mapping paths that are not included in allInstalledModules
+// but need to be included in the device-generated symbols.zip
+func (a *androidDevice) getExtraSymbols(ctx android.ModuleContext) *android.SymbolicOutputInfos {
+	var extraSymbols android.SymbolicOutputInfos
+
+	if a.deviceProps.Pvmfw.Binary_name != nil {
+		pvmfwBin := ctx.GetDirectDepProxyWithTag(*a.deviceProps.Pvmfw.Binary_name, pvmfwRawBinaryDepTag)
+		if info, ok := android.OtherModuleProvider(ctx, pvmfwBin, RawBinaryInfoProvider); ok {
+			extraSymbols = append(extraSymbols, info.SrcSymbolInfos...)
+		}
+	}
+
+	return &extraSymbols
+}
+
 func (a *androidDevice) buildSymbolsZip(ctx android.ModuleContext, allInstalledModules []android.ModuleProxy) {
 	a.symbolsZipFile = android.PathForModuleOut(ctx, "symbols.zip")
 	a.symbolsMappingFile = android.PathForModuleOut(ctx, "symbols-mapping.textproto")
-	allInstalledSymbolsPaths, allInstalledSymbolsMappingPaths := android.BuildSymbolsZip(ctx, allInstalledModules, a.symbolsZipFile, a.symbolsMappingFile)
+
+	allInstalledSymbolsPaths, allInstalledSymbolsMappingPaths := android.BuildSymbolsZip(
+		ctx, allInstalledModules, a.getExtraSymbols(ctx), a.symbolsZipFile, a.symbolsMappingFile)
+
 	if !ctx.Config().KatiEnabled() {
 		ctx.Phony("symbols-files", allInstalledSymbolsPaths...)
 		ctx.Phony("symbols-mappings", allInstalledSymbolsMappingPaths...)
@@ -910,9 +937,10 @@ func (a *androidDevice) buildTargetFilesZip(ctx android.ModuleContext, allInstal
 		pvmfwImg := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Image))
 		builder.Command().Textf("mkdir -p %s/PREBUILT_IMAGES/ && cp", targetFilesDir.String()).Input(pvmfwImg).Textf(" %s/PREBUILT_IMAGES/pvmfw.img", targetFilesDir.String())
 	}
-	if a.deviceProps.Pvmfw.Binary != nil {
-		pvmfwBin := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Binary))
-		builder.Command().Textf("mkdir -p %s/PVMFW/ && cp", targetFilesDir.String()).Input(pvmfwBin).Textf(" %s/PVMFW/pvmfw_bin", targetFilesDir.String())
+	if a.deviceProps.Pvmfw.Binary_name != nil {
+		pvmfwBin := ctx.GetDirectDepProxyWithTag(proptools.String(a.deviceProps.Pvmfw.Binary_name), pvmfwRawBinaryDepTag)
+		file := android.OutputFileForModule(ctx, pvmfwBin, "")
+		builder.Command().Textf("mkdir -p %s/PVMFW/ && cp", targetFilesDir.String()).Input(file).Textf(" %s/PVMFW/pvmfw_bin", targetFilesDir.String())
 	}
 	if a.deviceProps.Pvmfw.Avbkey != nil {
 		pvbmfwAvbkey := android.PathForModuleSrc(ctx, proptools.String(a.deviceProps.Pvmfw.Avbkey))

@@ -166,7 +166,7 @@ func (*unbundledBuilder) GenerateAndroidBuildActions(ctx android.ModuleContext) 
 	// Dist symbols.zip
 	symbolsZip := android.PathForOutput(ctx, "unbundled_singleton", targetProductPrefix+"symbols.zip")
 	symbolsMapping := android.PathForOutput(ctx, "unbundled_singleton", targetProductPrefix+"symbols-mapping.textproto")
-	android.BuildSymbolsZip(ctx, appModules, symbolsZip, symbolsMapping)
+	android.BuildSymbolsZip(ctx, appModules, nil, symbolsZip, symbolsMapping)
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsZip, symbolsZip.Base())
 	ctx.DistForGoalWithFilenameTag("apps_only", symbolsMapping, symbolsMapping.Base())
 

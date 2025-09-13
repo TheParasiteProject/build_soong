@@ -714,7 +714,7 @@ func getPvmfwProperties(ctx android.LoadHookContext) *filesystem.PvmfwProperties
 
 	return &filesystem.PvmfwProperties{
 		Image:          proptools.StringPtr(":" + image),
-		Binary:         proptools.StringPtr(":" + bin),
+		Binary_name:    proptools.StringPtr(bin),
 		Avbkey:         proptools.StringPtr(":" + avbkey),
 		Partition_size: partitionSize,
 	}

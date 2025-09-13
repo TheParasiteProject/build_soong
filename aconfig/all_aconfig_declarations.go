@@ -189,7 +189,6 @@ func (this *allAconfigDeclarationsSingleton) GenerateAndroidBuildActions(ctx and
 }
 
 func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx android.SingletonContext) {
-	phonyInfo := make(map[string]android.Paths)
 	for _, rcName := range append([]string{""}, ctx.Config().ReleaseAconfigExtraReleaseConfigs()...) {
 		// Find all of the aconfig_declarations modules
 		var packages = make(map[string]int)
@@ -236,7 +235,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 				"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
 			},
 		})
-		phonyInfo["all_aconfig_declarations"] = append(phonyInfo["all_aconfig_declarations"], this.releaseMap[rcName].intermediateBinaryProtoPath)
+		ctx.Phony("all_aconfig_declarations", this.releaseMap[rcName].intermediateBinaryProtoPath)
 
 		// Generate build action for aconfig (text proto output)
 		ctx.Build(pctx, android.BuildParams{
@@ -248,7 +247,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 				"cache_files": android.JoinPathsWithPrefix(cacheFiles, "--cache "),
 			},
 		})
-		phonyInfo["all_aconfig_declarations_textproto"] = append(phonyInfo["all_aconfig_declarations_textproto"], this.releaseMap[rcName].intermediateTextProtoPath)
+		ctx.Phony("all_aconfig_declarations_textproto", this.releaseMap[rcName].intermediateTextProtoPath)
 
 		storageFilesVersion := ctx.Config().ReleaseAconfigStorageVersion()
 		const container = "all_aconfig_declarations"
@@ -264,7 +263,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 				"version":     storageFilesVersion,
 			},
 		})
-		phonyInfo[allAconfigDeclarationsStorage] = append(phonyInfo[allAconfigDeclarationsStorage], this.releaseMap[rcName].intermediateStoragePackageMap)
+		ctx.Phony(allAconfigDeclarationsStorage, this.releaseMap[rcName].intermediateStoragePackageMap)
 
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        allDeclarationsRuleStorageFlagMap,
@@ -277,7 +276,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 				"version":     storageFilesVersion,
 			},
 		})
-		phonyInfo[allAconfigDeclarationsStorage] = append(phonyInfo[allAconfigDeclarationsStorage], this.releaseMap[rcName].intermediateStorageFlagMap)
+		ctx.Phony(allAconfigDeclarationsStorage, this.releaseMap[rcName].intermediateStorageFlagMap)
 
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        allDeclarationsRuleStorageFlagInfo,
@@ -290,7 +289,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 				"version":     storageFilesVersion,
 			},
 		})
-		phonyInfo[allAconfigDeclarationsStorage] = append(phonyInfo[allAconfigDeclarationsStorage], this.releaseMap[rcName].intermediateStorageFlagInfo)
+		ctx.Phony(allAconfigDeclarationsStorage, this.releaseMap[rcName].intermediateStorageFlagInfo)
 
 		ctx.Build(pctx, android.BuildParams{
 			Rule:        allDeclarationsRuleStorageFlagVal,
@@ -303,7 +302,7 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 				"version":     storageFilesVersion,
 			},
 		})
-		phonyInfo[allAconfigDeclarationsStorage] = append(phonyInfo[allAconfigDeclarationsStorage], this.releaseMap[rcName].intermediateStorageFlagVal)
+		ctx.Phony(allAconfigDeclarationsStorage, this.releaseMap[rcName].intermediateStorageFlagVal)
 	}
 
 	for _, rcName := range this.sortedConfigNames() {
@@ -312,8 +311,4 @@ func (this *allAconfigDeclarationsSingleton) GenerateSingletonBuildActions(ctx a
 		ctx.DistForGoalsWithFilename(aconfigFlagArtifactsDistGoals, this.releaseMap[rcName].intermediateTextProtoPath, assembleFileName(rcName, "flags.textproto"))
 	}
 	ctx.DistForGoalWithFilename("sdk", this.finalizedFlags, "finalized-flags.txt")
-
-	if len(phonyInfo) > 0 {
-		android.SetSingletonProvider(ctx, android.SingletonPhonyProvider, android.PhonyInfo{phonyInfo})
-	}
 }
