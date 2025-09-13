@@ -1517,6 +1517,8 @@ func generateFsProps(ctx android.EarlyModuleContext, partitions allGeneratedPart
 
 	}
 
+	fsProps.Enable_host_init_verifier_check = proptools.BoolPtr(false)
+
 	partitionSpecificFsProps(ctx, partitions, fsProps, partitionType)
 
 	return fsProps, true

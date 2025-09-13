@@ -55,6 +55,7 @@ func init() {
 	AddNeverAllowRules(createJavaDeviceForHostRules()...)
 	AddNeverAllowRules(createCcSdkVariantRules()...)
 	AddNeverAllowRules(createUncompressDexRules()...)
+	AddNeverAllowRules(createArtDataZipsRule())
 	AddNeverAllowRules(createInstallInRootAllowingRules()...)
 	AddNeverAllowRules(createProhibitFrameworkAccessRules()...)
 	AddNeverAllowRules(createCcStubsRule())
@@ -237,6 +238,14 @@ func createUncompressDexRules() []Rule {
 			WithMatcher("uncompress_dex", isSetMatcherInstance).
 			Because("uncompress_dex is only allowed for certain jars for test in art."),
 	}
+}
+
+func createArtDataZipsRule() Rule {
+	return NeverAllow().
+		ModuleType("test_suite_package").
+		WithMatcher("art_data_zips", isSetMatcherInstance).
+		NotIn("art").
+		Because("art_data_zips is a specialized property for ART's needs and can only be used within the art/ directory.")
 }
 
 func createInstallInRootAllowingRules() []Rule {

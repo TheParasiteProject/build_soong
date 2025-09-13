@@ -227,6 +227,11 @@ func (v *vbmeta) GenerateAndroidBuildActions(ctx android.ModuleContext) {
 		return
 	}
 
+	if v.partitionName() == "vbmeta" && ctx.Config().Eng() {
+		// https://source.corp.google.com/h/googleplex-android/platform/build/+/0cf7c289634e9aad9720cb45bb42ad0d338f7802:core/Makefile;l=5057-5060;drc=0e426f646784e2d233098f6aa0f7444070b1049f;bpv=1;bpt=0
+		cmd.Flag("--set_hashtree_disabled_flag")
+	}
+
 	for _, avb_prop := range v.properties.Avb_properties {
 		key := proptools.String(avb_prop.Key)
 		if key == "" {

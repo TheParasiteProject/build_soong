@@ -239,7 +239,13 @@ var (
 	// These flags are appended after the module's cflags, so they cannot be
 	// overridden from Android.bp files.
 	//
-	// NOTE: if you need to disable a warning to unblock a compiler upgrade
+	// NOTE: Some warnings are disabled in this section (and
+	// noOverrideExternalGlobalCflags below). If they were disabled in
+	// commonGlobalCflags (and externalCflags below), these disabled flags will
+	// be overridden when modules that opt into`-Wall`, `-Wextra` in their
+	// `cflags`.  (TODO(b/444266638) to remove and forbid these flags from Android.bp.
+	//
+	// If you need to disable a warning to unblock a compiler upgrade
 	// and it is only triggered by third party code, add it to
 	// extraExternalCflags (if possible) or noOverrideExternalGlobalCflags
 	// (if the former doesn't work). If the new warning also occurs in first
@@ -282,10 +288,6 @@ var (
 		// Disable some warnings to unblock compiler upgrades. All of the flags below
 		// should eventually be removed or moved to other sections.
 
-		// http://b/161386391 adding -Werror=pointer-to-int-cast, which
-		// also controls -Wvoid-pointer-to-int-cast, -Wpointer-to-enum-cast
-		// and -Wvoid-pointer-to-enum-cast
-		"-Wno-pointer-to-int-cast",
 		// Disabled because it produces many false positives. http://b/323050926
 		"-Wno-missing-field-initializers",
 		// http://b/323050889
@@ -361,11 +363,10 @@ var (
                 "-Wno-error=range-loop-construct", // http://b/153747076
 	}
 
-	// Similar to noOverrideGlobalCflags, but applies only to third-party code
-	// (see extraExternalCflags).
-	// This section can unblock compiler upgrades when a third party module that
-	// enables -Werror and some group of warnings explicitly triggers newly
-	// added warnings.
+	// This is similar to noOverrideGlobalCflags, but applies only to third-party
+	// code. This section can unblock compiler upgrades when a third party module
+	// that enables -Wall, -Wextra, or a particular warnings explicitly triggers
+	// newly added warnings. See note above noOverrideGlobalCflags.
 	noOverrideExternalGlobalCflags = []string{
 		// http://b/151457797
 		"-fcommon",
@@ -384,6 +385,11 @@ var (
 		"-Wno-array-parameter",
 		"-Wno-gnu-offsetof-extensions",
 		"-Wno-pessimizing-move",
+
+		// http://b/161386391 adding -Werror=pointer-to-int-cast, which
+		// also controls -Wvoid-pointer-to-int-cast, -Wpointer-to-enum-cast
+		// and -Wvoid-pointer-to-enum-cast
+		"-Wno-pointer-to-int-cast",
 	}
 
 	llvmNextExtraCommonGlobalCflags = []string{
