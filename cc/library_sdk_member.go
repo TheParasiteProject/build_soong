@@ -382,9 +382,9 @@ func addPossiblyArchSpecificProperties(sdkModuleContext android.ModuleContext, b
 			if propertyInfo.copy {
 				if propertyInfo.dirs {
 					// When copying a directory glob and copy all the headers within it.
-					// TODO(jiyong) copy headers having other suffixes
 					headers, _ := sdkModuleContext.GlobWithDeps(inputPath+"/**/*.h", nil)
-					for _, file := range headers {
+					additionalHeaders, _ := sdkModuleContext.GlobWithDeps(inputPath+"/**/*.hpp", nil)
+					for _, file := range append(headers, additionalHeaders...) {
 						src := android.PathForSource(sdkModuleContext, file)
 
 						// The destination path in the snapshot is constructed from the snapshot relative path
