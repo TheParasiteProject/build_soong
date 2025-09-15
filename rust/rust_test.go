@@ -59,12 +59,13 @@ var rustMockedFiles = android.MockFS{
 
 // testRust returns a TestContext in which a basic environment has been setup.
 // This environment contains a few mocked files. See rustMockedFiles for the list of these files.
-func testRust(t *testing.T, bp string) *android.TestContext {
+func testRust(t *testing.T, bp string, preparers ...android.FixturePreparer) *android.TestContext {
 	t.Helper()
 	skipTestIfOsNotSupported(t)
 	result := android.GroupFixturePreparers(
 		prepareForRustTest,
 		rustMockedFiles.AddToFixture(),
+		android.GroupFixturePreparers(preparers...),
 	).
 		RunTestWithBp(t, bp)
 	return result.TestContext
