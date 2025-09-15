@@ -47,14 +47,6 @@ type Module interface {
 	// For more information, see Module.GenerateBuildActions within Blueprint's module_ctx.go
 	GenerateAndroidBuildActions(ModuleContext)
 
-	// CleanupAfterBuildActions is called after ModuleBase.GenerateBuildActions is finished.
-	// If all interactions with this module are handled via providers instead of direct access
-	// to the module then it can free memory attached to the module.
-	// This is a temporary measure to reduce memory usage, eventually blueprint's reference
-	// to the Module should be dropped after GenerateAndroidBuildActions once all accesses
-	// can be done through providers.
-	CleanupAfterBuildActions()
-
 	// Add dependencies to the components of a module, i.e. modules that are created
 	// by the module and which are considered to be part of the creating module.
 	//
@@ -2524,8 +2516,10 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 			HostToolPath: h.HostToolPath()})
 	}
 
+	var hasAndroidMkProvider bool
 	if ctx.Config().KatiEnabled() {
 		if p, ok := m.module.(AndroidMkProviderInfoProducer); ok && !commonData.SkipAndroidMkProcessing {
+			hasAndroidMkProvider = true
 			if info := p.PrepareAndroidMKProviderInfo(ctx.Config()); info != nil {
 				SetProvider(ctx, AndroidMkInfoProvider, info)
 			}
@@ -2559,10 +2553,12 @@ func (m *ModuleBase) GenerateBuildActions(blueprintCtx blueprint.ModuleContext) 
 		})
 	}
 
-	m.module.CleanupAfterBuildActions()
+	if !ctx.Config().KatiEnabled() || hasAndroidMkProvider {
+		// If building in Soong-only mode or the Android.mk generation has been converted to a provider
+		// then there are no references directly to the Module and it can be freed.
+		ctx.bp.FreeModuleAfterGenerateBuildActions()
+	}
 }
-
-func (m *ModuleBase) CleanupAfterBuildActions() {}
 
 func (m *ModuleBase) setupTestSuites(ctx ModuleContext, info TestSuiteInfo) []FilePair {
 	// We skip test suites when using the ndk or aml abis, as the extra archs (x86_64 + arm64)

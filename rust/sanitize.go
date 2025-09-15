@@ -407,7 +407,7 @@ func (sanitize *sanitize) getSanitizerBoolPtr(t cc.SanitizerType) *bool {
 	}
 }
 
-func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, entries *android.AndroidMkEntries) {
+func (sanitize *sanitize) AndroidMk(ctx AndroidMkContext, entries *android.AndroidMkInfo) {
 	// Add a suffix for hwasan rlib libraries to allow surfacing both the sanitized and
 	// non-sanitized variants to make without a name conflict.
 	if entries.Class == "RLIB_LIBRARIES" || entries.Class == "STATIC_LIBRARIES" {

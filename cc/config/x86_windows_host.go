@@ -72,6 +72,10 @@ var (
 
 		"-Wl,--Xlink=-Brepro", // Enable deterministic build
 
+		// ntdll has a broken implementation of wcstombs that causes b/439152273.
+		// ucrt provides an implementation of wcstombs that is not broken,
+		// make sure to include ucrt before ntdll.
+		"-lucrt",
 		// Additional libraries required for generated static rustlibs
 		"-lssp",
 		"-ladvapi32",
@@ -124,6 +128,7 @@ var (
 		"powrprof",
 		"psapi",
 		"pthread",
+		"ucrt",
 		"userenv",
 		"uuid",
 		"version",

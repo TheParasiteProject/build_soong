@@ -212,19 +212,16 @@ func writeClasspathsTextproto(ctx android.ModuleContext, output android.Writable
 	android.WriteFileRule(ctx, output, content.String())
 }
 
-// Returns AndroidMkEntries objects to install generated classpath.proto.
+// Returns AndroidMkInfo objects to install generated classpath.proto.
 // Do not use this to install into APEXes as the injection of the generated files happen separately for APEXes.
-func (c *ClasspathFragmentBase) androidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{{
+func (c *ClasspathFragmentBase) androidMkInfo() android.AndroidMkInfo {
+	info := android.AndroidMkInfo{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(c.outputFilepath),
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_PATH", c.installDirPath.String())
-				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", c.outputFilepath.Base())
-			},
-		},
-	}}
+	}
+	info.SetString("LOCAL_MODULE_PATH", c.installDirPath.String())
+	info.SetString("LOCAL_INSTALLED_MODULE_STEM", c.outputFilepath.Base())
+	return info
 }
 
 var ClasspathFragmentProtoContentInfoProvider = blueprint.NewProvider[ClasspathFragmentProtoContentInfo]()
@@ -249,6 +246,6 @@ type ClasspathFragmentProtoContentInfo struct {
 	// use android.InstallPath#Rel().
 	//
 	// This is only relevant for APEX modules as they perform their own installation; while regular
-	// system files are installed via ClasspathFragmentBase#androidMkEntries().
+	// system files are installed via ClasspathFragmentBase#androidMkInfo().
 	ClasspathFragmentProtoInstallDir android.InstallPath
 }

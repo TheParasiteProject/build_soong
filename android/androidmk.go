@@ -1489,9 +1489,10 @@ func (a *AndroidMkInfo) fillInEntries(ctx fillInEntriesContext, mod ModuleOrProx
 	info := OtherModuleProviderOrDefault(ctx, mod, InstallFilesProvider)
 	if len(info.KatiInstalls) > 0 {
 		// Assume the primary install file is last since it probably needs to depend on any other
-		// installed files.  If that is not the case we can add a method to specify the primary
-		// installed file.
-		helperInfo.SetPath("LOCAL_SOONG_INSTALLED_MODULE", info.KatiInstalls[len(info.KatiInstalls)-1].to)
+		// installed files.  Don't override the value if it was already provided by PrepareAndroidMKProviderInfo.
+		if _, exists := a.EntryMap["LOCAL_SOONG_INSTALLED_MODULE"]; !exists {
+			helperInfo.SetPath("LOCAL_SOONG_INSTALLED_MODULE", info.KatiInstalls[len(info.KatiInstalls)-1].to)
+		}
 		helperInfo.SetString("LOCAL_SOONG_INSTALL_PAIRS", info.KatiInstalls.BuiltInstalled())
 		helperInfo.SetPaths("LOCAL_SOONG_INSTALL_SYMLINKS", info.KatiSymlinks.InstallPaths().Paths())
 	} else {

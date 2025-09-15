@@ -329,8 +329,8 @@ var (
 
 	extraTestsCflags = []string{
 		"-Wno-error=unused-but-set-variable",
-                "-Wno-unused-variable",
-                "-Wno-error=range-loop-construct", // http://b/153747076
+		"-Wno-unused-variable",
+		"-Wno-error=range-loop-construct", // http://b/153747076
 	}
 
 	// Extra cflags applied to third-party code (anything for which
@@ -359,8 +359,8 @@ var (
 		"-Wno-unused",
 		"-Wno-unused-but-set-variable",
 		"-Wno-deprecated",
-                "-Wno-tautological-constant-compare",
-                "-Wno-error=range-loop-construct", // http://b/153747076
+		"-Wno-tautological-constant-compare",
+		"-Wno-error=range-loop-construct", // http://b/153747076
 	}
 
 	// This is similar to noOverrideGlobalCflags, but applies only to third-party

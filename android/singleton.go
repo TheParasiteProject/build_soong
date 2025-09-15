@@ -165,6 +165,14 @@ type singletonAdaptor struct {
 }
 
 var _ testBuildProvider = (*singletonAdaptor)(nil)
+var _ blueprint.Singleton = (*singletonAdaptor)(nil)
+
+func (s *singletonAdaptor) IncrementalSupported() bool {
+	if im, ok := s.Singleton.(blueprint.Incremental); ok {
+		return im.IncrementalSupported()
+	}
+	return false
+}
 
 func (s *singletonAdaptor) GenerateBuildActions(ctx blueprint.SingletonContext) {
 	sctx := &singletonContextAdaptor{

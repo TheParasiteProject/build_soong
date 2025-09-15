@@ -16,7 +16,6 @@ package java
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -887,24 +886,21 @@ func (b *BootclasspathFragmentModule) produceBootImageProfileFromSource(ctx andr
 	return bootImageProfileRuleCommon(ctx, b.Name(), dexPaths, dexLocations)
 }
 
-func (b *BootclasspathFragmentModule) AndroidMkEntries() []android.AndroidMkEntries {
+func (b *BootclasspathFragmentModule) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
 	// Use the generated classpath proto as the output.
 	outputFile := b.outputFilepath
 	// Create a fake entry that will cause this to be added to the module-info.json file.
-	entriesList := []android.AndroidMkEntries{{
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
 		Class:      "FAKE",
 		OutputFile: android.OptionalPathForPath(outputFile),
 		Include:    "$(BUILD_PHONY_PACKAGE)",
-		ExtraFooters: []android.AndroidMkExtraFootersFunc{
-			func(w io.Writer, name, prefix, moduleDir string) {
-				// Allow the bootclasspath_fragment to be built by simply passing its name on the command
-				// line.
-				fmt.Fprintln(w, ".PHONY:", b.Name())
-				fmt.Fprintln(w, b.Name()+":", outputFile.String())
-			},
-		},
-	}}
-	return entriesList
+	}
+	info.PrimaryInfo.FooterStrings = append(info.PrimaryInfo.FooterStrings,
+		".PHONY: "+b.Name(),
+		b.Name()+": "+outputFile.String(),
+	)
+	return info
 }
 
 func (b *BootclasspathFragmentModule) getProfilePath() android.Path {

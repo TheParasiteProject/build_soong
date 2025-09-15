@@ -154,3 +154,7 @@ func (p phonySingleton) MakeVars(ctx MakeVarsContext) {
 func phonySingletonFactory() Singleton {
 	return &phonySingleton{}
 }
+
+func (p *phonySingleton) IncrementalSupported() bool {
+	return true
+}
