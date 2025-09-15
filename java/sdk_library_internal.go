@@ -965,18 +965,17 @@ func (module *sdkLibraryXml) GenerateAndroidBuildActions(ctx android.ModuleConte
 	etc.SetCommonPrebuiltEtcInfo(ctx, module)
 }
 
-func (module *sdkLibraryXml) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{{
+func (module *sdkLibraryXml) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(module.outputFilePath),
-		ExtraEntries: []android.AndroidMkExtraEntriesFunc{
-			func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-				entries.SetString("LOCAL_MODULE_TAGS", "optional")
-				entries.SetString("LOCAL_MODULE_PATH", module.installDirPath.String())
-				entries.SetString("LOCAL_INSTALLED_MODULE_STEM", module.outputFilePath.Base())
-			},
-		},
-	}}
+	}
+	info.PrimaryInfo.SetString("LOCAL_MODULE_TAGS", "optional")
+	info.PrimaryInfo.SetString("LOCAL_MODULE_PATH", module.installDirPath.String())
+	info.PrimaryInfo.SetString("LOCAL_INSTALLED_MODULE_STEM", module.outputFilePath.Base())
+
+	return info
 }
 
 func (module *sdkLibraryXml) selfValidate(ctx android.ModuleContext) {

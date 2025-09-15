@@ -371,19 +371,21 @@ func (r *ravenwoodTest) aaptBuildActions(ctx android.ModuleContext) {
 	}
 }
 
-func (r *ravenwoodTest) AndroidMkEntries() []android.AndroidMkEntries {
-	entriesList := r.Library.androidMkEntries()
-	entries := &entriesList[0]
-	entries.ExtraEntries = append(entries.ExtraEntries,
-		func(ctx android.AndroidMkExtraEntriesContext, entries *android.AndroidMkEntries) {
-			entries.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
-			entries.AddStrings("LOCAL_COMPATIBILITY_SUITE",
-				"general-tests", "ravenwood-tests")
-			if r.testConfig != nil {
-				entries.SetPath("LOCAL_FULL_TEST_CONFIG", r.testConfig)
-			}
-		})
-	return entriesList
+func (r *ravenwoodTest) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := r.Library.prepareAndroidMKProviderInfo(config)
+
+	if info.PrimaryInfo.OutputFile.Valid() {
+		info.PrimaryInfo.SetBool("LOCAL_UNINSTALLABLE_MODULE", true)
+		info.PrimaryInfo.AddStrings("LOCAL_COMPATIBILITY_SUITE",
+			"general-tests", "ravenwood-tests")
+		if r.testConfig != nil {
+			info.PrimaryInfo.SetPath("LOCAL_FULL_TEST_CONFIG", r.testConfig)
+		}
+	}
+
+	r.addHostDexAndroidMkInfo(info)
+
+	return info
 }
 
 type ravenwoodLibgroupProperties struct {

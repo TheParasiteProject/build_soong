@@ -16,7 +16,6 @@ package java
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"strings"
 
@@ -495,8 +494,8 @@ type dexpreoptBootJars struct {
 	dexpreoptConfigForMake android.WritablePath
 
 	// Build path to the boot framework profile.
-	// This is used as the `OutputFile` in `AndroidMkEntries`.
-	// A non-nil value ensures that this singleton module does not get skipped in AndroidMkEntries processing.
+	// This is used as the `OutputFile` in `PrepareAndroidMKProviderInfo`.
+	// A non-nil value ensures that this singleton module does not get skipped in PrepareAndroidMKProviderInfo processing.
 	bootFrameworkProfile android.WritablePath
 
 	// Install path of the unstrippped primary boot image in $ANDROID_PRODUCT_OUT/symbols.
@@ -1649,20 +1648,20 @@ func (d *dexpreoptBootJars) MakeVars(ctx android.MakeVarsContext) {
 
 // Add one of the outputs in `OutputFile`
 // This ensures that this singleton module does not get skipped when writing out/soong/Android-*.mk
-func (d *dexpreoptBootJars) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{{
+func (d *dexpreoptBootJars) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
 		Class:      "ETC",
 		OutputFile: android.OptionalPathForPath(d.bootFrameworkProfile),
-		ExtraFooters: []android.AndroidMkExtraFootersFunc{
-			func(w io.Writer, name, prefix, moduleDir string) {
-				fmt.Fprintf(w,
-					"ALL_MODULES.%s.SYMBOLIC_OUTPUT_PATH := %s",
-					d.Name(),
-					strings.Join(d.defaultBootImageSymbolInstalls.Strings(), " "),
-				)
-			},
-		},
-	}}
+	}
+	info.PrimaryInfo.FooterStrings = append(info.PrimaryInfo.FooterStrings,
+		fmt.Sprintf(
+			"ALL_MODULES.%s.SYMBOLIC_OUTPUT_PATH := %s",
+			d.Name(),
+			strings.Join(d.defaultBootImageSymbolInstalls.Strings(), " "),
+		))
+
+	return info
 }
 
 // artBootImages is a thin wrapper around `dex_bootjars`.
@@ -1734,9 +1733,11 @@ func (d *artBootImages) installFile(ctx android.ModuleContext, ruleBuilderInstal
 }
 
 // Set `OutputFile` expclitly so that this module does not get elided when generating out/soong/Android-*.mk
-func (d *artBootImages) AndroidMkEntries() []android.AndroidMkEntries {
-	return []android.AndroidMkEntries{{
+func (d *artBootImages) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = android.AndroidMkInfo{
 		Class:      "ETC",
 		OutputFile: d.outputFile,
-	}}
+	}
+	return info
 }

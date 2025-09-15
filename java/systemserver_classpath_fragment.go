@@ -62,8 +62,10 @@ func (m *platformSystemServerClasspathModule) UniqueApexVariations() bool {
 	return true
 }
 
-func (p *platformSystemServerClasspathModule) AndroidMkEntries() (entries []android.AndroidMkEntries) {
-	return p.classpathFragmentBase().androidMkEntries()
+func (p *platformSystemServerClasspathModule) PrepareAndroidMKProviderInfo(config android.Config) *android.AndroidMkProviderInfo {
+	info := &android.AndroidMkProviderInfo{}
+	info.PrimaryInfo = p.classpathFragmentBase().androidMkInfo()
+	return info
 }
 
 func (p *platformSystemServerClasspathModule) GenerateAndroidBuildActions(ctx android.ModuleContext) {
