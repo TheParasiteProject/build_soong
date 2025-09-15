@@ -339,8 +339,9 @@ func main() {
 	var configCache *ConfigCache
 	configFile := filepath.Join(topDir, ctx.Config().OutDir(), configCacheFile)
 	incremental := false
-	ctx.SetIncrementalEnabled(cmdlineArgs.IncrementalBuildActions)
-	if cmdlineArgs.IncrementalBuildActions {
+	// Tie incremental analysis to soong-only for now.
+	ctx.SetIncrementalEnabled(cmdlineArgs.IncrementalBuildActions && !cmdlineArgs.KatiEnabled)
+	if ctx.GetIncrementalEnabled() {
 		configCache, incremental = incrementalValid(ctx.Config(), configFile)
 	}
 	ctx.SetIncrementalAnalysis(incremental)
